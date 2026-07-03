@@ -16,10 +16,17 @@ const page = await (
   await browser.newContext({ viewport: { width: Number(width), height: 900 } })
 ).newPage();
 
-// The role Chip only renders on the authenticated ledger view.
-const LEDGER = '.MuiChip-root';
+// Works against both markup generations: hand-written CSS (main) and MUI.
+const LEDGER = '.MuiChip-root, .role-badge';
 await page.goto(url);
 await page.waitForSelector(`${LEDGER}, input[type=email]`, { timeout: 15000 });
+if (process.env.NO_LOGIN === '1') {
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: out, animations: 'disabled' });
+  console.log(`saved ${out} (${width}px, no login) for ${url}`);
+  await browser.close();
+  process.exit(0);
+}
 if (await page.$('input[type=email]')) {
   await page.fill('input[type=email]', email);
   await page.fill('input[type=password]', password);
