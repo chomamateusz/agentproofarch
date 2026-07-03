@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createRootRoute,
@@ -11,9 +12,17 @@ import {
 
 import { LoginPage } from './pages/LoginPage.js';
 import { TodosPage } from './pages/TodosPage.js';
-import './styles.css';
+import { ThemeModeProvider } from './theme-mode.js';
+import { ThemeSwitcher } from './ThemeSwitcher.js';
 
-const rootRoute = createRootRoute({ component: () => <Outlet /> });
+const rootRoute = createRootRoute({
+  component: () => (
+    <>
+      <ThemeSwitcher />
+      <Outlet />
+    </>
+  ),
+});
 
 const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: TodosPage });
 const loginRoute = createRoute({
@@ -37,8 +46,11 @@ if (!container) throw new Error('Missing #root element');
 
 createRoot(container).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ThemeModeProvider>
+      <CssBaseline />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ThemeModeProvider>
   </StrictMode>,
 );

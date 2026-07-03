@@ -1,4 +1,16 @@
 import { useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  FormControl,
+  FormLabel,
+  OutlinedInput,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -27,38 +39,66 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="auth-wrap">
-      <form className="auth-card" onSubmit={(event) => void submit(event)}>
-        <h1>agentproofarch</h1>
-        <p className="sub">sign in · tenant {window.location.hostname}</p>
-        <label className="field">
-          <span>email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label className="field">
-          <span>password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
-        <button type="submit" disabled={pending}>
-          {pending ? 'signing in…' : 'sign in'}
-        </button>
-        {error ? <p className="form-error">{error}</p> : null}
-        <p className="demo-hint">
-          demo account: <code>demo@agentproofarch.dev</code> / <code>demo1234</code>
-        </p>
-      </form>
-    </div>
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: '1.5rem' }}>
+      <Paper
+        variant="outlined"
+        component="form"
+        onSubmit={(event: React.FormEvent) => void submit(event)}
+        sx={{
+          width: '100%',
+          maxWidth: '23rem',
+          px: '1.8rem',
+          pt: '2rem',
+          pb: '1.6rem',
+          animation: 'settle 0.45s ease-out both',
+        }}
+      >
+        <Typography variant="h1" sx={{ fontSize: '1.6rem', letterSpacing: 'normal', mb: '0.2rem' }}>
+          agentproofarch
+        </Typography>
+        <Typography variant="overline" component="p" sx={{ fontSize: '0.78rem', mb: '1.6rem' }}>
+          sign in · tenant {window.location.hostname}
+        </Typography>
+        <Stack useFlexGap spacing="1rem">
+          <FormControl fullWidth>
+            <FormLabel htmlFor="login-email">email</FormLabel>
+            <OutlinedInput
+              id="login-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              required
+            />
+          </FormControl>
+          <FormControl fullWidth>
+            <FormLabel htmlFor="login-password">password</FormLabel>
+            <OutlinedInput
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </FormControl>
+          <Button type="submit" variant="contained" fullWidth disabled={pending} sx={{ mt: '0.4rem' }}>
+            {pending ? 'signing in…' : 'sign in'}
+          </Button>
+        </Stack>
+        {error ? <Alert sx={{ mt: '0.6rem' }}>{error}</Alert> : null}
+        <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />
+        <Typography variant="caption" component="p" sx={{ fontSize: '0.75rem', mb: '1em' }}>
+          demo account:{' '}
+          <Box component="code" sx={{ color: 'primary.dark' }}>
+            demo@agentproofarch.dev
+          </Box>{' '}
+          /{' '}
+          <Box component="code" sx={{ color: 'primary.dark' }}>
+            demo1234
+          </Box>
+        </Typography>
+      </Paper>
+    </Box>
   );
 };
