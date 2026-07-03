@@ -48,13 +48,29 @@ body {
 }
 
 .masthead {
+  border-bottom: 3px double var(--line-strong);
+  padding: 2.2rem 0 0.8rem;
+  animation: settle 0.5s ease-out both;
+}
+
+/* Two fixed rows: tenant identity on top, account line below.
+   Keeps the email and sign-out in the same place on every tenant. */
+.masthead__row {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.6rem 1rem;
-  border-bottom: 3px double var(--line-strong);
-  padding: 2.2rem 0 0.8rem;
-  animation: settle 0.5s ease-out both;
+}
+
+.masthead__row--account {
+  margin-top: 0.5rem;
+}
+
+.masthead__email {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  min-width: 0;
+  word-break: break-all;
 }
 
 .masthead__mark {

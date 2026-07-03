@@ -82,15 +82,20 @@ const TenantLedger = ({
   return (
     <div className="shell">
       <header className="masthead">
-        <span className="masthead__mark" aria-hidden />
-        <h1 className="masthead__tenant">{tenant.name}</h1>
-        <span className="masthead__meta">{window.location.hostname}</span>
-        <span className="masthead__spacer" />
-        <span className="role-badge">{tenant.role}</span>
-        <span className="masthead__meta">{email}</span>
-        <button className="linkish" onClick={() => void signOut()}>
-          sign out
-        </button>
+        <div className="masthead__row">
+          <span className="masthead__mark" aria-hidden />
+          <h1 className="masthead__tenant">{tenant.name}</h1>
+          <span className="masthead__meta">{window.location.hostname}</span>
+          <span className="masthead__spacer" />
+          <span className="role-badge">{tenant.role}</span>
+        </div>
+        <div className="masthead__row masthead__row--account">
+          <span className="masthead__meta masthead__email">{email}</span>
+          <span className="masthead__spacer" />
+          <button className="linkish" onClick={() => void signOut()}>
+            sign out
+          </button>
+        </div>
       </header>
 
       <nav className="switcher">

@@ -8,7 +8,7 @@ import boundaries from 'eslint-plugin-boundaries';
  */
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', '**/*.js', '**/*.cjs', 'drizzle/**'],
+    ignores: ['node_modules/**', 'dist/**', '**/*.js', '**/*.cjs', 'drizzle/**', 'scripts/**'],
   },
   ...tseslint.configs.strict,
   {
