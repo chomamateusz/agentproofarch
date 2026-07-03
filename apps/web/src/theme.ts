@@ -6,18 +6,21 @@ import { createTheme, type Theme } from '@mui/material/styles';
  * with their stock props/variants, plus `sx` for layout and spacing.
  * The accent hue is derived from the tenant slug, so each tenant gets
  * its own theme instance via a nested ThemeProvider.
+ *
+ * Values mirror the original hand-written stylesheet 1:1 (pixel-diffed
+ * against it); do not "round" them to Material defaults.
  */
 
 const FONT_MONO = "ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace";
 const FONT_DISPLAY =
   "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif";
 
-const PAPER = '#f6f2ea';
-const PAPER_RAISED = '#fdfbf6';
-const INK = '#191512';
-const INK_SOFT = '#5c5348';
-const LINE = 'rgba(25, 21, 18, 0.14)';
-const LINE_STRONG = 'rgba(25, 21, 18, 0.55)';
+export const PAPER = '#f6f2ea';
+export const PAPER_RAISED = '#fdfbf6';
+export const INK = '#191512';
+export const INK_SOFT = '#5c5348';
+export const LINE = 'rgba(25, 21, 18, 0.14)';
+export const LINE_STRONG = 'rgba(25, 21, 18, 0.55)';
 
 export const createAppTheme = (accentHue = 24): Theme => {
   const accent = `hsl(${accentHue} 62% 42%)`;
@@ -36,23 +39,36 @@ export const createAppTheme = (accentHue = 24): Theme => {
     shape: { borderRadius: 0 },
     typography: {
       fontFamily: FONT_MONO,
-      body1: { fontSize: '0.95rem', lineHeight: 1.55 },
-      body2: { fontSize: '0.8rem' },
+      body1: { fontSize: '15px', lineHeight: 1.55 },
+      body2: { fontSize: '0.8rem', lineHeight: 1.55 },
       h1: {
         fontFamily: FONT_DISPLAY,
         fontSize: '1.7rem',
         fontWeight: 600,
         letterSpacing: '-0.01em',
+        lineHeight: 1.55,
       },
-      h2: { fontFamily: FONT_DISPLAY, fontSize: '1.05rem', fontStyle: 'italic', color: INK_SOFT },
+      h2: {
+        fontFamily: FONT_DISPLAY,
+        fontSize: '1.05rem',
+        fontStyle: 'italic',
+        fontWeight: 700,
+        lineHeight: 1.55,
+        color: INK_SOFT,
+      },
       overline: {
         fontSize: '0.72rem',
         letterSpacing: '0.1em',
-        lineHeight: 2,
+        lineHeight: 1.55,
         color: INK_SOFT,
       },
-      button: { fontSize: '0.78rem', letterSpacing: '0.14em' },
-      caption: { fontSize: '0.72rem', color: INK_SOFT },
+      button: {
+        fontSize: '0.78rem',
+        letterSpacing: '0.14em',
+        lineHeight: 'normal',
+        fontWeight: 400,
+      },
+      caption: { fontSize: '0.72rem', lineHeight: 1.55, color: INK_SOFT },
     },
     components: {
       MuiCssBaseline: {
@@ -78,6 +94,7 @@ export const createAppTheme = (accentHue = 24): Theme => {
           },
           text: {
             color: INK_SOFT,
+            letterSpacing: '0.08em',
             padding: 0,
             minWidth: 0,
             borderBottom: `1px dashed ${LINE_STRONG}`,
@@ -88,7 +105,8 @@ export const createAppTheme = (accentHue = 24): Theme => {
       },
       MuiChip: {
         styleOverrides: {
-          root: { borderRadius: 0 },
+          root: { borderRadius: 0, height: 'auto' },
+          label: { padding: '0.05rem 0.5rem', lineHeight: 1.55 },
           outlined: {
             borderColor: accentInk,
             color: accentInk,
@@ -96,22 +114,23 @@ export const createAppTheme = (accentHue = 24): Theme => {
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
             fontSize: '0.72rem',
-            height: 'auto',
-            padding: '0.05rem 0',
           },
         },
       },
       MuiPaper: {
         defaultProps: { elevation: 0 },
         styleOverrides: {
+          // Cards (login, tenant picker): heavy offset shadow.
           outlined: {
             border: `1.5px solid ${LINE_STRONG}`,
             boxShadow: `0.5rem 0.5rem 0 ${accentWash}, 0.5rem 0.5rem 0 1.5px ${LINE}`,
           },
+          // Inline surfaces (add-todo form): lighter offset shadow.
+          elevation: {
+            border: `1.5px solid ${LINE_STRONG}`,
+            boxShadow: `0.35rem 0.35rem 0 ${accentWash}`,
+          },
         },
-      },
-      MuiTextField: {
-        defaultProps: { variant: 'outlined', size: 'small', fullWidth: true },
       },
       MuiOutlinedInput: {
         styleOverrides: {
@@ -123,21 +142,32 @@ export const createAppTheme = (accentHue = 24): Theme => {
               borderWidth: 2,
             },
           },
+          // +1px compensates the border, which sits in the layout flow in the
+          // original but is an absolutely-positioned fieldset in MUI.
+          input: { padding: 'calc(0.6rem + 1px) 0.7rem', fontSize: '15px', lineHeight: 1.55 },
         },
       },
-      MuiInputLabel: {
+      MuiFormLabel: {
         styleOverrides: {
           root: {
-            fontSize: '0.78rem',
+            fontSize: '0.72rem',
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
+            lineHeight: 1.55,
             color: INK_SOFT,
+            marginBottom: '0.3rem',
+            '&.Mui-focused': { color: INK_SOFT },
           },
         },
       },
       MuiInputBase: {
         styleOverrides: {
-          input: { '&::placeholder': { color: INK_SOFT, fontStyle: 'italic', opacity: 1 } },
+          root: { fontSize: '15px', lineHeight: 1.55 },
+          input: {
+            // MUI pins inputs to 1.4375em; restore the natural line box.
+            height: '1.55em',
+            '&::placeholder': { color: INK_SOFT, fontStyle: 'italic', opacity: 1 },
+          },
         },
       },
       MuiLink: {
@@ -154,6 +184,8 @@ export const createAppTheme = (accentHue = 24): Theme => {
       MuiListItem: {
         styleOverrides: {
           root: {
+            alignItems: 'baseline',
+            gap: '0.9rem',
             borderBottom: `1px solid ${LINE}`,
             paddingTop: '0.7rem',
             paddingBottom: '0.7rem',
@@ -174,6 +206,7 @@ export const createAppTheme = (accentHue = 24): Theme => {
             color: '#a03123',
             padding: 0,
             fontSize: '0.8rem',
+            lineHeight: 1.55,
           },
         },
       },
