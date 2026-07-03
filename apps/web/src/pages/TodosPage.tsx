@@ -138,8 +138,8 @@ const TenantLedger = ({
           component="header"
           sx={{
             borderBottom: `3px double ${LINE_STRONG}`,
-            pt: '2.2rem',
-            pb: '0.8rem',
+            pt: '48px',
+            pb: '21px',
             animation: 'settle 0.5s ease-out both',
           }}
         >
@@ -168,7 +168,7 @@ const TenantLedger = ({
           <Stack
             direction="row"
             useFlexGap
-            sx={{ alignItems: 'baseline', columnGap: '1rem', mt: '0.5rem' }}
+            sx={{ alignItems: 'baseline', columnGap: '1rem' }}
           >
             <Typography
               variant="overline"
@@ -191,7 +191,9 @@ const TenantLedger = ({
             flexWrap: 'wrap',
             columnGap: '1.4rem',
             rowGap: '0.4rem',
-            py: '0.55rem',
+            pt: '12px',
+            // content is 27px (baseline-aligned mixed font sizes), +8+1 = 48
+            pb: '8px',
             borderBottom: 1,
             borderColor: 'divider',
             animation: 'settle 0.5s 0.08s ease-out both',
@@ -224,8 +226,8 @@ const TenantLedger = ({
           })}
         </Stack>
 
-        <Box component="section" sx={{ mt: '2.4rem', animation: 'settle 0.5s 0.16s ease-out both' }}>
-          <Typography variant="h2" component="h2" sx={{ mb: '0.8rem' }}>
+        <Box component="section" sx={{ mt: '48px', animation: 'settle 0.5s 0.16s ease-out both' }}>
+          <Typography variant="h2" component="h2" sx={{ mb: '24px' }}>
             Entries in this tenant's ledger
           </Typography>
           {todos.isPending ? (
@@ -236,7 +238,7 @@ const TenantLedger = ({
           {todos.isError ? <Alert>{todos.error.message}</Alert> : null}
           {todos.data ? (
             todos.data.todos.length === 0 ? (
-              <Typography variant="h2" component="p" sx={{ py: '1.4rem' }}>
+              <Typography variant="h2" component="p" sx={{ py: '24px' }}>
                 — no entries yet; this tenant's page is blank —
               </Typography>
             ) : (
@@ -270,14 +272,14 @@ const TenantLedger = ({
               event.preventDefault();
               if (title.trim()) addTodo.mutate(title);
             }}
-            sx={{ mt: '1.6rem', display: 'flex' }}
+            sx={{ mt: '24px', display: 'flex' }}
           >
             <InputBase
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={`new entry for ${tenant.name}…`}
               inputProps={{ 'aria-label': 'New todo title' }}
-              sx={{ flex: 1, '& input': { p: '0.75rem 0.9rem' } }}
+              sx={{ flex: 1, '& input': { p: '11px 0.9rem' } }}
             />
             <Button type="submit" variant="contained" disabled={addTodo.isPending}>
               {addTodo.isPending ? 'adding…' : 'add ↵'}

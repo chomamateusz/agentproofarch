@@ -43,6 +43,16 @@ export const createPlainTheme = (accentHue?: number): Theme =>
 export const createThemeForMode = (mode: ThemeMode, accentHue?: number): Theme =>
   mode === 'material' ? createPlainTheme(accentHue) : createAppTheme(accentHue);
 
+/**
+ * Baseline grid of the logbook theme. The ruled-paper background repeats
+ * every GRID px and every piece of text sits on a line box that is a
+ * multiple of GRID, so row borders land exactly on the background rules
+ * (same color) and content never drifts off the paper lines. When adding
+ * UI in logbook mode, keep vertical paddings + borders summing to GRID
+ * multiples.
+ */
+export const GRID = 24;
+
 export const createAppTheme = (accentHue = 24): Theme => {
   const accent = `hsl(${accentHue} 62% 42%)`;
   const accentInk = `hsl(${accentHue} 70% 28%)`;
@@ -60,27 +70,27 @@ export const createAppTheme = (accentHue = 24): Theme => {
     shape: { borderRadius: 0 },
     typography: {
       fontFamily: FONT_MONO,
-      body1: { fontSize: '15px', lineHeight: 1.55 },
-      body2: { fontSize: '0.8rem', lineHeight: 1.55 },
+      body1: { fontSize: '15px', lineHeight: `${GRID}px` },
+      body2: { fontSize: '0.8rem', lineHeight: `${GRID}px` },
       h1: {
         fontFamily: FONT_DISPLAY,
         fontSize: '1.7rem',
         fontWeight: 600,
         letterSpacing: '-0.01em',
-        lineHeight: 1.55,
+        lineHeight: `${GRID * 2}px`,
       },
       h2: {
         fontFamily: FONT_DISPLAY,
         fontSize: '1.05rem',
         fontStyle: 'italic',
         fontWeight: 700,
-        lineHeight: 1.55,
+        lineHeight: `${GRID}px`,
         color: INK_SOFT,
       },
       overline: {
         fontSize: '0.72rem',
         letterSpacing: '0.1em',
-        lineHeight: 1.55,
+        lineHeight: `${GRID}px`,
         color: INK_SOFT,
       },
       button: {
@@ -89,13 +99,15 @@ export const createAppTheme = (accentHue = 24): Theme => {
         lineHeight: 'normal',
         fontWeight: 400,
       },
-      caption: { fontSize: '0.72rem', lineHeight: 1.55, color: INK_SOFT },
+      caption: { fontSize: '0.72rem', lineHeight: `${GRID}px`, color: INK_SOFT },
     },
     components: {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            background: `linear-gradient(${LINE} 1px, transparent 1px) 0 -1px / 100% 2.25rem, ${PAPER}`,
+            // One rule per GRID row, drawn on the last pixel of each row so
+            // element bottom borders (same color) overlay it exactly.
+            background: `linear-gradient(${LINE} 1px, transparent 1px) 0 -1px / 100% ${GRID}px, ${PAPER}`,
           },
           '@keyframes settle': {
             from: { opacity: 0, transform: 'translateY(0.5rem)' },
@@ -146,9 +158,10 @@ export const createAppTheme = (accentHue = 24): Theme => {
             border: `1.5px solid ${LINE_STRONG}`,
             boxShadow: `0.5rem 0.5rem 0 ${accentWash}, 0.5rem 0.5rem 0 1.5px ${LINE}`,
           },
-          // Inline surfaces (add-todo form): lighter offset shadow.
+          // Inline surfaces (add-todo form): lighter offset shadow. Whole-pixel
+          // border so the height stays on the grid at every devicePixelRatio.
           elevation: {
-            border: `1.5px solid ${LINE_STRONG}`,
+            border: `1px solid ${LINE_STRONG}`,
             boxShadow: `0.35rem 0.35rem 0 ${accentWash}`,
           },
         },
@@ -183,10 +196,10 @@ export const createAppTheme = (accentHue = 24): Theme => {
       },
       MuiInputBase: {
         styleOverrides: {
-          root: { fontSize: '15px', lineHeight: 1.55 },
+          root: { fontSize: '15px', lineHeight: `${GRID}px` },
           input: {
-            // MUI pins inputs to 1.4375em; restore the natural line box.
-            height: '1.55em',
+            // MUI pins inputs to 1.4375em; snap them to the baseline grid.
+            height: `${GRID}px`,
             '&::placeholder': { color: INK_SOFT, fontStyle: 'italic', opacity: 1 },
           },
         },
@@ -208,8 +221,11 @@ export const createAppTheme = (accentHue = 24): Theme => {
             alignItems: 'baseline',
             gap: '0.9rem',
             borderBottom: `1px solid ${LINE}`,
-            paddingTop: '0.7rem',
-            paddingBottom: '0.7rem',
+            // 12 + 25 (baseline-aligned mixed font sizes overflow the 24px
+            // line box by 1) + 10 + 1 (border) = 2×GRID; wrapped title lines
+            // add exactly one GRID each, so borders always meet a paper rule.
+            paddingTop: '12px',
+            paddingBottom: '10px',
             '&:hover': { backgroundColor: accentWash },
           },
         },
