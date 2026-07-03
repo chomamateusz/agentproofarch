@@ -33,6 +33,11 @@ if (await page.$('input[type=email]')) {
   await page.click('button[type=submit]');
   await page.waitForSelector(LEDGER, { timeout: 15000 });
 }
+// THEME=material clicks the top-of-page theme switcher before capturing.
+if (process.env.THEME) {
+  await page.click(`button[value="${process.env.THEME}"]`);
+  await page.waitForTimeout(400);
+}
 await page.waitForTimeout(800);
 await page.screenshot({ path: out, animations: 'disabled' });
 console.log(`saved ${out} (${width}px) for ${url}`);

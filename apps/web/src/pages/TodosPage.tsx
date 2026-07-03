@@ -23,7 +23,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { meQuery, orgsQuery, todosQuery, unwrap, ApiError } from '@core/client/index.js';
 
 import { api, authClient, tenantHue, tenantUrl } from '../api.js';
-import { createAppTheme, LINE_STRONG } from '../theme.js';
+import { useThemeMode } from '../theme-mode.js';
+import { createThemeForMode, LINE_STRONG } from '../theme.js';
 
 export const TodosPage = () => {
   const navigate = useNavigate();
@@ -110,7 +111,11 @@ const TenantLedger = ({
   const todos = useQuery(todosQuery(api));
   const orgs = useQuery(orgsQuery(api));
   const [title, setTitle] = useState('');
-  const theme = useMemo(() => createAppTheme(tenantHue(tenant.slug)), [tenant.slug]);
+  const { mode } = useThemeMode();
+  const theme = useMemo(
+    () => createThemeForMode(mode, tenantHue(tenant.slug)),
+    [mode, tenant.slug],
+  );
 
   const addTodo = useMutation({
     mutationFn: async (newTitle: string) => unwrap(await api.addTodo({ title: newTitle })),

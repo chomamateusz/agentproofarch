@@ -22,6 +22,27 @@ export const INK_SOFT = '#5c5348';
 export const LINE = 'rgba(25, 21, 18, 0.14)';
 export const LINE_STRONG = 'rgba(25, 21, 18, 0.55)';
 
+export type ThemeMode = 'logbook' | 'material';
+
+/**
+ * Stock Material UI look. Only the per-tenant accent carries over as the
+ * primary color; h1/h2 are scaled down to page-title sizes (raw MUI h1 is a
+ * 6rem display size and would break the layout), everything else is default.
+ */
+export const createPlainTheme = (accentHue?: number): Theme =>
+  createTheme({
+    ...(accentHue === undefined
+      ? {}
+      : { palette: { primary: { main: `hsl(${accentHue} 62% 42%)` } } }),
+    typography: {
+      h1: { fontSize: '2.125rem', fontWeight: 400 },
+      h2: { fontSize: '1.25rem', fontWeight: 500 },
+    },
+  });
+
+export const createThemeForMode = (mode: ThemeMode, accentHue?: number): Theme =>
+  mode === 'material' ? createPlainTheme(accentHue) : createAppTheme(accentHue);
+
 export const createAppTheme = (accentHue = 24): Theme => {
   const accent = `hsl(${accentHue} 62% 42%)`;
   const accentInk = `hsl(${accentHue} 70% 28%)`;
@@ -212,6 +233,25 @@ export const createAppTheme = (accentHue = 24): Theme => {
       },
       MuiDivider: {
         styleOverrides: { root: { borderColor: LINE } },
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            fontFamily: FONT_MONO,
+            fontSize: '0.72rem',
+            letterSpacing: '0.1em',
+            padding: '0.2rem 0.7rem',
+            color: INK_SOFT,
+            borderColor: LINE_STRONG,
+            backgroundColor: PAPER_RAISED,
+            '&:hover': { backgroundColor: accentWash },
+            '&.Mui-selected': {
+              backgroundColor: INK,
+              color: PAPER,
+              '&:hover': { backgroundColor: INK },
+            },
+          },
+        },
       },
     },
   });
