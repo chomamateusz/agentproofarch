@@ -105,9 +105,11 @@ export const createAppTheme = (accentHue = 24): Theme => {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            // One rule per GRID row, drawn on the last pixel of each row so
-            // element bottom borders (same color) overlay it exactly.
-            background: `linear-gradient(${LINE} 1px, transparent 1px) 0 -1px / 100% ${GRID}px, ${PAPER}`,
+            // One rule per 2×GRID (one ledger row), drawn on the last pixel of
+            // the row so element bottom borders (same color) overlay it
+            // exactly. A GRID-sized pitch would put a rule mid-row, striking
+            // through the text like a completed task.
+            background: `linear-gradient(${LINE} 1px, transparent 1px) 0 -1px / 100% ${GRID * 2}px, ${PAPER}`,
           },
           '@keyframes settle': {
             from: { opacity: 0, transform: 'translateY(0.5rem)' },
@@ -226,7 +228,11 @@ export const createAppTheme = (accentHue = 24): Theme => {
             // add exactly one GRID each, so borders always meet a paper rule.
             paddingTop: '12px',
             paddingBottom: '10px',
-            '&:hover': { backgroundColor: accentWash },
+            // Opaque rows: a wrapped (multi-line) entry shifts the page rules
+            // by one GRID below it; rows paint over them and draw their own
+            // line via the bottom border, so entries never get struck through.
+            backgroundColor: PAPER,
+            '&:hover': { backgroundImage: `linear-gradient(${accentWash}, ${accentWash})` },
           },
         },
       },
