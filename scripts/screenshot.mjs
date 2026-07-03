@@ -16,13 +16,15 @@ const page = await (
   await browser.newContext({ viewport: { width: Number(width), height: 900 } })
 ).newPage();
 
+// The role Chip only renders on the authenticated ledger view.
+const LEDGER = '.MuiChip-root';
 await page.goto(url);
-await page.waitForSelector('.masthead__tenant, input[type=email]', { timeout: 15000 });
+await page.waitForSelector(`${LEDGER}, input[type=email]`, { timeout: 15000 });
 if (await page.$('input[type=email]')) {
   await page.fill('input[type=email]', email);
   await page.fill('input[type=password]', password);
   await page.click('button[type=submit]');
-  await page.waitForSelector('.masthead__tenant', { timeout: 15000 });
+  await page.waitForSelector(LEDGER, { timeout: 15000 });
 }
 await page.waitForTimeout(800);
 await page.screenshot({ path: out, animations: 'disabled' });

@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createRootRoute,
@@ -11,7 +12,7 @@ import {
 
 import { LoginPage } from './pages/LoginPage.js';
 import { TodosPage } from './pages/TodosPage.js';
-import './styles.css';
+import { createAppTheme } from './theme.js';
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
@@ -37,8 +38,11 @@ if (!container) throw new Error('Missing #root element');
 
 createRoot(container).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ThemeProvider theme={createAppTheme()}>
+      <CssBaseline />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

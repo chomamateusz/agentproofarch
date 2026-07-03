@@ -1,10 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Container,
+  InputBase,
+  Link,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Stack,
+  ThemeProvider,
+  Typography,
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
 import { meQuery, orgsQuery, todosQuery, unwrap, ApiError } from '@core/client/index.js';
 
 import { api, authClient, tenantHue, tenantUrl } from '../api.js';
+import { createAppTheme } from '../theme.js';
 
 export const TodosPage = () => {
   const navigate = useNavigate();
@@ -17,38 +36,60 @@ export const TodosPage = () => {
     if (unauthorized) void navigate({ to: '/login' });
   }, [unauthorized, navigate]);
 
-  useEffect(() => {
-    const slug = me.data?.tenant?.slug;
-    if (slug) document.documentElement.style.setProperty('--accent-h', String(tenantHue(slug)));
-  }, [me.data?.tenant?.slug]);
-
-  if (me.isPending) return <div className="shell"><p className="loading">opening the logbook…</p></div>;
+  if (me.isPending) {
+    return (
+      <Container sx={{ maxWidth: '44rem' }}>
+        <Typography variant="h2" component="p" sx={{ py: 6 }}>
+          opening the logbook…
+        </Typography>
+      </Container>
+    );
+  }
   if (unauthorized) return null;
-  if (me.isError) return <div className="shell"><p className="form-error">{me.error.message}</p></div>;
+  if (me.isError) {
+    return (
+      <Container sx={{ maxWidth: '44rem' }}>
+        <Alert sx={{ mt: 4 }}>{me.error.message}</Alert>
+      </Container>
+    );
+  }
 
-  return me.data.tenant ? <TenantLedger tenant={me.data.tenant} email={me.data.email} /> : <PickTenant />;
+  return me.data.tenant ? (
+    <TenantLedger tenant={me.data.tenant} email={me.data.email} />
+  ) : (
+    <PickTenant />
+  );
 };
 
 const PickTenant = () => {
   const orgs = useQuery(orgsQuery(api));
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <h1>Choose a tenant</h1>
-        <p className="sub">every tenant lives on its own domain</p>
-        {orgs.isPending ? <p className="loading">loading…</p> : null}
-        <ul className="pick-list">
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 3 }}>
+      <Paper variant="outlined" sx={{ width: '100%', maxWidth: '23rem', px: 3.5, py: 4 }}>
+        <Typography variant="h1">Choose a tenant</Typography>
+        <Typography variant="overline" component="p">
+          every tenant lives on its own domain
+        </Typography>
+        {orgs.isPending ? (
+          <Typography variant="h2" component="p" sx={{ py: 2 }}>
+            loading…
+          </Typography>
+        ) : null}
+        <List sx={{ mt: 1 }}>
           {orgs.data?.organizations.map((m) => (
-            <li key={m.tenant.id}>
-              <a href={tenantUrl(m.tenant.slug)}>
-                <strong>{m.tenant.name}</strong>
-                <span className="slug">{tenantUrl(m.tenant.slug)}</span>
-              </a>
-            </li>
+            <ListItem key={m.tenant.id} disablePadding divider>
+              <ListItemButton component="a" href={tenantUrl(m.tenant.slug)}>
+                <ListItemText
+                  primary={m.tenant.name}
+                  secondary={tenantUrl(m.tenant.slug)}
+                  slotProps={{ primary: { sx: { fontWeight: 700 } }, secondary: { variant: 'caption' } }}
+                />
+              </ListItemButton>
+            </ListItem>
           ))}
-        </ul>
-      </div>
-    </div>
+        </List>
+      </Paper>
+    </Box>
   );
 };
 
@@ -64,6 +105,7 @@ const TenantLedger = ({
   const todos = useQuery(todosQuery(api));
   const orgs = useQuery(orgsQuery(api));
   const [title, setTitle] = useState('');
+  const theme = useMemo(() => createAppTheme(tenantHue(tenant.slug)), [tenant.slug]);
 
   const addTodo = useMutation({
     mutationFn: async (newTitle: string) => unwrap(await api.addTodo({ title: newTitle })),
@@ -80,77 +122,140 @@ const TenantLedger = ({
   };
 
   return (
-    <div className="shell">
-      <header className="masthead">
-        <div className="masthead__row">
-          <span className="masthead__mark" aria-hidden />
-          <h1 className="masthead__tenant">{tenant.name}</h1>
-          <span className="masthead__meta">{window.location.hostname}</span>
-          <span className="masthead__spacer" />
-          <span className="role-badge">{tenant.role}</span>
-        </div>
-        <div className="masthead__row masthead__row--account">
-          <span className="masthead__meta masthead__email">{email}</span>
-          <span className="masthead__spacer" />
-          <button className="linkish" onClick={() => void signOut()}>
-            sign out
-          </button>
-        </div>
-      </header>
+    <ThemeProvider theme={theme}>
+      <Container disableGutters sx={{ maxWidth: '44rem !important', px: 2.5, pb: 12 }}>
+        <Box
+          component="header"
+          sx={{ borderBottom: 3, borderColor: 'text.secondary', borderBottomStyle: 'double', pt: 4.5, pb: 1.5, animation: 'settle 0.5s ease-out both' }}
+        >
+          <Stack direction="row" useFlexGap spacing={1.5} sx={{ flexWrap: "wrap", alignItems: "baseline" }}>
+            <Box
+              aria-hidden
+              sx={{
+                width: '0.85rem',
+                height: '0.85rem',
+                bgcolor: 'primary.main',
+                boxShadow: (t) => `0.3rem 0.3rem 0 ${alpha(t.palette.primary.main, 0.09)}`,
+                transform: 'translateY(1px)',
+              }}
+            />
+            <Typography variant="h1">{tenant.name}</Typography>
+            <Typography variant="overline">{window.location.hostname}</Typography>
+            <Box sx={{ flex: 1 }} />
+            <Chip variant="outlined" label={tenant.role} />
+          </Stack>
+          <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", mt: 1 }}>
+            <Typography variant="caption" sx={{ letterSpacing: '0.04em', wordBreak: 'break-all' }}>
+              {email}
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Button variant="text" onClick={() => void signOut()}>
+              sign out
+            </Button>
+          </Stack>
+        </Box>
 
-      <nav className="switcher">
-        <span className="switcher__label">your tenants →</span>
-        {orgs.data?.organizations.map((m) => (
-          <a
-            key={m.tenant.id}
-            href={tenantUrl(m.tenant.slug)}
-            aria-current={m.tenant.id === tenant.id}
-          >
-            {m.tenant.slug}
-          </a>
-        ))}
-      </nav>
-
-      <section className="ledger">
-        <h2 className="ledger__title">Entries in this tenant's ledger</h2>
-        {todos.isPending ? <p className="loading">reading entries…</p> : null}
-        {todos.isError ? <p className="form-error">{todos.error.message}</p> : null}
-        {todos.data ? (
-          todos.data.todos.length === 0 ? (
-            <p className="empty">— no entries yet; this tenant's page is blank —</p>
-          ) : (
-            <ul className="todo-list">
-              {todos.data.todos.map((todo) => (
-                <li key={todo.id}>
-                  {todo.title}
-                  <time dateTime={todo.createdAt}>
-                    {new Date(todo.createdAt).toLocaleDateString()}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : null}
-
-        <form
-          className="add-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (title.trim()) addTodo.mutate(title);
+        <Stack
+          component="nav"
+          direction="row"
+          useFlexGap
+          spacing={2.5}
+          sx={{
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            py: 1,
+            borderBottom: 1,
+            borderColor: 'divider',
+            animation: 'settle 0.5s 0.08s ease-out both',
           }}
         >
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder={`new entry for ${tenant.name}…`}
-            aria-label="New todo title"
-          />
-          <button type="submit" disabled={addTodo.isPending}>
-            {addTodo.isPending ? 'adding…' : 'add ↵'}
-          </button>
-        </form>
-        {addTodo.isError ? <p className="form-error">{addTodo.error.message}</p> : null}
-      </section>
-    </div>
+          <Typography variant="overline">your tenants →</Typography>
+          {orgs.data?.organizations.map((m) => {
+            const active = m.tenant.id === tenant.id;
+            return (
+              <Link
+                key={m.tenant.id}
+                href={tenantUrl(m.tenant.slug)}
+                variant="body2"
+                aria-current={active}
+                sx={
+                  active
+                    ? {
+                        color: 'primary.dark',
+                        fontWeight: 700,
+                        borderBottom: 2,
+                        borderColor: 'primary.main',
+                        borderBottomStyle: 'solid',
+                      }
+                    : undefined
+                }
+              >
+                {m.tenant.slug}
+              </Link>
+            );
+          })}
+        </Stack>
+
+        <Box component="section" sx={{ mt: 5, animation: 'settle 0.5s 0.16s ease-out both' }}>
+          <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
+            Entries in this tenant's ledger
+          </Typography>
+          {todos.isPending ? (
+            <Typography variant="h2" component="p" sx={{ py: 2 }}>
+              reading entries…
+            </Typography>
+          ) : null}
+          {todos.isError ? <Alert>{todos.error.message}</Alert> : null}
+          {todos.data ? (
+            todos.data.todos.length === 0 ? (
+              <Typography variant="h2" component="p" sx={{ py: 3 }}>
+                — no entries yet; this tenant's page is blank —
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {todos.data.todos.map((todo, index) => (
+                  <ListItem key={todo.id} disableGutters sx={{ px: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: 'primary.dark', minWidth: '1.7rem' }}>
+                      {String(index + 1).padStart(2, '0')}
+                    </Typography>
+                    <ListItemText primary={todo.title} sx={{ m: 0 }} />
+                    <Typography
+                      variant="caption"
+                      component="time"
+                      dateTime={todo.createdAt}
+                      sx={{ ml: 'auto', whiteSpace: 'nowrap', pl: 2 }}
+                    >
+                      {new Date(todo.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </ListItem>
+                ))}
+              </List>
+            )
+          ) : null}
+
+          <Paper
+            variant="outlined"
+            component="form"
+            onSubmit={(event: React.FormEvent) => {
+              event.preventDefault();
+              if (title.trim()) addTodo.mutate(title);
+            }}
+            sx={{ mt: 3, display: 'flex' }}
+          >
+            <InputBase
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={`new entry for ${tenant.name}…`}
+              inputProps={{ 'aria-label': 'New todo title' }}
+              sx={{ flex: 1, px: 1.5, py: 0.5 }}
+            />
+            <Button type="submit" variant="contained" disabled={addTodo.isPending}>
+              {addTodo.isPending ? 'adding…' : 'add ↵'}
+            </Button>
+          </Paper>
+          {addTodo.isError ? <Alert sx={{ mt: 1 }}>{addTodo.error.message}</Alert> : null}
+        </Box>
+      </Container>
+    </ThemeProvider>
   );
 };

@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -27,38 +37,51 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="auth-wrap">
-      <form className="auth-card" onSubmit={(event) => void submit(event)}>
-        <h1>agentproofarch</h1>
-        <p className="sub">sign in · tenant {window.location.hostname}</p>
-        <label className="field">
-          <span>email</span>
-          <input
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 3 }}>
+      <Paper
+        variant="outlined"
+        component="form"
+        onSubmit={(event: React.FormEvent) => void submit(event)}
+        sx={{ width: '100%', maxWidth: '23rem', px: 3.5, pt: 4, pb: 3, animation: 'settle 0.45s ease-out both' }}
+      >
+        <Typography variant="h1">agentproofarch</Typography>
+        <Typography variant="overline" component="p" sx={{ mb: 3 }}>
+          sign in · tenant {window.location.hostname}
+        </Typography>
+        <Stack spacing={2}>
+          <TextField
+            label="email"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             required
           />
-        </label>
-        <label className="field">
-          <span>password</span>
-          <input
+          <TextField
+            label="password"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="current-password"
             required
           />
-        </label>
-        <button type="submit" disabled={pending}>
-          {pending ? 'signing in…' : 'sign in'}
-        </button>
-        {error ? <p className="form-error">{error}</p> : null}
-        <p className="demo-hint">
-          demo account: <code>demo@agentproofarch.dev</code> / <code>demo1234</code>
-        </p>
-      </form>
-    </div>
+          <Button type="submit" variant="contained" fullWidth disabled={pending}>
+            {pending ? 'signing in…' : 'sign in'}
+          </Button>
+        </Stack>
+        {error ? <Alert sx={{ mt: 1.5 }}>{error}</Alert> : null}
+        <Divider sx={{ mt: 3, mb: 1.5 }} />
+        <Typography variant="caption" component="p">
+          demo account:{' '}
+          <Box component="code" sx={{ color: 'primary.dark' }}>
+            demo@agentproofarch.dev
+          </Box>{' '}
+          /{' '}
+          <Box component="code" sx={{ color: 'primary.dark' }}>
+            demo1234
+          </Box>
+        </Typography>
+      </Paper>
+    </Box>
   );
 };
