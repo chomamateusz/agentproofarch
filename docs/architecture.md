@@ -54,6 +54,14 @@ above — they are practically language extensions, and swapping one would be a
 rewrite regardless of any abstraction. Never wrap a vocabulary library in a
 port; extend the allowlist deliberately instead.
 
+For genuinely complex clients (realtime push sync, event sourcing, heavy
+concurrency) a richer vocabulary such as Effect is a legitimate choice in this
+same slot — t3code builds its entire framework-free client core on it. It is a
+foundation decision, never an incremental one: it replaces zod + query-core
+wholesale, brings its own idiom, and needs its own guardrails (t3code vendors
+the Effect sources with `LLMS.md` for agents and gates PRs with an AI reviewer
+for idiomatic usage). Default remains zod + `@tanstack/query-core`.
+
 ## Frontend (apps/web)
 
 The SPA is a thin client: domain logic lives in `core`, the web app renders
