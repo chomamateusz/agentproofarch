@@ -46,6 +46,43 @@ Dependency rules (enforced):
   (and `entry.vercel.ts`).
 - No `any`, no `as` (except `as const`), zod-parse at every boundary.
 
+## Frontend (apps/web)
+
+The SPA is a thin client: domain logic lives in `core`, the web app renders
+server state and collects input. Inner structure is enforced the same way as
+the layers — boundaries + lint, not convention (see
+[frontend-lint-plan.md](frontend-lint-plan.md); rationale in
+[frontend-comparison.md](frontend-comparison.md)).
+
+```
+apps/web/src/
+  main.tsx          composition root: providers + router wiring only
+  routes/           route components — thin: parse params, render a feature
+  features/<name>/  feature folders: components, hooks, <Name>.logic.ts co-located
+  components/ui/    design-system primitives → theme, lib only (no core, no features)
+  lib/              pure TS utilities → no react
+  theme.ts          the entire visual language (MUI theme); no colors/fonts elsewhere
+```
+
+State rules:
+
+- **Server state**: TanStack Query only, consuming descriptors from
+  `core/client/queries.ts`. Components never define `queryKey`/`queryFn`
+  inline and never touch `fetch` (lint).
+- **Client state**: `useState`/`useReducer` local to the feature; React context
+  only for cross-cutting concerns (theme, session). No global state libraries
+  (lint).
+- **URL state**: path params = resource identity, search params = shareable
+  filters; neither is duplicated into component state.
+
+Mutations invalidate hierarchical query keys; manual cache writes only for a
+single resource with rollback. Errors surface as `ApiError` carrying the
+`AppError` taxonomy — rendered, never re-mapped ad hoc; a root error boundary
+is mandatory. Non-trivial behavior is extracted to `*.logic.ts` and unit-tested
+without rendering; component tests use real providers + MSW, never hook mocks.
+React correctness (`react-hooks`, compiler, a11y, query plugins) runs at error
+level in the same `npm run check` gate.
+
 ## Errors
 
 Use-cases return `Result<T, AppError>`; nothing throws across a boundary.
