@@ -46,6 +46,14 @@ Dependency rules (enforced):
   (and `entry.vercel.ts`).
 - No `any`, no `as` (except `as const`), zod-parse at every boundary.
 
+Dependency-free is not the goal; replaceability is. Core bans *infrastructure*
+(frameworks, servers, drivers — anything with a plausible second implementation
+or platform difference), which lives behind ports. *Vocabulary* libraries
+(zod, `@tanstack/query-core`) are ordinary imports on the per-layer allowlist
+above — they are practically language extensions, and swapping one would be a
+rewrite regardless of any abstraction. Never wrap a vocabulary library in a
+port; extend the allowlist deliberately instead.
+
 ## Frontend (apps/web)
 
 The SPA is a thin client: domain logic lives in `core`, the web app renders
