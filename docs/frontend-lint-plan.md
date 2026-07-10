@@ -82,6 +82,19 @@ Scope `apps/web` unless noted:
 Composition-root and adapter files get scoped overrides, never global
 weakening (per the hardening guide: exceptions are path-scoped).
 
+Server-state rules (from [server-state.md](server-state.md); same phase):
+
+| Convention | Mechanism | Level |
+|---|---|---|
+| `new QueryClient(` only in `apps/web/src/query-client.ts` and test helpers | `no-restricted-syntax` + override | error |
+| No importing the QueryClient singleton outside the composition root — use `useQueryClient()` | `no-restricted-imports` | error |
+| No destructuring of `useQueryClient()` result / `QueryClient` methods (`this` binding) | `no-restricted-syntax` on VariableDeclarator with ObjectPattern init `useQueryClient()` | error |
+| No explicit type arguments on `useQuery`/`useQueries`/`useMutation` (types flow from descriptors) | `no-restricted-syntax` on TSTypeParameterInstantiation | error |
+| No `defaultOptions.queries.queryFn` (global queryFn bypasses the typed client) | `no-restricted-syntax` | error |
+| No non-null assertion on query results/params; `skipToken` for optional-param gating | `@typescript-eslint/no-non-null-assertion` | error |
+| `refetchType: 'all'`, blanket `refetchOnWindowFocus: false`/`retry: false` (outside test helpers), `staleTime: Infinity` | flagged for justification | warn |
+| No `jest.mock`/`vi.mock` of `@tanstack/react-query` or `core/client` | `no-restricted-syntax` in test scope | error |
+
 ## Phase 4 — custom plugin (`eslint-plugin-agentproofarch`)
 
 Only for conventions the generic mechanisms above cannot express (t3code

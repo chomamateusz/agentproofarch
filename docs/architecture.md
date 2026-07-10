@@ -52,7 +52,11 @@ or platform difference), which lives behind ports. *Vocabulary* libraries
 (zod, `@tanstack/query-core`) are ordinary imports on the per-layer allowlist
 above — they are practically language extensions, and swapping one would be a
 rewrite regardless of any abstraction. Never wrap a vocabulary library in a
-port; extend the allowlist deliberately instead.
+port — an interface with exactly one implementation forever is **port
+theater**: it re-states the library's API without buying replaceability (a
+`QueryPort` over TanStack Query would re-type `status`/`fetchStatus`,
+invalidation and optimistic-update semantics, and still not survive an engine
+swap). Extend the allowlist deliberately instead.
 
 For genuinely complex clients (realtime push sync, event sourcing, heavy
 concurrency) a richer vocabulary such as Effect is a legitimate choice in this
@@ -84,7 +88,9 @@ State rules:
 
 - **Server state**: TanStack Query only, consuming descriptors from
   `core/client/queries.ts`. Components never define `queryKey`/`queryFn`
-  inline and never touch `fetch` (lint).
+  inline and never touch `fetch` (lint). The descriptor object is the seam —
+  TanStack is a vocabulary dependency, never wrapped in a port; full usage
+  policy in [server-state.md](server-state.md).
 - **Client state**: `useState`/`useReducer` local to the feature; React context
   only for cross-cutting concerns (theme, session). No global state libraries
   (lint).
