@@ -157,7 +157,41 @@ same reasoning that makes TanStack Query the default over Effect. It is
 invocation-only: no resident process, so no queue workers, schedulers,
 websockets or long-running jobs. The Docker image is the full-runtime escape
 hatch from the same commit and runs anywhere (VPS, Railway, Fly.io,
-Kubernetes); anything that needs a resident process lives on that target. When
-background jobs become real, add a `JobsPort` (same pattern as `DomainPort`):
-pg-boss on the existing Postgres for Docker, a cron/queue-service adapter for
-Vercel.
+Kubernetes); anything that needs a resident process lives on that target.
+
+## Background jobs and webhooks
+
+Webhooks are plain HTTP and fit both targets as-is. For Stripe, the provider's
+own delivery model is the reliability backbone (verified 2026-07, see
+[jobs-research.md](jobs-research.md)): signed events, retries with exponential
+backoff for up to 3 days in live mode, duplicates/concurrent/out-of-order
+delivery expected by contract. The handler pattern is therefore: verify
+signature → insert into a processed-events table (unique on event id; dedupe
+also on object id + event type) → do the work transactionally → 2xx only on
+success, so a failure re-arms Stripe's retry. Fulfillment is webhook-driven,
+never success-page-driven (Stripe mandates this). At low volume this
+synchronous pattern needs **no queue at all**.
+
+Deferred work (email sequences, aggregations) is a first-class module whose
+invariants hold on both targets:
+
+- **State**: a queue/outbox table in the Postgres we already have — enqueue is
+  transactional with the domain write. No new stateful infrastructure.
+- **API**: `JobsPort` (enqueue/schedule) in `core/server`; job handlers are
+  ordinary core use-cases, tested like any other.
+- **Executor** is the only per-target difference (same pattern as
+  `DB_DRIVER`):
+
+| | Vercel | Docker self-host |
+|---|---|---|
+| Executor | `/internal/jobs/drain` endpoint, batch per invocation | pg-boss resident worker — second compose service from the same image; `WORKER_MODE=inline` for minimal installs |
+| Wake-up | Upstash QStash schedule (free: 1k msgs/day, HTTP push, 3-day DLQ) — Vercel Cron is too limited on free plans, Vercel Queues is metered-paid, Neon pg_cron cannot run under scale-to-zero | in-process |
+
+`JobsPort` joins the ports list when the first real deferred job lands (port
+rule: no port before a second implementation or platform difference exists —
+here the platform difference is proven, the need is not yet).
+
+A/B conversion attribution needs no jobs infrastructure: assignment cookie →
+variant id in Checkout `metadata`/`client_reference_id` → webhook records the
+conversion idempotently → aggregation is a read query (or a scheduled job
+later).
