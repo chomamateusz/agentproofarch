@@ -12,11 +12,11 @@ const meWithTenant = {
   userId: 'u1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
-  tenant: { id: 't1', slug: 'acme', name: 'Acme', role: 'owner' },
+  tenant: { id: 't1', slug: 'acme', name: 'Acme', staffRole: 'owner', memberId: null },
 };
 
-const orgsBody = {
-  organizations: [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, role: 'owner' }],
+const tenantsBody = {
+  tenants: [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, staffRole: 'owner' }],
 };
 
 const makeTodo = (id: string, title: string) => ({
@@ -41,7 +41,7 @@ describe('TodosPage', () => {
   it('surfaces a non-2xx todos response as an error', async () => {
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: meWithTenant })),
-      http.get('/api/orgs', () => HttpResponse.json({ ok: true, data: orgsBody })),
+      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: tenantsBody })),
       http.get('/api/todos', () =>
         HttpResponse.json(
           { ok: false, error: { code: 'unauthorized', message: 'Please sign in again' } },
@@ -59,7 +59,7 @@ describe('TodosPage', () => {
     const todos = [makeTodo('1', 'first entry')];
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: meWithTenant })),
-      http.get('/api/orgs', () => HttpResponse.json({ ok: true, data: orgsBody })),
+      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: tenantsBody })),
       http.get('/api/todos', () => HttpResponse.json({ ok: true, data: { todos } })),
       http.post('/api/todos', () => {
         const created = makeTodo('2', 'second entry');

@@ -1,19 +1,20 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { roleSchema, type Membership, type Role } from '@core/domain/index.js';
+import { staffRoleSchema, type Membership, type StaffRole } from '@core/domain/index.js';
 import type {
   HealthPort,
-  MembershipReader,
+  TenantAccessReader,
   TenantDomainRepository,
+  TenantRepository,
   TodoRepository,
 } from '@core/server/index.js';
 
 import type { Db } from './client.js';
-import { member, organization, tenantDomains, todos } from './schema.js';
+import { members, tenantAdmins, tenantDomains, tenants, todos } from './schema.js';
 
-const parseRole = (raw: string): Role => {
-  const parsed = roleSchema.safeParse(raw);
-  return parsed.success ? parsed.data : 'member';
+const parseStaffRole = (raw: string): StaffRole | null => {
+  const parsed = staffRoleSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 };
 
 export const createTodoRepository = (db: Db): TodoRepository => ({
@@ -33,43 +34,81 @@ export const createTenantDomainRepository = (db: Db): TenantDomainRepository => 
       .limit(1);
     return rows[0] ?? null;
   },
+  listVerifiedDomains: async () =>
+    db.select().from(tenantDomains).where(eq(tenantDomains.verified, true)),
 });
 
-export const createMembershipReader = (db: Db): MembershipReader => {
+export const createTenantRepository = (db: Db): TenantRepository => ({
+  findById: async (tenantId) => {
+    const rows = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+    return rows[0] ?? null;
+  },
+  findBySlug: async (slug) => {
+    const rows = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
+    return rows[0] ?? null;
+  },
+  createTenant: async (input) => {
+    await db.insert(tenants).values(input);
+    return { id: input.id, slug: input.slug, name: input.name };
+  },
+  createOwnerGrant: async (input) => {
+    await db.insert(tenantAdmins).values({
+      id: input.id,
+      tenantId: input.tenantId,
+      userId: input.userId,
+      role: input.staffRole,
+    });
+  },
+});
+
+export const createTenantAccessReader = (db: Db): TenantAccessReader => {
   const baseQuery = () =>
     db
       .select({
-        id: organization.id,
-        slug: organization.slug,
-        name: organization.name,
-        role: member.role,
+        id: tenants.id,
+        slug: tenants.slug,
+        name: tenants.name,
+        staffRole: tenantAdmins.role,
       })
-      .from(member)
-      .innerJoin(organization, eq(member.organizationId, organization.id));
+      .from(tenantAdmins)
+      .innerJoin(tenants, eq(tenantAdmins.tenantId, tenants.id));
 
-  const toMembership = (row: { id: string; slug: string; name: string; role: string }): Membership => ({
-    tenant: { id: row.id, slug: row.slug, name: row.name },
-    role: parseRole(row.role),
-  });
+  const toMembership = (row: {
+    id: string;
+    slug: string;
+    name: string;
+    staffRole: string;
+  }): Membership | null => {
+    const staffRole = parseStaffRole(row.staffRole);
+    return staffRole ? { tenant: { id: row.id, slug: row.slug, name: row.name }, staffRole } : null;
+  };
 
   return {
-    listForUser: async (userId) => {
-      const rows = await baseQuery().where(eq(member.userId, userId));
-      return rows.map(toMembership);
+    listTenantsForStaff: async (userId) => {
+      const rows = await baseQuery().where(eq(tenantAdmins.userId, userId));
+      const memberships: Membership[] = [];
+      for (const row of rows) {
+        const membership = toMembership(row);
+        if (membership) memberships.push(membership);
+      }
+      return memberships;
     },
-    findForUserInTenantBySlug: async (userId, tenantSlug) => {
+    findStaffGrant: async (userId, lookup) => {
+      const tenantCondition =
+        'tenantId' in lookup ? eq(tenants.id, lookup.tenantId) : eq(tenants.slug, lookup.tenantSlug);
       const rows = await baseQuery()
-        .where(and(eq(member.userId, userId), eq(organization.slug, tenantSlug)))
+        .where(and(eq(tenantAdmins.userId, userId), tenantCondition))
         .limit(1);
       const row = rows[0];
       return row ? toMembership(row) : null;
     },
-    findForUserInTenantById: async (userId, tenantId) => {
-      const rows = await baseQuery()
-        .where(and(eq(member.userId, userId), eq(organization.id, tenantId)))
+    findMember: async (userId, tenantId) => {
+      const rows = await db
+        .select()
+        .from(members)
+        .where(and(eq(members.userId, userId), eq(members.tenantId, tenantId)))
         .limit(1);
-      const row = rows[0];
-      return row ? toMembership(row) : null;
+      return rows[0] ?? null;
     },
   };
 };

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-import { membershipSchema, newTodoSchema, roleSchema, todoSchema } from '@core/domain/index.js';
+import {
+  membershipSchema,
+  newTodoSchema,
+  staffRoleSchema,
+  tenantSchema,
+  todoSchema,
+} from '@core/domain/index.js';
 
 /**
  * Single source of truth for the HTTP API shared by server and all clients.
@@ -24,17 +30,29 @@ export const meOutputSchema = z.object({
       id: z.string(),
       slug: z.string(),
       name: z.string(),
-      role: roleSchema,
+      staffRole: staffRoleSchema.nullable(),
+      memberId: z.string().nullable(),
     })
     .nullable(),
 });
 
-export const orgListOutputSchema = z.object({
-  organizations: z.array(membershipSchema),
+export const tenantListOutputSchema = z.object({
+  tenants: z.array(membershipSchema),
 });
 
 export const todoListOutputSchema = z.object({
   todos: z.array(todoSchema),
+});
+
+export const tenantCreateInputSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+});
+
+export type TenantCreateInput = z.input<typeof tenantCreateInputSchema>;
+
+export const tenantCreateOutputSchema = z.object({
+  tenant: tenantSchema,
 });
 
 export const todoCreateInputSchema = newTodoSchema;
@@ -51,7 +69,8 @@ export const todoCreateOutputSchema = z.object({
 export const API_ROUTES = {
   health: { method: 'GET', path: '/api/health' },
   me: { method: 'GET', path: '/api/me' },
-  orgs: { method: 'GET', path: '/api/orgs' },
+  tenants: { method: 'GET', path: '/api/tenants' },
+  tenantsCreate: { method: 'POST', path: '/api/tenants' },
   todos: { method: 'GET', path: '/api/todos' },
   todosCreate: { method: 'POST', path: '/api/todos' },
 } as const;
@@ -63,7 +82,7 @@ export type WriteMethod = Exclude<HttpMethod, ReadMethod>;
 export const API_PATHS = {
   health: API_ROUTES.health.path,
   me: API_ROUTES.me.path,
-  orgs: API_ROUTES.orgs.path,
+  tenants: API_ROUTES.tenants.path,
   todos: API_ROUTES.todos.path,
 } as const;
 
