@@ -43,8 +43,8 @@ core/
 adapters/
   db/          # Drizzle schema, migrations, repository implementations,
                # driver factory (node-postgres | neon-http)
-  auth/        # Better Auth server config (+ organization plugin) implementing
-               # AuthPort; Better Auth client adapter implementing AuthClientPort
+  auth/        # Better Auth server config (identity only — no org plugin)
+               # implementing AuthPort; client adapter implementing AuthClientPort
   domain-provisioning/
                # DomainPort implementations: vercel.ts (Domains API),
                # caddy.ts (on-demand TLS check), noop.ts
@@ -86,18 +86,26 @@ Authentication and relationship data are strictly separated (see
   identity and credentials. Passwordless accounts are first-class: an account
   may be created without a password (e.g. provisioned after a purchase) and
   authenticated via magic link.
-- **Creator teams** = auth-provider organizations (Better Auth `organization`
-  plugin); `memberships` with roles `owner | admin | member`. This is admin-
-  panel RBAC for small teams — nothing else.
-- **End customers ("members")** = our own tenant-scoped aggregate, NOT
-  auth-provider organizations: `members { id, tenantId, userId, displayName,
-  tags, marketingConsents, externalCustomerIds, createdAt }` plus any
-  product-level data keyed by `memberId`. All relationship data (profile,
-  tags, consents, progress) lives here — never on the global account.
-  Rationale: privacy (a customer must not be able to enumerate the tenants
-  they belong to — provider org APIs leak this by design), IdP swappability
-  (customer data never migrates when the auth provider changes), semantics
-  (customers buy access; they are not invited staff) and scale.
+- **The provider supplies identity only.** No auth-provider organization /
+  team features are used at all — every relationship (tenancy, staff,
+  customers) lives in foundation tables. `tenants` is our own domain entity,
+  never a provider object.
+- **Creator teams (staff)** = our `team_memberships { tenantId, userId,
+  role: owner | admin | member }` aggregate (+ our invitation tokens). This
+  is admin-panel RBAC for small teams; PoC needs only the owner row created
+  with the tenant.
+- **End customers ("members")** = our own tenant-scoped aggregate:
+  `members { id, tenantId, userId, displayName, tags, marketingConsents,
+  externalCustomerIds, createdAt }` plus any product-level data keyed by
+  `memberId`. All relationship data (profile, tags, consents, progress)
+  lives here — never on the global account.
+- Rationale for keeping ALL relationships out of the provider: privacy (a
+  customer must not be able to enumerate the tenants they belong to —
+  provider org APIs leak this by design), IdP swappability (no relationship
+  data migrates when the auth provider changes — the swap touches sign-in
+  only), semantics (customers buy access; they are not invited staff),
+  scale, and decoupling (creating a tenant must not call the auth
+  provider's API).
 - **Deletion semantics** are two distinct operations: (1) a creator removes a
   member from THEIR tenant = delete the `members` row + tenant-scoped data;
   the global account survives (it may belong to other tenants). (2) The user
@@ -240,13 +248,13 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - [ ] Health route extended with a DB ping through a repository interface (proves port wiring)
 - [ ] Check passes
 
-### US-007: Better Auth with organizations
-**Description:** As a user, I want to register and log in, and as a developer I want tenancy primitives from the organization plugin.
+### US-007: Auth provider (identity only) and our tenancy tables
+**Description:** As a user, I want to register and log in; as a developer, I want tenancy owned by foundation tables, with the auth provider supplying identity only (FR-25).
 
 **Acceptance Criteria:**
-- [ ] Better Auth mounted in `apps/server` (adapter in `adapters/auth`), schema migrated; email+password enabled
-- [ ] Organization plugin enabled: create org, invite, roles `owner/admin/member`
-- [ ] `AuthPort` implemented: request → `Identity`; unit-tested with a fake
+- [ ] Better Auth mounted in `apps/server` (adapter in `adapters/auth`), schema migrated; email+password enabled; NO organization plugin
+- [ ] Our tables: `tenants`, `team_memberships` (roles `owner/admin/member`), invitation tokens; tenant creation writes the owner staff row and never calls the auth provider
+- [ ] `AuthPort` implemented: request → authenticated user (`userId`, email, name, verified); unit-tested with a fake
 - [ ] Cookie config supports cross-subdomain sessions under `APP_BASE_DOMAIN`
 - [ ] Registration + login verified via `curl` flow documented in story log
 - [ ] Check passes
@@ -471,7 +479,8 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 
 **Auth & tenancy**
 - FR-6: Users register/login with email+password or magic link via the auth provider behind `AuthPort`; one email maps to exactly one global account holding authentication data only.
-- FR-7: A user may belong to multiple tenants: as team staff (auth-provider organizations, roles owner/admin/member) or as an end customer (our `members` aggregate). Registration creates a personal default organization.
+- FR-7: A user may belong to multiple tenants: as team staff (our `team_memberships` aggregate, roles owner/admin/member) or as an end customer (our `members` aggregate). Creator registration creates a tenant with its owner staff row; the auth provider is not involved in tenancy.
+- FR-25: The auth provider supplies identity only (`userId`, email, name, email-verification status) plus credentials/sessions/magic links; no provider organization or team feature may be used — all relationships live in foundation tables.
 - FR-8: Team members are added via invitation links (token); no email delivery in v1.
 - FR-9: Every tenant-scoped request must resolve a tenant per §3.4 and verify membership before any use-case runs.
 - FR-10: Every tenant-scoped repository method must require `tenantId`; cross-tenant data access must be impossible through the public API.

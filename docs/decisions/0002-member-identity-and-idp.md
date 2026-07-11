@@ -26,14 +26,19 @@ domains.
    live on this account.
 2. **Members = our tenant-scoped aggregate**, in our database, with no ports
    or adapters — plain core domain + repository. All relationship data lives
-   here. Members are NOT auth-provider organization members.
-3. **Auth-provider organizations serve creator teams only** (admin RBAC,
-   invitations, org switching — small-scale, staff semantics). Reasons
-   customers must stay out: (a) provider org APIs let a user list their own
-   organizations — a privacy leak the requirements forbid; (b) data gravity:
-   customer data attached to provider tables makes an IdP swap a customer-data
-   migration; (c) semantics: customers buy access, they are not invited staff;
-   (d) scale: org plugins target dozens of staff, not thousands of customers.
+   here.
+3. **No auth-provider organization/team feature is used at all** (owner
+   decision, second review round). The provider supplies identity only;
+   every relationship lives in foundation tables: `tenants` (our domain
+   entity — creating a tenant never calls the auth provider),
+   `team_memberships` (staff RBAC: owner/admin/member + our invitation
+   tokens; PoC needs only the owner row) and `members` (customers). Reasons:
+   (a) provider org APIs let a user list their own organizations — a privacy
+   leak the requirements forbid; (b) data gravity: relationship data attached
+   to provider tables makes an IdP swap a data migration — applied uniformly
+   to customers AND staff, the swap now touches sign-in only; (c) provider
+   org features (Better Auth/Clerk/Auth0) are mutually incompatible APIs, so
+   using any of them couples us to one provider; (d) semantics and scale.
 4. **Deletion is two operations**: creator removes member (member row +
    tenant data; account survives) vs user erases global account (platform-level
    GDPR request; per-tenant data remains each controller's duty).
@@ -64,15 +69,18 @@ export (CSV/JSON incl. email) is a foundation capability.
 - A future central IdP is a single point of failure for sign-in across a
   fleet; account takeover spans contexts (mitigations: email verification,
   per-domain magic links, passkeys later).
-- Creator-team RBAC does live on the auth provider's organization tables; an
-  IdP swap therefore migrates team memberships (small tables, acceptable) —
-  customer data is unaffected by design.
+- We re-implement what the provider's org plugin gave for free (membership
+  tables, invitation tokens) — a few small tables and use-cases, judged
+  cheaper than coupling every relationship to one provider's API.
 - Self-hosted instances have independent account pools; SSO across them is a
   hosted-operator feature, not an architecture property.
 
 ## Consequences
 
-- Foundation PRD §3.4 rewritten; FR-6/7 amended; FR-19..22 and US-025..027
-  added.
+- Foundation PRD §3.4 rewritten; FR-6/7 amended; FR-19..25 and US-025..028
+  added; US-007 redefined (no organization plugin).
+- Implementation debt: the demo currently models tenants as Better Auth
+  organizations — to be migrated to foundation-owned `tenants` +
+  `team_memberships` tables (docs first, code follows).
 - Together PRD FR-3 should be rephrased from "isolated member accounts" to
   "isolated member relationship ownership over shared authentication".

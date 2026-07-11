@@ -132,13 +132,18 @@ behind a narrow, OIDC-shaped `AuthPort` — the provider (Better Auth default)
 is swappable by design, and its topology (embedded / separate container /
 SaaS) is a composition-root choice. Two populations on top of it:
 
-- **Creator teams** — auth-provider organizations with roles
-  `owner | admin | member` (admin RBAC, invitations, switching).
+- **Creator teams (staff)** — our `team_memberships` aggregate with roles
+  `owner | admin | member` (admin RBAC + our invitation tokens).
 - **End customers ("members")** — our own tenant-scoped aggregate (profile,
-  tags, GDPR consents, export), never auth-provider organizations: providers
-  let users list their organizations, which would leak a customer's other
-  tenants, and provider-attached customer data would turn an IdP swap into a
-  customer-data migration.
+  tags, GDPR consents, export).
+
+No auth-provider organization/team feature is used for either population —
+the provider supplies identity only (`userId`, email, name, verification
+status) and `tenants` is a foundation entity, never a provider object.
+Provider org APIs let users list their organizations (would leak a
+customer's other tenants), provider-attached relationship data would turn an
+IdP swap into a data migration, and tenant creation must not depend on the
+auth provider.
 
 Tenant resolution per request: custom domain (from `tenant_domains`) →
 subdomain of `APP_BASE_DOMAIN` (slug) → `X-Tenant` header (CLI); membership is
