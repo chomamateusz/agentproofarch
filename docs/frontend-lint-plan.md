@@ -130,6 +130,9 @@ pattern: house rules as a tiny local plugin). Candidates, in order of value:
 Each custom rule ships with a **frozen legacy baseline** (t3code ratchet):
 existing violation counts per file are tolerated, any new occurrence fails.
 Baseline shrinks monotonically; CI fails if the baseline file is edited upward.
+The ratchet is an adoption mechanism for real codebases taking these rules on —
+**the demo itself keeps every baseline at zero**: it is the exemplar, it
+carries no tolerated debt.
 
 ## Suppression policy (from the hardening guide, verbatim intent)
 

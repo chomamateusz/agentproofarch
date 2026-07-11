@@ -107,6 +107,13 @@ read) or a command (unsafe write) — no hybrids, enforced by read/write tags
 flowing from contract route methods through the client types. All client
 interfaces (web, CLI, future) consume the same partition.
 
+App-level policies (the foundation prescribes the mechanism, each product
+sets the numbers): **bundle budgets** — a size gate in `check` with
+route-level splitting already mandated; thresholds are per app, none imposed
+here. **Browser matrix** — default is evergreen-latest only (browserslist
+`last 2 versions, not dead`); widening support is a per-app decision with its
+own cost.
+
 Mutations invalidate hierarchical query keys; manual cache writes only for a
 single resource with rollback. Errors surface as `ApiError` carrying the
 `AppError` taxonomy — rendered, never re-mapped ad hoc; a root error boundary
