@@ -78,17 +78,64 @@ tasks/         # PRDs and agent task files
 
 ### 3.4 Identity and tenancy model
 
-- Global `users` (managed by Better Auth): one email = one account.
-- `tenants` = Better Auth organizations; `memberships` with roles `owner | admin | member`.
+Authentication and relationship data are strictly separated (see
+[ADR-0002](decisions/0002-member-identity-and-idp.md)):
+
+- **Global account = authentication only.** `users` (managed by the auth
+  provider behind `AuthPort`): one email = one account, holding nothing but
+  identity and credentials. Passwordless accounts are first-class: an account
+  may be created without a password (e.g. provisioned after a purchase) and
+  authenticated via magic link.
+- **Creator teams** = auth-provider organizations (Better Auth `organization`
+  plugin); `memberships` with roles `owner | admin | member`. This is admin-
+  panel RBAC for small teams — nothing else.
+- **End customers ("members")** = our own tenant-scoped aggregate, NOT
+  auth-provider organizations: `members { id, tenantId, userId, displayName,
+  tags, marketingConsents, externalCustomerIds, createdAt }` plus any
+  product-level data keyed by `memberId`. All relationship data (profile,
+  tags, consents, progress) lives here — never on the global account.
+  Rationale: privacy (a customer must not be able to enumerate the tenants
+  they belong to — provider org APIs leak this by design), IdP swappability
+  (customer data never migrates when the auth provider changes), semantics
+  (customers buy access; they are not invited staff) and scale.
+- **Deletion semantics** are two distinct operations: (1) a creator removes a
+  member from THEIR tenant = delete the `members` row + tenant-scoped data;
+  the global account survives (it may belong to other tenants). (2) The user
+  erases their global account (GDPR request to the platform) = credentials
+  and identity removed; tenant-scoped member data is each tenant controller's
+  responsibility.
+- **GDPR roles**: the creator is the data controller of their tenant's member
+  data; the platform operator is the processor for tenant data and the
+  controller of the minimal global account (email + credentials). Marketing
+  consents exist only per tenant. Member export per tenant (CSV/JSON,
+  including email via join to the account) is a foundation capability.
 - `tenant_domains` table (ours): `{ id, tenantId, domain, kind: "subdomain" | "custom", verified, createdAt }`.
 - `Identity = { userId: string; tenantId: string | null; role: Role | null }` produced by `AuthPort` per request.
 - Every tenant-scoped use-case takes `ctx: { identity: Identity }` as its first parameter (lint/review rule) and every tenant-scoped repository method requires `tenantId`.
 - Tenant resolution middleware, in order: (1) exact match in `tenant_domains` on `Host` (custom domain), (2) subdomain of `APP_BASE_DOMAIN`, (3) `X-Tenant` header carrying tenant slug (used by CLI hitting the base API domain). In all cases membership of the authenticated user is verified; failure → `tenant_not_found` / `forbidden`.
+- **Sessions and domains**: one session spans all subdomains of
+  `APP_BASE_DOMAIN`; a custom tenant domain is its own cookie world — members
+  sign in per custom domain (magic link on the tenant's domain), which is a
+  privacy feature, not a bug. `trustedOrigins` must be resolved dynamically
+  against verified `tenant_domains`.
+- **Tenant, not instance**: one instance (one deployment, one database) hosts
+  many tenants and one shared pool of authentication accounts — so one
+  customer account across a creator's unrelated brands/courses is free within
+  an instance. A new instance (separate account pool) is justified only by
+  hard isolation or compliance requirements. Cross-instance / cross-app SSO
+  is the documented evolution path: promote the auth provider to a central
+  OIDC identity provider and swap the `AuthPort` adapter; `members`
+  aggregates are unaffected. Not built in the foundation.
 
 ### 3.5 Ports (complete list for the foundation)
 
 - `AuthPort` (server): request → `Identity` or error. Implementation: Better Auth.
-- `AuthClientPort` (client): `signUp/signIn/signOut/getSession`. Implementation: Better Auth client.
+  The surface stays narrow and OIDC-shaped (who is this user, nothing more) so
+  the provider is swappable (Better Auth ↔ Clerk/Auth0 ↔ a central OIDC
+  instance) — this swappability is a requirement, not an accident. The IdP
+  topology (embedded in-app / separate container / SaaS) is a composition-root
+  decision, default embedded.
+- `AuthClientPort` (client): `signUp/signIn/signOut/getSession` + magic-link request. Implementation: Better Auth client.
 - `DomainPort`: `addDomain(domain)`, `removeDomain(domain)`, `checkDomain(domain)`. Implementations: `vercel` (Domains API), `caddy` (no-op provision; verification = DNS resolves to us; TLS handled by Caddy on-demand), `noop` (local dev).
 - Repository interfaces for `tenant_domains` and any foundation data not owned by Better Auth.
 
@@ -100,6 +147,34 @@ Do not add new ports speculatively — a port is added only when a second implem
 - `DB_DRIVER=node-postgres | neon-http`
 - `DOMAIN_PROVISIONER=vercel | caddy | noop`
 This is the only file where env decides implementations.
+
+### 3.7 Public surface (headless API and embeds)
+
+Products on this foundation do NOT ship public marketing pages — creators
+build their own sites (Astro/Next/plain HTML); see
+[ADR-0001](decisions/0001-public-surface-embeds-over-pages.md). What the
+foundation provides instead:
+
+- **Public read-only contract routes**: a designated group of unauthenticated
+  `GET` routes in `core/contract` (public data such as offers/prices in the
+  product layer), served with open CORS and cacheable responses
+  (`Cache-Control` with tenant-content versioning). Same zod-first contract
+  discipline as the rest of the API.
+- **Shareable checkout-style links**: public, tenant-domain URLs that carry a
+  complete flow (e.g. checkout) without requiring the creator to host
+  anything.
+- **Embed endpoints (post-MVP)**: tiny server-rendered HTML widgets
+  (`/embed/*`, rendered by Hono via `hono/jsx` — a typed template engine
+  producing plain HTML strings, no client runtime) loaded through a script
+  tag + iframe with postMessage auto-resize. Not part of the proof of concept
+  or MVP.
+- **Headless React SDK (recommended, pending owner confirmation)**: a thin
+  published npm package with unstyled hooks/components consuming the public
+  contract (types reused from `core/contract`). Would amend the "no package
+  publishing" non-goal deliberately.
+
+The authenticated application remains a static SPA (FR-16); there is no
+server-side rendering of pages, only of embed widgets.
 
 ## 4. User Stories
 
@@ -349,6 +424,42 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - [ ] knip reports no dead exports; all scripts in README actually work
 - [ ] Check passes
 
+### US-025: Members aggregate
+**Description:** As a product built on the foundation, I need end customers modeled per §3.4 so relationship data belongs to the tenant.
+
+**Acceptance Criteria:**
+- [ ] `members` table + repository (create/find/list/delete by tenant), migrations applied; no coupling to auth-provider organization tables
+- [ ] Use-cases: `listMembers`, `removeMember` (owner/admin only; deletes member row + tenant-scoped data, global account untouched)
+- [ ] Integration test: same email is a member of two tenants with fully independent profiles; removing one leaves the other and the account intact
+- [ ] No contract route exposes a member's tenant list (test asserting FR-21)
+- [ ] Check passes
+
+### US-026: Passwordless member provisioning and magic-link sign-in
+**Description:** As a product, I need to create member accounts without passwords (e.g. from a payment webhook) and let them sign in via magic link.
+
+**Acceptance Criteria:**
+- [ ] `ensureMember(tenant, email)` idempotent use-case per FR-20, exposed as an internal contract route and CLI command
+- [ ] Magic-link sign-in enabled (Better Auth plugin) and working on tenant subdomains; link generation returns the URL in dev (no email delivery)
+- [ ] E2E: CLI provisions a member, magic link signs them in, `whoami` shows the member context
+- [ ] Check passes
+
+### US-027: Member export
+**Description:** As a tenant owner, I want to export my members so the customer relationship is portable.
+
+**Acceptance Criteria:**
+- [ ] Export use-case + contract route + CLI command: CSV and JSON, all member fields incl. email (join to account), tenant-scoped only
+- [ ] Owner/admin only; forbidden for members and other tenants (tested)
+- [ ] Check passes
+
+### US-028: Public read-only contract surface
+**Description:** As a technical creator, I want public JSON endpoints so I can render commerce data on my own site.
+
+**Acceptance Criteria:**
+- [ ] Contract supports a public route group: unauthenticated GET, open CORS, cache headers with tenant content version (§3.7)
+- [ ] One demo public route implemented end-to-end (e.g. public tenant profile) incl. CLI command and curl-from-another-origin test
+- [ ] Public routes cannot touch tenant-scoped use-cases requiring identity (lint/test)
+- [ ] Check passes
+
 ## 5. Functional Requirements
 
 **Architecture & enforcement**
@@ -359,11 +470,17 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - FR-5: Use-cases must return `Result`; the HTTP layer must translate to the envelope of §3.3; no exception may cross the HTTP boundary as a 500 with stack trace.
 
 **Auth & tenancy**
-- FR-6: Users register/login with email+password via Better Auth; one email maps to exactly one global account.
-- FR-7: A user may belong to multiple tenants (organizations) with role owner/admin/member; registration creates a personal default organization.
-- FR-8: Members are added via invitation links (token); no email delivery in v1.
+- FR-6: Users register/login with email+password or magic link via the auth provider behind `AuthPort`; one email maps to exactly one global account holding authentication data only.
+- FR-7: A user may belong to multiple tenants: as team staff (auth-provider organizations, roles owner/admin/member) or as an end customer (our `members` aggregate). Registration creates a personal default organization.
+- FR-8: Team members are added via invitation links (token); no email delivery in v1.
 - FR-9: Every tenant-scoped request must resolve a tenant per §3.4 and verify membership before any use-case runs.
 - FR-10: Every tenant-scoped repository method must require `tenantId`; cross-tenant data access must be impossible through the public API.
+
+**End customers (members)**
+- FR-19: End customers are `members` rows per §3.4 — never auth-provider organization members; all relationship data (profile, tags, marketing consents) is tenant-scoped.
+- FR-20: `ensureMember(tenant, email)` must be an idempotent use-case that finds-or-creates a passwordless global account and the member row — callable by product code (e.g. a payment webhook); sign-in for such accounts is via magic link on the tenant's domain.
+- FR-21: No API may allow a member to enumerate the tenants they belong to; tenant context comes exclusively from the domain being visited.
+- FR-22: Tenant owners/admins can export all members of their tenant (CSV/JSON including email) and remove a member (deleting the member row and tenant-scoped data without touching the global account).
 
 **Domains**
 - FR-11: Tenant owners/admins can add, list, check, and remove tenant domains via API, CLI, and web.
@@ -373,7 +490,11 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 **Clients**
 - FR-14: The CLI must cover every public API route of the foundation; each command supports `--json` (single JSON document on stdout) and exits with the code mapped from `ErrorCode`.
 - FR-15: The web SPA must perform all data access through `core/client`; direct `fetch` calls in `apps/web` are a lint error.
-- FR-16: The SPA must not use SSR; it must build to static assets servable by both Vercel and the Node container.
+- FR-16: The authenticated application is a static SPA (no SSR of pages; assets servable by both Vercel and the Node container). Server-rendered HTML exists only for `/embed/*` widgets per §3.7 (post-MVP).
+
+**Public surface**
+- FR-23: The contract must support a designated group of public, unauthenticated read-only routes served with open CORS on GET and cache headers keyed to tenant content version (§3.7).
+- FR-24: Public flows (e.g. checkout) must be reachable via shareable tenant-domain URLs that require no creator-hosted page.
 
 **Deployment**
 - FR-17: The same commit must deploy to Vercel (SPA static + Hono function + Neon) and to Docker (`docker compose up` with app + Postgres + Caddy) with only env differing.
@@ -382,7 +503,13 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 ## 6. Non-Goals (Out of Scope)
 
 - No example business resource/domain (comes in a follow-up example app built on Agentproofarch).
-- No SSR, no Next.js.
+- No SSR of pages, no Next.js. Products on this foundation ship no public
+  marketing/landing pages at all — creators bring their own sites; the
+  foundation offers the public headless API and shareable flow URLs (§3.7).
+  A simple hosted-pages/template system is at most a distant nice-to-have.
+- No iframe embed widgets in PoC/MVP (post-MVP per §3.7).
+- No central identity provider, OIDC federation or cross-instance SSO — the
+  documented evolution path exists behind `AuthPort` but is not built.
 - No mobile or Electron clients (future; they will consume `core/client`).
 - No realtime/websockets — polling via TanStack Query is sufficient.
 - No email sending (invitations are links); a MailPort may be added later when needed.
@@ -390,6 +517,8 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - No Kubernetes, AWS, GCP; no infra beyond Vercel + docker-compose.
 - No MongoDB (decision: Postgres + Drizzle; DB sits behind repository ports anyway).
 - No monorepo tooling (pnpm workspaces, Turborepo) and no package publishing.
+  (A future headless React SDK for the public API would deliberately amend
+  this non-goal — see Open Questions.)
 - No i18n in v1 (UI copy in English).
 
 ## 7. Design Considerations
@@ -417,6 +546,10 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 
 ## 10. Open Questions
 
+- **Headless React SDK** (`useOffer`, `<BuyButton>`-style unstyled components
+  over the public contract, published to npm): recommended by the
+  architecture agent, awaiting owner confirmation. Amends the
+  no-package-publishing non-goal.
 - Should CLI login support an API-key flow (long-lived tokens for CI/agents) in addition to session tokens? Deferred unless agent workflows hit session expiry friction.
 - Subdomain tenant URLs in local dev (`*.localhost` works in modern browsers) — confirm this is acceptable as the dev default, with header mode as fallback.
 - Invitation link expiry policy (default proposal: 7 days, single-use).

@@ -125,17 +125,49 @@ statuses and the CLI maps it to exit codes (`validation`=2, `unauthorized`=3,
 
 ## Identity and multi-tenancy
 
-One global account per email; membership links users to tenants
-(organizations) with roles `owner | admin | member`. Tenant resolution per
-request: custom domain (from `tenant_domains`) → subdomain of
-`APP_BASE_DOMAIN` (slug) → `X-Tenant` header (CLI); membership is always
-verified. Every tenant-scoped use-case takes `ctx: { identity }` first and
-every tenant-scoped repository call requires `tenantId`.
+Authentication is separated from relationship
+([ADR-0002](decisions/0002-member-identity-and-idp.md)): one global account
+per email holds *authentication only* (passwordless + magic link allowed)
+behind a narrow, OIDC-shaped `AuthPort` — the provider (Better Auth default)
+is swappable by design, and its topology (embedded / separate container /
+SaaS) is a composition-root choice. Two populations on top of it:
+
+- **Creator teams** — auth-provider organizations with roles
+  `owner | admin | member` (admin RBAC, invitations, switching).
+- **End customers ("members")** — our own tenant-scoped aggregate (profile,
+  tags, GDPR consents, export), never auth-provider organizations: providers
+  let users list their organizations, which would leak a customer's other
+  tenants, and provider-attached customer data would turn an IdP swap into a
+  customer-data migration.
+
+Tenant resolution per request: custom domain (from `tenant_domains`) →
+subdomain of `APP_BASE_DOMAIN` (slug) → `X-Tenant` header (CLI); membership is
+always verified. Every tenant-scoped use-case takes `ctx: { identity }` first
+and every tenant-scoped repository call requires `tenantId`. Sessions span
+`APP_BASE_DOMAIN` subdomains; each custom domain is its own cookie world
+(sign-in per domain — deliberate isolation).
+
+**Tenant, not instance**: one instance (one DB) hosts many tenants over one
+shared account pool — a creator's unrelated brands should be tenants, not new
+deployments. Cross-instance/cross-app SSO is an evolution path (central OIDC
+IdP via an `AuthPort` adapter swap), not a foundation feature.
+
+## Public surface
+
+Products on this foundation ship no public marketing pages — creators bring
+their own sites ([ADR-0001](decisions/0001-public-surface-embeds-over-pages.md)).
+The platform owns the commerce layer and exposes it as: public read-only
+contract routes (unauthenticated GET, open CORS, cache keyed to tenant content
+version), shareable flow URLs on tenant domains (checkout without any
+creator-hosted page), post-MVP iframe embed widgets (`/embed/*`, Hono +
+`hono/jsx` typed templates — plain HTML, no client runtime), and a recommended
+(pending confirmation) headless React SDK reusing `core/contract` types. The
+authenticated app remains a static SPA.
 
 ## Ports (complete list)
 
 - `AuthPort` (server): request headers → authenticated user. Better Auth.
-- `AuthClientPort` (client): sign-up/in/out. Better Auth client.
+- `AuthClientPort` (client): sign-up/in/out + magic link. Better Auth client.
 - `DomainPort`: add/check/remove tenant domains. Implementations: Vercel
   Domains API, Caddy on-demand TLS, noop (dev).
 - Repository interfaces per aggregate (todos, tenant domains, memberships).
