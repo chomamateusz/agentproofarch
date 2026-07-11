@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer, organization } from 'better-auth/plugins';
+import { bearer } from 'better-auth/plugins';
 
 import type { AuthPort } from '@core/server/index.js';
 import type { Db } from '@adapters/db/client.js';
@@ -11,9 +11,11 @@ export interface AuthSettings {
   baseUrl: string;
   /** Cookie domain root so sessions survive tenant subdomains, e.g. "localhost". */
   baseDomain: string;
-  trustedOrigins: string[];
+  trustedOrigins: string[] | ((request?: Request) => string[] | Promise<string[]>);
   secureCookies: boolean;
 }
+
+export const BETTER_AUTH_API_PATH_PATTERN = '/api/auth/*';
 
 export const createAuth = (db: Db, settings: AuthSettings) =>
   betterAuth({
@@ -22,7 +24,7 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     baseURL: settings.baseUrl,
     trustedOrigins: settings.trustedOrigins,
     emailAndPassword: { enabled: true },
-    plugins: [organization(), bearer()],
+    plugins: [bearer()],
     advanced: {
       useSecureCookies: settings.secureCookies,
       // Browsers reject Domain=.localhost cookies, so sessions are per-subdomain

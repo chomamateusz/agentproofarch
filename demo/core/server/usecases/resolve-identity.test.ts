@@ -1,31 +1,56 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Membership, TenantDomain } from '@core/domain/index.js';
+import type { Member, Membership, Tenant, TenantDomain } from '@core/domain/index.js';
 
-import type { MembershipReader, TenantDomainRepository } from '../ports.js';
+import type { TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
 import { resolveIdentity } from './resolve-identity.js';
 
 const user = { userId: 'u1', email: 'demo@example.com', name: 'Demo' };
 
 const acme: Membership = {
   tenant: { id: 't-acme', slug: 'acme', name: 'Acme Inc' },
-  role: 'owner',
+  staffRole: 'owner',
 };
 
-const fakeMemberships = (memberships: Membership[]): MembershipReader => ({
-  listForUser: async () => memberships,
-  findForUserInTenantBySlug: async (_userId, slug) =>
-    memberships.find((m) => m.tenant.slug === slug) ?? null,
-  findForUserInTenantById: async (_userId, id) =>
-    memberships.find((m) => m.tenant.id === id) ?? null,
+const member: Member = {
+  id: 'member-acme',
+  tenantId: 't-acme',
+  userId: 'u1',
+  email: 'demo@example.com',
+  displayName: 'Demo',
+  createdAt: '2026-07-11T00:00:00.000Z',
+};
+
+const fakeTenantAccess = (memberships: Membership[], members: Member[] = []): TenantAccessReader => ({
+  listTenantsForStaff: async () => memberships,
+  findStaffGrant: async (_userId, lookup) =>
+    memberships.find((m) =>
+      'tenantId' in lookup ? m.tenant.id === lookup.tenantId : m.tenant.slug === lookup.tenantSlug,
+    ) ?? null,
+  findMember: async (_userId, tenantId) =>
+    members.find((candidate) => candidate.tenantId === tenantId) ?? null,
 });
 
 const fakeDomains = (domains: TenantDomain[]): TenantDomainRepository => ({
   findByDomain: async (domain) => domains.find((d) => d.domain === domain) ?? null,
+  listVerifiedDomains: async () => domains,
 });
 
-const deps = (memberships: Membership[], domains: TenantDomain[] = []) => ({
-  memberships: fakeMemberships(memberships),
+const fakeTenants = (tenantList: Tenant[]): TenantRepository => ({
+  findById: async (tenantId) => tenantList.find((tenant) => tenant.id === tenantId) ?? null,
+  findBySlug: async (slug) => tenantList.find((tenant) => tenant.slug === slug) ?? null,
+  createTenant: async (input) => ({ id: input.id, slug: input.slug, name: input.name }),
+  createOwnerGrant: async () => undefined,
+});
+
+const deps = (
+  memberships: Membership[],
+  domains: TenantDomain[] = [],
+  memberRows: Member[] = [],
+  tenantRows: Tenant[] = [acme.tenant],
+) => ({
+  tenantAccess: fakeTenantAccess(memberships, memberRows),
+  tenants: fakeTenants(tenantRows),
   tenantDomains: fakeDomains(domains),
   baseDomain: 'localhost',
 });
@@ -42,7 +67,7 @@ describe('resolveIdentity', () => {
       { host: 'acme.localhost:4711', tenantHeader: null },
       deps([acme]),
     );
-    expect(result).toMatchObject({ ok: true, value: { tenantSlug: 'acme', role: 'owner' } });
+    expect(result).toMatchObject({ ok: true, value: { tenantSlug: 'acme', staffRole: 'owner' } });
   });
 
   it('resolves tenant from X-Tenant header on the base domain', async () => {
@@ -77,6 +102,18 @@ describe('resolveIdentity', () => {
     expect(denied).toMatchObject({ ok: false, error: { code: 'forbidden' } });
   });
 
+  it('resolves member-only identity without staff enumeration rights', async () => {
+    const result = await resolveIdentity(
+      user,
+      { host: 'acme.localhost:4711', tenantHeader: null },
+      deps([], [], [member]),
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      value: { tenantId: 't-acme', staffRole: null, memberId: 'member-acme' },
+    });
+  });
+
   it('returns tenant-less identity on the bare base domain', async () => {
     const result = await resolveIdentity(
       user,
@@ -92,6 +129,34 @@ describe('resolveIdentity', () => {
       { host: 'globex.localhost', tenantHeader: null },
       deps([acme]),
     );
-    expect(result).toMatchObject({ ok: false, error: { code: 'tenant_not_found' } });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'tenant_not_found',
+        message: 'No tenant "globex" or you do not have access to it',
+      },
+    });
+  });
+
+  it('uses the same tenant_not_found message for unknown and inaccessible slug tenants', async () => {
+    const absent = await resolveIdentity(
+      user,
+      { host: 'acme.localhost', tenantHeader: null },
+      deps([], [], [], []),
+    );
+    const inaccessible = await resolveIdentity(
+      user,
+      { host: 'acme.localhost', tenantHeader: null },
+      deps([]),
+    );
+
+    expect(absent).toMatchObject({
+      ok: false,
+      error: {
+        code: 'tenant_not_found',
+        message: 'No tenant "acme" or you do not have access to it',
+      },
+    });
+    expect(inaccessible).toEqual(absent);
   });
 });

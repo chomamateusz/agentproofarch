@@ -6,11 +6,11 @@ import {
   unauthorized,
   type AppError,
   type Identity,
-  type Membership,
   type Result,
+  type Tenant,
 } from '@core/domain/index.js';
 
-import type { AuthenticatedUser, MembershipReader, TenantDomainRepository } from '../ports.js';
+import type { AuthenticatedUser, TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
 
 export interface TenantRequestInfo {
   /** Host header, may include a port. */
@@ -21,12 +21,15 @@ export interface TenantRequestInfo {
 
 export interface ResolveIdentityDeps {
   tenantDomains: TenantDomainRepository;
-  memberships: MembershipReader;
+  tenantAccess: TenantAccessReader;
+  tenants: TenantRepository;
   /** e.g. "localhost" in dev, "agentproofarch.com" in prod. */
   baseDomain: string;
 }
 
 const stripPort = (host: string): string => host.split(':')[0] ?? host;
+const tenantNotFoundMessage = (slug: string): string =>
+  `No tenant "${slug}" or you do not have access to it`;
 
 /**
  * Tenant resolution order (PRD §3.4):
@@ -42,8 +45,8 @@ export const resolveIdentity = async (
 ): Promise<Result<Identity, AppError>> => {
   if (!user) return err(unauthorized());
 
-  const membership = await resolveMembership(user.userId, request, deps);
-  if (!membership.ok) return membership;
+  const tenant = await resolveTenant(request, deps);
+  if (!tenant.ok) return tenant;
 
   const base: Identity = {
     userId: user.userId,
@@ -52,43 +55,50 @@ export const resolveIdentity = async (
     tenantId: null,
     tenantSlug: null,
     tenantName: null,
-    role: null,
+    staffRole: null,
+    memberId: null,
   };
 
-  if (!membership.value) return ok(base);
+  if (!tenant.value) return ok(base);
+
+  const staffGrant = await deps.tenantAccess.findStaffGrant(user.userId, { tenantId: tenant.value.tenant.id });
+  const member = await deps.tenantAccess.findMember(user.userId, tenant.value.tenant.id);
+
+  if (!staffGrant && !member) {
+    return tenant.value.source === 'custom-domain'
+      ? err(forbidden('You do not have access to this tenant'))
+      : err(tenantNotFound(tenantNotFoundMessage(tenant.value.tenant.slug)));
+  }
 
   return ok({
     ...base,
-    tenantId: membership.value.tenant.id,
-    tenantSlug: membership.value.tenant.slug,
-    tenantName: membership.value.tenant.name,
-    role: membership.value.role,
+    tenantId: tenant.value.tenant.id,
+    tenantSlug: tenant.value.tenant.slug,
+    tenantName: tenant.value.tenant.name,
+    staffRole: staffGrant?.staffRole ?? null,
+    memberId: member?.id ?? null,
   });
 };
 
-const resolveMembership = async (
-  userId: string,
+type TenantSource = 'custom-domain' | 'slug';
+
+const resolveTenant = async (
   request: TenantRequestInfo,
   deps: ResolveIdentityDeps,
-): Promise<Result<Membership | null, AppError>> => {
+): Promise<Result<{ tenant: Tenant; source: TenantSource } | null, AppError>> => {
   const host = stripPort(request.host).toLowerCase();
 
   const customDomain = await deps.tenantDomains.findByDomain(host);
   if (customDomain) {
-    const membership = await deps.memberships.findForUserInTenantById(
-      userId,
-      customDomain.tenantId,
-    );
-    return membership ? ok(membership) : err(forbidden('You are not a member of this tenant'));
+    const tenant = await deps.tenants.findById(customDomain.tenantId);
+    return tenant ? ok({ tenant, source: 'custom-domain' }) : err(tenantNotFound('Tenant domain is not attached'));
   }
 
   const slug = subdomainOf(host, deps.baseDomain) ?? request.tenantHeader?.toLowerCase() ?? null;
   if (!slug) return ok(null);
 
-  const membership = await deps.memberships.findForUserInTenantBySlug(userId, slug);
-  return membership
-    ? ok(membership)
-    : err(tenantNotFound(`No tenant "${slug}" or you are not a member of it`));
+  const tenant = await deps.tenants.findBySlug(slug);
+  return tenant ? ok({ tenant, source: 'slug' }) : err(tenantNotFound(tenantNotFoundMessage(slug)));
 };
 
 const subdomainOf = (host: string, baseDomain: string): string | null => {

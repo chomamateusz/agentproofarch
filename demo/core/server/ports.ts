@@ -1,4 +1,4 @@
-import type { Membership, TenantDomain, Todo } from '@core/domain/index.js';
+import type { Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '@core/domain/index.js';
 
 /**
  * Ports: interfaces the core depends on, implemented in `adapters/`.
@@ -12,12 +12,27 @@ export interface TodoRepository {
 
 export interface TenantDomainRepository {
   findByDomain(domain: string): Promise<TenantDomain | null>;
+  listVerifiedDomains(): Promise<TenantDomain[]>;
 }
 
-export interface MembershipReader {
-  listForUser(userId: string): Promise<Membership[]>;
-  findForUserInTenantBySlug(userId: string, tenantSlug: string): Promise<Membership | null>;
-  findForUserInTenantById(userId: string, tenantId: string): Promise<Membership | null>;
+export type TenantLookup = { tenantId: string } | { tenantSlug: string };
+
+export interface TenantRepository {
+  findById(tenantId: string): Promise<Tenant | null>;
+  findBySlug(slug: string): Promise<Tenant | null>;
+  createTenant(input: { id: string; slug: string; name: string; createdAt: string }): Promise<Tenant>;
+  createOwnerGrant(input: {
+    id: string;
+    tenantId: string;
+    userId: string;
+    staffRole: Extract<StaffRole, 'owner'>;
+  }): Promise<void>;
+}
+
+export interface TenantAccessReader {
+  listTenantsForStaff(userId: string): Promise<Membership[]>;
+  findStaffGrant(userId: string, lookup: TenantLookup): Promise<Membership | null>;
+  findMember(userId: string, tenantId: string): Promise<Member | null>;
 }
 
 /** Established authenticated session, before tenant resolution. */

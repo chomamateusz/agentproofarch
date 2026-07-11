@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: agentproofarch
       POSTGRES_DB: agentproofarch
     ports:
-      - '47542:5432'
+      - '${DB_PORT:-47542}:5432'
     volumes:
       - agentproofarch-pgdata:/var/lib/postgresql/data
     healthcheck:

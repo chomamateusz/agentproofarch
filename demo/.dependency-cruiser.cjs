@@ -42,7 +42,7 @@ module.exports = {
       name: 'cli-is-a-pure-api-client',
       severity: 'error',
       from: { path: '^apps/cli' },
-      to: { path: '^(core/server|adapters|apps/(server|web))' },
+      to: { path: '^(core/server|adapters/(db|domain-provisioning)|apps/(server|web))' },
     },
     {
       name: 'vercel-and-neon-only-in-adapters',

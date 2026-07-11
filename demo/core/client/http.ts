@@ -5,11 +5,13 @@ import {
   looseEnvelopeSchema,
   healthOutputSchema,
   meOutputSchema,
-  orgListOutputSchema,
+  tenantCreateOutputSchema,
+  tenantListOutputSchema,
   todoCreateOutputSchema,
   todoListOutputSchema,
   type HttpMethod,
   type ReadMethod,
+  type TenantCreateInput,
   type WriteMethod,
 } from '@core/contract/index.js';
 import { err, internal, ok, type AppError, type NewTodo, type Result } from '@core/domain/index.js';
@@ -85,8 +87,17 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.health.method, API_ROUTES.health.path, healthOutputSchema, undefined, signal),
   me: (signal?: AbortSignal) =>
     request(options, API_ROUTES.me.method, API_ROUTES.me.path, meOutputSchema, undefined, signal),
-  listOrgs: (signal?: AbortSignal) =>
-    request(options, API_ROUTES.orgs.method, API_ROUTES.orgs.path, orgListOutputSchema, undefined, signal),
+  listTenants: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.tenants.method, API_ROUTES.tenants.path, tenantListOutputSchema, undefined, signal),
+  createTenant: (input: TenantCreateInput, signal?: AbortSignal) =>
+    request(
+      options,
+      API_ROUTES.tenantsCreate.method,
+      API_ROUTES.tenantsCreate.path,
+      tenantCreateOutputSchema,
+      input,
+      signal,
+    ),
   listTodos: (signal?: AbortSignal) =>
     request(options, API_ROUTES.todos.method, API_ROUTES.todos.path, todoListOutputSchema, undefined, signal),
   addTodo: (input: NewTodo, signal?: AbortSignal) =>

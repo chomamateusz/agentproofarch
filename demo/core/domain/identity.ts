@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const roleSchema = z.enum(['owner', 'admin', 'member']);
+export const staffRoleSchema = z.enum(['owner', 'admin']);
 
-export type Role = z.infer<typeof roleSchema>;
+export type StaffRole = z.infer<typeof staffRoleSchema>;
 
 export interface Identity {
   userId: string;
@@ -11,5 +11,6 @@ export interface Identity {
   tenantId: string | null;
   tenantSlug: string | null;
   tenantName: string | null;
-  role: Role | null;
+  staffRole: StaffRole | null;
+  memberId: string | null;
 }

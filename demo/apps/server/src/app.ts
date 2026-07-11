@@ -4,6 +4,7 @@ import {
   API_PATHS,
   HTTP_STATUS_BY_ERROR_CODE,
   TENANT_HEADER,
+  tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
 } from '@core/contract/index.js';
@@ -11,12 +12,21 @@ import {
   err,
   internal,
   ok,
+  unauthorized,
   validation,
   type AppError,
   type Identity,
   type Result,
 } from '@core/domain/index.js';
-import { addTodo, listMyOrganizations, listTodos, resolveIdentity } from '@core/server/index.js';
+import {
+  addTodo,
+  createTenant,
+  listMyTenants,
+  listTodos,
+  resolveIdentity,
+  type AuthenticatedUser,
+} from '@core/server/index.js';
+import { BETTER_AUTH_API_PATH_PATTERN } from '@adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
 
@@ -30,6 +40,17 @@ const respond = <T>(result: Result<T, AppError>): Response => {
     headers: { 'content-type': 'application/json' },
   });
 };
+
+const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
+  userId: user.userId,
+  email: user.email,
+  name: user.name,
+  tenantId: null,
+  tenantSlug: null,
+  tenantName: null,
+  staffRole: null,
+  memberId: null,
+});
 
 export const buildApp = (deps: AppDeps) => {
   const app = new Hono<Vars>();
@@ -49,7 +70,19 @@ export const buildApp = (deps: AppDeps) => {
     ),
   );
 
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => deps.auth.handler(c.req.raw));
+  app.on(['GET', 'POST'], BETTER_AUTH_API_PATH_PATTERN, (c) => deps.auth.handler(c.req.raw));
+
+  app.post(API_PATHS.tenants, async (c) => {
+    const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
+    if (!user) return respond(err(unauthorized()));
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = tenantCreateInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid tenant payload', parsed.error.flatten())));
+    }
+    const result = await createTenant({ identity: tenantlessIdentity(user) }, parsed.data, deps);
+    return respond(result.ok ? ok({ tenant: result.value }) : result);
+  });
 
   // Everything below is tenant-aware: authenticate, resolve tenant, inject identity.
   app.use('/api/*', async (c, next) => {
@@ -75,23 +108,25 @@ export const buildApp = (deps: AppDeps) => {
         email: identity.email,
         name: identity.name,
         tenant:
-          identity.tenantId && identity.tenantSlug && identity.tenantName && identity.role
+          identity.tenantId &&
+          identity.tenantSlug &&
+          identity.tenantName &&
+          (identity.staffRole || identity.memberId)
             ? {
                 id: identity.tenantId,
                 slug: identity.tenantSlug,
                 name: identity.tenantName,
-                role: identity.role,
+                staffRole: identity.staffRole,
+                memberId: identity.memberId,
               }
             : null,
       }),
     );
   });
 
-  app.get(API_PATHS.orgs, async (c) => {
-    const result = await listMyOrganizations({ identity: c.get('identity') }, deps);
-    return respond(
-      result.ok ? ok({ organizations: result.value }) : result,
-    );
+  app.get(API_PATHS.tenants, async (c) => {
+    const result = await listMyTenants({ identity: c.get('identity') }, deps);
+    return respond(result.ok ? ok({ tenants: result.value }) : result);
   });
 
   app.get(API_PATHS.todos, async (c) => {

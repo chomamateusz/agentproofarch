@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { createAuth } from '@adapters/auth/create-auth.js';
 
 import { createDb } from './client.js';
-import { member, organization, tenantDomains, todos, user } from './schema.js';
+import { members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 
 const connectionString =
   process.env['DATABASE_URL'] ??
@@ -22,78 +22,92 @@ const auth = createAuth(db, {
   secret: process.env['BETTER_AUTH_SECRET'] ?? 'dev-only-secret-do-not-use-in-prod',
   baseUrl: 'http://localhost:47100',
   baseDomain: 'localhost',
-  trustedOrigins: ['http://localhost:47100'],
+  trustedOrigins: () => ['http://localhost:47100'],
   secureCookies: false,
 });
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
 
 const existing = await db.select().from(user).where(eq(user.email, DEMO_EMAIL)).limit(1);
-if (existing.length > 0) {
-  console.log('Seed already applied, nothing to do.');
-  process.exit(0);
+if (existing.length === 0) {
+  await auth.api.signUpEmail({
+    body: { name: 'Demo User', email: DEMO_EMAIL, password: 'demo1234' },
+  });
 }
-
-await auth.api.signUpEmail({
-  body: { name: 'Demo User', email: DEMO_EMAIL, password: 'demo1234' },
-});
 const seededUsers = await db.select().from(user).where(eq(user.email, DEMO_EMAIL)).limit(1);
 const demoUser = seededUsers[0];
 if (!demoUser) throw new Error('Seeded user not found');
 
-const now = new Date();
-const nowIso = now.toISOString();
+const nowIso = new Date().toISOString();
 
-const tenants = [
-  { id: 'org-acme', slug: 'acme', name: 'Acme Sp. z o.o.' },
-  { id: 'org-globex', slug: 'globex', name: 'Globex Corp' },
+const tenantRows = [
+  { id: 'tenant-acme', slug: 'acme', name: 'Acme Sp. z o.o.' },
+  { id: 'tenant-globex', slug: 'globex', name: 'Globex Corp' },
 ];
 
-await db.insert(organization).values(tenants.map((t) => ({ ...t, createdAt: now })));
+await db.insert(tenants).values(tenantRows.map((tenant) => ({ ...tenant, createdAt: nowIso }))).onConflictDoNothing();
 
-await db.insert(member).values(
-  tenants.map((t, index) => ({
-    id: `member-${t.slug}`,
-    organizationId: t.id,
+await db.insert(tenantAdmins).values(
+  tenantRows.map((tenant, index) => ({
+    id: `admin-${tenant.slug}`,
+    tenantId: tenant.id,
     userId: demoUser.id,
-    role: index === 0 ? 'owner' : 'admin',
-    createdAt: now,
+    role: index === 0 ? ('owner' as const) : ('admin' as const),
   })),
-);
+).onConflictDoNothing();
+
+await db.insert(members).values([
+  {
+    id: 'member-acme-alice',
+    tenantId: 'tenant-acme',
+    userId: 'customer-alice-opaque',
+    email: 'alice@example.com',
+    displayName: 'Alice Example',
+    createdAt: nowIso,
+  },
+  {
+    id: 'member-globex-bob',
+    tenantId: 'tenant-globex',
+    userId: 'customer-bob-opaque',
+    email: 'bob@example.com',
+    displayName: 'Bob Example',
+    createdAt: nowIso,
+  },
+]).onConflictDoNothing();
 
 await db.insert(tenantDomains).values(
-  tenants.map((t) => ({
-    id: `domain-${t.slug}`,
-    tenantId: t.id,
-    domain: `${t.slug}.localhost`,
+  tenantRows.map((tenant) => ({
+    id: `domain-${tenant.slug}`,
+    tenantId: tenant.id,
+    domain: `${tenant.slug}.localhost`,
     kind: 'subdomain' as const,
     verified: true,
   })),
-);
+).onConflictDoNothing();
 
 await db.insert(todos).values([
   {
     id: crypto.randomUUID(),
-    tenantId: 'org-acme',
+    tenantId: 'tenant-acme',
     title: 'Wdrożyć walking skeleton na produkcję',
     createdBy: demoUser.id,
     createdAt: nowIso,
   },
   {
     id: crypto.randomUUID(),
-    tenantId: 'org-acme',
+    tenantId: 'tenant-acme',
     title: 'Sprawdzić izolację danych między tenantami',
     createdBy: demoUser.id,
     createdAt: nowIso,
   },
   {
     id: crypto.randomUUID(),
-    tenantId: 'org-globex',
+    tenantId: 'tenant-globex',
     title: 'Globex: przygotować prezentację architektury',
     createdBy: demoUser.id,
     createdAt: nowIso,
   },
-]);
+]).onConflictDoNothing();
 
 console.log('Seed applied:');
 console.log(`  user     ${DEMO_EMAIL} / demo1234`);

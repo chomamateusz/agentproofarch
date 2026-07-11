@@ -64,7 +64,7 @@ export const TodosPage = () => {
 };
 
 const PickTenant = () => {
-  const orgs = useQuery(actions.orgs);
+  const tenants = useQuery(actions.tenants);
   return (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: '1.5rem' }}>
       <Paper
@@ -77,13 +77,13 @@ const PickTenant = () => {
         <Typography variant="overline" component="p" sx={{ fontSize: '0.78rem' }}>
           every tenant lives on its own domain
         </Typography>
-        {orgs.isPending ? (
+        {tenants.isPending ? (
           <Typography variant="h2" component="p" sx={{ py: 2 }}>
             loading…
           </Typography>
         ) : null}
         <List sx={{ mt: '1.2rem' }} disablePadding>
-          {orgs.data?.organizations.map((m) => (
+          {tenants.data?.tenants.map((m) => (
             <ListItem key={m.tenant.id} disablePadding>
               <ListItemButton component="a" href={tenantUrl(m.tenant.slug)} sx={{ px: '0.3rem' }}>
                 <ListItemText
@@ -104,13 +104,13 @@ const TenantLedger = ({
   tenant,
   email,
 }: {
-  tenant: { id: string; slug: string; name: string; role: string };
+  tenant: { id: string; slug: string; name: string; staffRole: string | null; memberId: string | null };
   email: string;
 }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const todos = useQuery(actions.todos);
-  const orgs = useQuery(actions.orgs);
+  const tenants = useQuery(actions.tenants);
   const [title, setTitle] = useState('');
   const { mode } = useThemeMode();
   const theme = useMemo(
@@ -164,7 +164,7 @@ const TenantLedger = ({
               {window.location.hostname}
             </Typography>
             <Box sx={{ flex: 1 }} />
-            <Chip variant="outlined" label={tenant.role} />
+            <Chip variant="outlined" label={tenant.staffRole ?? 'member'} />
           </Stack>
           <Stack
             direction="row"
@@ -201,7 +201,7 @@ const TenantLedger = ({
           }}
         >
           <Typography variant="overline">your tenants →</Typography>
-          {orgs.data?.organizations.map((m) => {
+          {tenants.data?.tenants.map((m) => {
             const active = m.tenant.id === tenant.id;
             return (
               <Link

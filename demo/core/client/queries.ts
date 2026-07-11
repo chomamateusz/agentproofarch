@@ -9,6 +9,7 @@ import type {
   QueryKey,
 } from '@tanstack/query-core';
 
+import type { TenantCreateInput } from '@core/contract/index.js';
 import type { NewTodo } from '@core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
@@ -75,8 +76,8 @@ export const meScopes = {
   all: () => ['me'] as const,
 };
 
-export const orgsScopes = {
-  all: () => ['orgs'] as const,
+export const tenantsScopes = {
+  all: () => ['tenants'] as const,
 };
 
 export const todosScopes = {
@@ -94,10 +95,16 @@ export const meQuery = (api: ApiClient) =>
     call: ({ signal }) => api.me(signal),
   });
 
-export const orgsQuery = (api: ApiClient) =>
+export const tenantsQuery = (api: ApiClient) =>
   defineQuery({
-    queryKey: orgsScopes.all(),
-    call: ({ signal }) => api.listOrgs(signal),
+    queryKey: tenantsScopes.all(),
+    call: ({ signal }) => api.listTenants(signal),
+  });
+
+export const createTenantMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...tenantsScopes.all(), 'create'],
+    call: (input: TenantCreateInput) => api.createTenant(input),
   });
 
 export const todosQuery = (api: ApiClient) =>
