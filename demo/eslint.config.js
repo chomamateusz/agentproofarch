@@ -1,3 +1,9 @@
+import js from '@eslint/js';
+import tanstackQuery from '@tanstack/eslint-plugin-query';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+import react from 'eslint-plugin-react';
+import reactCompiler from 'eslint-plugin-react-compiler';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 
@@ -8,7 +14,34 @@ import boundaries from 'eslint-plugin-boundaries';
  */
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', '**/*.js', '**/*.cjs', 'drizzle/**', 'scripts/**'],
+    ignores: ['node_modules/**', 'dist/**', 'drizzle/**'],
+  },
+  {
+    files: ['**/*.js', '**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        document: 'readonly',
+        process: 'readonly',
+      },
+    },
+    rules: js.configs.recommended.rules,
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'commonjs',
+      globals: {
+        console: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+      },
+    },
+    rules: js.configs.recommended.rules,
   },
   ...tseslint.configs.strict,
   {
@@ -103,6 +136,38 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    plugins: {
+      '@tanstack/query': tanstackQuery,
+      'jsx-a11y': jsxA11y,
+      react,
+      'react-compiler': reactCompiler,
+      'react-hooks': reactHooks,
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      '@tanstack/query/exhaustive-deps': 'error',
+      '@tanstack/query/no-rest-destructuring': 'error',
+      '@tanstack/query/stable-query-client': 'error',
+      'react-compiler/react-compiler': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react/no-unstable-nested-components': 'error',
     },
   },
 );
