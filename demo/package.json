@@ -15,7 +15,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "depcruise": "depcruise core adapters apps",
+    "depcruise": "depcruise core adapters apps scripts",
     "check": "npm run typecheck && npm run lint && npm run depcruise && npm run test",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:generate": "drizzle-kit generate",

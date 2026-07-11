@@ -22,9 +22,10 @@ import { useNavigate } from '@tanstack/react-router';
 
 import { meQuery, orgsQuery, todosQuery, unwrap, ApiError } from '@core/client/index.js';
 
-import { api, authClient, tenantHue, tenantUrl } from '../api.js';
-import { useThemeMode } from '../theme-mode.js';
-import { createThemeForMode, LINE_STRONG } from '../theme.js';
+import { api, authClient } from '../../api.js';
+import { tenantHue, tenantUrl } from '../../lib/tenant.js';
+import { useThemeMode } from '../../theme-mode.js';
+import { createThemeForMode, LINE_STRONG } from '../../theme.js';
 
 export const TodosPage = () => {
   const navigate = useNavigate();

@@ -14,7 +14,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { authClient } from '../api.js';
+import { authClient } from '../../api.js';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');

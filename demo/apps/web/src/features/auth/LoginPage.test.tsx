@@ -2,7 +2,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { renderWithProviders } from '../test/render.js';
+import { renderWithProviders } from '../../test/render.js';
 import { LoginPage } from './LoginPage.js';
 
 describe('LoginPage', () => {

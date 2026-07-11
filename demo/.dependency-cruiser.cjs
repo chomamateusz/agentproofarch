@@ -57,6 +57,36 @@ module.exports = {
       from: { path: '^core' },
       to: { path: 'node_modules/(hono|react|react-dom|drizzle-orm|better-auth|pg|commander)(/|$)' },
     },
+    {
+      name: 'web-ui-is-presentational',
+      severity: 'error',
+      comment: 'components/ui: no core, adapters, features, routes or TanStack (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/components/ui' },
+      to: {
+        path: '^(core|adapters|apps/web/src/(features|routes))|node_modules/@tanstack/react-(query|router)(/|$)',
+      },
+    },
+    {
+      name: 'web-lib-no-react',
+      severity: 'error',
+      comment: 'lib is pure TypeScript: no react (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/lib' },
+      to: { path: 'node_modules/(react|react-dom)(/|$)' },
+    },
+    {
+      name: 'web-lib-has-no-app-internal-deps',
+      severity: 'error',
+      comment: 'lib is a pure utility leaf: no app-internal imports (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/lib' },
+      to: { path: '^(core|adapters|apps)', pathNot: '^apps/web/src/lib' },
+    },
+    {
+      name: 'web-routes-stay-thin',
+      severity: 'error',
+      comment: 'routes render features only: no core, adapters or api wiring (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/routes' },
+      to: { path: '^(core|adapters)|^apps/web/src/api\\.' },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

@@ -10,10 +10,10 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
-import { LoginPage } from './pages/LoginPage.js';
-import { TodosPage } from './pages/TodosPage.js';
+import { ThemeSwitcher } from './components/ui/ThemeSwitcher.js';
+import { LoginRoute } from './routes/login.js';
+import { TodosRoute } from './routes/todos.js';
 import { ThemeModeProvider } from './theme-mode.js';
-import { ThemeSwitcher } from './ThemeSwitcher.js';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -24,11 +24,15 @@ const rootRoute = createRootRoute({
   ),
 });
 
-const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: TodosPage });
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: TodosRoute,
+});
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: LoginPage,
+  component: LoginRoute,
 });
 
 const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute, loginRoute]) });

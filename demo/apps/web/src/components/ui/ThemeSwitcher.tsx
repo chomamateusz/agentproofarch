@@ -1,6 +1,6 @@
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 
-import { useThemeMode } from './theme-mode.js';
+import { useThemeMode } from '../../theme-mode.js';
 
 /** Top-of-page switch between the logbook theme and stock Material UI. */
 export const ThemeSwitcher = () => {
