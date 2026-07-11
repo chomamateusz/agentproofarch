@@ -186,7 +186,12 @@ export default tseslint.config(
         { type: 'web-main', pattern: 'apps/web/src/main.tsx', mode: 'full' },
         { type: 'web-api', pattern: 'apps/web/src/api.ts', mode: 'full' },
         { type: 'web-routes', pattern: 'apps/web/src/routes/**', mode: 'full' },
-        { type: 'web-features', pattern: 'apps/web/src/features/**', mode: 'full' },
+        {
+          type: 'web-features',
+          pattern: 'apps/web/src/features/(*)/**',
+          mode: 'full',
+          capture: ['feature'],
+        },
         { type: 'web-ui', pattern: 'apps/web/src/components/ui/**', mode: 'full' },
         { type: 'web-lib', pattern: 'apps/web/src/lib/**', mode: 'full' },
         { type: 'web-test', pattern: 'apps/web/src/test/**', mode: 'full' },
@@ -275,7 +280,7 @@ export default tseslint.config(
             {
               from: ['web-features'],
               allow: [
-                'web-features',
+                ['web-features', { feature: '${from.feature}' }],
                 'web-api',
                 'web-ui',
                 'web-lib',
