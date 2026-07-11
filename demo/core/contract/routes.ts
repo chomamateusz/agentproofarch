@@ -43,11 +43,28 @@ export const todoCreateOutputSchema = z.object({
   todo: todoSchema,
 });
 
+/**
+ * Every route carries its HTTP method so clients can discriminate reads from
+ * writes at the type level (CQRS partition). Safe GETs are queries; unsafe
+ * verbs are commands. `core/client` brands its call surface from these methods.
+ */
+export const API_ROUTES = {
+  health: { method: 'GET', path: '/api/health' },
+  me: { method: 'GET', path: '/api/me' },
+  orgs: { method: 'GET', path: '/api/orgs' },
+  todos: { method: 'GET', path: '/api/todos' },
+  todosCreate: { method: 'POST', path: '/api/todos' },
+} as const;
+
+export type HttpMethod = (typeof API_ROUTES)[keyof typeof API_ROUTES]['method'];
+export type ReadMethod = Extract<HttpMethod, 'GET'>;
+export type WriteMethod = Exclude<HttpMethod, ReadMethod>;
+
 export const API_PATHS = {
-  health: '/api/health',
-  me: '/api/me',
-  orgs: '/api/orgs',
-  todos: '/api/todos',
+  health: API_ROUTES.health.path,
+  me: API_ROUTES.me.path,
+  orgs: API_ROUTES.orgs.path,
+  todos: API_ROUTES.todos.path,
 } as const;
 
 /** Header used by non-browser clients (CLI, tests) to select the tenant. */

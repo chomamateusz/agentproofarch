@@ -5,19 +5,24 @@ import type {
   MutationKey,
   MutationOptions,
   QueryFunction,
+  QueryFunctionContext,
   QueryKey,
 } from '@tanstack/query-core';
 
 import type { NewTodo } from '@core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
-import { unwrap, type ApiClient } from './http.js';
+import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
 
 /**
  * Identity helpers that type descriptors against `@tanstack/query-core` option
  * types (never `@tanstack/react-query`, which `core/client` may not import).
  * They bind the `queryFn` result type to the key so `useQuery`/`useMutation`
  * infer `data`/`variables` at the call site without explicit generics.
+ *
+ * CQRS partition is enforced here: `defineQuery` accepts only a read-tagged
+ * `call` (a GET contract route), `defineMutation` only a write-tagged one.
+ * Each helper owns the `unwrap` so the tag never leaks into `data`/`variables`.
  */
 export type QueryDescriptor<TQueryFnData, TQueryKey extends QueryKey> = FetchQueryOptions<
   TQueryFnData,
@@ -26,9 +31,21 @@ export type QueryDescriptor<TQueryFnData, TQueryKey extends QueryKey> = FetchQue
   TQueryKey
 > & { queryFn: QueryFunction<TQueryFnData, TQueryKey> };
 
+type ReadCall<TQueryFnData, TQueryKey extends QueryKey> = (
+  context: QueryFunctionContext<TQueryKey>,
+) => Promise<ReadResult<TQueryFnData>>;
+
+type DefineQueryInput<TQueryFnData, TQueryKey extends QueryKey> = Omit<
+  QueryDescriptor<TQueryFnData, TQueryKey>,
+  'queryFn'
+> & { call: ReadCall<TQueryFnData, TQueryKey> };
+
 export const defineQuery = <TQueryFnData, TQueryKey extends QueryKey>(
-  descriptor: QueryDescriptor<TQueryFnData, TQueryKey>,
-): QueryDescriptor<TQueryFnData, TQueryKey> => descriptor;
+  input: DefineQueryInput<TQueryFnData, TQueryKey>,
+): QueryDescriptor<TQueryFnData, TQueryKey> => {
+  const { call, ...rest } = input;
+  return { ...rest, queryFn: async (context) => unwrap(await call(context)) };
+};
 
 export type MutationDescriptor<TData, TVariables> = MutationOptions<
   TData,
@@ -36,9 +53,19 @@ export type MutationDescriptor<TData, TVariables> = MutationOptions<
   TVariables
 > & { mutationKey: MutationKey; mutationFn: MutationFunction<TData, TVariables> };
 
+type WriteCall<TData, TVariables> = (variables: TVariables) => Promise<WriteResult<TData>>;
+
+type DefineMutationInput<TData, TVariables> = Omit<
+  MutationDescriptor<TData, TVariables>,
+  'mutationFn'
+> & { call: WriteCall<TData, TVariables> };
+
 export const defineMutation = <TData, TVariables>(
-  descriptor: MutationDescriptor<TData, TVariables>,
-): MutationDescriptor<TData, TVariables> => descriptor;
+  input: DefineMutationInput<TData, TVariables>,
+): MutationDescriptor<TData, TVariables> => {
+  const { call, ...rest } = input;
+  return { ...rest, mutationFn: async (variables) => unwrap(await call(variables)) };
+};
 
 /**
  * Query keys are the public API of each resource: general → specific, matched
@@ -64,25 +91,25 @@ export const authScopes = {
 export const meQuery = (api: ApiClient) =>
   defineQuery({
     queryKey: meScopes.all(),
-    queryFn: async ({ signal }) => unwrap(await api.me(signal)),
+    call: ({ signal }) => api.me(signal),
   });
 
 export const orgsQuery = (api: ApiClient) =>
   defineQuery({
     queryKey: orgsScopes.all(),
-    queryFn: async ({ signal }) => unwrap(await api.listOrgs(signal)),
+    call: ({ signal }) => api.listOrgs(signal),
   });
 
 export const todosQuery = (api: ApiClient) =>
   defineQuery({
     queryKey: todosScopes.lists(),
-    queryFn: async ({ signal }) => unwrap(await api.listTodos(signal)),
+    call: ({ signal }) => api.listTodos(signal),
   });
 
 export const addTodoMutation = (api: ApiClient) =>
   defineMutation({
     mutationKey: [...todosScopes.all(), 'create'],
-    mutationFn: async (input: NewTodo) => unwrap(await api.addTodo(input)),
+    call: (input: NewTodo) => api.addTodo(input),
   });
 
 /** The invalidation filter `addTodoMutation` applies after it settles. */
@@ -95,18 +122,17 @@ export const addTodoInvalidates = () => ({ queryKey: todosScopes.lists() });
 export const signUpMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'sign-up'],
-    mutationFn: async (input: { name: string; email: string; password: string }) =>
-      unwrap(await auth.signUp(input)),
+    call: (input: { name: string; email: string; password: string }) => auth.signUp(input),
   });
 
 export const signInMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'sign-in'],
-    mutationFn: async (input: { email: string; password: string }) => unwrap(await auth.signIn(input)),
+    call: (input: { email: string; password: string }) => auth.signIn(input),
   });
 
 export const signOutMutation = (auth: AuthClientPort): MutationDescriptor<void, void> =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'sign-out'],
-    mutationFn: () => auth.signOut().then(unwrap),
+    call: () => auth.signOut(),
   });

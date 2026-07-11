@@ -1,15 +1,30 @@
 import { type z } from 'zod';
 
 import {
-  API_PATHS,
+  API_ROUTES,
   looseEnvelopeSchema,
   healthOutputSchema,
   meOutputSchema,
   orgListOutputSchema,
   todoCreateOutputSchema,
   todoListOutputSchema,
+  type HttpMethod,
+  type ReadMethod,
+  type WriteMethod,
 } from '@core/contract/index.js';
 import { err, internal, ok, type AppError, type NewTodo, type Result } from '@core/domain/index.js';
+
+declare const HTTP_METHOD_BRAND: unique symbol;
+
+/**
+ * Phantom read/write tag on a call's result, driven by the contract's HTTP
+ * method. Optional and never assigned at runtime (zero cost, no `as`): a plain
+ * `Result` is assignable, yet a `'GET'`-tagged result is not assignable to a
+ * `'POST'`-tagged one, so `defineQuery`/`defineMutation` can reject mismatches.
+ */
+type Branded<T, M extends HttpMethod> = T & { readonly [HTTP_METHOD_BRAND]?: M };
+export type ReadResult<T> = Branded<Result<T, AppError>, ReadMethod>;
+export type WriteResult<T> = Branded<Result<T, AppError>, WriteMethod>;
 
 export interface ApiClientOptions {
   /** '' for same-origin (web); absolute URL for CLI and other clients. */
@@ -19,14 +34,14 @@ export interface ApiClientOptions {
   headers?: () => Record<string, string>;
 }
 
-const request = async <S extends z.ZodTypeAny>(
+const request = async <S extends z.ZodTypeAny, M extends HttpMethod>(
   options: ApiClientOptions,
-  method: 'GET' | 'POST',
+  method: M,
   path: string,
   outputSchema: S,
   body?: unknown,
   signal?: AbortSignal,
-): Promise<Result<z.output<S>, AppError>> => {
+): Promise<Branded<Result<z.output<S>, AppError>, M>> => {
   const fetchImpl = options.fetchImpl ?? fetch;
   let response: Response;
   try {
@@ -67,15 +82,15 @@ const request = async <S extends z.ZodTypeAny>(
 /** The single typed gateway to the API. No client ever hand-writes HTTP. */
 export const createApiClient = (options: ApiClientOptions) => ({
   health: (signal?: AbortSignal) =>
-    request(options, 'GET', API_PATHS.health, healthOutputSchema, undefined, signal),
+    request(options, API_ROUTES.health.method, API_ROUTES.health.path, healthOutputSchema, undefined, signal),
   me: (signal?: AbortSignal) =>
-    request(options, 'GET', API_PATHS.me, meOutputSchema, undefined, signal),
+    request(options, API_ROUTES.me.method, API_ROUTES.me.path, meOutputSchema, undefined, signal),
   listOrgs: (signal?: AbortSignal) =>
-    request(options, 'GET', API_PATHS.orgs, orgListOutputSchema, undefined, signal),
+    request(options, API_ROUTES.orgs.method, API_ROUTES.orgs.path, orgListOutputSchema, undefined, signal),
   listTodos: (signal?: AbortSignal) =>
-    request(options, 'GET', API_PATHS.todos, todoListOutputSchema, undefined, signal),
+    request(options, API_ROUTES.todos.method, API_ROUTES.todos.path, todoListOutputSchema, undefined, signal),
   addTodo: (input: NewTodo, signal?: AbortSignal) =>
-    request(options, 'POST', API_PATHS.todos, todoCreateOutputSchema, input, signal),
+    request(options, API_ROUTES.todosCreate.method, API_ROUTES.todosCreate.path, todoCreateOutputSchema, input, signal),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;
