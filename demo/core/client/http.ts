@@ -25,6 +25,7 @@ const request = async <S extends z.ZodTypeAny>(
   path: string,
   outputSchema: S,
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<Result<z.output<S>, AppError>> => {
   const fetchImpl = options.fetchImpl ?? fetch;
   let response: Response;
@@ -37,6 +38,7 @@ const request = async <S extends z.ZodTypeAny>(
       },
       body: body === undefined ? null : JSON.stringify(body),
       credentials: 'include',
+      signal: signal ?? null,
     });
   } catch (cause) {
     return err(internal(`Network error calling ${path}: ${String(cause)}`));
@@ -64,11 +66,16 @@ const request = async <S extends z.ZodTypeAny>(
 
 /** The single typed gateway to the API. No client ever hand-writes HTTP. */
 export const createApiClient = (options: ApiClientOptions) => ({
-  health: () => request(options, 'GET', API_PATHS.health, healthOutputSchema),
-  me: () => request(options, 'GET', API_PATHS.me, meOutputSchema),
-  listOrgs: () => request(options, 'GET', API_PATHS.orgs, orgListOutputSchema),
-  listTodos: () => request(options, 'GET', API_PATHS.todos, todoListOutputSchema),
-  addTodo: (input: NewTodo) => request(options, 'POST', API_PATHS.todos, todoCreateOutputSchema, input),
+  health: (signal?: AbortSignal) =>
+    request(options, 'GET', API_PATHS.health, healthOutputSchema, undefined, signal),
+  me: (signal?: AbortSignal) =>
+    request(options, 'GET', API_PATHS.me, meOutputSchema, undefined, signal),
+  listOrgs: (signal?: AbortSignal) =>
+    request(options, 'GET', API_PATHS.orgs, orgListOutputSchema, undefined, signal),
+  listTodos: (signal?: AbortSignal) =>
+    request(options, 'GET', API_PATHS.todos, todoListOutputSchema, undefined, signal),
+  addTodo: (input: NewTodo, signal?: AbortSignal) =>
+    request(options, 'POST', API_PATHS.todos, todoCreateOutputSchema, input, signal),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;

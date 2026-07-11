@@ -20,7 +20,14 @@ import { alpha } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { meQuery, orgsQuery, todosQuery, unwrap, ApiError } from '@core/client/index.js';
+import {
+  addTodoInvalidates,
+  addTodoMutation,
+  meQuery,
+  orgsQuery,
+  todosQuery,
+  ApiError,
+} from '@core/client/index.js';
 
 import { api, authClient } from '../../api.js';
 import { tenantHue, tenantUrl } from '../../lib/tenant.js';
@@ -119,11 +126,9 @@ const TenantLedger = ({
   );
 
   const addTodo = useMutation({
-    mutationFn: async (newTitle: string) => unwrap(await api.addTodo({ title: newTitle })),
-    onSuccess: async () => {
-      setTitle('');
-      await queryClient.invalidateQueries({ queryKey: ['todos'] });
-    },
+    ...addTodoMutation(api),
+    onSuccess: () => setTitle(''),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: addTodoInvalidates() }),
   });
 
   const signOut = async () => {
@@ -271,7 +276,7 @@ const TenantLedger = ({
             component="form"
             onSubmit={(event: React.FormEvent) => {
               event.preventDefault();
-              if (title.trim()) addTodo.mutate(title);
+              if (title.trim()) addTodo.mutate({ title });
             }}
             sx={{ mt: '24px', display: 'flex' }}
           >

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline } from '@mui/material';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   createRootRoute,
   createRoute,
@@ -10,7 +10,11 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
+import { ErrorBoundary } from './components/ui/ErrorBoundary.js';
 import { ThemeSwitcher } from './components/ui/ThemeSwitcher.js';
+import { queryClient } from './query-client.js';
+import { RefreshSnackbar } from './RefreshSnackbar.js';
+import { renderRootErrorFallback } from './RootErrorFallback.js';
 import { LoginRoute } from './routes/login.js';
 import { TodosRoute } from './routes/todos.js';
 import { ThemeModeProvider } from './theme-mode.js';
@@ -43,8 +47,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const queryClient = new QueryClient();
-
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');
 
@@ -52,9 +54,12 @@ createRoot(container).render(
   <StrictMode>
     <ThemeModeProvider>
       <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
+      <ErrorBoundary fallback={renderRootErrorFallback}>
+        <QueryClientProvider client={queryClient}>
+          <RefreshSnackbar />
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </ErrorBoundary>
     </ThemeModeProvider>
   </StrictMode>,
 );
