@@ -128,7 +128,7 @@ const TenantLedger = ({
   const addTodo = useMutation({
     ...addTodoMutation(api),
     onSuccess: () => setTitle(''),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: addTodoInvalidates() }),
+    onSettled: () => queryClient.invalidateQueries(addTodoInvalidates()),
   });
 
   const signOut = async () => {

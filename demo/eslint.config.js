@@ -7,6 +7,94 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 
+const AS_BAN = {
+  selector: 'TSAsExpression:not([typeAnnotation.typeName.name="const"])',
+  message: 'Type assertions (`as`) are forbidden; parse or narrow instead. `as const` is allowed.',
+};
+
+const REACT_API_BANS = [
+  {
+    selector: 'TSQualifiedName[left.name="React"][right.name=/^(FC|FunctionComponent)$/]',
+    message: 'React.FC is banned: type props explicitly with `({ ... }: Props)` (React 19 conventions).',
+  },
+  {
+    selector: 'CallExpression[callee.name="forwardRef"], CallExpression[callee.property.name="forwardRef"]',
+    message: 'forwardRef is banned: `ref` is a normal prop in React 19.',
+  },
+  {
+    selector: 'MemberExpression[property.name="defaultProps"]',
+    message: 'Component defaultProps are banned: use default parameter values instead.',
+  },
+  {
+    selector: 'JSXMemberExpression[property.name="Provider"]',
+    message: '<Context.Provider> is banned: render <Context> directly (React 19).',
+  },
+];
+
+const QUERY_HOOK_BANS = [
+  {
+    selector: 'CallExpression[typeArguments][callee.name=/^(useQuery|useQueries|useMutation)$/]',
+    message: 'No explicit type arguments on useQuery/useQueries/useMutation: types flow from core/client descriptors.',
+  },
+  {
+    selector: 'VariableDeclarator[id.type="ObjectPattern"][init.callee.name="useQueryClient"]',
+    message: 'Do not destructure useQueryClient(): QueryClient methods depend on `this` binding.',
+  },
+  {
+    selector: 'Property[key.name="defaultOptions"] Property[key.name="queryFn"]',
+    message: 'No global defaultOptions.queries.queryFn: it bypasses the typed core/client.',
+  },
+];
+
+const NEW_QUERY_CLIENT_BAN = {
+  selector: 'NewExpression[callee.name="QueryClient"]',
+  message: 'new QueryClient() lives only in apps/web/src/query-client.ts and the test harness.',
+};
+
+const QUERY_KEY_BAN = {
+  selector: 'Property[key.name="queryKey"]',
+  message: 'Inline query definitions are banned in apps/web: keys live in core/client descriptors.',
+};
+
+const VI_MOCK_BAN = {
+  selector:
+    'CallExpression[callee.object.name=/^(vi|jest)$/][callee.property.name="mock"][arguments.0.value=/@tanstack\\/react-query|core\\/client/]',
+  message: 'Mocking @tanstack/react-query or core/client is banned: use a real QueryClient + MSW.',
+};
+
+const NO_HTTP = 'No direct HTTP in apps/web: go through core/client descriptors via TanStack Query.';
+const HTTP_GLOBALS = ['fetch', 'XMLHttpRequest', 'EventSource', 'WebSocket'].map((name) => ({
+  name,
+  message: NO_HTTP,
+}));
+
+const STORAGE_MESSAGE =
+  'localStorage/sessionStorage are banned outside the designated persistence helper (theme-mode.tsx).';
+const STORAGE_GLOBALS = ['localStorage', 'sessionStorage'].map((name) => ({
+  name,
+  message: STORAGE_MESSAGE,
+}));
+
+const HTTP_IMPORT_BANS = ['axios', 'ky', 'got'].map((name) => ({ name, message: NO_HTTP }));
+
+const STATE_LIB_MESSAGE =
+  'Global state libraries are banned: server state lives in TanStack Query, UI state stays local (React 19 / compiler).';
+const STATE_LIB_BANS = [
+  'redux',
+  '@reduxjs/toolkit',
+  'zustand',
+  'jotai',
+  'mobx',
+  'valtio',
+  'recoil',
+].map((name) => ({ name, message: STATE_LIB_MESSAGE }));
+
+const QUERY_CLIENT_SINGLETON_PATTERN = {
+  regex: 'query-client\\.js$',
+  message:
+    'Do not import the QueryClient singleton: reach it via useQueryClient(). Only main.tsx wires it.',
+};
+
 /**
  * Layer boundaries (PRD §3.2). `boundaries/element-types` denies everything by
  * default; each rule below is an explicit permission. dependency-cruiser
@@ -47,6 +135,12 @@ export default tseslint.config(
   {
     files: ['**/*.ts', '**/*.tsx'],
     plugins: { boundaries },
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     settings: {
       'boundaries/elements': [
         { type: 'core-domain', pattern: 'core/domain/**', mode: 'full' },
@@ -73,13 +167,15 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      'no-restricted-syntax': [
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/consistent-type-imports': [
         'error',
-        {
-          selector: 'TSAsExpression:not([typeAnnotation.typeName.name="const"])',
-          message: 'Type assertions (`as`) are forbidden; parse or narrow instead. `as const` is allowed.',
-        },
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+      'no-restricted-syntax': ['error', AS_BAN],
       'boundaries/element-types': [
         'error',
         {
@@ -231,6 +327,59 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'error',
       'react/no-unstable-nested-components': 'error',
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+      'no-restricted-globals': ['error', ...HTTP_GLOBALS, ...STORAGE_GLOBALS],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        AS_BAN,
+        ...REACT_API_BANS,
+        ...QUERY_HOOK_BANS,
+        NEW_QUERY_CLIENT_BAN,
+        QUERY_KEY_BAN,
+      ],
+    },
+  },
+  {
+    files: ['apps/web/src/theme-mode.tsx'],
+    rules: {
+      'no-restricted-globals': ['error', ...HTTP_GLOBALS],
+    },
+  },
+  {
+    files: ['apps/web/src/query-client.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        AS_BAN,
+        ...REACT_API_BANS,
+        ...QUERY_HOOK_BANS,
+        QUERY_KEY_BAN,
+      ],
+    },
+  },
+  {
+    files: ['apps/web/src/main.tsx'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS] }],
+    },
+  },
+  {
+    files: ['apps/web/src/test/**/*.{ts,tsx}', 'apps/web/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        AS_BAN,
+        ...REACT_API_BANS,
+        ...QUERY_HOOK_BANS,
+        VI_MOCK_BAN,
+      ],
     },
   },
 );

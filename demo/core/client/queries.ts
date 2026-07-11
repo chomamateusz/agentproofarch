@@ -80,5 +80,5 @@ export const addTodoMutation = (api: ApiClient) =>
     mutationFn: async (input: NewTodo) => unwrap(await api.addTodo(input)),
   });
 
-/** The hierarchical scope `addTodoMutation` invalidates after it settles. */
-export const addTodoInvalidates = () => todosScopes.lists();
+/** The invalidation filter `addTodoMutation` applies after it settles. */
+export const addTodoInvalidates = () => ({ queryKey: todosScopes.lists() });

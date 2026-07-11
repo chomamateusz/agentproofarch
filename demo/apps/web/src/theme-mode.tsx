@@ -36,8 +36,8 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const theme = useMemo(() => createThemeForMode(mode), [mode]);
 
   return (
-    <ThemeModeContext.Provider value={value}>
+    <ThemeModeContext value={value}>
       <ThemeProvider theme={theme}>{children}</ThemeProvider>
-    </ThemeModeContext.Provider>
+    </ThemeModeContext>
   );
 };
