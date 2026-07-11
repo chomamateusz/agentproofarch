@@ -40,6 +40,7 @@ Extend `boundaries/elements` with intra-web elements:
 
 ```
 web-main      apps/web/src/main.tsx        composition root
+web-api       apps/web/src/api.ts          bound actions wiring
 web-routes    apps/web/src/routes/**       thin route components
 web-features  apps/web/src/features/**     feature folders
 web-ui        apps/web/src/components/ui/** design-system primitives
@@ -50,8 +51,12 @@ web-theme     apps/web/src/theme*          visual language
 `boundaries/element-types` additions (default `disallow` stays):
 
 - `web-routes` → `web-features`, `web-ui`, `web-lib` (routes stay thin)
-- `web-features` → `web-ui`, `web-lib`, `web-theme`, `core-client`,
-  `core-contract`, `core-domain`, `adapter-auth`
+- `web-features` → `web-api`, `web-ui`, `web-lib`, `web-theme`,
+  `core-contract`, `core-domain` (types) — **not** `adapter-auth`, **not** a
+  broad `app-web` grant: features consume bound actions from `web-api` and
+  never see `ApiClient`, ports or adapters
+- `web-api` → `core-client`, `core-contract`, `core-domain`, `adapter-auth`
+  (the only element besides `web-main` that may touch adapters)
 - `web-ui` → `web-lib`, `web-theme` only — **never** `core-*`, features,
   routes, TanStack Query/Router (presentational purity)
 - `web-lib` → nothing app-internal; **no `react` import**
@@ -94,6 +99,8 @@ Server-state rules (from [server-state.md](server-state.md); same phase):
 | No non-null assertion on query results/params; `skipToken` for optional-param gating | `@typescript-eslint/no-non-null-assertion` | error |
 | `refetchType: 'all'`, blanket `refetchOnWindowFocus: false`/`retry: false` (outside test helpers), `staleTime: Infinity` | flagged for justification | warn |
 | No `jest.mock`/`vi.mock` of `@tanstack/react-query` or `core/client` | `no-restricted-syntax` in test scope | error |
+| `@tanstack/react-query-devtools` importable only in `main.tsx` (and must be wired there, dev-only) | `no-restricted-imports` + override | error |
+| No hand-rolled pending/error `useState` around a port/action call — server side effects use `useMutation` with an action descriptor | review (lint heuristic infeasible) | review |
 
 ## Phase 4 — custom plugin (`eslint-plugin-agentproofarch`)
 

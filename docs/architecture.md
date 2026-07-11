@@ -77,6 +77,8 @@ the layers — boundaries + lint, not convention (see
 ```
 apps/web/src/
   main.tsx          composition root: providers + router wiring only
+  api.ts            binds core/client action factories once — the only module
+                    that sees ApiClient, AuthClientPort and adapters
   routes/           route components — thin: parse params, render a feature
   features/<name>/  feature folders: components, hooks, <Name>.logic.ts co-located
   components/ui/    design-system primitives → theme, lib only (no core, no features)
@@ -86,11 +88,14 @@ apps/web/src/
 
 State rules:
 
-- **Server state**: TanStack Query only, consuming descriptors from
-  `core/client/queries.ts`. Components never define `queryKey`/`queryFn`
-  inline and never touch `fetch` (lint). The descriptor object is the seam —
-  TanStack is a vocabulary dependency, never wrapped in a port; full usage
-  policy in [server-state.md](server-state.md).
+- **Server state**: TanStack Query only, consuming **bound actions** —
+  `core/client` exports query/mutation factories (including auth actions over
+  `AuthClientPort`), `api.ts` binds them once, and features import ready
+  actions. Feature code never holds `ApiClient`, a port or an adapter, never
+  defines `queryKey`/`queryFn` inline and never touches `fetch` (all lint).
+  The descriptor object is the seam — TanStack is a vocabulary dependency,
+  never wrapped in a port; full usage policy in
+  [server-state.md](server-state.md).
 - **Client state**: `useState`/`useReducer` local to the feature; React context
   only for cross-cutting concerns (theme, session). No global state libraries
   (lint).
@@ -141,3 +146,13 @@ exists.
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static SPA build | served by the same Node process |
 | TLS for tenant domains | Vercel Domains API | Caddy `on_demand_tls` + domain-check endpoint |
+
+Vercel is the default because it is the simplest for most applications — the
+same reasoning that makes TanStack Query the default over Effect. It is
+invocation-only: no resident process, so no queue workers, schedulers,
+websockets or long-running jobs. The Docker image is the full-runtime escape
+hatch from the same commit and runs anywhere (VPS, Railway, Fly.io,
+Kubernetes); anything that needs a resident process lives on that target. When
+background jobs become real, add a `JobsPort` (same pattern as `DomainPort`):
+pg-boss on the existing Postgres for Docker, a cron/queue-service adapter for
+Vercel.

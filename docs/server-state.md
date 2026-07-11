@@ -26,6 +26,14 @@ key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
 
 ## Descriptors
 
+- **Actions, not clients.** `core/client` exposes factories that take their
+  dependencies (`ApiClient`, `AuthClientPort`); the app's `api.ts` binds them
+  once into a ready action set. Feature code imports bound actions and never
+  references `ApiClient`, a port or an adapter (lint) — whether HTTP happens
+  underneath is not a feature's concern.
+- Auth side effects (`signIn`/`signOut`/`signUp`) are mutation descriptors
+  over `AuthClientPort` like any other action — never hand-rolled
+  pending/error `useState` around a port call.
 - Query keys are the **public API of a feature** and exist only in
   `core/client/queries.ts` factories (lint). Never hand-copy a key.
 - Hierarchy is general → specific with a scope helper per resource:
@@ -66,7 +74,9 @@ key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
   query, not per observer): stale data on screen → keep it and toast the
   refresh failure; no data → the error renders locally or escalates to the
   root error boundary via a `throwOnError` predicate.
-- Query Devtools ship in dev builds.
+- Query Devtools ship in dev builds; `@tanstack/react-query-devtools` is
+  importable only in the composition root (lint), like every other TanStack
+  package placement rule.
 
 ## Reading query state
 
