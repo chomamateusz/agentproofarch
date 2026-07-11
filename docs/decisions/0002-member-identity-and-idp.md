@@ -77,6 +77,14 @@ export (CSV/JSON incl. email) is a foundation capability.
 - We re-implement what the provider's org plugin gave for free (membership
   tables, invitation tokens) — a few small tables and use-cases, judged
   cheaper than coupling every relationship to one provider's API.
+- The member email snapshot can go stale after an account email change.
+  Querying the provider at export time was rejected: it couples the
+  creator's core business asset to provider availability and rate limits
+  (Auth0/Clerk management APIs throttle hard at export scale), and loses
+  the emails entirely if the account or provider goes away. Instead the
+  snapshot refreshes on sign-in (AuthPort already carries the fresh email)
+  and via provider update webhooks; consents stay bound to the email they
+  were given for.
 - Self-hosted instances have independent account pools; SSO across them is a
   hosted-operator feature, not an architecture property.
 

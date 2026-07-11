@@ -101,7 +101,11 @@ Authentication and relationship data are strictly separated (see
   product-level data keyed by `memberId`. All relationship data (profile,
   tags, consents, progress) lives here — never on the global account. The
   member row owns its email snapshot: export and marketing never depend on a
-  join to the auth provider.
+  join to (or a live call against) the auth provider. Staleness after an
+  account email change is handled by refresh, not by querying at read time:
+  every authenticated request already carries the fresh email via `AuthPort`
+  — when it differs, the member rows update; provider update webhooks can
+  refresh members who never sign in again.
 - **Provider identifiers are opaque.** `userId` is a string; foundation
   tables never declare foreign keys into provider-owned tables (with a SaaS
   provider those tables do not exist locally).
