@@ -52,9 +52,12 @@ web-theme     apps/web/src/theme*          visual language
 
 - `web-routes` → `web-features`, `web-ui`, `web-lib` (routes stay thin)
 - `web-features` → `web-api`, `web-ui`, `web-lib`, `web-theme`,
-  `core-contract`, `core-domain` (types) — **not** `adapter-auth`, **not** a
-  broad `app-web` grant: features consume bound actions from `web-api` and
-  never see `ApiClient`, ports or adapters
+  `core-client` (vocabulary only: `ApiError`, `skipToken`, types — creating
+  clients is banned separately), `core-contract`, `core-domain` — **not**
+  `adapter-auth`, **not** a broad `app-web` grant: features consume bound
+  actions from `web-api` and never construct or hold `ApiClient`, ports or
+  adapters (`createApiClient`/adapter factories importable only in `web-api`,
+  `no-restricted-imports`)
 - `web-api` → `core-client`, `core-contract`, `core-domain`, `adapter-auth`
   (the only element besides `web-main` that may touch adapters)
 - `web-ui` → `web-lib`, `web-theme` only — **never** `core-*`, features,
