@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Alert,
   Box,
@@ -24,7 +24,7 @@ export const LoginPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     setPending(true);
     setError(null);
@@ -43,7 +43,7 @@ export const LoginPage = () => {
       <Paper
         variant="outlined"
         component="form"
-        onSubmit={(event: React.FormEvent) => void submit(event)}
+        onSubmit={(event: FormEvent) => void submit(event)}
         sx={{
           width: '100%',
           maxWidth: '23rem',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Alert,
   Box,
@@ -274,7 +274,7 @@ const TenantLedger = ({
 
           <Paper
             component="form"
-            onSubmit={(event: React.FormEvent) => {
+            onSubmit={(event: FormEvent) => {
               event.preventDefault();
               if (title.trim()) addTodo.mutate({ title });
             }}
