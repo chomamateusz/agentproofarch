@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { roleSchema } from './identity.js';
+import { staffRoleSchema } from './identity.js';
 
 export const tenantSchema = z.object({
   id: z.string(),
@@ -12,10 +12,21 @@ export type Tenant = z.infer<typeof tenantSchema>;
 
 export const membershipSchema = z.object({
   tenant: tenantSchema,
-  role: roleSchema,
+  staffRole: staffRoleSchema,
 });
 
 export type Membership = z.infer<typeof membershipSchema>;
+
+export const memberSchema = z.object({
+  id: z.string(),
+  tenantId: z.string(),
+  userId: z.string(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export type Member = z.infer<typeof memberSchema>;
 
 export const tenantDomainSchema = z.object({
   id: z.string(),

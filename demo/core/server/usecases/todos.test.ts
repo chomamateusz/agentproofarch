@@ -12,7 +12,8 @@ const identity = (tenantId: string | null): Identity => ({
   tenantId,
   tenantSlug: tenantId ? 'acme' : null,
   tenantName: tenantId ? 'Acme Inc' : null,
-  role: tenantId ? 'owner' : null,
+  staffRole: tenantId ? 'owner' : null,
+  memberId: null,
 });
 
 const fakeRepo = (initial: Todo[] = []) => {

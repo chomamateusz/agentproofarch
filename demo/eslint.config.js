@@ -12,6 +12,11 @@ const AS_BAN = {
   message: 'Type assertions (`as`) are forbidden; parse or narrow instead. `as const` is allowed.',
 };
 
+const AUTH_API_LITERAL_BAN = {
+  selector: 'Literal[value=/api\\/auth/], TemplateElement[value.raw=/api\\/auth/]',
+  message: 'Do not call or spell Better Auth HTTP routes outside adapters/auth; use the auth adapter port.',
+};
+
 const REACT_API_BANS = [
   {
     selector: 'TSQualifiedName[left.name="React"][right.name=/^(FC|FunctionComponent)$/]',
@@ -198,7 +203,7 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
-      'no-restricted-syntax': ['error', AS_BAN],
+      'no-restricted-syntax': ['error', AS_BAN, AUTH_API_LITERAL_BAN],
       'boundaries/element-types': [
         'error',
         {
@@ -293,7 +298,7 @@ export default tseslint.config(
             },
             {
               from: ['app-cli'],
-              allow: ['core-domain', 'core-contract', 'core-client', 'app-cli'],
+              allow: ['core-domain', 'core-contract', 'core-client', 'adapter-auth', 'app-cli'],
             },
           ],
         },
@@ -327,6 +332,12 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['adapters/auth/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', AS_BAN],
     },
   },
   {
@@ -376,6 +387,7 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'error',
         AS_BAN,
+        AUTH_API_LITERAL_BAN,
         ...REACT_API_BANS,
         ...QUERY_HOOK_BANS,
         NEW_QUERY_CLIENT_BAN,
@@ -395,6 +407,7 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'error',
         AS_BAN,
+        AUTH_API_LITERAL_BAN,
         ...REACT_API_BANS,
         ...QUERY_HOOK_BANS,
         QUERY_KEY_BAN,
@@ -428,6 +441,7 @@ export default tseslint.config(
       'no-restricted-syntax': [
         'error',
         AS_BAN,
+        AUTH_API_LITERAL_BAN,
         ...REACT_API_BANS,
         ...QUERY_HOOK_BANS,
         VI_MOCK_BAN,

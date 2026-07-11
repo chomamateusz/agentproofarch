@@ -3,8 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { createDb } from '@adapters/db/client.js';
 import {
   createHealthPort,
-  createMembershipReader,
+  createTenantAccessReader,
   createTenantDomainRepository,
+  createTenantRepository,
   createTodoRepository,
 } from '@adapters/db/repositories.js';
 import { createAuth, createAuthPort, type Auth } from '@adapters/auth/create-auth.js';
@@ -13,8 +14,9 @@ import type {
   Clock,
   HealthPort,
   IdGenerator,
-  MembershipReader,
+  TenantAccessReader,
   TenantDomainRepository,
+  TenantRepository,
   TodoRepository,
 } from '@core/server/index.js';
 
@@ -25,7 +27,8 @@ export interface AppDeps {
   authPort: AuthPort;
   todos: TodoRepository;
   tenantDomains: TenantDomainRepository;
-  memberships: MembershipReader;
+  tenants: TenantRepository;
+  tenantAccess: TenantAccessReader;
   health: HealthPort;
   ids: IdGenerator;
   clock: Clock;
@@ -38,28 +41,39 @@ export interface AppDeps {
  */
 export const createDeps = (env: Env): AppDeps => {
   const db = createDb(env.DB_DRIVER, env.DATABASE_URL);
+  const tenantDomains = createTenantDomainRepository(db);
+
+  const baseTrustedOrigins = [
+    env.APP_BASE_URL,
+    `http://*.${env.APP_BASE_DOMAIN}`,
+    `https://*.${env.APP_BASE_DOMAIN}`,
+    // Wildcard entries above don't match origins carrying an explicit port.
+    `http://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
+    `https://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
+  ];
 
   const auth = createAuth(db, {
     secret: env.BETTER_AUTH_SECRET,
     baseUrl: env.APP_BASE_URL,
     baseDomain: env.APP_BASE_DOMAIN,
     secureCookies: env.SECURE_COOKIES,
-    trustedOrigins: [
-      env.APP_BASE_URL,
-      `http://*.${env.APP_BASE_DOMAIN}`,
-      `https://*.${env.APP_BASE_DOMAIN}`,
-      // Wildcard entries above don't match origins carrying an explicit port.
-      `http://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
-      `https://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
-    ],
+    trustedOrigins: async () => {
+      const domains = await tenantDomains.listVerifiedDomains();
+      return [
+        ...baseTrustedOrigins,
+        ...domains.map((domain) => `https://${domain.domain}`),
+        ...domains.map((domain) => `http://${domain.domain}`),
+      ];
+    },
   });
 
   return {
     auth,
     authPort: createAuthPort(auth),
     todos: createTodoRepository(db),
-    tenantDomains: createTenantDomainRepository(db),
-    memberships: createMembershipReader(db),
+    tenantDomains,
+    tenants: createTenantRepository(db),
+    tenantAccess: createTenantAccessReader(db),
     health: createHealthPort(db),
     ids: { nextId: () => randomUUID() },
     clock: { nowIso: () => new Date().toISOString() },

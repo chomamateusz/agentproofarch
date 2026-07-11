@@ -4,10 +4,10 @@ import {
   addTodoMutation,
   createApiClient,
   meQuery,
-  orgsQuery,
   signInMutation,
   signOutMutation,
   signUpMutation,
+  tenantsQuery,
   todosQuery,
 } from '@core/client/index.js';
 
@@ -22,7 +22,7 @@ const authClient = createBetterAuthClientAdapter('');
  */
 export const actions = {
   me: meQuery(apiClient),
-  orgs: orgsQuery(apiClient),
+  tenants: tenantsQuery(apiClient),
   todos: todosQuery(apiClient),
   addTodo: addTodoMutation(apiClient),
   addTodoInvalidates,

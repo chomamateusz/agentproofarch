@@ -1,17 +1,10 @@
 import { Command } from 'commander';
 
-import { TENANT_HEADER } from '@core/contract/index.js';
-import {
-  appError,
-  err,
-  internal,
-  notFound,
-  ok,
-  unauthorized,
-  type AppError,
-  type Result,
-} from '@core/domain/index.js';
+import { createCliAuthAdapter } from '@adapters/auth/client-adapter.js';
+import type { AuthClientPort } from '@core/client/index.js';
 import { createApiClient, type ApiClient } from '@core/client/index.js';
+import { TENANT_HEADER } from '@core/contract/index.js';
+import { err, internal, notFound, ok } from '@core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
 import { emit } from './output.js';
@@ -25,10 +18,18 @@ const program = new Command('agentproofarch')
 interface CliCtx {
   config: CliConfig;
   api: ApiClient;
+  auth: AuthClientPort;
   apiUrl: string;
   tenant: string | null;
   json: boolean;
 }
+
+const slugFromName = (name: string): string =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 const cliCtx = (): CliCtx => {
   const config = loadConfig();
@@ -42,35 +43,10 @@ const cliCtx = (): CliCtx => {
       ...(tenant ? { [TENANT_HEADER]: tenant } : {}),
     }),
   });
-  return { config, api, apiUrl, tenant, json: globals.json };
-};
-
-/** Auth endpoints are served by Better Auth, outside our contract; wrap them once here. */
-const authRequest = async (
-  ctx: CliCtx,
-  path: string,
-  body: Record<string, string>,
-): Promise<Result<{ token: string | null }, AppError>> => {
-  let response: Response;
-  try {
-    response = await fetch(`${ctx.apiUrl}${path}`, {
-      method: 'POST',
-      // Better Auth CSRF protection expects an Origin; ours is trusted by config.
-      headers: { 'content-type': 'application/json', origin: ctx.apiUrl },
-      body: JSON.stringify(body),
-    });
-  } catch (cause) {
-    return err(internal(`Network error calling ${path}: ${String(cause)}`));
-  }
-  if (!response.ok) {
-    const detail: unknown = await response.json().catch(() => null);
-    const message =
-      detail !== null && typeof detail === 'object' && 'message' in detail
-        ? String(detail.message)
-        : `Auth request failed (HTTP ${response.status})`;
-    return err(response.status === 401 ? unauthorized(message) : appError('validation', message));
-  }
-  return ok({ token: response.headers.get('set-auth-token') });
+  const auth = createCliAuthAdapter(apiUrl, (token) => {
+    saveConfig({ ...config, apiUrl, token });
+  });
+  return { config, api, auth, apiUrl, tenant, json: globals.json };
 };
 
 program.command('health').description('API and database status').action(async () => {
@@ -86,7 +62,7 @@ program
   .requiredOption('--password <password>')
   .action(async (options: { name: string; email: string; password: string }) => {
     const ctx = cliCtx();
-    const result = await authRequest(ctx, '/api/auth/sign-up/email', options);
+    const result = await ctx.auth.signUp(options);
     if (result.ok && result.value.token) {
       saveConfig({ ...ctx.config, apiUrl: ctx.apiUrl, token: result.value.token });
     }
@@ -100,7 +76,7 @@ program
   .requiredOption('--password <password>')
   .action(async (options: { email: string; password: string }) => {
     const ctx = cliCtx();
-    const result = await authRequest(ctx, '/api/auth/sign-in/email', options);
+    const result = await ctx.auth.signIn(options);
     if (result.ok) {
       if (!result.value.token) {
         emit(err(internal('Server did not return a session token')), ctx.json, () => '');
@@ -121,38 +97,51 @@ program.command('whoami').description('Current user and active tenant').action(a
   const ctx = cliCtx();
   emit(await ctx.api.me(), ctx.json, (me) =>
     me.tenant
-      ? `${me.email} @ ${me.tenant.name} (${me.tenant.slug}, role: ${me.tenant.role})`
+      ? `${me.email} @ ${me.tenant.name} (${me.tenant.slug}, staff: ${me.tenant.staffRole ?? 'none'})`
       : `${me.email} (no tenant selected)`,
   );
 });
 
-const org = program.command('org').description('Organizations (tenants)');
+const tenant = program.command('tenant').description('Tenant staff access');
 
-org.command('list').description('Organizations you belong to').action(async () => {
+tenant.command('list').description('Tenants you administer').action(async () => {
   const ctx = cliCtx();
-  emit(await ctx.api.listOrgs(), ctx.json, (data) =>
-    data.organizations.length === 0
-      ? 'no organizations'
-      : data.organizations
-          .map((m) => `${m.tenant.slug}\t${m.tenant.name}\t(${m.role})`)
+  emit(await ctx.api.listTenants(), ctx.json, (data) =>
+    data.tenants.length === 0
+      ? 'no staff tenants'
+      : data.tenants
+          .map((m) => `${m.tenant.slug}\t${m.tenant.name}\t(${m.staffRole})`)
           .join('\n'),
   );
 });
 
-org
+tenant
+  .command('create <name...>')
+  .description('Create a tenant and become its owner')
+  .option('--slug <slug>', 'tenant slug')
+  .action(async (nameWords: string[], options: { slug?: string }) => {
+    const ctx = cliCtx();
+    const name = nameWords.join(' ');
+    const slug = options.slug ?? slugFromName(name);
+    emit(await ctx.api.createTenant({ slug, name }), ctx.json, (data) =>
+      `created tenant: ${data.tenant.name} (${data.tenant.slug})`,
+    );
+  });
+
+tenant
   .command('switch <slug>')
   .description('Set the active tenant for subsequent commands')
   .action(async (slug: string) => {
     const ctx = cliCtx();
-    const orgs = await ctx.api.listOrgs();
-    if (!orgs.ok) {
-      emit(orgs, ctx.json, () => '');
+    const tenants = await ctx.api.listTenants();
+    if (!tenants.ok) {
+      emit(tenants, ctx.json, () => '');
       return;
     }
-    const membership = orgs.value.organizations.find((m) => m.tenant.slug === slug);
+    const membership = tenants.value.tenants.find((m) => m.tenant.slug === slug);
     if (!membership) {
       emit(
-        err(notFound(`You are not a member of any tenant with slug "${slug}"`)),
+        err(notFound(`You do not administer any tenant with slug "${slug}"`)),
         ctx.json,
         () => '',
       );

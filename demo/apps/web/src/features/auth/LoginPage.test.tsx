@@ -34,7 +34,7 @@ describe('LoginPage', () => {
 
   it('renders the AppError from a failed sign-in mutation', async () => {
     server.use(
-      http.post('/api/auth/sign-in/email', () =>
+      http.post('*', () =>
         HttpResponse.json({ message: 'Invalid email or password' }, { status: 401 }),
       ),
     );
@@ -48,7 +48,7 @@ describe('LoginPage', () => {
 
   it('disables submit while the sign-in mutation is pending', async () => {
     server.use(
-      http.post('/api/auth/sign-in/email', async () => {
+      http.post('*', async () => {
         await delay('infinite');
         return HttpResponse.json({});
       }),
