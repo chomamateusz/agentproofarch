@@ -468,4 +468,18 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // The wide event is the log: no step-logging in the server request path.
+    files: ['apps/server/**/*.ts'],
+    rules: {
+      'no-console': 'error',
+    },
+  },
+  {
+    // Scoped exception (Observability §Enforcement): composition-root startup/fatal path.
+    files: ['apps/server/src/entry.*.ts', 'apps/server/src/env.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
 );

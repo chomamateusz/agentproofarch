@@ -29,11 +29,13 @@ import {
 import { BETTER_AUTH_API_PATH_PATTERN } from '@adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
+import { recordAppError, recordException, telemetryMiddleware } from './telemetry.js';
 
 type Vars = { Variables: { identity: Identity } };
 
 const respond = <T>(result: Result<T, AppError>): Response => {
   const envelope = toEnvelope(result);
+  if (!envelope.ok) recordAppError(envelope.error);
   const status = envelope.ok ? 200 : HTTP_STATUS_BY_ERROR_CODE[envelope.error.code];
   return new Response(JSON.stringify(envelope), {
     status,
@@ -55,8 +57,10 @@ const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
 export const buildApp = (deps: AppDeps) => {
   const app = new Hono<Vars>();
 
+  app.use('*', telemetryMiddleware);
+
   app.onError((error) => {
-    console.error('Unhandled error:', error);
+    recordException(error);
     return respond(err(internal()));
   });
 
