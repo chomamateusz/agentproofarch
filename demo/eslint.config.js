@@ -6,6 +6,17 @@ import reactCompiler from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import agentproofarch from './eslint-plugin-agentproofarch/index.js';
+
+const sxLayoutBaseline = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, 'eslint-plugin-agentproofarch/sx-layout-baseline.json'),
+    'utf8',
+  ),
+);
 
 const AS_BAN = {
   selector: 'TSAsExpression:not([typeAnnotation.typeName.name="const"])',
@@ -333,6 +344,7 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     plugins: {
       '@tanstack/query': tanstackQuery,
+      agentproofarch,
       'jsx-a11y': jsxA11y,
       react,
       'react-compiler': reactCompiler,
@@ -355,6 +367,8 @@ export default tseslint.config(
       '@tanstack/query/exhaustive-deps': 'error',
       '@tanstack/query/no-rest-destructuring': 'error',
       '@tanstack/query/stable-query-client': 'error',
+      'agentproofarch/query-descriptors-only': 'error',
+      'agentproofarch/sx-layout-only': ['error', { baseline: sxLayoutBaseline }],
       'react-compiler/react-compiler': 'error',
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'error',
@@ -425,6 +439,7 @@ export default tseslint.config(
   {
     files: ['apps/web/src/test/**/*.{ts,tsx}', 'apps/web/**/*.test.{ts,tsx}'],
     rules: {
+      'agentproofarch/query-descriptors-only': 'off',
       'no-restricted-syntax': [
         'error',
         AS_BAN,

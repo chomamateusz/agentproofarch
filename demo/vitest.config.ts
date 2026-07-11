@@ -24,6 +24,7 @@ export default defineConfig({
             'apps/cli/**/*.test.tsx',
             'apps/server/**/*.test.ts',
             'apps/server/**/*.test.tsx',
+            'eslint-plugin-agentproofarch/**/*.test.js',
           ],
         },
       },
