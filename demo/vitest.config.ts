@@ -9,6 +9,33 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['core/**/*.test.ts', 'adapters/**/*.test.ts', 'apps/**/*.test.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'core/**/*.test.ts',
+            'core/**/*.test.tsx',
+            'adapters/**/*.test.ts',
+            'adapters/**/*.test.tsx',
+            'apps/cli/**/*.test.ts',
+            'apps/cli/**/*.test.tsx',
+            'apps/server/**/*.test.ts',
+            'apps/server/**/*.test.tsx',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'web',
+          environment: 'jsdom',
+          include: ['apps/web/**/*.test.ts', 'apps/web/**/*.test.tsx'],
+          setupFiles: ['apps/web/src/test/setup.ts'],
+        },
+      },
+    ],
   },
 });
