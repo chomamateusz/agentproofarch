@@ -195,3 +195,17 @@ A/B conversion attribution needs no jobs infrastructure: assignment cookie →
 variant id in Checkout `metadata`/`client_reference_id` → webhook records the
 conversion idempotently → aggregation is a read query (or a scheduled job
 later).
+
+## Observability
+
+OpenTelemetry is the instrumentation standard (`@opentelemetry/api` is a
+no-op facade — vocabulary, not infrastructure; SDK and exporters wire in the
+composition root). The practice is **wide events**: one context-rich event per
+request per service hop — annotate the active span as context accrues, emit
+once; never step-log. One W3C trace id spans SPA → API → DB (injected in
+`core/client`'s `request()`, continued by Hono middleware) and is shown in the
+error fallback for support. Sentry is the default sink (errors + traces);
+columnar stores (Axiom / self-hosted ClickHouse) are the named upgrade for
+event analytics. Tail sampling controls cost: keep all errors and slow
+requests, sample the happy path. Full policy:
+[observability.md](observability.md).
