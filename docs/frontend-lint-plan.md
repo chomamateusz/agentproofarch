@@ -161,6 +161,18 @@ Baseline shrinks monotonically; CI fails if the baseline file is edited upward.
 These are candidates for a macroscope-style AI-review CI gate later (third
 tier: lint → types → AI reviewer), once the deterministic tiers are green.
 
+## Why ESLint, not oxlint
+
+Oxlint's speed is real but irrelevant at this repo size, and it cannot carry
+the enforcement spine: no type-aware rules (`no-floating-promises`,
+`switch-exhaustiveness-check`, `no-unsafe-*` — t3code compensates with
+Effect's language-service diagnostics, a luxury specific to their stack) and
+no `eslint-plugin-boundaries`/`@tanstack/query`/`react-compiler` ecosystem
+(t3code's unenforced package boundaries are partly this gap's cost). Revisit
+when: type-aware oxlint matures, a boundaries equivalent exists, or lint time
+exceeds ~30s. A dual-linter pre-pass is possible then; two configs to keep
+honest is not worth it now.
+
 ## Order of work
 
 1. Phase 1 plugins + vitest/jsdom fix + error boundary (one session).
