@@ -101,6 +101,11 @@ State rules:
   (lint).
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
+- **Features are islands** (lint): a feature imports only itself. Features
+  coordinate through server state (a command invalidates a scope, other
+  features' queries refetch), through the URL, or through a route-level
+  parent — never by importing each other or sharing client state. Shared code
+  extracts downward (`components/ui`, `lib`, `core/client`), never sideways.
 
 The action set is CQRS-partitioned: every action is either a query (safe
 read) or a command (unsafe write) — no hybrids, enforced by read/write tags

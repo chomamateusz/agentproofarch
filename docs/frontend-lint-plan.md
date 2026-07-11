@@ -58,6 +58,13 @@ web-theme     apps/web/src/theme*          visual language
   actions from `web-api` and never construct or hold `ApiClient`, ports or
   adapters (`createApiClient`/adapter factories importable only in `web-api`,
   `no-restricted-imports`)
+- **Features are islands**: a feature may import only itself — capture the
+  feature folder name (`boundaries/elements` capture group on
+  `features/(<name>)/**`) and allow `web-features` → `web-features` solely
+  when the captured names match; mirror in depcruise. Cross-feature needs go
+  through server state (invalidation), the URL, or a route-level parent;
+  shared code extracts downward (`components/ui`, `lib`, `core/client`),
+  never sideways.
 - `web-api` → `core-client`, `core-contract`, `core-domain`, `adapter-auth`
   (the only element besides `web-main` that may touch adapters)
 - `web-ui` → `web-lib`, `web-theme` only — **never** `core-*`, features,
