@@ -9,7 +9,6 @@ import {
   OutlinedInput,
   Paper,
   Stack,
-  Typography,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,6 +16,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ApiError } from '@core/client/index.js';
 
 import { actions } from '../../api.js';
+import { DemoValue, Eyebrow, FinePrint, Wordmark } from '../../theme.js';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -52,12 +52,12 @@ export const LoginPage = () => {
           animation: 'settle 0.45s ease-out both',
         }}
       >
-        <Typography variant="h1" sx={{ fontSize: '1.6rem', letterSpacing: 'normal', mb: '0.2rem' }}>
+        <Wordmark variant="h1" sx={{ mb: '0.2rem' }}>
           agentproofarch
-        </Typography>
-        <Typography variant="overline" component="p" sx={{ fontSize: '0.78rem', mb: '1.6rem' }}>
+        </Wordmark>
+        <Eyebrow variant="overline" component="p" sx={{ mb: '1.6rem' }}>
           sign in · tenant {window.location.hostname}
-        </Typography>
+        </Eyebrow>
         <Stack useFlexGap spacing="1rem">
           <FormControl fullWidth>
             <FormLabel htmlFor="login-email">email</FormLabel>
@@ -97,16 +97,10 @@ export const LoginPage = () => {
           </Alert>
         ) : null}
         <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />
-        <Typography variant="caption" component="p" sx={{ fontSize: '0.75rem', mb: '1em' }}>
-          demo account:{' '}
-          <Box component="code" sx={{ color: 'primary.dark' }}>
-            demo@agentproofarch.dev
-          </Box>{' '}
-          /{' '}
-          <Box component="code" sx={{ color: 'primary.dark' }}>
-            demo1234
-          </Box>
-        </Typography>
+        <FinePrint variant="caption" component="p" sx={{ mb: '1em' }}>
+          demo account: <DemoValue>demo@agentproofarch.dev</DemoValue> /{' '}
+          <DemoValue>demo1234</DemoValue>
+        </FinePrint>
       </Paper>
     </Box>
   );

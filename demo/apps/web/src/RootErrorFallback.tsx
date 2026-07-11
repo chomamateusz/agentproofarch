@@ -33,10 +33,10 @@ export const renderRootErrorFallback = (error: unknown) => (
       role="alert"
       sx={{ width: '100%', maxWidth: '23rem', px: '1.8rem', pt: '2rem', pb: '1.6rem' }}
     >
-      <Typography variant="h1" sx={{ fontSize: '1.6rem', mb: '0.4rem' }}>
+      <Typography variant="h1" sx={{ mb: '0.4rem' }}>
         {headingFor(error)}
       </Typography>
-      <Typography variant="body2" sx={{ mb: '1.4rem', wordBreak: 'break-word' }}>
+      <Typography variant="body2" sx={{ mb: '1.4rem' }}>
         {detailFor(error)}
       </Typography>
       <Button variant="contained" fullWidth onClick={() => window.location.reload()}>
