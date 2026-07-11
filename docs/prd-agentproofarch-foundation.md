@@ -43,8 +43,8 @@ core/
 adapters/
   db/          # Drizzle schema, migrations, repository implementations,
                # driver factory (node-postgres | neon-http)
-  auth/        # Better Auth server config (+ organization plugin) implementing
-               # AuthPort; Better Auth client adapter implementing AuthClientPort
+  auth/        # Better Auth server config (identity only — no org plugin)
+               # implementing AuthPort; client adapter implementing AuthClientPort
   domain-provisioning/
                # DomainPort implementations: vercel.ts (Domains API),
                # caddy.ts (on-demand TLS check), noop.ts
@@ -78,17 +78,85 @@ tasks/         # PRDs and agent task files
 
 ### 3.4 Identity and tenancy model
 
-- Global `users` (managed by Better Auth): one email = one account.
-- `tenants` = Better Auth organizations; `memberships` with roles `owner | admin | member`.
+Authentication and relationship data are strictly separated (see
+[ADR-0002](decisions/0002-member-identity-and-idp.md)):
+
+- **Global account = authentication only.** `users` (managed by the auth
+  provider behind `AuthPort`): one email = one account, holding nothing but
+  identity and credentials. Passwordless accounts are first-class: an account
+  may be created without a password (e.g. provisioned after a purchase) and
+  authenticated via magic link.
+- **The provider supplies identity only.** No auth-provider organization /
+  team features are used at all — every relationship (tenancy, staff,
+  customers) lives in foundation tables. `tenants` is our own domain entity,
+  never a provider object.
+- **Tenant staff = flat admin grants, no teams.** `tenant_admins { tenantId,
+  userId, role: owner | admin }` — an owner may grant the same flat admin
+  access to additional users; there is no team/organization concept, no
+  nested permissions. Staff invitation flows are post-MVP (PoC: owner adds
+  an admin by email).
+- **End customers ("members")** = our own tenant-scoped aggregate:
+  `members { id, tenantId, userId, email, displayName, tags,
+  marketingConsents, externalCustomerIds, createdAt }` plus any
+  product-level data keyed by `memberId`. All relationship data (profile,
+  tags, consents, progress) lives here — never on the global account. The
+  member row owns its email snapshot: export and marketing never depend on a
+  join to (or a live call against) the auth provider. Staleness after an
+  account email change is handled by refresh, not by querying at read time:
+  every authenticated request already carries the fresh email via `AuthPort`
+  — when it differs, the member rows update; provider update webhooks can
+  refresh members who never sign in again.
+- **Provider identifiers are opaque.** `userId` is a string; foundation
+  tables never declare foreign keys into provider-owned tables (with a SaaS
+  provider those tables do not exist locally).
+- **Identity shape** distinguishes the two populations:
+  `Identity = { userId, email, name, tenantId: string | null,
+  staffRole: 'owner' | 'admin' | null, memberId: string | null }`.
+- Rationale for keeping ALL relationships out of the provider: privacy (a
+  customer must not be able to enumerate the tenants they belong to —
+  provider org APIs leak this by design), IdP swappability (no relationship
+  data migrates when the auth provider changes — the swap touches sign-in
+  only), semantics (customers buy access; they are not invited staff),
+  scale, and decoupling (creating a tenant must not call the auth
+  provider's API).
+- **Deletion semantics** are two distinct operations: (1) a creator removes a
+  member from THEIR tenant = delete the `members` row + tenant-scoped data;
+  the global account survives (it may belong to other tenants). (2) The user
+  erases their global account (GDPR request to the platform) = credentials
+  and identity removed; tenant-scoped member data is each tenant controller's
+  responsibility.
+- **GDPR roles**: the creator is the data controller of their tenant's member
+  data; the platform operator is the processor for tenant data and the
+  controller of the minimal global account (email + credentials). Marketing
+  consents exist only per tenant. Member export per tenant (CSV/JSON,
+  including email from the member row) is a foundation capability.
 - `tenant_domains` table (ours): `{ id, tenantId, domain, kind: "subdomain" | "custom", verified, createdAt }`.
-- `Identity = { userId: string; tenantId: string | null; role: Role | null }` produced by `AuthPort` per request.
+- `AuthPort` yields the authenticated user; the tenant-resolution middleware in core builds `Identity` (shape above) per request.
 - Every tenant-scoped use-case takes `ctx: { identity: Identity }` as its first parameter (lint/review rule) and every tenant-scoped repository method requires `tenantId`.
 - Tenant resolution middleware, in order: (1) exact match in `tenant_domains` on `Host` (custom domain), (2) subdomain of `APP_BASE_DOMAIN`, (3) `X-Tenant` header carrying tenant slug (used by CLI hitting the base API domain). In all cases membership of the authenticated user is verified; failure → `tenant_not_found` / `forbidden`.
+- **Sessions and domains**: one session spans all subdomains of
+  `APP_BASE_DOMAIN`; a custom tenant domain is its own cookie world — members
+  sign in per custom domain (magic link on the tenant's domain), which is a
+  privacy feature, not a bug. `trustedOrigins` must be resolved dynamically
+  against verified `tenant_domains`.
+- **Tenant, not instance**: one instance (one deployment, one database) hosts
+  many tenants and one shared pool of authentication accounts — so one
+  customer account across a creator's unrelated brands/courses is free within
+  an instance. A new instance (separate account pool) is justified only by
+  hard isolation or compliance requirements. Cross-instance / cross-app SSO
+  is the documented evolution path: promote the auth provider to a central
+  OIDC identity provider and swap the `AuthPort` adapter; `members`
+  aggregates are unaffected. Not built in the foundation.
 
 ### 3.5 Ports (complete list for the foundation)
 
 - `AuthPort` (server): request → `Identity` or error. Implementation: Better Auth.
-- `AuthClientPort` (client): `signUp/signIn/signOut/getSession`. Implementation: Better Auth client.
+  The surface stays narrow and OIDC-shaped (who is this user, nothing more) so
+  the provider is swappable (Better Auth ↔ Clerk/Auth0 ↔ a central OIDC
+  instance) — this swappability is a requirement, not an accident. The IdP
+  topology (embedded in-app / separate container / SaaS) is a composition-root
+  decision, default embedded.
+- `AuthClientPort` (client): `signUp/signIn/signOut/getSession` plus the product-required auth methods: magic link, social sign-in, passkeys, 2FA enrol/verify. Every method on the port must exist across candidate providers (Better Auth plugins, Clerk, Auth0) so the port never locks us in. Implementation: Better Auth client.
 - `DomainPort`: `addDomain(domain)`, `removeDomain(domain)`, `checkDomain(domain)`. Implementations: `vercel` (Domains API), `caddy` (no-op provision; verification = DNS resolves to us; TLS handled by Caddy on-demand), `noop` (local dev).
 - Repository interfaces for `tenant_domains` and any foundation data not owned by Better Auth.
 
@@ -100,6 +168,34 @@ Do not add new ports speculatively — a port is added only when a second implem
 - `DB_DRIVER=node-postgres | neon-http`
 - `DOMAIN_PROVISIONER=vercel | caddy | noop`
 This is the only file where env decides implementations.
+
+### 3.7 Public surface (headless API and embeds)
+
+Products on this foundation do NOT ship public marketing pages — creators
+build their own sites (Astro/Next/plain HTML); see
+[ADR-0001](decisions/0001-public-surface-embeds-over-pages.md). What the
+foundation provides instead:
+
+- **Public read-only contract routes**: a designated group of unauthenticated
+  `GET` routes in `core/contract` (public data such as offers/prices in the
+  product layer), served with open CORS and cacheable responses
+  (`Cache-Control` with tenant-content versioning). Same zod-first contract
+  discipline as the rest of the API.
+- **Shareable checkout-style links**: public, tenant-domain URLs that carry a
+  complete flow (e.g. checkout) without requiring the creator to host
+  anything.
+- **Embed endpoints (post-MVP)**: tiny server-rendered HTML widgets
+  (`/embed/*`, rendered by Hono via `hono/jsx` — a typed template engine
+  producing plain HTML strings, no client runtime) loaded through a script
+  tag + iframe with postMessage auto-resize. Not part of the proof of concept
+  or MVP.
+- **Headless React SDK (recommended, pending owner confirmation)**: a thin
+  published npm package with unstyled hooks/components consuming the public
+  contract (types reused from `core/contract`). Would amend the "no package
+  publishing" non-goal deliberately.
+
+The authenticated application remains a static SPA (FR-16); there is no
+server-side rendering of pages, only of embed widgets.
 
 ## 4. User Stories
 
@@ -165,13 +261,13 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - [ ] Health route extended with a DB ping through a repository interface (proves port wiring)
 - [ ] Check passes
 
-### US-007: Better Auth with organizations
-**Description:** As a user, I want to register and log in, and as a developer I want tenancy primitives from the organization plugin.
+### US-007: Auth provider (identity only) and our tenancy tables
+**Description:** As a user, I want to register and log in; as a developer, I want tenancy owned by foundation tables, with the auth provider supplying identity only (FR-25).
 
 **Acceptance Criteria:**
-- [ ] Better Auth mounted in `apps/server` (adapter in `adapters/auth`), schema migrated; email+password enabled
-- [ ] Organization plugin enabled: create org, invite, roles `owner/admin/member`
-- [ ] `AuthPort` implemented: request → `Identity`; unit-tested with a fake
+- [ ] Better Auth mounted in `apps/server` (adapter in `adapters/auth`), schema migrated; email+password enabled; NO organization plugin
+- [ ] Our tables: `tenants`, `tenant_admins` (flat roles `owner/admin`); tenant creation writes the owner row and never calls the auth provider
+- [ ] `AuthPort` implemented: request → authenticated user (`userId`, email, name, verified); unit-tested with a fake
 - [ ] Cookie config supports cross-subdomain sessions under `APP_BASE_DOMAIN`
 - [ ] Registration + login verified via `curl` flow documented in story log
 - [ ] Check passes
@@ -349,6 +445,51 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - [ ] knip reports no dead exports; all scripts in README actually work
 - [ ] Check passes
 
+### US-025: Members aggregate
+**Description:** As a product built on the foundation, I need end customers modeled per §3.4 so relationship data belongs to the tenant.
+
+**Acceptance Criteria:**
+- [ ] `members` table + repository (create/find/list/delete by tenant), migrations applied; no coupling to auth-provider organization tables
+- [ ] Use-cases: `listMembers`, `removeMember` (owner/admin only; deletes member row + tenant-scoped data, global account untouched)
+- [ ] Integration test: same email is a member of two tenants with fully independent profiles; removing one leaves the other and the account intact
+- [ ] No contract route exposes a member's tenant list (test asserting FR-21)
+- [ ] Check passes
+
+### US-026: Passwordless member provisioning and magic-link sign-in
+**Description:** As a product, I need to create member accounts without passwords (e.g. from a payment webhook) and let them sign in via magic link.
+
+**Acceptance Criteria:**
+- [ ] `ensureMember(tenant, email)` idempotent use-case per FR-20, exposed as an internal contract route and CLI command
+- [ ] Magic-link sign-in enabled (Better Auth plugin) and working on tenant subdomains; link generation returns the URL in dev (no email delivery)
+- [ ] E2E: CLI provisions a member, magic link signs them in, `whoami` shows the member context
+- [ ] Check passes
+
+### US-027: Member export
+**Description:** As a tenant owner, I want to export my members so the customer relationship is portable.
+
+**Acceptance Criteria:**
+- [ ] Export use-case + contract route + CLI command: CSV and JSON, all member fields incl. email (join to account), tenant-scoped only
+- [ ] Owner/admin only; forbidden for members and other tenants (tested)
+- [ ] Check passes
+
+### US-028a: Auth methods from the provider (PoC-required)
+**Description:** As a user, I want to sign in with social login, passkeys or 2FA from day one, without the application knowing the provider.
+
+**Acceptance Criteria:**
+- [ ] Social login (Google at minimum), passkeys and TOTP 2FA enabled on the provider; flows exposed exclusively through `AuthClientPort`
+- [ ] Grep-proof: no provider SDK import outside `adapters/auth` (lint)
+- [ ] E2E: each method exercised against the local provider (social via test/dev flow) and documented in the story log
+- [ ] Check passes
+
+### US-028: Public read-only contract surface
+**Description:** As a technical creator, I want public JSON endpoints so I can render commerce data on my own site.
+
+**Acceptance Criteria:**
+- [ ] Contract supports a public route group: unauthenticated GET, open CORS, cache headers with tenant content version (§3.7)
+- [ ] One demo public route implemented end-to-end (e.g. public tenant profile) incl. CLI command and curl-from-another-origin test
+- [ ] Public routes cannot touch tenant-scoped use-cases requiring identity (lint/test)
+- [ ] Check passes
+
 ## 5. Functional Requirements
 
 **Architecture & enforcement**
@@ -359,11 +500,19 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - FR-5: Use-cases must return `Result`; the HTTP layer must translate to the envelope of §3.3; no exception may cross the HTTP boundary as a 500 with stack trace.
 
 **Auth & tenancy**
-- FR-6: Users register/login with email+password via Better Auth; one email maps to exactly one global account.
-- FR-7: A user may belong to multiple tenants (organizations) with role owner/admin/member; registration creates a personal default organization.
-- FR-8: Members are added via invitation links (token); no email delivery in v1.
+- FR-6: Users register/login with email+password or magic link via the auth provider behind `AuthPort`; one email maps to exactly one global account holding authentication data only.
+- FR-7: A user may relate to multiple tenants: as staff (our `tenant_admins` aggregate, flat roles owner/admin) or as an end customer (our `members` aggregate). Creator registration creates a tenant with its owner row; the auth provider is not involved in tenancy.
+- FR-25: The auth provider supplies identity only (`userId`, email, name, email-verification status) plus credentials/sessions and auth methods; no provider organization or team feature may be used — all relationships live in foundation tables.
+- FR-26: Social login (at least Google), passkeys and 2FA (TOTP) are available from the proof of concept onwards, configured on the auth provider behind `AuthPort`/`AuthClientPort` — no application code may depend on the concrete provider's SDK for these flows.
+- FR-8: An owner can grant and revoke flat admin access for additional users by email; staff invitation flows (links, emails) are post-MVP.
 - FR-9: Every tenant-scoped request must resolve a tenant per §3.4 and verify membership before any use-case runs.
 - FR-10: Every tenant-scoped repository method must require `tenantId`; cross-tenant data access must be impossible through the public API.
+
+**End customers (members)**
+- FR-19: End customers are `members` rows per §3.4 — never auth-provider organization members; all relationship data (profile, tags, marketing consents) is tenant-scoped.
+- FR-20: `ensureMember(tenant, email)` must be an idempotent use-case that finds-or-creates a passwordless global account and the member row — callable by product code (e.g. a payment webhook); sign-in for such accounts is via magic link on the tenant's domain.
+- FR-21: No API may allow a member to enumerate the tenants they belong to; tenant context comes exclusively from the domain being visited.
+- FR-22: Tenant owners/admins can export all members of their tenant (CSV/JSON including email) and remove a member (deleting the member row and tenant-scoped data without touching the global account).
 
 **Domains**
 - FR-11: Tenant owners/admins can add, list, check, and remove tenant domains via API, CLI, and web.
@@ -373,7 +522,11 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 **Clients**
 - FR-14: The CLI must cover every public API route of the foundation; each command supports `--json` (single JSON document on stdout) and exits with the code mapped from `ErrorCode`.
 - FR-15: The web SPA must perform all data access through `core/client`; direct `fetch` calls in `apps/web` are a lint error.
-- FR-16: The SPA must not use SSR; it must build to static assets servable by both Vercel and the Node container.
+- FR-16: The authenticated application is a static SPA (no SSR of pages; assets servable by both Vercel and the Node container). Server-rendered HTML exists only for `/embed/*` widgets per §3.7 (post-MVP).
+
+**Public surface**
+- FR-23: The contract must support a designated group of public, unauthenticated read-only routes served with open CORS on GET and cache headers keyed to tenant content version (§3.7).
+- FR-24: Public flows (e.g. checkout) must be reachable via shareable tenant-domain URLs that require no creator-hosted page.
 
 **Deployment**
 - FR-17: The same commit must deploy to Vercel (SPA static + Hono function + Neon) and to Docker (`docker compose up` with app + Postgres + Caddy) with only env differing.
@@ -382,14 +535,23 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 ## 6. Non-Goals (Out of Scope)
 
 - No example business resource/domain (comes in a follow-up example app built on Agentproofarch).
-- No SSR, no Next.js.
+- No SSR of pages, no Next.js. Products on this foundation ship no public
+  marketing/landing pages at all — creators bring their own sites; the
+  foundation offers the public headless API and shareable flow URLs (§3.7).
+  A simple hosted-pages/template system is at most a distant nice-to-have.
+- No iframe embed widgets in PoC/MVP (post-MVP per §3.7).
+- No central identity provider, OIDC federation or cross-instance SSO — the
+  documented evolution path exists behind `AuthPort` but is not built.
 - No mobile or Electron clients (future; they will consume `core/client`).
 - No realtime/websockets — polling via TanStack Query is sufficient.
 - No email sending (invitations are links); a MailPort may be added later when needed.
 - No billing/subscriptions, no admin back-office.
 - No Kubernetes, AWS, GCP; no infra beyond Vercel + docker-compose.
 - No MongoDB (decision: Postgres + Drizzle; DB sits behind repository ports anyway).
+- No teams/organizations concept — tenant staff is a flat owner/admin grant list; nested permissions, roles engines and staff invitation flows are out of scope (invitations post-MVP).
 - No monorepo tooling (pnpm workspaces, Turborepo) and no package publishing.
+  (A future headless React SDK for the public API would deliberately amend
+  this non-goal — see Open Questions.)
 - No i18n in v1 (UI copy in English).
 
 ## 7. Design Considerations
@@ -417,6 +579,10 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 
 ## 10. Open Questions
 
+- **Headless React SDK** (`useOffer`, `<BuyButton>`-style unstyled components
+  over the public contract, published to npm): recommended by the
+  architecture agent, awaiting owner confirmation. Amends the
+  no-package-publishing non-goal.
 - Should CLI login support an API-key flow (long-lived tokens for CI/agents) in addition to session tokens? Deferred unless agent workflows hit session expiry friction.
 - Subdomain tenant URLs in local dev (`*.localhost` works in modern browsers) — confirm this is acceptable as the dev default, with header mode as fallback.
 - Invitation link expiry policy (default proposal: 7 days, single-use).
