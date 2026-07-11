@@ -132,10 +132,16 @@ behind a narrow, OIDC-shaped `AuthPort` — the provider (Better Auth default)
 is swappable by design, and its topology (embedded / separate container /
 SaaS) is a composition-root choice. Two populations on top of it:
 
-- **Creator teams (staff)** — our `team_memberships` aggregate with roles
-  `owner | admin | member` (admin RBAC + our invitation tokens).
+- **Tenant staff** — our `tenant_admins` aggregate: flat `owner | admin`
+  grants, deliberately no teams/organizations concept (multiple admins are
+  just multiple rows).
 - **End customers ("members")** — our own tenant-scoped aggregate (profile,
-  tags, GDPR consents, export).
+  tags, GDPR consents, owned email snapshot, export).
+
+Product-required auth methods — magic link, social login, passkeys, 2FA —
+are provider features exposed only through `AuthClientPort` and required
+from the proof of concept onwards. `userId` is an opaque string: foundation
+tables never FK provider tables.
 
 No auth-provider organization/team feature is used for either population —
 the provider supplies identity only (`userId`, email, name, verification

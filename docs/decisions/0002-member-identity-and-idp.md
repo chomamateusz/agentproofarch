@@ -31,8 +31,13 @@ domains.
    decision, second review round). The provider supplies identity only;
    every relationship lives in foundation tables: `tenants` (our domain
    entity — creating a tenant never calls the auth provider),
-   `team_memberships` (staff RBAC: owner/admin/member + our invitation
-   tokens; PoC needs only the owner row) and `members` (customers). Reasons:
+   `tenant_admins` (flat owner/admin grants — the teams concept is
+   deliberately postponed; multiple admins are just multiple rows) and
+   `members` (customers, owning their email snapshot so export never joins
+   provider tables; `userId` stays an opaque string, never a foreign key).
+   Product-required auth methods (magic link, social login, passkeys, 2FA)
+   are provider features required from PoC, exposed only through the ports.
+   Reasons:
    (a) provider org APIs let a user list their own organizations — a privacy
    leak the requirements forbid; (b) data gravity: relationship data attached
    to provider tables makes an IdP swap a data migration — applied uniformly
@@ -81,6 +86,9 @@ export (CSV/JSON incl. email) is a foundation capability.
   added; US-007 redefined (no organization plugin).
 - Implementation debt: the demo currently models tenants as Better Auth
   organizations — to be migrated to foundation-owned `tenants` +
-  `team_memberships` tables (docs first, code follows).
+  `tenant_admins` tables. The full inventory of provider couplings, with
+  priorities and fixes, lives in
+  [provider-coupling-audit.md](../provider-coupling-audit.md) (docs first,
+  code follows).
 - Together PRD FR-3 should be rephrased from "isolated member accounts" to
   "isolated member relationship ownership over shared authentication".
