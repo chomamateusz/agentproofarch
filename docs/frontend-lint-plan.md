@@ -112,8 +112,10 @@ pattern: house rules as a tiny local plugin). Candidates, in order of value:
 
 1. `query-descriptors-only` — `useQuery`/`useMutation` arguments must originate
    from `core/client/queries.ts` exports (call expression or spread of an
-   imported descriptor), not object literals. Replaces the Phase-3 syntax
-   approximation with a real rule.
+   imported descriptor), not object literals. Complements — does not replace —
+   the Phase-3 `queryKey` syntax selector: the selector additionally catches
+   stray inline keys outside hook arguments (e.g. `invalidateQueries`), proven
+   by probe.
 2. `sx-layout-only` — `sx` props may use spacing/layout/flex/grid keys; color,
    typography and border-styling keys are reserved for `theme.ts`.
 3. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
