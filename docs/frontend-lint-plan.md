@@ -58,6 +58,13 @@ web-theme     apps/web/src/theme*          visual language
   actions from `web-api` and never construct or hold `ApiClient`, ports or
   adapters (`createApiClient`/adapter factories importable only in `web-api`,
   `no-restricted-imports`)
+- **Features are islands**: a feature may import only itself — capture the
+  feature folder name (`boundaries/elements` capture group on
+  `features/(<name>)/**`) and allow `web-features` → `web-features` solely
+  when the captured names match; mirror in depcruise. Cross-feature needs go
+  through server state (invalidation), the URL, or a route-level parent;
+  shared code extracts downward (`components/ui`, `lib`, `core/client`),
+  never sideways.
 - `web-api` → `core-client`, `core-contract`, `core-domain`, `adapter-auth`
   (the only element besides `web-main` that may touch adapters)
 - `web-ui` → `web-lib`, `web-theme` only — **never** `core-*`, features,
@@ -112,8 +119,10 @@ pattern: house rules as a tiny local plugin). Candidates, in order of value:
 
 1. `query-descriptors-only` — `useQuery`/`useMutation` arguments must originate
    from `core/client/queries.ts` exports (call expression or spread of an
-   imported descriptor), not object literals. Replaces the Phase-3 syntax
-   approximation with a real rule.
+   imported descriptor), not object literals. Complements — does not replace —
+   the Phase-3 `queryKey` syntax selector: the selector additionally catches
+   stray inline keys outside hook arguments (e.g. `invalidateQueries`), proven
+   by probe.
 2. `sx-layout-only` — `sx` props may use spacing/layout/flex/grid keys; color,
    typography and border-styling keys are reserved for `theme.ts`.
 3. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
@@ -128,6 +137,9 @@ pattern: house rules as a tiny local plugin). Candidates, in order of value:
 Each custom rule ships with a **frozen legacy baseline** (t3code ratchet):
 existing violation counts per file are tolerated, any new occurrence fails.
 Baseline shrinks monotonically; CI fails if the baseline file is edited upward.
+The ratchet is an adoption mechanism for real codebases taking these rules on —
+**the demo itself keeps every baseline at zero**: it is the exemplar, it
+carries no tolerated debt.
 
 ## Suppression policy (from the hardening guide, verbatim intent)
 
@@ -158,6 +170,18 @@ Baseline shrinks monotonically; CI fails if the baseline file is edited upward.
 
 These are candidates for a macroscope-style AI-review CI gate later (third
 tier: lint → types → AI reviewer), once the deterministic tiers are green.
+
+## Why ESLint, not oxlint
+
+Oxlint's speed is real but irrelevant at this repo size, and it cannot carry
+the enforcement spine: no type-aware rules (`no-floating-promises`,
+`switch-exhaustiveness-check`, `no-unsafe-*` — t3code compensates with
+Effect's language-service diagnostics, a luxury specific to their stack) and
+no `eslint-plugin-boundaries`/`@tanstack/query`/`react-compiler` ecosystem
+(t3code's unenforced package boundaries are partly this gap's cost). Revisit
+when: type-aware oxlint matures, a boundaries equivalent exists, or lint time
+exceeds ~30s. A dual-linter pre-pass is possible then; two configs to keep
+honest is not worth it now.
 
 ## Order of work
 

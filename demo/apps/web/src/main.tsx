@@ -12,6 +12,7 @@ import {
 
 import { ErrorBoundary } from './components/ui/ErrorBoundary.js';
 import { ThemeSwitcher } from './components/ui/ThemeSwitcher.js';
+import { initWebObservability, reportError } from './observability.js';
 import { queryClient } from './query-client.js';
 import { RefreshSnackbar } from './RefreshSnackbar.js';
 import { renderRootErrorFallback } from './RootErrorFallback.js';
@@ -54,6 +55,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
+initWebObservability();
+
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element');
 
@@ -61,7 +64,7 @@ createRoot(container).render(
   <StrictMode>
     <ThemeModeProvider>
       <CssBaseline />
-      <ErrorBoundary fallback={renderRootErrorFallback}>
+      <ErrorBoundary fallback={renderRootErrorFallback} onError={reportError}>
         <QueryClientProvider client={queryClient}>
           <RefreshSnackbar />
           <RouterProvider router={router} />

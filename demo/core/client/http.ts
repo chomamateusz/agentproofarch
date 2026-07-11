@@ -34,6 +34,13 @@ export interface ApiClientOptions {
   fetchImpl?: typeof fetch;
   /** Extra headers per request: Authorization bearer token, X-Tenant, ... */
   headers?: () => Record<string, string>;
+  /**
+   * W3C `traceparent` for the currently active span, or `undefined` when no
+   * trace is active. Injected header-provider (bound in the composition root)
+   * rather than an in-core OTel dependency: keeps `core/client` framework- and
+   * SDK-free and makes propagation trivially testable by passing a stub.
+   */
+  traceparent?: () => string | undefined;
 }
 
 const request = async <S extends z.ZodTypeAny, M extends HttpMethod>(
@@ -45,12 +52,14 @@ const request = async <S extends z.ZodTypeAny, M extends HttpMethod>(
   signal?: AbortSignal,
 ): Promise<Branded<Result<z.output<S>, AppError>, M>> => {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const traceparent = options.traceparent?.();
   let response: Response;
   try {
     response = await fetchImpl(`${options.baseUrl}${path}`, {
       method,
       headers: {
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        ...(traceparent === undefined ? {} : { traceparent }),
         ...options.headers?.(),
       },
       body: body === undefined ? null : JSON.stringify(body),

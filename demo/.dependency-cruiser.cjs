@@ -96,6 +96,17 @@ module.exports = {
       to: { path: '^adapters' },
     },
     {
+      name: 'web-features-are-islands',
+      severity: 'error',
+      comment:
+        'a feature imports only itself, never a sibling feature (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/features/([^/]+)/' },
+      to: {
+        path: '^apps/web/src/features/([^/]+)/',
+        pathNot: '^apps/web/src/features/$1/',
+      },
+    },
+    {
       name: 'web-api-is-the-only-client-construction-site',
       severity: 'error',
       comment:

@@ -4,6 +4,9 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { buildApp } from './app.js';
 import { createDeps } from './composition.js';
 import { loadEnv } from './env.js';
+import { startServerObservability } from './observability.js';
+
+startServerObservability();
 
 const env = loadEnv();
 const app = buildApp(createDeps(env));

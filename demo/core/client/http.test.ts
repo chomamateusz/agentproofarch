@@ -60,6 +60,33 @@ describe('createApiClient', () => {
       error: { code: 'internal' },
     });
   });
+
+  it('injects the W3C traceparent header when a trace is active', async () => {
+    const traceparent = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
+    let seen: Headers | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seen = new Headers(init?.headers);
+      return jsonResponse({ ok: true, data: { status: 'ok', version: '0.1.0', database: 'up' } });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl, traceparent: () => traceparent });
+
+    await client.health();
+
+    expect(seen?.get('traceparent')).toBe(traceparent);
+  });
+
+  it('omits the traceparent header cleanly when no trace is active', async () => {
+    let seen: Headers | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seen = new Headers(init?.headers);
+      return jsonResponse({ ok: true, data: { status: 'ok', version: '0.1.0', database: 'up' } });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl, traceparent: () => undefined });
+
+    await client.health();
+
+    expect(seen?.has('traceparent')).toBe(false);
+  });
 });
 
 describe('unwrap', () => {

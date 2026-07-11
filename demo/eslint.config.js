@@ -6,6 +6,17 @@ import reactCompiler from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import agentproofarch from './eslint-plugin-agentproofarch/index.js';
+
+const sxLayoutBaseline = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, 'eslint-plugin-agentproofarch/sx-layout-baseline.json'),
+    'utf8',
+  ),
+);
 
 const AS_BAN = {
   selector: 'TSAsExpression:not([typeAnnotation.typeName.name="const"])',
@@ -180,7 +191,12 @@ export default tseslint.config(
         { type: 'web-main', pattern: 'apps/web/src/main.tsx', mode: 'full' },
         { type: 'web-api', pattern: 'apps/web/src/api.ts', mode: 'full' },
         { type: 'web-routes', pattern: 'apps/web/src/routes/**', mode: 'full' },
-        { type: 'web-features', pattern: 'apps/web/src/features/**', mode: 'full' },
+        {
+          type: 'web-features',
+          pattern: 'apps/web/src/features/(*)/**',
+          mode: 'full',
+          capture: ['feature'],
+        },
         { type: 'web-ui', pattern: 'apps/web/src/components/ui/**', mode: 'full' },
         { type: 'web-lib', pattern: 'apps/web/src/lib/**', mode: 'full' },
         { type: 'web-test', pattern: 'apps/web/src/test/**', mode: 'full' },
@@ -269,7 +285,7 @@ export default tseslint.config(
             {
               from: ['web-features'],
               allow: [
-                'web-features',
+                ['web-features', { feature: '${from.feature}' }],
                 'web-api',
                 'web-ui',
                 'web-lib',
@@ -344,6 +360,7 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     plugins: {
       '@tanstack/query': tanstackQuery,
+      agentproofarch,
       'jsx-a11y': jsxA11y,
       react,
       'react-compiler': reactCompiler,
@@ -366,6 +383,8 @@ export default tseslint.config(
       '@tanstack/query/exhaustive-deps': 'error',
       '@tanstack/query/no-rest-destructuring': 'error',
       '@tanstack/query/stable-query-client': 'error',
+      'agentproofarch/query-descriptors-only': 'error',
+      'agentproofarch/sx-layout-only': ['error', { baseline: sxLayoutBaseline }],
       'react-compiler/react-compiler': 'error',
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'error',
@@ -438,6 +457,7 @@ export default tseslint.config(
   {
     files: ['apps/web/src/test/**/*.{ts,tsx}', 'apps/web/**/*.test.{ts,tsx}'],
     rules: {
+      'agentproofarch/query-descriptors-only': 'off',
       'no-restricted-syntax': [
         'error',
         AS_BAN,
@@ -446,6 +466,20 @@ export default tseslint.config(
         ...QUERY_HOOK_BANS,
         VI_MOCK_BAN,
       ],
+    },
+  },
+  {
+    // The wide event is the log: no step-logging in the server request path.
+    files: ['apps/server/**/*.ts'],
+    rules: {
+      'no-console': 'error',
+    },
+  },
+  {
+    // Scoped exception (Observability §Enforcement): composition-root startup/fatal path.
+    files: ['apps/server/src/entry.*.ts', 'apps/server/src/env.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
 );

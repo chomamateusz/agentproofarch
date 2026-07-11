@@ -101,11 +101,31 @@ State rules:
   (lint).
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
+- **Features are islands** (lint): a feature imports only itself. Features
+  coordinate through server state (a command invalidates a scope, other
+  features' queries refetch — the cache is the pub/sub, local and instant),
+  through the URL, or through a route-level parent — never by importing each
+  other or sharing client state. Shared code extracts downward
+  (`components/ui`, `lib`, `core/client`), never sideways.
+- **No client event bus.** A stringly-typed bus hides coupling from the
+  dependency graph — the enforcers stop telling the truth and agents cannot
+  trace control flow. If a genuinely ephemeral cross-feature signal ever
+  recurs, the sanctioned shape is a closed union of typed events in one
+  module (like `ErrorCode`) that both sides import — added at first proven
+  need, never preemptively. Two features that constantly coordinate are one
+  feature.
 
 The action set is CQRS-partitioned: every action is either a query (safe
 read) or a command (unsafe write) — no hybrids, enforced by read/write tags
 flowing from contract route methods through the client types. All client
 interfaces (web, CLI, future) consume the same partition.
+
+App-level policies (the foundation prescribes the mechanism, each product
+sets the numbers): **bundle budgets** — a size gate in `check` with
+route-level splitting already mandated; thresholds are per app, none imposed
+here. **Browser matrix** — default is evergreen-latest only (browserslist
+`last 2 versions, not dead`); widening support is a per-app decision with its
+own cost.
 
 Mutations invalidate hierarchical query keys; manual cache writes only for a
 single resource with rollback. Errors surface as `ApiError` carrying the
@@ -200,7 +220,55 @@ same reasoning that makes TanStack Query the default over Effect. It is
 invocation-only: no resident process, so no queue workers, schedulers,
 websockets or long-running jobs. The Docker image is the full-runtime escape
 hatch from the same commit and runs anywhere (VPS, Railway, Fly.io,
-Kubernetes); anything that needs a resident process lives on that target. When
-background jobs become real, add a `JobsPort` (same pattern as `DomainPort`):
-pg-boss on the existing Postgres for Docker, a cron/queue-service adapter for
-Vercel.
+Kubernetes); anything that needs a resident process lives on that target.
+
+## Background jobs and webhooks
+
+Webhooks are plain HTTP and fit both targets as-is. For Stripe, the provider's
+own delivery model is the reliability backbone (verified 2026-07, see
+[jobs-research.md](jobs-research.md)): signed events, retries with exponential
+backoff for up to 3 days in live mode, duplicates/concurrent/out-of-order
+delivery expected by contract. The handler pattern is therefore: verify
+signature → insert into a processed-events table (unique on event id; dedupe
+also on object id + event type) → do the work transactionally → 2xx only on
+success, so a failure re-arms Stripe's retry. Fulfillment is webhook-driven,
+never success-page-driven (Stripe mandates this). At low volume this
+synchronous pattern needs **no queue at all**.
+
+Deferred work (email sequences, aggregations) is a first-class module whose
+invariants hold on both targets:
+
+- **State**: a queue/outbox table in the Postgres we already have — enqueue is
+  transactional with the domain write. No new stateful infrastructure.
+- **API**: `JobsPort` (enqueue/schedule) in `core/server`; job handlers are
+  ordinary core use-cases, tested like any other.
+- **Executor** is the only per-target difference (same pattern as
+  `DB_DRIVER`):
+
+| | Vercel | Docker self-host |
+|---|---|---|
+| Executor | `/internal/jobs/drain` endpoint, batch per invocation | pg-boss resident worker — second compose service from the same image; `WORKER_MODE=inline` for minimal installs |
+| Wake-up | Upstash QStash schedule (free: 1k msgs/day, HTTP push, 3-day DLQ) — Vercel Cron is too limited on free plans, Vercel Queues is metered-paid, Neon pg_cron cannot run under scale-to-zero | in-process |
+
+`JobsPort` joins the ports list when the first real deferred job lands (port
+rule: no port before a second implementation or platform difference exists —
+here the platform difference is proven, the need is not yet).
+
+A/B conversion attribution needs no jobs infrastructure: assignment cookie →
+variant id in Checkout `metadata`/`client_reference_id` → webhook records the
+conversion idempotently → aggregation is a read query (or a scheduled job
+later).
+
+## Observability
+
+OpenTelemetry is the instrumentation standard (`@opentelemetry/api` is a
+no-op facade — vocabulary, not infrastructure; SDK and exporters wire in the
+composition root). The practice is **wide events**: one context-rich event per
+request per service hop — annotate the active span as context accrues, emit
+once; never step-log. One W3C trace id spans SPA → API → DB (injected in
+`core/client`'s `request()`, continued by Hono middleware) and is shown in the
+error fallback for support. Sentry is the default sink (errors + traces);
+columnar stores (Axiom / self-hosted ClickHouse) are the named upgrade for
+event analytics. Tail sampling controls cost: keep all errors and slow
+requests, sample the happy path. Full policy:
+[observability.md](observability.md).

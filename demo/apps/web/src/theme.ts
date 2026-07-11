@@ -1,4 +1,6 @@
-import { createTheme, type Theme } from '@mui/material/styles';
+import type { ElementType } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
+import { alpha, createTheme, styled, type Theme } from '@mui/material/styles';
 
 /**
  * The entire "engineer's logbook" visual language lives in this theme:
@@ -159,6 +161,10 @@ export const createAppTheme = (accentHue = 24): Theme => {
           outlined: {
             border: `1.5px solid ${LINE_STRONG}`,
             boxShadow: `0.5rem 0.5rem 0 ${accentWash}, 0.5rem 0.5rem 0 1.5px ${LINE}`,
+            '&[role="alert"]': {
+              '& .MuiTypography-h1': { fontSize: '1.6rem' },
+              '& .MuiTypography-body2': { wordBreak: 'break-word' },
+            },
           },
           // Inline surfaces (add-todo form): lighter offset shadow. Whole-pixel
           // border so the height stays on the grid at every devicePixelRatio.
@@ -213,6 +219,11 @@ export const createAppTheme = (accentHue = 24): Theme => {
             color: INK,
             borderBottom: `1px dashed ${LINE_STRONG}`,
             paddingBottom: 1,
+            '&[aria-current="true"]': {
+              color: accentInk,
+              fontWeight: 700,
+              borderBottom: `2px solid ${accent}`,
+            },
             '&:hover': { color: accentInk, borderBottomColor: accentInk },
           },
         },
@@ -278,3 +289,37 @@ export const createAppTheme = (accentHue = 24): Theme => {
     },
   });
 };
+
+type AsElement = { component?: ElementType };
+
+export const CardTitle = styled(Typography)({ fontSize: '1.6rem' });
+
+export const Wordmark = styled(CardTitle)({ letterSpacing: 'normal' });
+
+export const Eyebrow = styled(Typography)<AsElement>({ fontSize: '0.78rem' });
+
+export const HeaderMeta = styled(Eyebrow)({ letterSpacing: '0.09em' });
+
+export const HeaderMetaBreak = styled(HeaderMeta)({ wordBreak: 'break-all' });
+
+export const FinePrint = styled(Typography)<AsElement>({ fontSize: '0.75rem' });
+
+export const EntryIndex = styled(Typography)(({ theme }) => ({
+  fontSize: '0.78rem',
+  color: theme.palette.primary.dark,
+}));
+
+export const EntryDate = styled(Typography)<AsElement & { dateTime?: string }>({
+  whiteSpace: 'nowrap',
+});
+
+export const DemoValue = styled('code')(({ theme }) => ({ color: theme.palette.primary.dark }));
+
+export const LedgerHeader = styled(Box)<AsElement>({ borderBottom: `3px double ${LINE_STRONG}` });
+
+export const TenantSwatch = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  boxShadow: `0.3rem 0.3rem 0 ${alpha(theme.palette.primary.main, 0.09)}`,
+}));
+
+export const LedgerNav = styled(Stack)<AsElement>({ borderBottom: `1px solid ${LINE}` });

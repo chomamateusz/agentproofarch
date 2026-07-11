@@ -16,7 +16,6 @@ import {
   ThemeProvider,
   Typography,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -25,7 +24,18 @@ import { ApiError } from '@core/client/index.js';
 import { actions } from '../../api.js';
 import { tenantHue, tenantUrl } from '../../lib/tenant.js';
 import { useThemeMode } from '../../theme-mode.js';
-import { createThemeForMode, LINE_STRONG } from '../../theme.js';
+import {
+  CardTitle,
+  createThemeForMode,
+  EntryDate,
+  EntryIndex,
+  Eyebrow,
+  HeaderMeta,
+  HeaderMetaBreak,
+  LedgerHeader,
+  LedgerNav,
+  TenantSwatch,
+} from '../../theme.js';
 
 export const TodosPage = () => {
   const navigate = useNavigate();
@@ -71,12 +81,10 @@ const PickTenant = () => {
         variant="outlined"
         sx={{ width: '100%', maxWidth: '23rem', px: '1.8rem', pt: '2rem', pb: '1.6rem' }}
       >
-        <Typography variant="h1" sx={{ fontSize: '1.6rem' }}>
-          Choose a tenant
-        </Typography>
-        <Typography variant="overline" component="p" sx={{ fontSize: '0.78rem' }}>
+        <CardTitle variant="h1">Choose a tenant</CardTitle>
+        <Eyebrow variant="overline" component="p">
           every tenant lives on its own domain
-        </Typography>
+        </Eyebrow>
         {tenants.isPending ? (
           <Typography variant="h2" component="p" sx={{ py: 2 }}>
             loading…
@@ -135,10 +143,9 @@ const TenantLedger = ({
   return (
     <ThemeProvider theme={theme}>
       <Container disableGutters sx={{ maxWidth: '44rem !important', px: '1.25rem', pb: '6rem' }}>
-        <Box
+        <LedgerHeader
           component="header"
           sx={{
-            borderBottom: `3px double ${LINE_STRONG}`,
             pt: '48px',
             pb: '21px',
             animation: 'settle 0.5s ease-out both',
@@ -149,20 +156,16 @@ const TenantLedger = ({
             useFlexGap
             sx={{ flexWrap: 'wrap', alignItems: 'baseline', columnGap: '1rem', rowGap: '0.6rem' }}
           >
-            <Box
+            <TenantSwatch
               aria-hidden
               sx={{
                 width: '0.85rem',
                 height: '0.85rem',
-                bgcolor: 'primary.main',
-                boxShadow: (t) => `0.3rem 0.3rem 0 ${alpha(t.palette.primary.main, 0.09)}`,
                 transform: 'translateY(1px)',
               }}
             />
             <Typography variant="h1">{tenant.name}</Typography>
-            <Typography variant="overline" sx={{ fontSize: '0.78rem', letterSpacing: '0.09em' }}>
-              {window.location.hostname}
-            </Typography>
+            <HeaderMeta variant="overline">{window.location.hostname}</HeaderMeta>
             <Box sx={{ flex: 1 }} />
             <Chip variant="outlined" label={tenant.staffRole ?? 'member'} />
           </Stack>
@@ -171,20 +174,15 @@ const TenantLedger = ({
             useFlexGap
             sx={{ alignItems: 'baseline', columnGap: '1rem' }}
           >
-            <Typography
-              variant="overline"
-              sx={{ fontSize: '0.78rem', letterSpacing: '0.09em', wordBreak: 'break-all' }}
-            >
-              {email}
-            </Typography>
+            <HeaderMetaBreak variant="overline">{email}</HeaderMetaBreak>
             <Box sx={{ flex: 1 }} />
             <Button variant="text" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
               sign out
             </Button>
           </Stack>
-        </Box>
+        </LedgerHeader>
 
-        <Stack
+        <LedgerNav
           component="nav"
           direction="row"
           useFlexGap
@@ -195,8 +193,6 @@ const TenantLedger = ({
             pt: '12px',
             // content is 27px (baseline-aligned mixed font sizes), +8+1 = 48
             pb: '8px',
-            borderBottom: 1,
-            borderColor: 'divider',
             animation: 'settle 0.5s 0.08s ease-out both',
           }}
         >
@@ -209,23 +205,12 @@ const TenantLedger = ({
                 href={tenantUrl(m.tenant.slug)}
                 variant="body2"
                 aria-current={active}
-                sx={
-                  active
-                    ? {
-                        color: 'primary.dark',
-                        fontWeight: 700,
-                        borderBottom: 2,
-                        borderColor: 'primary.main',
-                        borderBottomStyle: 'solid',
-                      }
-                    : undefined
-                }
               >
                 {m.tenant.slug}
               </Link>
             );
           })}
-        </Stack>
+        </LedgerNav>
 
         <Box component="section" sx={{ mt: '48px', animation: 'settle 0.5s 0.16s ease-out both' }}>
           <Typography variant="h2" component="h2" sx={{ mb: '24px' }}>
@@ -246,21 +231,18 @@ const TenantLedger = ({
               <List disablePadding>
                 {todos.data.todos.map((todo, index) => (
                   <ListItem key={todo.id} disableGutters sx={{ px: '0.2rem' }}>
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: '0.78rem', color: 'primary.dark', minWidth: '1.7rem' }}
-                    >
+                    <EntryIndex variant="caption" sx={{ minWidth: '1.7rem' }}>
                       {String(index + 1).padStart(2, '0')}
-                    </Typography>
+                    </EntryIndex>
                     <ListItemText primary={todo.title} sx={{ m: 0 }} />
-                    <Typography
+                    <EntryDate
                       variant="caption"
                       component="time"
                       dateTime={todo.createdAt}
-                      sx={{ ml: 'auto', whiteSpace: 'nowrap' }}
+                      sx={{ ml: 'auto' }}
                     >
                       {new Date(todo.createdAt).toLocaleDateString()}
-                    </Typography>
+                    </EntryDate>
                   </ListItem>
                 ))}
               </List>
