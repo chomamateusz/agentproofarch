@@ -31,6 +31,18 @@ key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
   once into a ready action set. Feature code imports bound actions and never
   references `ApiClient`, a port or an adapter (lint) — whether HTTP happens
   underneath is not a feature's concern.
+- **CQRS partition.** Every action is either a **query** (safe read — wraps a
+  GET contract route, cacheable, no side effects) or a **command** (unsafe
+  write — mutation descriptor, triggers scope invalidation). No hybrids.
+  Commands are not a data source for rendering: after a command the UI reads
+  through queries (invalidation → refetch); a command's return value feeds
+  `setQueryData` only in the complete-single-resource case. Naming: queries
+  are nouns (`todos.list(params)`), commands are imperative verbs
+  (`todos.add`, `auth.signIn`). Every client interface consumes the same
+  partition — the CLI maps commands to verbs and queries to reads.
+  Enforcement is type-level: contract routes carry their HTTP method, client
+  method types carry a read/write tag, and `defineQuery`/`defineMutation`
+  accept only matching tags (Phase 4 in the lint plan).
 - Auth side effects (`signIn`/`signOut`/`signUp`) are mutation descriptors
   over `AuthClientPort` like any other action — never hand-rolled
   pending/error `useState` around a port call.

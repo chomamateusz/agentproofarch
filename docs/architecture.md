@@ -102,6 +102,11 @@ State rules:
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
 
+The action set is CQRS-partitioned: every action is either a query (safe
+read) or a command (unsafe write) — no hybrids, enforced by read/write tags
+flowing from contract route methods through the client types. All client
+interfaces (web, CLI, future) consume the same partition.
+
 Mutations invalidate hierarchical query keys; manual cache writes only for a
 single resource with rollback. Errors surface as `ApiError` carrying the
 `AppError` taxonomy — rendered, never re-mapped ad hoc; a root error boundary

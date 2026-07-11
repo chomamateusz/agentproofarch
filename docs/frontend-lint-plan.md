@@ -116,7 +116,12 @@ pattern: house rules as a tiny local plugin). Candidates, in order of value:
    approximation with a real rule.
 2. `sx-layout-only` — `sx` props may use spacing/layout/flex/grid keys; color,
    typography and border-styling keys are reserved for `theme.ts`.
-3. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
+3. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
+   `defineMutation` only unsafe ones. Prefer the type-level mechanism over an
+   AST rule: contract routes carry their HTTP method, `ApiClient` method types
+   carry a read/write brand, and the define helpers accept only the matching
+   brand — a violation is a compile error.
+4. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
    under `core/server` takes `ctx: { identity }` first; currently a PRD "lint
    or review" item with no rule.
 
