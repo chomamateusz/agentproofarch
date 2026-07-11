@@ -87,6 +87,25 @@ module.exports = {
       from: { path: '^apps/web/src/routes' },
       to: { path: '^(core|adapters)|^apps/web/src/api\\.' },
     },
+    {
+      name: 'web-features-consume-bound-actions',
+      severity: 'error',
+      comment:
+        'features consume bound actions from api.ts, never adapters directly (frontend-lint-plan Phase 2)',
+      from: { path: '^apps/web/src/features' },
+      to: { path: '^adapters' },
+    },
+    {
+      name: 'web-api-is-the-only-client-construction-site',
+      severity: 'error',
+      comment:
+        'api.ts is the only web module besides main.tsx that binds adapters (frontend-lint-plan Phase 2)',
+      from: {
+        path: '^apps/web/src',
+        pathNot: '^apps/web/src/(api\\.ts|main\\.tsx)',
+      },
+      to: { path: '^adapters/auth' },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

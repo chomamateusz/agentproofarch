@@ -11,31 +11,30 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { authClient } from '../../api.js';
+import { ApiError } from '@core/client/index.js';
+
+import { actions } from '../../api.js';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const submit = async (event: FormEvent) => {
+  const signIn = useMutation({
+    ...actions.signIn,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries();
+      await navigate({ to: '/' });
+    },
+  });
+
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    setPending(true);
-    setError(null);
-    const result = await authClient.signIn({ email, password });
-    setPending(false);
-    if (!result.ok) {
-      setError(result.error.message);
-      return;
-    }
-    await queryClient.invalidateQueries();
-    await navigate({ to: '/' });
+    signIn.mutate({ email, password });
   };
 
   return (
@@ -43,7 +42,7 @@ export const LoginPage = () => {
       <Paper
         variant="outlined"
         component="form"
-        onSubmit={(event: FormEvent) => void submit(event)}
+        onSubmit={submit}
         sx={{
           width: '100%',
           maxWidth: '23rem',
@@ -82,11 +81,21 @@ export const LoginPage = () => {
               required
             />
           </FormControl>
-          <Button type="submit" variant="contained" fullWidth disabled={pending} sx={{ mt: '0.4rem' }}>
-            {pending ? 'signing in…' : 'sign in'}
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            disabled={signIn.isPending}
+            sx={{ mt: '0.4rem' }}
+          >
+            {signIn.isPending ? 'signing in…' : 'sign in'}
           </Button>
         </Stack>
-        {error ? <Alert sx={{ mt: '0.6rem' }}>{error}</Alert> : null}
+        {signIn.isError ? (
+          <Alert sx={{ mt: '0.6rem' }}>
+            {signIn.error instanceof ApiError ? signIn.error.appError.message : signIn.error.message}
+          </Alert>
+        ) : null}
         <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />
         <Typography variant="caption" component="p" sx={{ fontSize: '0.75rem', mb: '1em' }}>
           demo account:{' '}

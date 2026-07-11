@@ -77,6 +77,27 @@ const STORAGE_GLOBALS = ['localStorage', 'sessionStorage'].map((name) => ({
 
 const HTTP_IMPORT_BANS = ['axios', 'ky', 'got'].map((name) => ({ name, message: NO_HTTP }));
 
+const CLIENT_CONSTRUCTION_BANS = [
+  {
+    name: '@core/client/index.js',
+    importNames: ['createApiClient'],
+    message:
+      'createApiClient is bound once in apps/web/src/api.ts: import bound actions from api.ts, never construct a client.',
+  },
+  {
+    name: '@adapters/auth/client-adapter.js',
+    message:
+      'The auth client adapter is instantiated only in apps/web/src/api.ts: import bound actions from api.ts.',
+  },
+];
+
+const DEVTOOLS_BAN = [
+  {
+    name: '@tanstack/react-query-devtools',
+    message: 'Query Devtools are wired only in main.tsx (dev-only composition root).',
+  },
+];
+
 const STATE_LIB_MESSAGE =
   'Global state libraries are banned: server state lives in TanStack Query, UI state stays local (React 19 / compiler).';
 const STATE_LIB_BANS = [
@@ -152,10 +173,12 @@ export default tseslint.config(
         { type: 'adapter-domains', pattern: 'adapters/domain-provisioning/**', mode: 'full' },
         { type: 'app-server', pattern: 'apps/server/**', mode: 'full' },
         { type: 'web-main', pattern: 'apps/web/src/main.tsx', mode: 'full' },
+        { type: 'web-api', pattern: 'apps/web/src/api.ts', mode: 'full' },
         { type: 'web-routes', pattern: 'apps/web/src/routes/**', mode: 'full' },
         { type: 'web-features', pattern: 'apps/web/src/features/**', mode: 'full' },
         { type: 'web-ui', pattern: 'apps/web/src/components/ui/**', mode: 'full' },
         { type: 'web-lib', pattern: 'apps/web/src/lib/**', mode: 'full' },
+        { type: 'web-test', pattern: 'apps/web/src/test/**', mode: 'full' },
         { type: 'web-theme', pattern: 'apps/web/src/theme*', mode: 'full' },
         { type: 'app-web', pattern: 'apps/web/**', mode: 'full' },
         { type: 'app-cli', pattern: 'apps/cli/**', mode: 'full' },
@@ -217,6 +240,7 @@ export default tseslint.config(
               from: ['web-main'],
               allow: [
                 'web-main',
+                'web-api',
                 'web-routes',
                 'web-features',
                 'web-ui',
@@ -230,6 +254,10 @@ export default tseslint.config(
               ],
             },
             {
+              from: ['web-api'],
+              allow: ['web-api', 'core-domain', 'core-contract', 'core-client', 'adapter-auth'],
+            },
+            {
               from: ['web-routes'],
               allow: ['web-routes', 'web-features', 'web-ui', 'web-lib'],
             },
@@ -237,15 +265,19 @@ export default tseslint.config(
               from: ['web-features'],
               allow: [
                 'web-features',
+                'web-api',
                 'web-ui',
                 'web-lib',
                 'web-theme',
+                'web-test',
                 'core-domain',
                 'core-contract',
                 'core-client',
-                'adapter-auth',
-                'app-web',
               ],
+            },
+            {
+              from: ['web-test'],
+              allow: ['web-test'],
             },
             {
               from: ['web-ui'],
@@ -332,7 +364,12 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS],
+          paths: [
+            ...HTTP_IMPORT_BANS,
+            ...STATE_LIB_BANS,
+            ...CLIENT_CONSTRUCTION_BANS,
+            ...DEVTOOLS_BAN,
+          ],
           patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
         },
       ],
@@ -365,9 +402,24 @@ export default tseslint.config(
     },
   },
   {
+    files: ['apps/web/src/api.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS, ...DEVTOOLS_BAN],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+        },
+      ],
+    },
+  },
+  {
     files: ['apps/web/src/main.tsx'],
     rules: {
-      'no-restricted-imports': ['error', { paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS] }],
+      'no-restricted-imports': [
+        'error',
+        { paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS, ...CLIENT_CONSTRUCTION_BANS] },
+      ],
     },
   },
   {

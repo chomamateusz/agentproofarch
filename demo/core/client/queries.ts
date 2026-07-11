@@ -10,6 +10,7 @@ import type {
 
 import type { NewTodo } from '@core/domain/index.js';
 
+import type { AuthClientPort } from './auth-port.js';
 import { unwrap, type ApiClient } from './http.js';
 
 /**
@@ -56,6 +57,10 @@ export const todosScopes = {
   lists: () => ['todos', 'list'] as const,
 };
 
+export const authScopes = {
+  all: () => ['auth'] as const,
+};
+
 export const meQuery = (api: ApiClient) =>
   defineQuery({
     queryKey: meScopes.all(),
@@ -82,3 +87,26 @@ export const addTodoMutation = (api: ApiClient) =>
 
 /** The invalidation filter `addTodoMutation` applies after it settles. */
 export const addTodoInvalidates = () => ({ queryKey: todosScopes.lists() });
+
+/**
+ * Auth side effects are mutation descriptors over `AuthClientPort` like any
+ * other action — never hand-rolled pending/error state around a port call.
+ */
+export const signUpMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'sign-up'],
+    mutationFn: async (input: { name: string; email: string; password: string }) =>
+      unwrap(await auth.signUp(input)),
+  });
+
+export const signInMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'sign-in'],
+    mutationFn: async (input: { email: string; password: string }) => unwrap(await auth.signIn(input)),
+  });
+
+export const signOutMutation = (auth: AuthClientPort): MutationDescriptor<void, void> =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'sign-out'],
+    mutationFn: () => auth.signOut().then(unwrap),
+  });

@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline } from '@mui/material';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -18,6 +18,13 @@ import { renderRootErrorFallback } from './RootErrorFallback.js';
 import { LoginRoute } from './routes/login.js';
 import { TodosRoute } from './routes/todos.js';
 import { ThemeModeProvider } from './theme-mode.js';
+
+/** Dev-only, lazy so the devtools chunk never reaches the production bundle. */
+const ReactQueryDevtools = lazy(() =>
+  import('@tanstack/react-query-devtools').then((module) => ({
+    default: module.ReactQueryDevtools,
+  })),
+);
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -58,6 +65,11 @@ createRoot(container).render(
         <QueryClientProvider client={queryClient}>
           <RefreshSnackbar />
           <RouterProvider router={router} />
+          {import.meta.env.DEV ? (
+            <Suspense fallback={null}>
+              <ReactQueryDevtools />
+            </Suspense>
+          ) : null}
         </QueryClientProvider>
       </ErrorBoundary>
     </ThemeModeProvider>

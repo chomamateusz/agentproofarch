@@ -20,23 +20,16 @@ import { alpha } from '@mui/material/styles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import {
-  addTodoInvalidates,
-  addTodoMutation,
-  meQuery,
-  orgsQuery,
-  todosQuery,
-  ApiError,
-} from '@core/client/index.js';
+import { ApiError } from '@core/client/index.js';
 
-import { api, authClient } from '../../api.js';
+import { actions } from '../../api.js';
 import { tenantHue, tenantUrl } from '../../lib/tenant.js';
 import { useThemeMode } from '../../theme-mode.js';
 import { createThemeForMode, LINE_STRONG } from '../../theme.js';
 
 export const TodosPage = () => {
   const navigate = useNavigate();
-  const me = useQuery(meQuery(api));
+  const me = useQuery(actions.me);
 
   const unauthorized =
     me.error instanceof ApiError && me.error.appError.code === 'unauthorized';
@@ -71,7 +64,7 @@ export const TodosPage = () => {
 };
 
 const PickTenant = () => {
-  const orgs = useQuery(orgsQuery(api));
+  const orgs = useQuery(actions.orgs);
   return (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: '1.5rem' }}>
       <Paper
@@ -116,8 +109,8 @@ const TenantLedger = ({
 }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const todos = useQuery(todosQuery(api));
-  const orgs = useQuery(orgsQuery(api));
+  const todos = useQuery(actions.todos);
+  const orgs = useQuery(actions.orgs);
   const [title, setTitle] = useState('');
   const { mode } = useThemeMode();
   const theme = useMemo(
@@ -126,16 +119,18 @@ const TenantLedger = ({
   );
 
   const addTodo = useMutation({
-    ...addTodoMutation(api),
+    ...actions.addTodo,
     onSuccess: () => setTitle(''),
-    onSettled: () => queryClient.invalidateQueries(addTodoInvalidates()),
+    onSettled: () => queryClient.invalidateQueries(actions.addTodoInvalidates()),
   });
 
-  const signOut = async () => {
-    await authClient.signOut();
-    await queryClient.invalidateQueries();
-    await navigate({ to: '/login' });
-  };
+  const signOut = useMutation({
+    ...actions.signOut,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries();
+      await navigate({ to: '/login' });
+    },
+  });
 
   return (
     <ThemeProvider theme={theme}>
@@ -183,7 +178,7 @@ const TenantLedger = ({
               {email}
             </Typography>
             <Box sx={{ flex: 1 }} />
-            <Button variant="text" onClick={() => void signOut()}>
+            <Button variant="text" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
               sign out
             </Button>
           </Stack>
