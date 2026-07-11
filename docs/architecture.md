@@ -103,9 +103,17 @@ State rules:
   filters; neither is duplicated into component state.
 - **Features are islands** (lint): a feature imports only itself. Features
   coordinate through server state (a command invalidates a scope, other
-  features' queries refetch), through the URL, or through a route-level
-  parent — never by importing each other or sharing client state. Shared code
-  extracts downward (`components/ui`, `lib`, `core/client`), never sideways.
+  features' queries refetch — the cache is the pub/sub, local and instant),
+  through the URL, or through a route-level parent — never by importing each
+  other or sharing client state. Shared code extracts downward
+  (`components/ui`, `lib`, `core/client`), never sideways.
+- **No client event bus.** A stringly-typed bus hides coupling from the
+  dependency graph — the enforcers stop telling the truth and agents cannot
+  trace control flow. If a genuinely ephemeral cross-feature signal ever
+  recurs, the sanctioned shape is a closed union of typed events in one
+  module (like `ErrorCode`) that both sides import — added at first proven
+  need, never preemptively. Two features that constantly coordinate are one
+  feature.
 
 The action set is CQRS-partitioned: every action is either a query (safe
 read) or a command (unsafe write) — no hybrids, enforced by read/write tags
