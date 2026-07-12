@@ -2,10 +2,19 @@
 
 Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs/architecture.md`) (§3 is normative).
 
-## The one gate
+## The two gates
 
-`npm run check` = typecheck + ESLint (boundaries) + dependency-cruiser + vitest.
-Nothing is done until it is green. Do not weaken lint rules to make it green.
+- `npm run check` = typecheck + ESLint (boundaries) + dependency-cruiser +
+  vitest — the **static** gate.
+- `npm run smoke` = the **runtime** gate: it verifies the installed dependency
+  tree matches `package-lock.json`, drops+recreates an isolated
+  `agentproofarch_smoke` database (never touches your dev-seeded data), migrates
+  and seeds it, boots the real server (`entry.node.ts`) on an ephemeral port and
+  drives health → sign-in → todos through the CLI, asserting taxonomy exit codes
+  (including unauthorized = exit 3). Assumes `npm run db:up`. Runs in ~5s.
+
+**Done = `check` green AND `smoke` green.** Static-green is not done; the app
+must actually run. Do not weaken lint rules to make either green.
 
 ## Layer rules (enforced, but know them anyway)
 
