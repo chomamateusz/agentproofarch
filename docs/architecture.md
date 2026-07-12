@@ -15,7 +15,11 @@ form. The `demo/` folder implements it.
   adapters behind ports.
 - **Machine-enforced boundaries**: layer rules are lint rules
   (eslint-plugin-boundaries + dependency-cruiser), not conventions. `npm run
-  check` is the single gate.
+  check` is the static gate; `npm run smoke` is the runtime gate — it verifies
+  the installed dependency tree matches the lockfile, boots the real server
+  against a real database and drives health → sign-in → todos through the
+  CLI, asserting taxonomy exit codes. Static-green is not done; the app must
+  actually run.
 - **Two first-class deploy targets** from the same commit: Vercel (serverless +
   Neon) and Docker self-host (Node + Postgres + Caddy). Platform names may
   appear only in `adapters/` and platform entry files.
