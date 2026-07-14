@@ -226,6 +226,35 @@ websockets or long-running jobs. The Docker image is the full-runtime escape
 hatch from the same commit and runs anywhere (VPS, Railway, Fly.io,
 Kubernetes); anything that needs a resident process lives on that target.
 
+## Environments (Vercel target)
+
+Four environments, mapped onto Vercel's native model
+([ADR-0003](decisions/0003-vercel-environments.md)):
+
+| Env | Git | Database | Host |
+|---|---|---|---|
+| Production | `main` | Neon branch `production` | project domain (custom + wildcard when added) |
+| Staging | branch `staging` | Neon branch `staging` | staging branch alias URL |
+| Preview | every PR | **ephemeral Neon branch per PR** (marketplace integration) | per-PR URL |
+| Development | local | Docker Postgres (or a Neon `dev` branch) | `*.localhost` |
+
+Rules:
+
+- **Secrets live only in Vercel's env store**, scoped per environment (staging
+  = branch-scoped Preview vars on Hobby); local dev pulls them with
+  `vercel env pull`. Nothing secret in the repo — `.env.example` documents
+  names only.
+- **Migrations run at build time** against that environment's own database
+  (previews migrate their ephemeral branch — always safe; staging/prod are
+  forward-only: destructive changes ship as two deploys, expand → contract).
+- **Promotion is the PR flow**: feature branch → preview → `staging` →
+  `main`. Same commit, only env vars differ.
+- **Tenant subdomains need the custom wildcard domain**; until one is
+  attached, web runs single-tenant on `*.vercel.app` while the API and CLI
+  stay fully multi-tenant via `X-Tenant` — which is also how `smoke` drives a
+  deployed environment (`npm run smoke:remote` = the same CLI suite against a
+  deployment URL).
+
 ## Background jobs and webhooks
 
 Webhooks are plain HTTP and fit both targets as-is. For Stripe, the provider's
