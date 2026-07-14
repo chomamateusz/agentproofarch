@@ -1,18 +1,21 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 import pg from 'pg';
-import { z } from 'zod';
 
-import { EXIT_CODE_BY_ERROR_CODE } from '@core/contract/index.js';
-
-const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
-const tsxBin = join(rootDir, 'node_modules/.bin/tsx');
+import {
+  assert,
+  delay,
+  driveCli,
+  fail,
+  rootDir,
+  run,
+  SmokeFailure,
+  tsxBin,
+} from './smoke-cli.js';
 
 const SMOKE_DB = 'agentproofarch_smoke';
 const baseDatabaseUrl =
@@ -21,35 +24,6 @@ const baseDatabaseUrl =
 const smokeUrlObject = new URL(baseDatabaseUrl);
 smokeUrlObject.pathname = `/${SMOKE_DB}`;
 const smokeDatabaseUrl = smokeUrlObject.toString();
-
-class SmokeFailure extends Error {}
-const fail = (message: string): never => {
-  throw new SmokeFailure(message);
-};
-function assert(condition: boolean, message: string): asserts condition {
-  if (!condition) throw new SmokeFailure(message);
-}
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-interface Run {
-  code: number;
-  stdout: string;
-  stderr: string;
-}
-const run = (cmd: string, args: string[], env: NodeJS.ProcessEnv): Promise<Run> =>
-  new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd: rootDir, env: { ...process.env, ...env } });
-    let stdout = '';
-    let stderr = '';
-    child.stdout?.on('data', (chunk) => {
-      stdout += String(chunk);
-    });
-    child.stderr?.on('data', (chunk) => {
-      stderr += String(chunk);
-    });
-    child.on('error', (cause) => resolve({ code: 1, stdout, stderr: `${stderr}${String(cause)}` }));
-    child.on('close', (code) => resolve({ code: code ?? 0, stdout, stderr }));
-  });
 
 interface LockPackage {
   version?: string;
@@ -201,99 +175,6 @@ const killServer = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode === null && child.signalCode === null) signalGroup('SIGKILL');
 };
 
-const okEnvelope = z.object({ ok: z.literal(true), data: z.unknown() });
-const errEnvelope = z.object({
-  ok: z.literal(false),
-  error: z.object({ code: z.string(), message: z.string() }),
-});
-const envelope = z.discriminatedUnion('ok', [okEnvelope, errEnvelope]);
-
-const healthSchema = z.object({ status: z.string(), database: z.string(), version: z.string() });
-const todoItemSchema = z.object({ id: z.string(), title: z.string() });
-const todosSchema = z.object({ todos: z.array(todoItemSchema) });
-const addSchema = z.object({ todo: todoItemSchema });
-
-const readEnvelope = (result: Run, label: string): unknown => {
-  try {
-    return JSON.parse(result.stdout);
-  } catch {
-    return fail(`${label}: stdout was not a JSON envelope.\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
-  }
-};
-const expectOk = (result: Run, label: string): unknown => {
-  assert(
-    result.code === 0,
-    `${label}: expected exit 0, got ${result.code}.\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-  );
-  const parsed = envelope.parse(readEnvelope(result, label));
-  assert(parsed.ok, `${label}: expected an ok envelope, got an error.`);
-  return parsed.data;
-};
-const expectError = (result: Run, label: string, exitCode: number, errorCode: string): void => {
-  assert(
-    result.code === exitCode,
-    `${label}: expected exit ${exitCode}, got ${result.code}.\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-  );
-  const parsed = envelope.parse(readEnvelope(result, label));
-  assert(!parsed.ok, `${label}: expected an error envelope, got ok.`);
-  assert(
-    parsed.error.code === errorCode,
-    `${label}: expected error code "${errorCode}", got "${parsed.error.code}".`,
-  );
-};
-
-const driveCli = async (port: number, homes: string[]): Promise<void> => {
-  const url = `http://localhost:${port}`;
-  const authedHome = mkdtempSync(join(tmpdir(), 'smoke-cli-'));
-  const anonHome = mkdtempSync(join(tmpdir(), 'smoke-anon-'));
-  homes.push(authedHome, anonHome);
-  const cli = (args: string[], home: string): Promise<Run> =>
-    run(tsxBin, ['apps/cli/src/main.ts', ...args], { HOME: home });
-
-  const health = healthSchema.parse(expectOk(await cli(['--json', '--api-url', url, 'health'], authedHome), 'health'));
-  assert(
-    health.status === 'ok' && health.database === 'up',
-    `health degraded: status=${health.status} database=${health.database}`,
-  );
-
-  expectOk(
-    await cli(
-      ['--json', '--api-url', url, 'login', '--email', 'demo@agentproofarch.dev', '--password', 'demo1234'],
-      authedHome,
-    ),
-    'login',
-  );
-
-  const before = todosSchema.parse(
-    expectOk(await cli(['--json', '--api-url', url, '--tenant', 'acme', 'todo', 'list'], authedHome), 'todo list (before)'),
-  );
-
-  const title = `smoke check ${randomUUID()}`;
-  const added = addSchema.parse(
-    expectOk(await cli(['--json', '--api-url', url, '--tenant', 'acme', 'todo', 'add', title], authedHome), 'todo add'),
-  );
-  assert(added.todo.title === title, `todo add echoed the wrong title: ${added.todo.title}`);
-
-  const after = todosSchema.parse(
-    expectOk(await cli(['--json', '--api-url', url, '--tenant', 'acme', 'todo', 'list'], authedHome), 'todo list (after)'),
-  );
-  assert(
-    after.todos.some((todo) => todo.id === added.todo.id),
-    'the added todo did not appear in the second list',
-  );
-  assert(
-    after.todos.length === before.todos.length + 1,
-    `expected exactly one more todo (${before.todos.length} -> ${after.todos.length})`,
-  );
-
-  expectError(
-    await cli(['--json', '--api-url', url, '--tenant', 'acme', 'todo', 'list'], anonHome),
-    'unauthorized todo list',
-    EXIT_CODE_BY_ERROR_CODE.unauthorized,
-    'unauthorized',
-  );
-};
-
 const startedAt = Date.now();
 const homes: string[] = [];
 let server: ChildProcess | null = null;
@@ -309,7 +190,10 @@ try {
   homes.push(webDistDir);
   server = await bootServer(port, smokeDatabaseUrl, webDistDir);
   console.log('smoke: driving the CLI...');
-  await driveCli(port, homes);
+  await driveCli(
+    { baseUrl: `http://localhost:${port}`, email: 'demo@agentproofarch.dev', password: 'demo1234', tenant: 'acme' },
+    homes,
+  );
   console.log(`\nsmoke: PASS (${((Date.now() - startedAt) / 1000).toFixed(1)}s)`);
 } catch (error) {
   const message = error instanceof SmokeFailure ? error.message : String(error);

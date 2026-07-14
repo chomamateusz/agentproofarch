@@ -188,6 +188,7 @@ export default tseslint.config(
         { type: 'adapter-auth', pattern: 'adapters/auth/**', mode: 'full' },
         { type: 'adapter-domains', pattern: 'adapters/domain-provisioning/**', mode: 'full' },
         { type: 'app-server', pattern: 'apps/server/**', mode: 'full' },
+        { type: 'platform-entry', pattern: 'api/**', mode: 'full' },
         { type: 'web-main', pattern: 'apps/web/src/main.tsx', mode: 'full' },
         { type: 'web-api', pattern: 'apps/web/src/api.ts', mode: 'full' },
         { type: 'web-routes', pattern: 'apps/web/src/routes/**', mode: 'full' },
@@ -252,6 +253,10 @@ export default tseslint.config(
                 'adapter-domains',
                 'app-server',
               ],
+            },
+            {
+              from: ['platform-entry'],
+              allow: ['app-server'],
             },
             {
               from: ['app-web'],
