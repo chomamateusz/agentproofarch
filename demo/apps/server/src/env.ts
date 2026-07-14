@@ -6,7 +6,9 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .default('postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch'),
-  DB_DRIVER: z.enum(['node-postgres', 'neon-http']).default('node-postgres'),
+  DB_DRIVER: z
+    .enum(['node-postgres', 'neon-http'])
+    .default(process.env.VERCEL ? 'neon-http' : 'node-postgres'),
   APP_BASE_DOMAIN: z.string().default('localhost'),
   APP_BASE_URL: z.string().url().default('http://localhost:47100'),
   BETTER_AUTH_SECRET: z.string().min(16).default('dev-only-secret-do-not-use-in-prod'),

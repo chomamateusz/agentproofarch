@@ -12,17 +12,22 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "build": "npm run build:web && npm run typecheck",
     "build:web": "vite build --config apps/web/vite.config.ts",
+    "vercel-build": "npm run db:migrate && npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "depcruise": "depcruise core adapters apps scripts",
+    "depcruise": "depcruise core adapters apps scripts api",
     "check": "npm run typecheck && npm run lint && npm run depcruise && npm run test",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx adapters/db/migrate.ts",
     "db:seed": "tsx adapters/db/seed.ts",
     "cli": "tsx apps/cli/src/main.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "smoke:remote": "tsx scripts/smoke-remote.ts"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

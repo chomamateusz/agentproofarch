@@ -48,7 +48,7 @@ module.exports = {
       name: 'vercel-and-neon-only-in-adapters',
       severity: 'error',
       comment: 'Zero platform lock-in in core and apps (PRD: Goals)',
-      from: { pathNot: '^(adapters|apps/server/src/entry\\.vercel\\.ts)' },
+      from: { pathNot: '^(adapters|apps/server/src/entry\\.vercel\\.ts|api/index\\.ts)' },
       to: { path: 'node_modules/(@vercel|@neondatabase)' },
     },
     {

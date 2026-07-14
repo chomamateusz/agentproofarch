@@ -12,7 +12,8 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
  * OTLP ingest, Axiom, self-hosted ClickHouse) is exporter config here, never a
  * code change — which is why the request path talks only to the facade.
  *
- * Returns a flush/shutdown hook so serverless targets can drain before freeze.
+ * Returns a force-flush hook so serverless targets can drain the batch before
+ * the function freezes, without tearing the provider down between invocations.
  */
 export const startServerObservability = (): (() => Promise<void>) | undefined => {
   if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT && !process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
@@ -28,5 +29,5 @@ export const startServerObservability = (): (() => Promise<void>) | undefined =>
   });
   provider.register();
 
-  return () => provider.shutdown();
+  return () => provider.forceFlush();
 };
