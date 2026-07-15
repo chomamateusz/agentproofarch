@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
-import { createDb } from '@adapters/db/client.js';
+import { createDb } from '#adapters/db/client.js';
 import {
   createHealthPort,
   createTenantAccessReader,
   createTenantDomainRepository,
   createTenantRepository,
   createTodoRepository,
-} from '@adapters/db/repositories.js';
-import { createAuth, createAuthPort, type Auth } from '@adapters/auth/create-auth.js';
+} from '#adapters/db/repositories.js';
+import { createAuth, createAuthPort, type Auth } from '#adapters/auth/create-auth.js';
 import type {
   AuthPort,
   Clock,
@@ -18,7 +18,7 @@ import type {
   TenantDomainRepository,
   TenantRepository,
   TodoRepository,
-} from '@core/server/index.js';
+} from '#core/server/index.js';
 
 import type { Env } from './env.js';
 

@@ -2,8 +2,8 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
 
-import type { AuthPort } from '@core/server/index.js';
-import type { Db } from '@adapters/db/client.js';
+import type { AuthPort } from '#core/server/index.js';
+import type { Db } from '#adapters/db/client.js';
 
 export interface AuthSettings {
   secret: string;

@@ -1,4 +1,4 @@
-import type { Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '@core/domain/index.js';
+import type { Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
 
 /**
  * Ports: interfaces the core depends on, implemented in `adapters/`.

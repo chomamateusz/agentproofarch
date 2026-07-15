@@ -7,7 +7,7 @@ import {
   tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
-} from '@core/contract/index.js';
+} from '#core/contract/index.js';
 import {
   err,
   internal,
@@ -17,7 +17,7 @@ import {
   type AppError,
   type Identity,
   type Result,
-} from '@core/domain/index.js';
+} from '#core/domain/index.js';
 import {
   addTodo,
   createTenant,
@@ -25,8 +25,8 @@ import {
   listTodos,
   resolveIdentity,
   type AuthenticatedUser,
-} from '@core/server/index.js';
-import { BETTER_AUTH_API_PATH_PATTERN } from '@adapters/auth/create-auth.js';
+} from '#core/server/index.js';
+import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
 import { recordAppError, recordException, telemetryMiddleware } from './telemetry.js';

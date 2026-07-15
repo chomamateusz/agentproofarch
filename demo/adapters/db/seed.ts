@@ -7,7 +7,7 @@
  */
 import { eq } from 'drizzle-orm';
 
-import { createAuth } from '@adapters/auth/create-auth.js';
+import { createAuth } from '#adapters/auth/create-auth.js';
 
 import { createDb } from './client.js';
 import { members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';

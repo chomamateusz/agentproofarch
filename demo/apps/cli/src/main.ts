@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 
-import { createCliAuthAdapter } from '@adapters/auth/client-adapter.js';
-import type { AuthClientPort } from '@core/client/index.js';
-import { createApiClient, type ApiClient } from '@core/client/index.js';
-import { TENANT_HEADER } from '@core/contract/index.js';
-import { err, internal, notFound, ok } from '@core/domain/index.js';
+import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
+import type { AuthClientPort } from '#core/client/index.js';
+import { createApiClient, type ApiClient } from '#core/client/index.js';
+import { TENANT_HEADER } from '#core/contract/index.js';
+import { err, internal, notFound, ok } from '#core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
 import { emit } from './output.js';

@@ -8,7 +8,7 @@ import {
   type Identity,
   type Result,
   type Tenant,
-} from '@core/domain/index.js';
+} from '#core/domain/index.js';
 
 import type { AuthenticatedUser, TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
 

@@ -1,8 +1,8 @@
 import { createAuthClient } from 'better-auth/client';
 import { z } from 'zod';
 
-import type { AuthClientPort } from '@core/client/index.js';
-import { appError, err, ok, type AppError, type Result } from '@core/domain/index.js';
+import type { AuthClientPort } from '#core/client/index.js';
+import { appError, err, ok, type AppError, type Result } from '#core/domain/index.js';
 
 type SignUpInput = Parameters<AuthClientPort['signUp']>[0];
 type SignInInput = Parameters<AuthClientPort['signIn']>[0];
