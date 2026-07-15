@@ -1,4 +1,4 @@
-import { handle } from 'hono/vercel';
+import { handle } from '@hono/node-server/vercel';
 
 import { buildApp } from '../apps/server/src/app.js';
 import { createDeps } from '../apps/server/src/composition.js';
