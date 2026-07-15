@@ -20,3 +20,9 @@ const withFlush: typeof handler = async (...args) => {
 };
 
 export default withFlush;
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
