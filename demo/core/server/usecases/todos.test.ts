@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Identity, Todo } from '@core/domain/index.js';
+import type { Identity, Todo } from '#core/domain/index.js';
 
 import type { TodoRepository } from '../ports.js';
 import { addTodo, listTodos } from './todos.js';

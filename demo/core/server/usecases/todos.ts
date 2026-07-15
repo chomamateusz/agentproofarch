@@ -8,7 +8,7 @@ import {
   type NewTodo,
   type Result,
   type Todo,
-} from '@core/domain/index.js';
+} from '#core/domain/index.js';
 
 import type { Ctx } from '../context.js';
 import type { Clock, IdGenerator, TodoRepository } from '../ports.js';

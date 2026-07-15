@@ -9,8 +9,8 @@ import type {
   QueryKey,
 } from '@tanstack/query-core';
 
-import type { TenantCreateInput } from '@core/contract/index.js';
-import type { NewTodo } from '@core/domain/index.js';
+import type { TenantCreateInput } from '#core/contract/index.js';
+import type { NewTodo } from '#core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';

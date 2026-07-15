@@ -1,13 +1,13 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { staffRoleSchema, type Membership, type StaffRole } from '@core/domain/index.js';
+import { staffRoleSchema, type Membership, type StaffRole } from '#core/domain/index.js';
 import type {
   HealthPort,
   TenantAccessReader,
   TenantDomainRepository,
   TenantRepository,
   TodoRepository,
-} from '@core/server/index.js';
+} from '#core/server/index.js';
 
 import type { Db } from './client.js';
 import { members, tenantAdmins, tenantDomains, tenants, todos } from './schema.js';

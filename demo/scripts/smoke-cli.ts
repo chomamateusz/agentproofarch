@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { z } from 'zod';
 
-import { EXIT_CODE_BY_ERROR_CODE } from '@core/contract/index.js';
+import { EXIT_CODE_BY_ERROR_CODE } from '#core/contract/index.js';
 
 export const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const tsxBin = join(rootDir, 'node_modules/.bin/tsx');

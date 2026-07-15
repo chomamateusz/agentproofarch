@@ -1,6 +1,6 @@
 import { context, trace } from '@opentelemetry/api';
 
-import { createBetterAuthClientAdapter } from '@adapters/auth/client-adapter.js';
+import { createBetterAuthClientAdapter } from '#adapters/auth/client-adapter.js';
 import {
   addTodoInvalidates,
   addTodoMutation,
@@ -11,7 +11,7 @@ import {
   signUpMutation,
   tenantsQuery,
   todosQuery,
-} from '@core/client/index.js';
+} from '#core/client/index.js';
 
 /**
  * W3C `traceparent` for the active span, formatted from the OTel facade so FE→BE

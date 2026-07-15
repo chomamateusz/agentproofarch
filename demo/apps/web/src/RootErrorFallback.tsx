@@ -1,6 +1,6 @@
 import { Box, Button, Paper, Typography } from '@mui/material';
 
-import { ApiError } from '@core/client/index.js';
+import { ApiError } from '#core/client/index.js';
 
 import { activeTraceId } from './observability.js';
 

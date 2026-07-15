@@ -13,8 +13,8 @@ import {
   type ReadMethod,
   type TenantCreateInput,
   type WriteMethod,
-} from '@core/contract/index.js';
-import { err, internal, ok, type AppError, type NewTodo, type Result } from '@core/domain/index.js';
+} from '#core/contract/index.js';
+import { err, internal, ok, type AppError, type NewTodo, type Result } from '#core/domain/index.js';
 
 declare const HTTP_METHOD_BRAND: unique symbol;
 

@@ -14,12 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@core/*": ["core/*"],
-      "@adapters/*": ["adapters/*"]
-    }
+    "types": ["node"]
   },
   "include": ["core", "adapters", "apps", "api", "scripts", "*.config.ts", ".dependency-cruiser.cjs"],
   "exclude": ["node_modules", "dist"]
