@@ -1,4 +1,6 @@
-import { handle } from 'hono/vercel';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
+import { handle } from '@hono/node-server/vercel';
 
 import { buildApp } from '../apps/server/src/app.js';
 import { createDeps } from '../apps/server/src/composition.js';
@@ -9,17 +11,17 @@ const flush = startServerObservability();
 const app = buildApp(createDeps(loadEnv()));
 const handler = handle(app);
 
-// No resident process to run a shutdown hook: drain the tracer per invocation
-// (awaited before the response returns) so batched spans survive the freeze.
-// The wrapper must keep an explicit single-Request signature: the Vercel Node
-// runtime detects web-standard handlers heuristically, and a (...args) arity-0
-// wrapper is invoked node-style, which hangs forever.
-const withFlush = async (request: Request): Promise<Response> => {
+// Requires NODEJS_HELPERS=0 on the Vercel project: with helpers on, the
+// runtime drains the request stream to parse req.body and every POST hangs
+// waiting for a body that never arrives. With helpers off this is the plain
+// node-style (req, res) contract; keep the explicit two-parameter signature.
+export default async function nodeHandler(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
   try {
-    return await handler(request);
+    await handler(req, res);
   } finally {
     if (flush) await flush();
   }
-};
-
-export default withFlush;
+}
