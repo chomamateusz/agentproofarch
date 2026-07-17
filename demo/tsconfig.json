@@ -16,6 +16,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["core", "adapters", "apps", "api", "scripts", "*.config.ts", ".dependency-cruiser.cjs"],
+  "include": ["core", "adapters", "apps", "api", "scripts", "config-regression", "*.config.ts", ".dependency-cruiser.cjs"],
   "exclude": ["node_modules", "dist"]
 }

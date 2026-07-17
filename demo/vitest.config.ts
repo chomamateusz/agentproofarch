@@ -30,6 +30,14 @@ export default defineConfig({
           setupFiles: ['apps/web/src/test/setup.ts'],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'config',
+          environment: 'node',
+          include: ['config-regression/**/*.test.ts'],
+        },
+      },
     ],
   },
 });
