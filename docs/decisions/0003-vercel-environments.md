@@ -26,14 +26,21 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
    SPA. Previews therefore always test the PR's schema on a disposable
    branch. Staging/prod migrations are forward-only; destructive changes ship
    expand → contract across two deploys.
-4. **Entry**: `demo/api/index.ts` exports the Hono app through `hono/vercel`;
+4. **Entry**: `demo/api/index.ts` exports a node-style handler through
+   `@hono/node-server/vercel` (with `NODEJS_HELPERS=0`, see PRs #11/#15);
    `vercel.json` routes `/api/*` to the function and everything else to the
    static SPA build with an SPA fallback. Root directory = `demo`.
-5. **No custom domain yet** (accepted constraint): web is single-tenant on
+5. **Function and database are co-located in Europe**: the function runs in
+   `fra1` and the Neon project lives in `aws-eu-central-1` (resource
+   `neon-frankfurt`). Cross-continent pairing is a known failure mode — the
+   original us-east-1 database forced the function to `iad1` as a stopgap
+   (PR #12) until the database was migrated to Frankfurt on 2026-07-17.
+   Rule: whoever moves one side moves both.
+6. **No custom domain yet** (accepted constraint): web is single-tenant on
    `*.vercel.app`; API/CLI remain fully multi-tenant via `X-Tenant`. Attaching
    a wildcard domain later changes env vars (`APP_BASE_DOMAIN`), not code.
    The `DOMAIN_PROVISIONER` stays `noop` until then.
-6. **Remote runtime gate**: `smoke:remote` reuses the smoke CLI suite against
+7. **Remote runtime gate**: `smoke:remote` reuses the smoke CLI suite against
    a deployment URL (health → sign-in → todos → negative case), replacing the
    boot-a-server phase with the deployed target.
 
