@@ -31,6 +31,7 @@
     "db:seed": "tsx adapters/db/seed.ts",
     "cli": "tsx apps/cli/src/main.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "e2e": "playwright test",
     "smoke:remote": "tsx scripts/smoke-remote.ts",
     "lock-lint": "npx -y npm@10 ls --all --package-lock-only >/dev/null"
   },
@@ -63,6 +64,7 @@
   "devDependencies": {
     "@opentelemetry/core": "^2.9.0",
     "@opentelemetry/sdk-trace-base": "^2.9.0",
+    "@playwright/test": "^1.61.1",
     "@tanstack/eslint-plugin-query": "^5.101.2",
     "@tanstack/react-query-devtools": "^5.101.2",
     "@testing-library/jest-dom": "^6.9.1",

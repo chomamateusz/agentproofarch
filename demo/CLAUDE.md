@@ -25,6 +25,12 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.
 
+- `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
+  the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
+  single-tenant custom domain, `entry.node.ts` serving the built bundle) through
+  login → seeded todos → add-todo → failed-login → cache headers. It needs a
+  browser and Postgres, so it is its own CI job (`e2e`), never part of `check`.
+
 ## Layer rules (enforced, but know them anyway)
 
 - `core/**` is pure TypeScript: no hono, react, drizzle, better-auth, pg, commander.

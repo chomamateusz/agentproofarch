@@ -28,6 +28,11 @@ export default defineConfig({
         'adapters/db/auth-schema.ts',
         'drizzle/**',
         'eslint-plugin-agentproofarch/**',
+        // e2e-only orchestration (drop/create/migrate/seed a throwaway DB, boot
+        // the real server): it has no database-free unit surface and is exercised
+        // by the `e2e` CI job's real browser, so counting it as 0% would falsely
+        // depress the database-free ratchet floor below.
+        'scripts/e2e-server.ts',
       ],
       // Ratchet floor, not aspiration: each threshold is the measured coverage
       // of the default (database-free) `vitest run --coverage` on 2026-07-17
