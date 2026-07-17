@@ -54,12 +54,20 @@ green.
    suite fails. The enforcers are enforced; you cannot disable a rule silently
    and keep CI green.
 
-4. **Doc-lint.** Every enforcer promised in the docs must exist in
-   configuration. A check maps documented rules (layer boundaries, the
-   `@vercel/*`/`@neondatabase/*` containment, "no `any`", "no `as`") to their
-   concrete ESLint / dependency-cruiser entries and fails if a promised
-   enforcer is missing — so the documentation cannot drift into describing
-   guarantees the config no longer provides.
+4. **Doc-lint.** Docs and enforcer configuration must stay in sync both ways
+   (`npm run doc-lint`, `scripts/doc-lint.ts`, wired into the `check` chain).
+   - **docs → config**: every enforcer the docs promise must still exist in
+     configuration. An in-script manifest maps prose-promised guarantees (layer
+     boundaries, the `@vercel/*`/`@neondatabase/*` containment, "no `any`", "no
+     `as`", "features are islands") to their concrete ESLint / dependency-cruiser
+     entries, each with the doc section it is promised in; any literal
+     `agentproofarch/<rule>` id spelled in the docs is checked too. The docs
+     cannot drift into describing guarantees the config no longer provides.
+   - **config → docs**: every custom rule in `eslint-plugin-agentproofarch/rules`
+     (excluding `*.test.js`) must be documented by name somewhere under `docs/`,
+     so an enforcer cannot be added in silence.
+   Failure output names the identifier, which side is missing it, and which file
+   to fix.
 
 ## Consequences
 
