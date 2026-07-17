@@ -15,7 +15,18 @@ const app = buildApp(createDeps(env));
 warnIfDistStale(env.WEB_DIST_DIR, process.cwd());
 
 // Same process serves the SPA build — one origin per tenant domain, no CORS.
-app.use('*', serveStatic({ root: env.WEB_DIST_DIR }));
+// Cache parity with the Vercel headers block: hashed assets are immutable.
+app.use(
+  '*',
+  serveStatic({
+    root: env.WEB_DIST_DIR,
+    onFound: (path, c) => {
+      if (path.includes('/assets/')) {
+        c.header('cache-control', 'public, max-age=31536000, immutable');
+      }
+    },
+  }),
+);
 app.get('*', serveStatic({ path: `${env.WEB_DIST_DIR}/index.html` }));
 
 serve({ fetch: app.fetch, port: env.PORT, hostname: '0.0.0.0' }, (info) => {

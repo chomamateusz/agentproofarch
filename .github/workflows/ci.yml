@@ -21,6 +21,10 @@ jobs:
           cache-dependency-path: demo/package-lock.json
       - run: npm ci
       - run: npm run check
+      # Advisory only (architecture §Security baseline): high/critical findings
+      # are triaged, but audit's transitive noise must not break the build.
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
 
   smoke:
     if: github.repository == 'chomamateusz/agentproofarch'

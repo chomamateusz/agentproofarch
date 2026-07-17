@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
+import { secureHeaders } from 'hono/secure-headers';
 
 import {
   API_PATHS,
@@ -39,7 +41,9 @@ const respond = <T>(result: Result<T, AppError>): Response => {
   const status = envelope.ok ? 200 : HTTP_STATUS_BY_ERROR_CODE[envelope.error.code];
   return new Response(JSON.stringify(envelope), {
     status,
-    headers: { 'content-type': 'application/json' },
+    // no-store at the one seam every envelope passes through: tenant-scoped
+    // JSON must never be stored by any cache (see architecture §HTTP caching).
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
   });
 };
 
@@ -56,6 +60,36 @@ const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
 
 export const buildApp = (deps: AppDeps) => {
   const app = new Hono<Vars>();
+
+  // Security baseline (architecture §Security baseline). style-src allows
+  // inline because emotion injects runtime <style> tags; scripts stay 'self'.
+  // On Vercel the static SPA bypasses this function — vercel.json carries the
+  // same headers for non-/api/ paths; this middleware covers API + self-host.
+  app.use(
+    '*',
+    secureHeaders({
+      contentSecurityPolicy: {
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+      referrerPolicy: 'strict-origin-when-cross-origin',
+    }),
+  );
+  // JSON payloads are small; a 100KB cap is a cheap DoS floor under Vercel's
+  // 4.5MB platform backstop. The over-limit response stays an envelope so
+  // clients never see a non-JSON body from the API.
+  app.use(
+    '/api/*',
+    bodyLimit({
+      maxSize: 100 * 1024,
+      onError: () => respond(err(validation('Request body exceeds the 100KB limit'))),
+    }),
+  );
 
   app.use('*', telemetryMiddleware);
 

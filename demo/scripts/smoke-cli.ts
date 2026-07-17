@@ -93,12 +93,35 @@ export interface SmokeTarget {
 }
 
 /**
+ * Security/caching headers are part of the runtime contract (architecture
+ * §Security baseline, §HTTP caching): tenant-scoped JSON is never stored by
+ * any cache, and the security headers must survive every deploy target.
+ */
+const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
+  const response = await fetch(`${baseUrl}/api/health`);
+  const cacheControl = response.headers.get('cache-control') ?? '(missing)';
+  assert(
+    cacheControl === 'no-store',
+    `API cache-control must be "no-store", got "${cacheControl}"`,
+  );
+  const nosniff = response.headers.get('x-content-type-options') ?? '(missing)';
+  assert(nosniff === 'nosniff', `x-content-type-options must be "nosniff", got "${nosniff}"`);
+  const csp = response.headers.get('content-security-policy') ?? '(missing)';
+  assert(
+    csp.includes("script-src 'self'"),
+    `content-security-policy must pin script-src 'self', got "${csp}"`,
+  );
+};
+
+/**
  * The runtime contract every deploy target must satisfy, driven purely through
- * the CLI: health → sign-in → todos list/add/list → unauthorized (exit 3).
+ * the CLI: health → sign-in → todos list/add/list → unauthorized (exit 3),
+ * plus the security/caching response headers.
  * `homes` collects the temp HOME dirs so the caller can clean them up.
  */
 export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<void> => {
   const { baseUrl } = target;
+  await assertResponseHeaders(baseUrl);
   const authedHome = mkdtempSync(join(tmpdir(), 'smoke-cli-'));
   const anonHome = mkdtempSync(join(tmpdir(), 'smoke-anon-'));
   homes.push(authedHome, anonHome);
