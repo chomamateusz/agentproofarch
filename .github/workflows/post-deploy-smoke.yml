@@ -23,6 +23,9 @@ jobs:
           cache: npm
           cache-dependency-path: demo/package-lock.json
       - run: npm ci
+      # Drive the production ALIAS, not environment_url (the per-deployment URL):
+      # the alias is what users hit, Better Auth only trusts APP_BASE_URL as the
+      # CSRF origin, and testing the alias also proves promotion/aliasing worked.
       - run: npm run smoke:remote
         env:
-          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          BASE_URL: https://agentproofarch.vercel.app
