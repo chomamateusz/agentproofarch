@@ -8,7 +8,8 @@ jobs:
     if: >-
       github.repository == 'chomamateusz/agentproofarch' &&
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment.environment == 'Production'
+      (github.event.deployment.environment == 'Production' ||
+       github.event.deployment.environment == 'Preview')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,6 +27,9 @@ jobs:
       # Drive the production ALIAS, not environment_url (the per-deployment URL):
       # the alias is what users hit, Better Auth only trusts APP_BASE_URL as the
       # CSRF origin, and testing the alias also proves promotion/aliasing worked.
+      # Production drives the alias (what users hit, proves promotion worked);
+      # previews/staging drive their own deployment URL — auth trusts it via
+      # the VERCEL_URL-derived origin.
       - run: npm run smoke:remote
         env:
-          BASE_URL: https://agentproofarch.vercel.app
+          BASE_URL: ${{ github.event.deployment.environment == 'Production' && 'https://agentproofarch.vercel.app' || github.event.deployment_status.environment_url }}

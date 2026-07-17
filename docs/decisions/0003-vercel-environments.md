@@ -12,10 +12,15 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
 
 1. **Map onto Vercel's native model instead of inventing one.** Vercel knows
    three env classes (Production / Preview / Development). Production = `main`.
-   Staging = a long-lived `staging` branch whose deployments are Previews with
-   **branch-scoped environment variables** — on Hobby this replaces the
-   Pro-only Custom Environments feature with ~90% of the value. Every PR gets
-   a standard Preview. Development is local (`vercel env pull` for parity).
+   Staging = a long-lived `staging` branch whose deployments are Previews;
+   branch-scoped environment variables remain available on Hobby if staging
+   ever needs to diverge, but none are required: previews and staging derive
+   their base URL and trusted auth origin from the platform-injected
+   `VERCEL_URL`/`VERCEL_BRANCH_URL`, so every non-production deployment is
+   fully functional (including sign-in) with zero per-branch configuration.
+   Every PR gets a standard Preview. Development is local (`vercel env pull`
+   for parity). All three deployed classes are verified by `post-deploy-smoke`
+   (production via the alias, previews/staging via their deployment URL).
 2. **One Neon project, branch per environment**: `production`, `staging`, and
    an **ephemeral branch per preview PR** created by the Neon⇄Vercel
    marketplace integration (copy-on-write from `production`'s parent, deleted
