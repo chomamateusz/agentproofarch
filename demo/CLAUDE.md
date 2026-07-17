@@ -50,6 +50,13 @@ CLI command → web page, in that order, with tests at the core layer.
 
 ## Dev notes
 
+- **Frontend work goes through `npm run dev:web`** (Vite on 47180, hot reload) —
+  that is the canonical dev path. `npm run dev:server` serves whatever `dist/web`
+  holds, which is a gitignored build: after a contract change an old bundle fails
+  every page with "response does not match the contract" (incident 2026-07-12).
+  The server warns at boot when `dist/web` is missing or older than the
+  web/contract sources; on that warning run `npm run build:web` or switch to
+  `dev:web`.
 - Ports: API 47100, Vite dev 47180, Postgres 47542 (never 3000/8080/5432).
 - Tenants live on subdomains: `acme.localhost:47100`. Browsers reject
   `Domain=.localhost` cookies → per-subdomain login in dev only.
