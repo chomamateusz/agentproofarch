@@ -63,6 +63,7 @@ export default defineConfig({
             'apps/cli/**/*.test.tsx',
             'apps/server/**/*.test.ts',
             'apps/server/**/*.test.tsx',
+            'scripts/**/*.test.ts',
             'eslint-plugin-agentproofarch/**/*.test.js',
           ],
           exclude: [...configDefaults.exclude, '**/*.integration.test.ts'],
