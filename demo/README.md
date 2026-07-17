@@ -41,8 +41,8 @@ old bundle fails every page, so rebuild or use `dev:web`.
 
 ```bash
 npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- org list
-npm run --silent cli -- org switch acme
+npm run --silent cli -- tenant list
+npm run --silent cli -- tenant switch acme
 npm run --silent cli -- todo list
 npm run --silent cli -- --tenant globex todo add Something for Globex
 npm run --silent cli -- --json whoami        # single JSON document on stdout
