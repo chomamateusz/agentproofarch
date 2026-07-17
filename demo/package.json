@@ -19,6 +19,7 @@
     "vercel-build": "npm run db:migrate && npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "VITEST_INTEGRATION=1 vitest run --project integration --no-file-parallelism",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "depcruise": "depcruise core adapters apps scripts api",

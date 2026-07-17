@@ -1,4 +1,11 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
+
+// Integration tests hit a real Postgres and are opt-in: the default `vitest run`
+// (npm run test / test:coverage) must stay database-free for the CI check job.
+// Enabling `VITEST_INTEGRATION=1` adds the `integration` project; the `node`
+// project always excludes *.integration.test.ts so they never leak into a
+// default run (they still match the `**/*.test.ts` glob).
+const integrationEnabled = process.env['VITEST_INTEGRATION'] === '1';
 
 export default defineConfig({
   test: {
@@ -40,6 +47,7 @@ export default defineConfig({
             'apps/server/**/*.test.tsx',
             'eslint-plugin-agentproofarch/**/*.test.js',
           ],
+          exclude: [...configDefaults.exclude, '**/*.integration.test.ts'],
         },
       },
       {
@@ -59,6 +67,18 @@ export default defineConfig({
           include: ['config-regression/**/*.test.ts'],
         },
       },
+      ...(integrationEnabled
+        ? [
+            {
+              extends: true as const,
+              test: {
+                name: 'integration',
+                environment: 'node',
+                include: ['adapters/**/*.integration.test.ts'],
+              },
+            },
+          ]
+        : []),
     ],
   },
 });
