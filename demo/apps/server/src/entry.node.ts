@@ -3,6 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 
 import { buildApp } from './app.js';
 import { createDeps } from './composition.js';
+import { warnIfDistStale } from './dist-freshness.js';
 import { loadEnv } from './env.js';
 import { startServerObservability } from './observability.js';
 
@@ -10,6 +11,8 @@ startServerObservability();
 
 const env = loadEnv();
 const app = buildApp(createDeps(env));
+
+warnIfDistStale(env.WEB_DIST_DIR, process.cwd());
 
 // Same process serves the SPA build — one origin per tenant domain, no CORS.
 app.use('*', serveStatic({ root: env.WEB_DIST_DIR }));
