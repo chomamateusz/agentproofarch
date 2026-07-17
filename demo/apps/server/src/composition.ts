@@ -45,6 +45,10 @@ export const createDeps = (env: Env): AppDeps => {
 
   const baseTrustedOrigins = [
     env.APP_BASE_URL,
+    // The deployment's own origin: previews and staging serve the SPA from
+    // their generated Vercel URL, so auth POSTs arrive with that Origin.
+    ...(env.VERCEL_URL ? [`https://${env.VERCEL_URL}`] : []),
+    ...(env.VERCEL_BRANCH_URL ? [`https://${env.VERCEL_BRANCH_URL}`] : []),
     `http://*.${env.APP_BASE_DOMAIN}`,
     `https://*.${env.APP_BASE_DOMAIN}`,
     // Wildcard entries above don't match origins carrying an explicit port.
