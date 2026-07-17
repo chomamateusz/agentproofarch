@@ -138,6 +138,34 @@ describe('resolveIdentity', () => {
     });
   });
 
+  it('rejects a custom domain whose tenant row is missing', async () => {
+    const domain: TenantDomain = {
+      id: 'd1',
+      tenantId: 't-ghost',
+      domain: 'todo.example.com',
+      kind: 'custom',
+      verified: true,
+    };
+    const result = await resolveIdentity(
+      user,
+      { host: 'todo.example.com', tenantHeader: null },
+      deps([acme], [domain], [], []),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'tenant_not_found', message: 'Tenant domain is not attached' },
+    });
+  });
+
+  it('ignores nested subdomains and treats the bare base domain as tenant-less', async () => {
+    const result = await resolveIdentity(
+      user,
+      { host: 'a.b.localhost:4711', tenantHeader: null },
+      deps([acme]),
+    );
+    expect(result).toMatchObject({ ok: true, value: { tenantId: null } });
+  });
+
   it('uses the same tenant_not_found message for unknown and inaccessible slug tenants', async () => {
     const absent = await resolveIdentity(
       user,
