@@ -4,8 +4,11 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 
 ## The two gates
 
-- `npm run check` = typecheck + ESLint (boundaries) + dependency-cruiser +
-  vitest — the **static** gate.
+- `npm run check` = typecheck + ESLint (boundaries) + lock-lint (validates
+  package-lock.json under npm 10 semantics, exactly what `npm ci` on the
+  node-22 CI runner enforces — a local npm 11 `npm install` silently prunes
+  optional entries npm 10 requires, which broke CI twice) + dependency-cruiser +
+  doc-lint (docs↔config enforcer coverage) + vitest — the **static** gate.
 - `npm run smoke` = the **runtime** gate: it verifies the installed dependency
   tree matches `package-lock.json`, drops+recreates an isolated
   `agentproofarch_smoke` database (never touches your dev-seeded data), migrates
