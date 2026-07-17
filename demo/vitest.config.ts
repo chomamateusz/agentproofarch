@@ -2,6 +2,27 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'json-summary'],
+      include: [
+        'core/**/*.ts',
+        'core/**/*.tsx',
+        'adapters/**/*.ts',
+        'adapters/**/*.tsx',
+        'apps/**/*.ts',
+        'apps/**/*.tsx',
+        'scripts/**/*.ts',
+      ],
+      exclude: [
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        'apps/web/src/main.tsx',
+        'adapters/db/auth-schema.ts',
+        'drizzle/**',
+        'eslint-plugin-agentproofarch/**',
+      ],
+    },
     projects: [
       {
         extends: true,
