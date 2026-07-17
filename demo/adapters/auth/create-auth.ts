@@ -24,6 +24,9 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     baseURL: settings.baseUrl,
     trustedOrigins: settings.trustedOrigins,
     emailAndPassword: { enabled: true },
+    // In-memory counters reset with every serverless isolate, so the limiter
+    // stores its windows in the database we already have (no Redis needed).
+    rateLimit: { enabled: true, storage: 'database' },
     plugins: [bearer()],
     advanced: {
       useSecureCookies: settings.secureCookies,

@@ -16,5 +16,6 @@ export const auth = betterAuth({
   ),
   secret: 'generate-only-secret',
   emailAndPassword: { enabled: true },
+  rateLimit: { enabled: true, storage: 'database' },
   plugins: [bearer()],
 });

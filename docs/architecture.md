@@ -329,12 +329,11 @@ forget and any opt-in is a visible, local exception.
   stores a body that one origin serves for many tenants — a cross-tenant leak the
   moment identity resolves differently on the same connection. Errors flow through
   the same `respond()` and inherit `no-store`, so a transient failure can never be
-  pinned at the edge. (Net-new: `respond()` sets only `content-type` today; the
-  rule is a one-line change at that seam, pinned by a `smoke` assertion on the
-  todos response.)
+  pinned at the edge. The rule lives at that one seam and is pinned by a `smoke`
+  assertion on a live API response.
 - **Static SPA assets — two rules.** Vite content-hashes bundles, so
-  `/assets/(.*)` gets `Cache-Control: public, max-age=31536000, immutable` (via a
-  `vercel.json` headers block, net-new) while `index.html` keeps the platform's
+  `/assets/(.*)` gets `Cache-Control: public, max-age=31536000, immutable` (via the
+  `vercel.json` headers block) while `index.html` keeps the platform's
   revalidate-always default so a new deploy is picked up immediately. Self-host
   parity: the Node `serveStatic` (or Caddy) sets the same two headers, so both
   targets behave identically from one commit.
@@ -486,9 +485,9 @@ The two invariants that actually hold the system together are already enforced
 (§Layers, §Identity and multi-tenancy): auth runs *before* tenant resolution, and
 every tenant-scoped repository method takes `tenantId`, so the type system will
 not let a query span tenants — this is the primary access control, everything
-below is defense-in-depth around it. The headers, body limits and rate-limit
-storage under NORMATIVE NOW are net-new, zero-dependency wiring the foundation
-prescribes, not descriptions of current code.
+below is defense-in-depth around it. Everything under NORMATIVE NOW is wired in
+the demo (`app.ts` `secureHeaders`/`bodyLimit`, `create-auth.ts` rate limiting,
+`vercel.json` headers) and asserted by the smoke gate.
 
 **NORMATIVE NOW:**
 
@@ -499,10 +498,13 @@ prescribes, not descriptions of current code.
   that stops XSS), `style-src 'self' 'unsafe-inline'` (emotion injects runtime
   `<style>` tags; `'unsafe-inline'` for styles only is not a script vector and a
   nonce would fight emotion's cache), `connect-src 'self'`, `img-src 'self' data:`,
-  `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`. Ship
-  report-only for one deploy, then enforce. Extending `smoke` to assert the headers
-  on a real response is the mechanical hook that keeps this from being
-  convention-only.
+  `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`. A fresh app
+  on the foundation enforces from day one (the smoke gate exercises it before
+  merge); when retrofitting an existing app, ship report-only for one deploy,
+  then enforce. The `smoke` suite asserts the headers on a live response — the
+  mechanical hook that keeps this from being convention-only. On Vercel the
+  static SPA bypasses the function, so `vercel.json` carries the same headers
+  for non-`/api/` paths; the Hono middleware covers the API and self-host.
 - **Cookie/session hardening.** Better Auth sets `HttpOnly`, `SameSite=Lax` and
   signs the session cookie by default; we own two knobs, already wired in
   `create-auth.ts`: `SECURE_COOKIES=true` is required in staging/prod (drives the
