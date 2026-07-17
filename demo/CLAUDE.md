@@ -8,13 +8,19 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
   package-lock.json under npm 10 semantics, exactly what `npm ci` on the
   node-22 CI runner enforces — a local npm 11 `npm install` silently prunes
   optional entries npm 10 requires, which broke CI twice) + dependency-cruiser +
-  doc-lint (docs↔config enforcer coverage) + vitest — the **static** gate.
+  doc-lint (docs↔config enforcer coverage) + vitest with `--coverage` — the
+  **static** gate; coverage thresholds are a ratchet floor (measured minimum
+  rounded down, per-metric) enforced here, so a coverage regression fails
+  `npm run check`.
 - `npm run smoke` = the **runtime** gate: it verifies the installed dependency
   tree matches `package-lock.json`, drops+recreates an isolated
   `agentproofarch_smoke` database (never touches your dev-seeded data), migrates
   and seeds it, boots the real server (`entry.node.ts`) on an ephemeral port and
   drives health → sign-in → todos through the CLI, asserting taxonomy exit codes
   (including unauthorized = exit 3). Assumes `npm run db:up`. Runs in ~5s.
+  Integration tests (`npm run test:integration`, opt-in `VITEST_INTEGRATION=1`)
+  run where Postgres exists — the CI smoke job runs them before smoke — so local
+  `npm run smoke` stays fast.
 
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.

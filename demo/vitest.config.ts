@@ -29,6 +29,19 @@ export default defineConfig({
         'drizzle/**',
         'eslint-plugin-agentproofarch/**',
       ],
+      // Ratchet floor, not aspiration: each threshold is the measured coverage
+      // of the default (database-free) `vitest run --coverage` on 2026-07-17
+      // (stmts/lines 62.13, branches 89.51, funcs 80.12), rounded DOWN to the
+      // whole percent. A regression below the floor fails `npm run check`;
+      // raise the floor whenever coverage climbs. Integration-only files
+      // (repositories.ts, migrate.ts, …) read 0% here because they are covered
+      // by `test:integration`, which runs where Postgres exists (CI smoke job).
+      thresholds: {
+        statements: 62,
+        branches: 89,
+        functions: 80,
+        lines: 62,
+      },
     },
     projects: [
       {

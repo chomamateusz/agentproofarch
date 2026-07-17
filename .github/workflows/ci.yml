@@ -56,4 +56,8 @@ jobs:
           cache: npm
           cache-dependency-path: demo/package-lock.json
       - run: npm ci
+      # Integration tests need a real Postgres, which only this smoke job has;
+      # run them here (not in the check job, which is database-free, nor in the
+      # local `smoke` script, which must stay fast) before the runtime smoke.
+      - run: npm run test:integration
       - run: npm run smoke

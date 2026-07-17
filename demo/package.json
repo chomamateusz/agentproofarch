@@ -24,7 +24,7 @@
     "lint": "eslint .",
     "depcruise": "depcruise core adapters apps scripts api",
     "doc-lint": "tsx scripts/doc-lint.ts",
-    "check": "npm run typecheck && npm run lint && npm run lock-lint && npm run depcruise && npm run doc-lint && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run lock-lint && npm run depcruise && npm run doc-lint && npm run test:coverage",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx adapters/db/migrate.ts",
