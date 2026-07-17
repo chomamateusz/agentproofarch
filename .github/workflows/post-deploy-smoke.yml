@@ -1,0 +1,28 @@
+name: post-deploy-smoke
+
+on:
+  deployment_status:
+
+jobs:
+  smoke-remote:
+    if: >-
+      github.repository == 'chomamateusz/agentproofarch' &&
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - run: npm ci
+      - run: npm run smoke:remote
+        env:
+          BASE_URL: ${{ github.event.deployment_status.environment_url }}

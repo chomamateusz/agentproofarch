@@ -10,6 +10,7 @@ concurrency:
 
 jobs:
   mirror:
+    if: github.repository == 'chomamateusz/agentproofarch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
@@ -23,4 +24,8 @@ jobs:
           echo "$MIRROR_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git push --mirror git@github.com:coderoadpl/agentproofarch-mirror.git
+          # Not `push --mirror`: an Actions checkout's local refs are the runner's
+          # (refs/remotes/*, detached HEAD), so --mirror tries to delete the mirror's
+          # branches. Map the true origin branches/tags explicitly and prune.
+          git push --prune git@github.com:coderoadpl/agentproofarch-mirror.git \
+            '+refs/remotes/origin/*:refs/heads/*' '+refs/tags/*:refs/tags/*'
