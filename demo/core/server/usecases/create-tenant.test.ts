@@ -109,4 +109,21 @@ describe('createTenant', () => {
     expect(store.tenants).toEqual([]);
     expect(store.ownerGrants).toEqual([]);
   });
+
+  it('rejects a blank name after a valid slug', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity },
+      { slug: 'valid-co', name: '   ' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'validation', message: 'Tenant name is required' },
+    });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
+  });
 });

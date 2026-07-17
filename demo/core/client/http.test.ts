@@ -61,6 +61,90 @@ describe('createApiClient', () => {
     });
   });
 
+  it('maps a network failure to an internal error naming the path', async () => {
+    const fetchImpl: typeof fetch = async () => {
+      throw new TypeError('connection refused');
+    };
+    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchImpl });
+
+    await expect(client.health()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'internal', message: expect.stringContaining('/api/health') },
+    });
+  });
+
+  it('maps a non-JSON response body to an internal error carrying the status', async () => {
+    const fetchImpl: typeof fetch = async () =>
+      new Response('<html>oops</html>', {
+        status: 502,
+        headers: { 'content-type': 'text/html' },
+      });
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+
+    await expect(client.me()).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'internal', message: expect.stringContaining('502') },
+    });
+  });
+
+  it('sends a JSON body with content-type on write routes and parses the result', async () => {
+    let seen: { method: string | undefined; contentType: string | null; body: unknown } | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(input).toBe('/api/tenants');
+      seen = {
+        method: init?.method,
+        contentType: new Headers(init?.headers).get('content-type'),
+        body: init?.body,
+      };
+      return jsonResponse({
+        ok: true,
+        data: { tenant: { id: 't-new', slug: 'new-co', name: 'New Co' } },
+      });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+
+    await expect(client.createTenant({ slug: 'new-co', name: 'New Co' })).resolves.toEqual({
+      ok: true,
+      value: { tenant: { id: 't-new', slug: 'new-co', name: 'New Co' } },
+    });
+    expect(seen).toMatchObject({
+      method: 'POST',
+      contentType: 'application/json',
+      body: JSON.stringify({ slug: 'new-co', name: 'New Co' }),
+    });
+  });
+
+  it('omits the content-type header on bodiless reads', async () => {
+    let contentType: string | null = 'unset';
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      contentType = new Headers(init?.headers).get('content-type');
+      return jsonResponse({ ok: true, data: { tenants: [] } });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+
+    await client.listTenants();
+
+    expect(contentType).toBeNull();
+  });
+
+  it('resolves listTodos and addTodo through their route schemas', async () => {
+    const todo = {
+      id: 'todo-1',
+      tenantId: 't-acme',
+      title: 'Ship it',
+      createdBy: 'u1',
+      createdAt: '2026-07-03T00:00:00.000Z',
+    };
+    const fetchImpl: typeof fetch = async (_input, init) =>
+      init?.method === 'GET'
+        ? jsonResponse({ ok: true, data: { todos: [todo] } })
+        : jsonResponse({ ok: true, data: { todo } });
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+
+    await expect(client.listTodos()).resolves.toEqual({ ok: true, value: { todos: [todo] } });
+    await expect(client.addTodo({ title: 'Ship it' })).resolves.toEqual({ ok: true, value: { todo } });
+  });
+
   it('injects the W3C traceparent header when a trace is active', async () => {
     const traceparent = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
     let seen: Headers | undefined;
@@ -90,6 +174,11 @@ describe('createApiClient', () => {
 });
 
 describe('unwrap', () => {
+  it('returns the value of a successful result', () => {
+    const result: Result<string, AppError> = { ok: true, value: 'hello' };
+    expect(unwrap(result)).toBe('hello');
+  });
+
   it('throws ApiError carrying the AppError', () => {
     const appError: AppError = { code: 'conflict', message: 'Already exists' };
     const result: Result<string, AppError> = { ok: false, error: appError };

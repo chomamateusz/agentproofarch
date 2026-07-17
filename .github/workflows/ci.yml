@@ -56,4 +56,46 @@ jobs:
           cache: npm
           cache-dependency-path: demo/package-lock.json
       - run: npm ci
+      # Integration tests need a real Postgres, which only this smoke job has;
+      # run them here (not in the check job, which is database-free, nor in the
+      # local `smoke` script, which must stay fast) before the runtime smoke.
+      - run: npm run test:integration
       - run: npm run smoke
+
+  e2e:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentproofarch
+          POSTGRES_PASSWORD: agentproofarch
+          POSTGRES_DB: agentproofarch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentproofarch"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - run: npm ci
+      # A real browser over the real stack: the only surface smoke can't reach
+      # (it drives the CLI, never a browser). Needs both a browser and Postgres,
+      # so it stays out of `npm run check`; the e2e server boots entry.node.ts
+      # against an isolated agentproofarch_e2e database and serves this bundle.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:web
+      - run: npm run e2e

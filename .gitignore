@@ -8,3 +8,7 @@ dist/
 .vercel
 .env*
 __aparch_probe_*/
+coverage/
+test-results/
+playwright-report/
+.playwright/
