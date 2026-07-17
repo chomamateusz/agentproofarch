@@ -63,6 +63,15 @@ npm run --silent cli -- --tenant acme todo list
 port + use-case → adapter repo → server route → `core/client` method →
 CLI command → web page, in that order, with tests at the core layer.
 
+Start every new resource with the scaffolder — it is the canonical entry point:
+`npm run new:resource -- <singular-name>` (e.g. `blog-post`). It generates the
+files a resource owns outright (domain type, use-cases + test, repository, web
+page + route) and prints an ordered checklist for the shared files you must wire
+by hand, each with its anchor line and a paste-ready snippet. It deliberately
+does **not** edit shared files: the generated code imports symbols that don't
+exist yet, so `npm run check` stays RED until every checklist step is wired —
+the type system, not the generator, enforces completion.
+
 ## Dev notes
 
 - **Frontend work goes through `npm run dev:web`** (Vite on 47180, hot reload) —
