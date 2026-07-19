@@ -84,8 +84,8 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `npm ci` enforces on CI; a local npm 11 `npm install` silently prunes
   optional entries and broke CI twice, so **never `npm install` here** — add
   deps with `npx -y npm@10 install`), dependency-cruiser, `doc-lint`
-  (docs ↔ enforcer-config, both ways), and vitest with coverage. **239 tests
-  across 38 files**; coverage thresholds are a ratchet floor, so a regression
+  (docs ↔ enforcer-config, both ways), and vitest with coverage. **254 tests
+  across 41 files**; coverage thresholds are a ratchet floor, so a regression
   fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -99,8 +99,8 @@ npm run test:integration   # 17 tests against a real Postgres (repositories)
 npm run e2e                # 4 Playwright specs: real Chromium over the real stack
 ```
 
-10 config-regression probes assert every boundary rule still fails on a
-violating fixture — you can't silently delete a rule and stay green
+17 config-regression probes assert every boundary and island-core rule still
+fails on a violating fixture — you can't silently delete a rule and stay green
 ([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).
 
 ## Adding a resource
@@ -118,6 +118,14 @@ does **not** edit shared files: the generated code imports symbols that don't
 exist yet, so `npm run check` stays RED until every step is wired — the type
 system enforces completion. Full narrated walkthrough:
 [../docs/first-feature.md](../docs/first-feature.md).
+
+Its client-state sibling scaffolds a feature (island) with a rung-1 island
+core — the events-in / selectors-out seam of
+[ADR-0005](../docs/decisions/0005-client-application-state.md):
+
+```bash
+npm run new:island -- <name>               # e.g. personal-board
+```
 
 ## Tenant resolution
 

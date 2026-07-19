@@ -105,6 +105,14 @@ const render = (template: string, names: ResourceNames): string => {
   return output;
 };
 
+/**
+ * Read a template from scripts/templates and substitute every name token.
+ * Exported so sibling scaffolders (new-island) reuse one render + token set
+ * instead of re-implementing the placeholder machinery.
+ */
+export const renderTemplateFile = (templateFile: string, names: ResourceNames): string =>
+  render(readFileSync(join(TEMPLATES_DIR, templateFile), 'utf8'), names);
+
 export interface GeneratedFile {
   /** Path relative to the repo/output root. */
   path: string;
@@ -114,7 +122,7 @@ export interface GeneratedFile {
 const planFiles = (names: ResourceNames): GeneratedFile[] => {
   const fromTemplate = (templateFile: string, path: string): GeneratedFile => ({
     path,
-    contents: render(readFileSync(join(TEMPLATES_DIR, templateFile), 'utf8'), names),
+    contents: renderTemplateFile(templateFile, names),
   });
   return [
     fromTemplate('domain.ts.tpl', `core/domain/${names.singularKebab}.ts`),

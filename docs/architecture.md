@@ -4,6 +4,28 @@ Normative reference for agentproofarch. The [PRD](prd-agentproofarch-foundation.
 §3 is the original source; this document is its distilled, implementation-facing
 form. The `demo/` folder implements it.
 
+## The promise
+
+This architecture exists so that four things stay true while agents do the
+work:
+
+1. **An agent works, and the architecture does not move.** Any volume of
+   generated change lands inside the seams; no random defects appear outside
+   the change, because every boundary is machine-enforced — drift is a red
+   gate, not a slow surprise.
+2. **The platform is replaceable without a rewrite.** Deployment target,
+   database, auth provider are adapter choices behind ports; swapping one is
+   a composition-root edit, never a migration of business logic.
+3. **A feature enters and leaves touching nothing but its communication
+   interfaces.** Adding or removing a vertical slice changes that slice and
+   its declared seams — contract routes, descriptors, events — and nothing
+   else.
+4. **Everything is testable.** Cores are pure and test without frameworks;
+   the rest is driven end-to-end by the gates — static, runtime, browser.
+
+Every rule below serves one of these four. A rule that serves none of them
+does not belong in this document.
+
 ## Principles
 
 - **Agent-first**: the primary feedback loop is the CLI — every API capability
@@ -70,6 +92,23 @@ wholesale, brings its own idiom, and needs its own guardrails (t3code vendors
 the Effect sources with `LLMS.md` for agents and gates PRs with an AI reviewer
 for idiomatic usage). Default remains zod + `@tanstack/query-core`.
 
+## Vocabulary
+
+The words this document uses precisely. Two of them — *domain* and *feature* —
+are deliberately **not** synonyms.
+
+| Term | Meaning |
+|---|---|
+| **Domain (business subdomain)** | A business subdomain of the product ("tasks", "billing"). Its frontend incarnation is a feature; one subdomain may have several islands (a list and a board over the same tasks are two islands over one subdomain). |
+| **`core/domain`** | The shared language layer: entities, zod schemas, domain rules, the error taxonomy. Pure, isomorphic, and there is exactly **one** — it is the "domain" of hexagonal/ports-and-adapters, the vocabulary every vertical slice speaks. |
+| **Feature** | `apps/web/src/features/<name>/` — the vertical slice of a subdomain in the UI. |
+| **Island** | The same feature, seen from its isolation guarantees: features are islands because lint forbids them to import each other. One word names the thing, the other names its property — "feature (island)". |
+| **View** | A React component inside a feature; renders UI and talks exclusively to its own island's core. |
+| **Island core** | `features/<name>/core/` — a pure TS module: events in, selectors out, machine inside. |
+| **Machine** | The state implementation inside an island core, on a three-rung ladder: rung 1 — descriptor re-exports; rung 2 — island store; rung 3 — statechart (XState). |
+| **Descriptors** | The typed query/mutation definitions produced by `core/client` factories (server state, TanStack) — see [server-state.md](server-state.md). |
+| **Bus** | Typed, closed unions of client-only, ephemeral signals **between island cores**; views never see it. |
+
 ## Frontend (apps/web)
 
 The SPA is a thin client: domain logic lives in `core`, the web app renders
@@ -84,7 +123,8 @@ apps/web/src/
   api.ts            binds core/client action factories once — the only module
                     that sees ApiClient, AuthClientPort and adapters
   routes/           route components — thin: parse params, render a feature
-  features/<name>/  feature folders: components, hooks, <Name>.logic.ts co-located
+  features/<name>/  feature folders (islands): core/ — the island core (events
+                    in, selectors out) — plus views, hooks, <Name>.logic.ts
   components/ui/    design-system primitives → theme, lib only (no core, no features)
   lib/              pure TS utilities → no react
   theme.ts          the entire visual language (MUI theme); no colors/fonts elsewhere
@@ -100,24 +140,187 @@ State rules:
   The descriptor object is the seam — TanStack is a vocabulary dependency,
   never wrapped in a port; full usage policy in
   [server-state.md](server-state.md).
-- **Client state**: `useState`/`useReducer` local to the feature; React context
-  only for cross-cutting concerns (theme, session). No global state libraries
-  (lint).
+- **Client state**: governed by the island-core model below
+  ([ADR-0005](decisions/0005-client-application-state.md)). Trivial,
+  component-lifetime state stays `useState`/`useReducer` inside a view; React
+  context only for cross-cutting concerns (theme, session). State-library
+  React bindings are banned everywhere in `apps/web` (lint); confining the
+  chosen rung-2 store package to island cores lands with the machine-spike
+  verdict ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5).
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
 - **Features are islands** (lint): a feature imports only itself. Features
   coordinate through server state (a command invalidates a scope, other
   features' queries refetch — the cache is the pub/sub, local and instant),
-  through the URL, or through a route-level parent — never by importing each
+  through the URL, through a route-level parent, or core-to-core over the
+  typed signal bus (§Client application state) — never by importing each
   other or sharing client state. Shared code extracts downward
   (`components/ui`, `lib`, `core/client`), never sideways.
-- **No client event bus.** A stringly-typed bus hides coupling from the
-  dependency graph — the enforcers stop telling the truth and agents cannot
-  trace control flow. If a genuinely ephemeral cross-feature signal ever
-  recurs, the sanctioned shape is a closed union of typed events in one
-  module (like `ErrorCode`) that both sides import — added at first proven
-  need, never preemptively. Two features that constantly coordinate are one
-  feature.
+- **No stringly-typed client event bus.** An untyped bus hides coupling from
+  the dependency graph — the enforcers stop telling the truth and agents
+  cannot trace control flow. The sanctioned shape — a closed union of typed
+  events in one module (like `ErrorCode`) that both sides import — was
+  reserved "at first proven need"; ADR-0005 declares that need proven and
+  defines the bus channel below. Two features that constantly coordinate are
+  still one feature.
+
+### Client application state (island cores)
+
+The full model is decided in
+[ADR-0005](decisions/0005-client-application-state.md); this section is its
+normative form. Every rule carries an explicit enforcement mini-matrix —
+**TYPE / LINT / TEST / REVIEW+AI** — each cell saying *how*, or `n/a` with a
+reason. A rule without a matrix is prose, and prose decays.
+
+> **Decision-pending marker.** Two implementation choices are being spiked in
+> parallel and are the **owner's decision**: (a) the rung-2 store library
+> (`zustand/vanilla` vs `@xstate/store`) and (b) the isomorphic-rules
+> strategy (transition table as data vs shared machine). This section is
+> written machine-agnostically — "island store" and "statechart" name the
+> rungs, not libraries — and nothing below changes with the verdict except
+> which package the lint confinement rules name.
+
+**The seam.** Every feature has `features/<name>/core/` — a pure TS module
+whose public API is **events in, selectors out**. Views talk exclusively to
+their own island's core; the machine inside is invisible (a view cannot tell
+a store from a statechart). The core's API *is* the facade — never a generic
+`IStore` interface over the state library (port theater), and the React
+provider/context only delivers the core instance to the tree.
+— **TYPE**: the core's public API is a closed event union + selector
+functions; the machine is not exported, so views cannot type against it ·
+**LINT**: `react`, `react-dom` and `@tanstack/react-query` import bans in
+`features/*/core/**` (`no-restricted-imports`, mirroring the `core/**`
+framework ban), and the web-wide storage-globals ban applies with no island
+override · **TEST**: config-regression probe — a violating fixture must fail
+`check` · **REVIEW+AI**: n/a (mechanically covered).
+
+**CQRS at the view seam.** Events are writes (intentions), selectors are
+reads; **an event never returns data**. This is the `ReadCall`/`WriteCall`
+partition applied recursively at the view↔core seam — and the pattern's
+survival condition: request/response over events kills it.
+— **TYPE**: `dispatch` returns `void`; nothing to await, nothing to
+destructure · **LINT**: n/a (the return type already forbids it) · **TEST**:
+core unit tests read outcomes only through selectors after events ·
+**REVIEW+AI**: flag events whose names or payloads smuggle a reply
+("…Requested" handled by resolving a callback).
+
+**The ladder + graduation triggers.** The seam is uniform; the machine
+escalates. Rung 1 — **descriptors**: thin re-exports of the feature's bound
+actions (scaffolded; the default for CRUD). Rung 2 — **island store**: real
+client state driven by events. Rung 3 — **statechart (XState)**: explicit
+states and transitions. A core graduates only when a measurable trigger
+fires: state survives component unmount; multi-component coordination in the
+island; optimistic writes spanning more than one entity; undo/redo;
+validation logic with dependencies. Enumerable states with transition
+legality rules trigger rung 3. The view API never changes across rungs.
+— **TYPE**: identical events/selectors API on every rung (graduation is a
+core-internal diff) · **LINT**: n/a (rung choice is judgment against named
+triggers, not syntax) · **TEST**: n/a (nothing mechanical to assert) ·
+**REVIEW+AI**: a graduating PR must name its trigger; the AI tier flags
+rung-2/3 machinery with no trigger and trigger-hitting features stuck on
+rung 1.
+
+**Cardinality + the three routes.** Many views → one island core is the
+norm; one view → **exactly one core, its own island's** — never another's. A
+screen spanning two domains has three legal routes: **(a)** route-level
+composition (the route renders both islands' views, each on its own core);
+**(b)** core↔core mediation (core A subscribes to island B via bus or server
+cache and re-exposes through its own selectors — its views still see one
+seam); **(c)** injected app globals (session, permissions). Deleting island
+B never breaks island A's views — at most typed subscriptions in A's core.
+— **TYPE**: n/a (cross-island imports are already unrepresentable at lint
+level) · **LINT**: `web-features-are-islands` + boundaries capture per
+feature folder — a view importing another island's core is a red `check`
+today · **TEST**: existing config-regression probe for the islands rule ·
+**REVIEW+AI**: n/a (mechanically covered).
+
+**The four core↔core channels** — and only these:
+
+1. **Server cache** (default for anything durable): mutation → invalidation
+   → the other core's queries refetch. The cache is the pub/sub.
+2. **Typed signal bus** (ephemeral, client-only): closed union, one owning
+   island per event, core-to-core only — **views never see the bus**.
+3. **Injected app globals** (session, theme, permissions): a shared
+   dependency injected at composition, not "communication".
+4. **URL/router**: coordination through the address — shareable for free.
+
+— **TYPE**: bus events are one closed union (exhaustive `switch`) · **LINT**:
+bus module importable only from `features/*/core/**`; views importing it is
+red (rule lands with the first bus event —
+[frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) · **TEST**:
+regression probe once the bus module exists · **REVIEW+AI**:
+channel choice is semantic — flag bus events that describe durable facts
+(those belong to the server cache) and cores reading globals they should be
+injected with.
+
+**The two-machines contract.** The island store **never holds a copy of
+server data** (it reads through the cache; optimistic updates via
+`onMutate`/rollback); TanStack **never holds edit/interaction state**. The
+dividing line, verbatim: **local state is state that must die on reload —
+anything "save progress" is server state.**
+— **TYPE**: n/a (a data shape carries no provenance) · **LINT**: ban
+`useQuery`/`@tanstack/react-query` in `features/*/core/**`; ban
+`queryClient.setQueryData` outside the island's `optimistic.ts`; ban the
+store's persist middleware and `localStorage`/`sessionStorage` in islands
+(the mechanical proxy of "dies on reload") · **TEST**: regression probe per
+ban · **REVIEW+AI**: detect a server response's *shape* copied into a store
+— semantics, beyond any regex.
+
+**Intent-named events.** Events name what the user did, never what should
+happen: `deleteConfirmed`, not `deleteOrder`. Each island's events are a
+closed union in one file, names ending in a fixed past-tense/intent suffix
+taxonomy (`…Requested`, `…Confirmed`, `…Cancelled`, `…Changed`,
+`…Selected`, `…Opened`, `…Closed`, `…Added`, `…Moved`, `…Removed`,
+`…Failed`, `…Succeeded`).
+— **TYPE**: closed union per island (exhaustive handling) · **LINT**:
+`agentproofarch/event-suffix-taxonomy` on the union members — the imperative
+form is unwritable ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) ·
+**TEST**: RuleTester cases for the rule · **REVIEW+AI**: the semantic half —
+"do these events report intent, or smuggle a decision?" — PR checklist +
+AI tier.
+
+**Pure-TS cores (TUI-portable).** An island core exposes selectors plus
+`subscribe`/`getState`; the web adapter turns that into a hook in one
+generated line, a TUI consumes `subscribe(selector, cb)` + `getState()`
+directly. React in the browser is one view adapter, not a dependency of the
+core.
+— **TYPE**: cores compile with no JSX and no DOM types · **LINT**: the same
+`features/*/core/**` react/framework ban as the seam rule · **TEST**: core
+unit tests run in plain node (no jsdom) — portability exercised on every
+`check` · **REVIEW+AI**: n/a (mechanically covered).
+
+**Isomorphic domain rules for guarded transitions.** When transition
+legality is a business rule (WIP limits, an enforced status path), it is
+domain logic: client-only enforcement is cosmetics — the CLI walks past it.
+Such rules live as pure predicates in `core/domain`
+(`canMoveCard(card, from, to, board)`); the server use-case enforces them on
+mutation; the island's machine wires the same predicates as guards for
+instant UX. **Recommended, decision-pending** (spike): the transition table
+as plain data in `core/domain` — allowed moves + guard predicates, zero new
+dependencies — from which the island derives its statechart and the server
+its check. If a shared machine wins instead, it may contain domain states
+only; UI states (drag, optimism, undo) stay in a client layer around it.
+— **TYPE**: both sides import the same predicate signatures from
+`core/domain` · **LINT**: `core-domain-depends-on-nothing` already keeps the
+rules pure · **TEST**: predicates unit-tested once in `core/domain`;
+use-case tests assert the server rejects illegal moves · **REVIEW+AI**: flag
+rule logic re-implemented island-side instead of imported from
+`core/domain`.
+
+**Demo exemplars — land after the spike decision.** Two boards over the same
+tasks subdomain, the living proof that domain ≠ feature (one subdomain,
+several islands): the **personal board** (free card movement; optimistic
+moves + rollback + undo) exercises rung 2 — island store; the **team board**
+(WIP limits + enforced status path as `core/domain` predicates guarding
+transitions) exercises rung 3 — statechart. Side by side in the tree, the
+pair is the "how an island core graduates" guide — readable from the current
+state of the repo, not from git archaeology. Until they land, the demo's
+features are rung 1, honestly: no current feature fires a graduation
+trigger. The pre-existing features (todos, auth) predate the seam and carry
+no explicit `core/` folder yet; they gain one when first touched by real
+client state, and every **new** island starts from the scaffolder —
+`npm run new:island -- <name>` generates the rung-1 seam (events, selectors,
+core test, view, route) with marked extension points for the machine.
 
 The action set is CQRS-partitioned: every action is either a query (safe
 read) or a command (unsafe write) — no hybrids, enforced by read/write tags
@@ -627,8 +830,8 @@ an opaque dep) were both considered and rejected.
 
 **The portable artifact travels unchanged** because it encodes the architecture
 structurally rather than describing it: `eslint.config.js` +
-`eslint-plugin-agentproofarch/` (the `query-descriptors-only` and `sx-layout-only`
-rules) + `.dependency-cruiser.cjs` (`no-frameworks-in-core`,
+`eslint-plugin-agentproofarch/` (the `query-descriptors-only`, `sx-layout-only`
+and `event-suffix-taxonomy` rules) + `.dependency-cruiser.cjs` (`no-frameworks-in-core`,
 `core-domain-depends-on-nothing`, `vercel-and-neon-only-in-adapters`,
 `web-features-are-islands`) for the layer and frontend graph; and `tsconfig.json`
 strictness, `scripts/doc-lint.ts`, `scripts/smoke*.ts`, the

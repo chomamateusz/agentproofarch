@@ -114,23 +114,23 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **239 tests across 38 files.**
+  `doc-lint` + vitest with coverage. **254 tests across 41 files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (239, in `check`) · **integration** (17,
+- **Four test levels** — **unit** (254, in `check`) · **integration** (17,
   real Postgres, run in the `smoke` CI job) · **e2e** (4 Playwright specs, a
   real Chromium over the real stack) · **smoke** (runtime) — plus
   **`smoke:remote`**, the same CLI suite against deployed URLs.
 - **CI jobs** — `check`, `smoke` (Postgres service + integration), and `e2e`
   run on every PR; `post-deploy-smoke` re-runs `smoke:remote` against real
   production/preview after each deploy.
-- **Config-regression probes** — 10 tests assert every boundary rule still
-  fails on a violating fixture, so a rule cannot be silently deleted and stay
-  green.
+- **Config-regression probes** — 17 tests assert every boundary and
+  island-core rule still fails on a violating fixture, so a rule cannot be
+  silently deleted and stay green.
 - **Doc-lint** — docs and enforcer config must agree both ways: every guarantee
   the docs promise must exist in config, and every custom lint rule must be
   documented. Divergence fails the gate.

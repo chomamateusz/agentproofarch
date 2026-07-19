@@ -31,6 +31,7 @@
     "db:seed": "tsx adapters/db/seed.ts",
     "cli": "tsx apps/cli/src/main.ts",
     "new:resource": "tsx scripts/new-resource.ts",
+    "new:island": "tsx scripts/new-island.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e": "playwright test",
     "smoke:remote": "tsx scripts/smoke-remote.ts",

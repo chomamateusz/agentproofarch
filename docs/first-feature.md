@@ -33,6 +33,28 @@ deliberately does **not** touch them: the generated code imports symbols that
 don't exist yet, so `npm run check` stays RED until every step is wired. The
 type system, not the generator, tells you when you're done.
 
+**Why a ~400-line script and not Plop** (or any generator framework): a
+framework would add a dependency and its own template syntax for something
+`demo/scripts/new-resource.ts` does under full repo control with zero new
+dependencies — templates are plain text files (`scripts/templates/*.tpl`)
+read at runtime, and the scaffolder's self-test renders every template and
+parses each output with the TypeScript compiler, so template rot is a failing
+test rather than a runtime surprise. It is also repo-rule-aware in a way no
+generic generator is: it *knows* `check` must stay red until the checklist is
+wired, and its name validation rejects collisions and reserved names.
+
+**Separability is an explicit boundary**: `scripts/` imports nothing from
+`core/` or `apps/` — node builtins and its own templates only; the coupling
+to the repo is conventions (paths, anchors), not code. Extracting the
+scaffolder into a versioned package later — the same trigger as the
+enforcement configs (a real second app, see architecture.md §Foundation
+evolution) — is therefore mechanical.
+
+(The scaffolder has a client-state sibling, `npm run new:island -- <name>`,
+which plants a feature's island core — the events-in / selectors-out seam of
+[ADR-0005](decisions/0005-client-application-state.md). Notes are pure server
+state, so this walkthrough never needs it.)
+
 ## 2. Read the checklist (excerpt)
 
 The full checklist walks the 12-step chain — domain → contract → port →

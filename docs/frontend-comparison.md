@@ -129,8 +129,10 @@ statement, no lint rule exists); "query descriptors only in
 `core/client/queries.ts`" (followed, unlinted); MUI-stock-plus-`sx`-layout-only
 styling with all visual language in `theme.ts` (followed, unlinted).
 
-**Undecided / never discussed** (now decided in `architecture.md` §Frontend):
-client-state policy, invalidation conventions, folder structure inside
+**Undecided / never discussed** (now decided in `architecture.md` §Frontend —
+client application state in full in
+[ADR-0005](decisions/0005-client-application-state.md), the island-core
+model): client-state policy, invalidation conventions, folder structure inside
 `apps/web`, error boundaries, forms, a11y, component testing strategy, bundle
 budgets.
 

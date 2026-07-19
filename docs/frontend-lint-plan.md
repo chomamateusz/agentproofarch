@@ -115,7 +115,17 @@ Server-state rules (from [server-state.md](server-state.md); same phase):
 ## Phase 4 — custom plugin (`eslint-plugin-agentproofarch`)
 
 Only for conventions the generic mechanisms above cannot express (t3code
-pattern: house rules as a tiny local plugin). Candidates, in order of value:
+pattern: house rules as a tiny local plugin).
+
+Implemented: `event-suffix-taxonomy` — in an island's event module
+(`features/<name>/core/events.ts`), every member of the exported event union
+must end with an approved intent suffix
+(`Requested|Confirmed|Cancelled|Changed|Selected|Opened|Closed|Added|Moved|Removed|Failed|Succeeded`),
+so the view↔core seam carries intents (what happened) not commands (what to do)
+— `deleteCard` cannot pass. It is machine-agnostic: it constrains event *names*,
+never the store library behind the seam.
+
+Candidates, in order of value:
 
 1. `query-descriptors-only` — `useQuery`/`useMutation` arguments must originate
    from `core/client/queries.ts` exports (call expression or spread of an
@@ -140,6 +150,27 @@ Baseline shrinks monotonically; CI fails if the baseline file is edited upward.
 The ratchet is an adoption mechanism for real codebases taking these rules on —
 **the demo itself keeps every baseline at zero**: it is the exemplar, it
 carries no tolerated debt.
+
+## Phase 5 — island-core rules (ADR-0005)
+
+Enforcement for the island-core model
+([architecture.md](architecture.md) §Client application state,
+[ADR-0005](decisions/0005-client-application-state.md)). Every rule ships
+with a config-regression probe, like every boundary rule before it. Four of
+the six are wired ahead of the first real core — their probes
+(`config-regression/island-core.test.ts`) write violating fixtures into the
+exact future `features/<name>/core/` path and assert each rule fires, so the
+rules provably bite before any core exists. The Status column records what is
+wired versus still pending, and why.
+
+| Rule | Mechanism | Status |
+|---|---|---|
+| Event suffix taxonomy: island event-union members end in an approved intent suffix (the 12-suffix list under Phase 4; imperative names unwritable) | `agentproofarch/event-suffix-taxonomy` (custom plugin rule, RuleTester-tested); semantic half stays review + AI tier | **wired** — probe asserts `deleteCard` fails in a future `core/events.ts` |
+| Core purity: no `react`, no `react-dom`, no `@tanstack/react-query` in `features/*/core/**` (`@tanstack/query-core` stays allowed) | `no-restricted-imports` in the island-core override, mirroring the `core/**` framework ban; a boundaries/depcruise mirror is deferred until the first real core exists | **wired** — probes per banned import |
+| Persistence bans in islands: no store persist middleware, no `localStorage`/`sessionStorage` (mechanical proxy of "local state dies on reload") | `no-restricted-imports` (persist entrypoint) + the Phase-3 storage rule with **no** helper override on island paths | **wired** — probes for persist and `localStorage` |
+| `queryClient.setQueryData` only inside the island's `optimistic.ts` | `no-restricted-syntax` + path-scoped override | **wired** — probes both ways (fires outside, silent inside `optimistic.ts`) |
+| Store-library confinement: the rung-2 store package importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths) | `no-restricted-imports` with path-scoped override | **blocked on the machine spike** (`zustand/vanilla` vs `@xstate/store` — owner decides which package the rule names; until then both stay importable, only the React bindings are banned) |
+| Bus confinement: the typed-signal-bus module importable only from `features/*/core/**` (views never see the bus) | `no-restricted-imports` / boundaries element | planned — lands with the first bus event |
 
 ## Suppression policy (from the hardening guide, verbatim intent)
 
@@ -191,3 +222,7 @@ honest is not worth it now.
    original layer-boundary proof).
 3. Phase 3 restricted rules, promoted per the ratchet.
 4. Phase 4 plugin only after Phases 1–3 are at `error` and stable.
+5. Phase 5 island-core rules: suffix taxonomy, core purity, persistence bans
+   and `setQueryData` confinement are wired (probes exercise the future core
+   paths); bus confinement lands with the first bus event; the
+   store-confinement rule waits for the machine spike verdict.

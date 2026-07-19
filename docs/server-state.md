@@ -108,7 +108,10 @@ key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
   `mutationKey`) live next to query descriptors in `core/client`.
 - After success, **invalidate the owning hierarchical scope** (in `onSettled`)
   — the server owns sort/filter/projection rules. `setQueryData` is allowed
-  only when the mutation returns the complete resource, and only immutably.
+  only when the mutation returns the complete resource, and only immutably —
+  and since [ADR-0005](decisions/0005-client-application-state.md) such cache
+  writes live in the owning island's `optimistic.ts`, where lint confines
+  `queryClient.setQueryData` (architecture.md §Client application state).
 - `invalidateQueries` takes a filter object (`{ queryKey: todos.lists() }`),
   never a bare array. Invalidation refetches active queries and marks the rest
   stale; `refetchType: 'all'` needs justification.
