@@ -381,7 +381,9 @@ spike-learnings requirements recorded in ADR-0005: fail-loud transitions,
 `toIndex` clamped before the gateway, WIP=1 coverage in the drift test, and
 `as`-free event carriers. Side by side in the tree, the
 pair is the "how an island core graduates" guide — readable from the current
-state of the repo, not from git archaeology. Until they land, the demo's
+state of the repo, not from git archaeology; the guided reading of that
+diff (triggers, anatomy, derivation contract, costs) is
+[island-graduation.md](island-graduation.md). Until they land, the demo's
 features are rung 1, honestly: no current feature fires a graduation
 trigger. The pre-existing features (todos, auth) predate the seam and carry
 no explicit `core/` folder yet; they gain one when first touched by real
