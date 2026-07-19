@@ -1,4 +1,4 @@
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -95,5 +95,45 @@ describe('BoardPage', () => {
 
     const doing = screen.getByRole('region', { name: 'doing' });
     expect(await within(doing).findByText('Alpha')).toBeInTheDocument();
+  });
+});
+
+const errorBackend = (code: string, status: number) =>
+  http.get('/api/cards', () =>
+    HttpResponse.json({ ok: false, error: { code, message: 'nope' } }, { status }),
+  );
+
+const renderBoardWithRoutes = async (initial: string) => {
+  const rootRoute = createRootRoute({});
+  const routes = [
+    createRoute({ getParentRoute: () => rootRoute, path: '/', component: () => <p>picker</p> }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/login', component: () => <p>login</p> }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/board', component: BoardPage }),
+  ];
+  const router = createRouter({
+    routeTree: rootRoute.addChildren(routes),
+    history: createMemoryHistory({ initialEntries: [initial] }),
+  });
+  await router.load();
+  return renderWithProviders(<RouterProvider router={router} />);
+};
+
+describe('BoardPage guards', () => {
+  it('redirects an anonymous visitor to /login and never renders the shell', async () => {
+    server.use(errorBackend('unauthorized', 401));
+
+    await renderBoardWithRoutes('/board');
+
+    expect(await screen.findByText('login')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New card in todo')).not.toBeInTheDocument();
+  });
+
+  it('redirects a tenantless session to the ledger for tenant selection', async () => {
+    server.use(errorBackend('tenant_not_found', 404));
+
+    await renderBoardWithRoutes('/board');
+
+    expect(await screen.findByText('picker')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New card in todo')).not.toBeInTheDocument();
   });
 });

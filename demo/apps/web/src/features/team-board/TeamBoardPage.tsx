@@ -11,7 +11,9 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 
+import { ApiError } from '#core/client/index.js';
 import { TEAM_BOARD_ENTRY_COLUMN } from '#core/domain/index.js';
 import type { Card, MoveVerdict, TeamColumn } from '#core/domain/index.js';
 
@@ -28,8 +30,19 @@ import { send, subscribe, teamBoardSelectors, type TeamCard } from './core/index
  */
 export const TeamBoardPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const cards = useQuery(teamBoardSelectors.list);
   const overlay = useSyncExternalStore(subscribe, teamBoardSelectors.snapshot);
+
+  const errorCode = cards.error instanceof ApiError ? cards.error.appError.code : null;
+  const unauthorized = errorCode === 'unauthorized';
+  // No tenant resolved (apex host): the ledger at "/" owns tenant selection.
+  const tenantless = errorCode === 'tenant_not_found';
+
+  useEffect(() => {
+    if (unauthorized) void navigate({ to: '/login' });
+    else if (tenantless) void navigate({ to: '/' });
+  }, [unauthorized, tenantless, navigate]);
 
   useEffect(() => {
     if (overlay.committedRev === 0) return;
@@ -40,6 +53,10 @@ export const TeamBoardPage = () => {
   const grouped = teamBoardSelectors.grouped(board);
   const columns = teamBoardSelectors.columns;
   const rejection = teamBoardSelectors.lastRejection();
+
+  // Never render an operable-looking board without auth + tenant context —
+  // the effect above is already redirecting.
+  if (unauthorized || tenantless) return null;
 
   return (
     <Container disableGutters sx={{ maxWidth: '70rem !important', px: '1.25rem', py: '3rem' }}>
