@@ -86,6 +86,10 @@ export default defineConfig({
         test: {
           name: 'web',
           environment: 'jsdom',
+          // jsdom + msw + user-event under parallel CI CPU load intermittently
+          // pushes render/settle waits past the 5s default; 15s removes the
+          // flake without masking a genuinely hung test.
+          testTimeout: 15_000,
           include: ['apps/web/**/*.test.ts', 'apps/web/**/*.test.tsx'],
           exclude: [...configDefaults.exclude, 'apps/web/src/features/*/core/**/*.test.ts'],
           setupFiles: ['apps/web/src/test/setup.ts'],

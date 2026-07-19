@@ -49,6 +49,8 @@ export interface TenantRepository {
     userId: string;
     staffRole: Extract<StaffRole, 'owner'>;
   }): Promise<void>;
+  /** Offboarding: deletes the tenant row; every tenant-owned aggregate cascades. */
+  deleteTenant(tenantId: string): Promise<void>;
 }
 
 export interface TenantAccessReader {

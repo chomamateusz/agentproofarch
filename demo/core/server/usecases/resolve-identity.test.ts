@@ -41,6 +41,7 @@ const fakeTenants = (tenantList: Tenant[]): TenantRepository => ({
   findBySlug: async (slug) => tenantList.find((tenant) => tenant.slug === slug) ?? null,
   createTenant: async (input) => ({ id: input.id, slug: input.slug, name: input.name }),
   createOwnerGrant: async () => undefined,
+  deleteTenant: async () => undefined,
 });
 
 const deps = (

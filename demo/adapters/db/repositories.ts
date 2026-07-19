@@ -59,6 +59,11 @@ export const createTenantRepository = (db: Db): TenantRepository => ({
       role: input.staffRole,
     });
   },
+  // Tenant-scoped delete; admins/members/todos/cards/domains cascade via their
+  // ON DELETE CASCADE tenant FKs, so no explicit child deletes are needed.
+  deleteTenant: async (tenantId) => {
+    await db.delete(tenants).where(eq(tenants.id, tenantId));
+  },
 });
 
 export const createTenantAccessReader = (db: Db): TenantAccessReader => {
