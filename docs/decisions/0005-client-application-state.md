@@ -104,7 +104,9 @@ anti-port-theater) and produced the decisions below.
    the core decides. Each island's events are one closed union in one file,
    member names ending in a past-tense/intent suffix from a fixed taxonomy
    (`…Requested`, `…Confirmed`, `…Cancelled`, `…Changed`, `…Selected`,
-   `…Opened`, `…Closed`). The suffix rule cannot guarantee semantics, but it
+   `…Opened`, `…Closed`, `…Added`, `…Moved`, `…Removed`, `…Failed`,
+   `…Succeeded` — the list the shipped `agentproofarch/event-suffix-taxonomy`
+   rule enforces). The suffix rule cannot guarantee semantics, but it
    makes the imperative form unwritable and pushes vocabulary the right way;
    semantics is a review/AI-tier check.
 
@@ -170,7 +172,9 @@ rungs, not libraries):
   with isomorphic column rules), two islands over one tasks subdomain —
   landing **after** the spike decides (a) and (b). Until then the demo's
   features remain rung 1, which is honest: no current feature fires a
-  graduation trigger.
+  graduation trigger (the pre-existing features carry no explicit `core/`
+  folder yet — they gain one when first touched by real client state; new
+  islands start from `npm run new:island`, which scaffolds the rung-1 seam).
 - The one-paragraph "Client state" rule in architecture.md §Frontend is
   superseded by the island-core model (rewritten in the same change as this
   ADR).

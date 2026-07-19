@@ -143,8 +143,10 @@ State rules:
 - **Client state**: governed by the island-core model below
   ([ADR-0005](decisions/0005-client-application-state.md)). Trivial,
   component-lifetime state stays `useState`/`useReducer` inside a view; React
-  context only for cross-cutting concerns (theme, session). No state
-  libraries outside island cores (lint).
+  context only for cross-cutting concerns (theme, session). State-library
+  React bindings are banned everywhere in `apps/web` (lint); confining the
+  chosen rung-2 store package to island cores lands with the machine-spike
+  verdict ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5).
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
 - **Features are islands** (lint): a feature imports only itself. Features
@@ -186,10 +188,11 @@ a store from a statechart). The core's API *is* the facade — never a generic
 provider/context only delivers the core instance to the tree.
 — **TYPE**: the core's public API is a closed event union + selector
 functions; the machine is not exported, so views cannot type against it ·
-**LINT**: `react`, `@tanstack/react-query` and DOM globals banned in
-`features/*/core/**` (boundaries external ban, mirroring `core/**`) ·
-**TEST**: config-regression probe — a violating fixture must fail `check` ·
-**REVIEW+AI**: n/a (mechanically covered).
+**LINT**: `react`, `react-dom` and `@tanstack/react-query` import bans in
+`features/*/core/**` (`no-restricted-imports`, mirroring the `core/**`
+framework ban), and the web-wide storage-globals ban applies with no island
+override · **TEST**: config-regression probe — a violating fixture must fail
+`check` · **REVIEW+AI**: n/a (mechanically covered).
 
 **CQRS at the view seam.** Events are writes (intentions), selectors are
 reads; **an event never returns data**. This is the `ReadCall`/`WriteCall`
@@ -243,7 +246,9 @@ today · **TEST**: existing config-regression probe for the islands rule ·
 
 — **TYPE**: bus events are one closed union (exhaustive `switch`) · **LINT**:
 bus module importable only from `features/*/core/**`; views importing it is
-red · **TEST**: regression probe once the bus module exists · **REVIEW+AI**:
+red (rule lands with the first bus event —
+[frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) · **TEST**:
+regression probe once the bus module exists · **REVIEW+AI**:
 channel choice is semantic — flag bus events that describe durable facts
 (those belong to the server cache) and cores reading globals they should be
 injected with.
@@ -265,10 +270,11 @@ ban · **REVIEW+AI**: detect a server response's *shape* copied into a store
 happen: `deleteConfirmed`, not `deleteOrder`. Each island's events are a
 closed union in one file, names ending in a fixed past-tense/intent suffix
 taxonomy (`…Requested`, `…Confirmed`, `…Cancelled`, `…Changed`,
-`…Selected`, `…Opened`, `…Closed`).
-— **TYPE**: closed union per island (exhaustive handling) · **LINT**: custom
-suffix-taxonomy rule on the union members — the imperative form is
-unwritable ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) ·
+`…Selected`, `…Opened`, `…Closed`, `…Added`, `…Moved`, `…Removed`,
+`…Failed`, `…Succeeded`).
+— **TYPE**: closed union per island (exhaustive handling) · **LINT**:
+`agentproofarch/event-suffix-taxonomy` on the union members — the imperative
+form is unwritable ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) ·
 **TEST**: RuleTester cases for the rule · **REVIEW+AI**: the semantic half —
 "do these events report intent, or smuggle a decision?" — PR checklist +
 AI tier.
@@ -310,7 +316,11 @@ transitions) exercises rung 3 — statechart. Side by side in the tree, the
 pair is the "how an island core graduates" guide — readable from the current
 state of the repo, not from git archaeology. Until they land, the demo's
 features are rung 1, honestly: no current feature fires a graduation
-trigger.
+trigger. The pre-existing features (todos, auth) predate the seam and carry
+no explicit `core/` folder yet; they gain one when first touched by real
+client state, and every **new** island starts from the scaffolder —
+`npm run new:island -- <name>` generates the rung-1 seam (events, selectors,
+core test, view, route) with marked extension points for the machine.
 
 The action set is CQRS-partitioned: every action is either a query (safe
 read) or a command (unsafe write) — no hybrids, enforced by read/write tags
@@ -820,8 +830,8 @@ an opaque dep) were both considered and rejected.
 
 **The portable artifact travels unchanged** because it encodes the architecture
 structurally rather than describing it: `eslint.config.js` +
-`eslint-plugin-agentproofarch/` (the `query-descriptors-only` and `sx-layout-only`
-rules) + `.dependency-cruiser.cjs` (`no-frameworks-in-core`,
+`eslint-plugin-agentproofarch/` (the `query-descriptors-only`, `sx-layout-only`
+and `event-suffix-taxonomy` rules) + `.dependency-cruiser.cjs` (`no-frameworks-in-core`,
 `core-domain-depends-on-nothing`, `vercel-and-neon-only-in-adapters`,
 `web-features-are-islands`) for the layer and frontend graph; and `tsconfig.json`
 strictness, `scripts/doc-lint.ts`, `scripts/smoke*.ts`, the

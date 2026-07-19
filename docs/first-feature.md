@@ -50,6 +50,11 @@ scaffolder into a versioned package later — the same trigger as the
 enforcement configs (a real second app, see architecture.md §Foundation
 evolution) — is therefore mechanical.
 
+(The scaffolder has a client-state sibling, `npm run new:island -- <name>`,
+which plants a feature's island core — the events-in / selectors-out seam of
+[ADR-0005](decisions/0005-client-application-state.md). Notes are pure server
+state, so this walkthrough never needs it.)
+
 ## 2. Read the checklist (excerpt)
 
 The full checklist walks the 12-step chain — domain → contract → port →
