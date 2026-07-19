@@ -214,6 +214,9 @@ const TenantLedger = ({
           <Link href="/board" variant="body2">
             board →
           </Link>
+          <Link href="/team-board" variant="body2">
+            team board →
+          </Link>
         </LedgerNav>
 
         <Box component="section" sx={{ mt: '48px', animation: 'settle 0.5s 0.16s ease-out both' }}>
