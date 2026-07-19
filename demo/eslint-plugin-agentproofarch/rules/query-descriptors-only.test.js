@@ -18,7 +18,10 @@ it('query-descriptors-only', () => {
     valid: [
       "import { actions } from './api.js'; useQuery(actions.me);",
       "import { actions } from './api.js'; useQuery(actions.todos());",
-      "import { meQuery } from './q.js'; useQuery(meQuery);",
+      // Canonical descriptor source: #core/client.
+      "import { meQuery } from '#core/client/index.js'; useQuery(meQuery);",
+      // Island core public seam re-exports the bound descriptors.
+      "import { boardSelectors } from './core/index.js'; useQuery(boardSelectors.list);",
       "import { actions } from './api.js'; useMutation({ ...actions.addTodo, onSuccess() {} });",
       "import { actions } from './api.js'; useQueries({ queries: [actions.me, actions.todos()] });",
       "import { actions } from './api.js'; const q = actions.me; useQuery(q);",
@@ -44,6 +47,17 @@ it('query-descriptors-only', () => {
       {
         code: "useQueries({ queries: [{ queryKey: ['x'], queryFn() {} }] });",
         errors: [{ messageId: 'inlineObject' }],
+      },
+      {
+        // Local-module evasion: a look-alike descriptor from an arbitrary module.
+        code: "import { meQuery } from './q.js'; useQuery(meQuery);",
+        errors: [{ messageId: 'foreignModule' }],
+      },
+      {
+        // Re-export evasion: importing a descriptor from a non-canonical
+        // re-export module does not pass.
+        code: "import { fake } from './descriptors-reexport.js'; useMutation(fake);",
+        errors: [{ messageId: 'foreignModule' }],
       },
     ],
   });

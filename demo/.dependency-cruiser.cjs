@@ -58,6 +58,24 @@ module.exports = {
       to: { path: 'node_modules/(hono|react|react-dom|drizzle-orm|better-auth|pg|commander)(/|$)' },
     },
     {
+      name: 'core-domain-only-zod',
+      severity: 'error',
+      comment:
+        'core/domain depends on zod ONLY — an allow-list, not a deny-list: no other external package may enter (PRD §3.1). Test files are exempt (vitest).',
+      from: { path: '^core/domain', pathNot: '\\.(test|spec)\\.[jt]sx?$' },
+      to: { path: 'node_modules', pathNot: 'node_modules/zod(/|$)' },
+    },
+    {
+      name: 'island-core-is-framework-agnostic',
+      severity: 'error',
+      comment:
+        'island cores (features/*/core) stay pure TS: no react/react-dom/@tanstack/react-query or their store React bindings — a depcruise mirror of the ESLint island-core ban, wired now that real cores exist (ADR-0005, frontend-lint-plan Phase 5).',
+      from: { path: '^apps/web/src/features/[^/]+/core/' },
+      to: {
+        path: 'node_modules/(react|react-dom|@tanstack/react-query|@xstate/store/react|@xstate/react)(/|$)',
+      },
+    },
+    {
       name: 'web-ui-is-presentational',
       severity: 'error',
       comment: 'components/ui: no core, adapters, features, routes or TanStack (frontend-lint-plan Phase 2)',

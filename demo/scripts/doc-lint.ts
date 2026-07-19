@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 
@@ -14,8 +15,16 @@ import { basename, join, relative } from 'node:path';
  */
 
 const demoRoot = join(import.meta.dirname, '..');
+const repoRoot = join(demoRoot, '..');
 const docsRoot = join(demoRoot, '..', 'docs');
 const require = createRequire(import.meta.url);
+
+/**
+ * Tool/XML delimiters that must never survive into committed prose (round-1
+ * audit C1: `</content>`/`</invoke>` leaked into the tails of several READMEs).
+ * The check runs over every git-tracked `.md` in the repo, not just docs/.
+ */
+const LEAKED_DELIMITERS = ['</content>', '</invoke>'];
 
 const eslintConfigPath = join(demoRoot, 'eslint.config.js');
 const depcruiseConfigPath = join(demoRoot, '.dependency-cruiser.cjs');
@@ -95,13 +104,34 @@ const configFileFor = (target: ConfigTarget): string =>
   target === 'eslint' ? 'eslint.config.js' : '.dependency-cruiser.cjs';
 
 interface Failure {
-  readonly direction: 'docs->config' | 'config->docs';
+  readonly direction: 'docs->config' | 'config->docs' | 'leaked-delimiter';
   readonly identifier: string;
   readonly missingFrom: string;
   readonly promisedBy: string;
 }
 
 const failures: Failure[] = [];
+
+// Leaked-delimiter check: scan every git-tracked `.md` in the repo.
+const trackedMarkdown = execFileSync('git', ['ls-files', '-z', '*.md'], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+})
+  .split('\0')
+  .filter((entry) => entry.length > 0);
+for (const rel of trackedMarkdown) {
+  const text = readFileSync(join(repoRoot, rel), 'utf8');
+  for (const delimiter of LEAKED_DELIMITERS) {
+    if (text.includes(delimiter)) {
+      failures.push({
+        direction: 'leaked-delimiter',
+        identifier: delimiter,
+        missingFrom: rel,
+        promisedBy: 'no leaked tool/XML delimiters (C1)',
+      });
+    }
+  }
+}
 
 // docs -> config (a): backticked custom-plugin rule ids the docs spell literally.
 const CUSTOM_RULE_ID = /^agentproofarch\/[a-z][a-z0-9-]*$/;
@@ -148,7 +178,7 @@ for (const file of ruleFiles) {
 }
 
 if (failures.length > 0) {
-  process.stderr.write(`doc-lint: ${failures.length} enforcer(s) out of sync between docs and config\n\n`);
+  process.stderr.write(`doc-lint: ${failures.length} issue(s) — docs/config drift or leaked delimiters\n\n`);
   for (const failure of failures) {
     if (failure.direction === 'docs->config') {
       process.stderr.write(
@@ -156,11 +186,16 @@ if (failures.length > 0) {
           `but no longer exists in ${failure.missingFrom}.\n` +
           `                Restore the enforcer, or stop promising it in the docs.\n`,
       );
-    } else {
+    } else if (failure.direction === 'config->docs') {
       process.stderr.write(
         `  [config->docs] enforcer "${failure.identifier}" (${failure.promisedBy}) ` +
           `is not documented anywhere under docs/.\n` +
           `                Document it by name, or remove the rule.\n`,
+      );
+    } else {
+      process.stderr.write(
+        `  [leaked-delimiter] "${failure.identifier}" leaked into ${failure.missingFrom}.\n` +
+          `                Delete the stray tool/XML delimiter from the file.\n`,
       );
     }
   }
@@ -169,5 +204,6 @@ if (failures.length > 0) {
 
 const summary =
   `doc-lint: OK — ${DOC_PROMISED_ENFORCERS.length} promised enforcer(s) present in config, ` +
-  `${ruleFiles.length} custom rule(s) documented.`;
+  `${ruleFiles.length} custom rule(s) documented, ` +
+  `${trackedMarkdown.length} tracked .md file(s) free of leaked delimiters.`;
 process.stdout.write(`${summary}\n`);

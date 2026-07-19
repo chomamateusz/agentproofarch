@@ -34,6 +34,7 @@ import {
   HeaderMetaBreak,
   LedgerHeader,
   LedgerNav,
+  TenantName,
   TenantSwatch,
 } from '../../theme.js';
 
@@ -97,23 +98,17 @@ const PickTenant = () => {
               <ListItem key={m.tenant.id} disablePadding>
                 {url === null ? (
                   <ListItemText
-                    primary={m.tenant.name}
+                    primary={<TenantName>{m.tenant.name}</TenantName>}
                     secondary="no wildcard domain attached — open this tenant via the CLI (--tenant)"
-                    slotProps={{
-                      primary: { sx: { fontWeight: 700 } },
-                      secondary: { variant: 'caption' },
-                    }}
+                    slotProps={{ secondary: { variant: 'caption' } }}
                     sx={{ px: '0.3rem' }}
                   />
                 ) : (
                   <ListItemButton component="a" href={url} sx={{ px: '0.3rem' }}>
                     <ListItemText
-                      primary={m.tenant.name}
+                      primary={<TenantName>{m.tenant.name}</TenantName>}
                       secondary={url}
-                      slotProps={{
-                        primary: { sx: { fontWeight: 700 } },
-                        secondary: { variant: 'caption' },
-                      }}
+                      slotProps={{ secondary: { variant: 'caption' } }}
                     />
                   </ListItemButton>
                 )}
