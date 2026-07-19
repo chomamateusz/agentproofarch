@@ -22,6 +22,7 @@ const auth = createAuth(
     secret: 'test-secret-value-that-is-at-least-32-chars',
     baseUrl: 'http://localhost',
     baseDomain: 'localhost',
+    rateLimitEnabled: false,
     trustedOrigins: [],
     secureCookies: false,
   },
