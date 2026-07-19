@@ -65,6 +65,10 @@ export default defineConfig({
             'apps/server/**/*.test.tsx',
             'scripts/**/*.test.ts',
             'eslint-plugin-agentproofarch/**/*.test.js',
+            // Island cores are pure TS (architecture.md §Client application
+            // state): their unit tests run here, in plain node — no jsdom —
+            // so TUI portability is exercised on every `check`.
+            'apps/web/src/features/*/core/**/*.test.ts',
           ],
           exclude: [...configDefaults.exclude, '**/*.integration.test.ts'],
         },
@@ -75,6 +79,7 @@ export default defineConfig({
           name: 'web',
           environment: 'jsdom',
           include: ['apps/web/**/*.test.ts', 'apps/web/**/*.test.tsx'],
+          exclude: [...configDefaults.exclude, 'apps/web/src/features/*/core/**/*.test.ts'],
           setupFiles: ['apps/web/src/test/setup.ts'],
         },
       },

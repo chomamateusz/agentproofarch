@@ -11,7 +11,8 @@ import { actions } from '../../../api.js';
  * When the island graduates (rung 2 = island store, rung 3 = statechart) add
  * client-derived selectors here behind the SAME shape (plain values, no React),
  * so views never change. Which machine backs them is DECISION-PENDING the spike
- * (zustand/vanilla vs @xstate/store); see docs/server-state.md.
+ * (zustand/vanilla vs @xstate/store); see docs/architecture.md §Client
+ * application state (ADR-0005).
  */
 export const __SINGULAR_CAMEL__Selectors = {
   // Replace `actions.__SINGULAR_CAMEL__` with this island's real read descriptor:

@@ -17,7 +17,8 @@ export { __SINGULAR_CAMEL__Selectors } from './selectors.js';
  * After the machine spike (zustand/vanilla vs @xstate/store) decides the store,
  * create it in this module and forward events to it: rung 2 → `store.send(event)`,
  * rung 3 → `actor.send(event)`. The view's call — `send({ type: '…Requested' })`
- * — never changes. DECISION-PENDING; see docs/server-state.md.
+ * — never changes. DECISION-PENDING; see docs/architecture.md §Client
+ * application state (ADR-0005).
  */
 export const send = (event: __SINGULAR_PASCAL__Event): void => {
   switch (event.type) {

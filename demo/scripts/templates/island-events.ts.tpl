@@ -4,12 +4,13 @@
  * DID as a closed union of intent events and hands them to `send` (./index.ts).
  * The core decides what to do with them.
  *
- * NAMING TAXONOMY (review rule today; a lint rule on this union once it lands):
+ * NAMING TAXONOMY (lint-enforced on this union: agentproofarch/event-suffix-taxonomy):
  * every member names a user INTENT in the past / imperative-of-intent tense,
  * never a decision the core should own. Allowed suffixes:
- *   …Requested | …Confirmed | …Cancelled | …Changed | …Selected | …Opened | …Closed
+ *   …Requested | …Confirmed | …Cancelled | …Changed | …Selected | …Opened |
+ *   …Closed | …Added | …Moved | …Removed | …Failed | …Succeeded
  * Good: `cardMoveRequested`, `filterChanged`. Bad: `moveCard`, `setFilter`
- * (imperatives smuggle the core's decision into the view).
+ * (imperatives smuggle the core's decision into the view — and fail lint).
  */
 export type __SINGULAR_PASCAL__Event =
   // Example intent — replace with this island's real events. At RUNG 1 there is

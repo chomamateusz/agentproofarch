@@ -63,6 +63,11 @@ npm run --silent cli -- --tenant acme todo list
 port + use-case → adapter repo → server route → `core/client` method →
 CLI command → web page, in that order, with tests at the core layer.
 
+Client state follows the island-core model (`../docs/architecture.md`
+§Client application state, ADR-0005): a feature's `core/` is pure TS —
+events in, selectors out — with lint-enforced purity; scaffold a new island
+with `npm run new:island -- <name>`.
+
 Start every new resource with the scaffolder — it is the canonical entry point:
 `npm run new:resource -- <singular-name>` (e.g. `blog-post`). It generates the
 files a resource owns outright (domain type, use-cases + test, repository, web

@@ -158,7 +158,8 @@ MACHINE (rung 2 / rung 3) — DECISION-PENDING THE SPIKE.
    isomorphic-rules strategy are being settled by the machine spike. When it
    lands, graduate at the marked <<EXTENSION POINT>>s in core/index.ts and
    core/selectors.ts — rung 2 = island store, rung 3 = statechart (XState) — and
-   the view keeps talking to the same send/selectors seam. See docs/server-state.md.
+   the view keeps talking to the same send/selectors seam. See
+   docs/architecture.md §Client application state (ADR-0005).
 
 Verify (write core tests before wiring the UI):
   npm run check && npm run smoke
