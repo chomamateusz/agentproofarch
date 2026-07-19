@@ -116,15 +116,34 @@ const DEVTOOLS_BAN = [
 
 const STATE_LIB_MESSAGE =
   'Global state libraries are banned: server state lives in TanStack Query, UI state stays local (React 19 / compiler).';
-const STATE_LIB_BANS = [
-  'redux',
-  '@reduxjs/toolkit',
-  'zustand',
-  'jotai',
-  'mobx',
-  'valtio',
-  'recoil',
-].map((name) => ({ name, message: STATE_LIB_MESSAGE }));
+const STATE_LIB_BANS = ['redux', '@reduxjs/toolkit', 'jotai', 'mobx', 'valtio', 'recoil'].map(
+  (name) => ({ name, message: STATE_LIB_MESSAGE }),
+);
+
+// zustand is NOT a demo dependency. @xstate/store is the chosen island-store
+// (rung 2, ADR-0005); zustand/vanilla is only an acceptable *substitute* for a
+// team that foresees no graduation to a statechart — like Vercel is the example
+// deploy target, not a mandate. The demo always uses the first choice, so every
+// zustand import is an error across apps/web (island cores included).
+const ZUSTAND_SUBSTITUTE_MESSAGE =
+  'zustand is not a demo dependency: @xstate/store is the island-store choice (rung 2). zustand/vanilla is only an acceptable substitute for a team that foresees no graduation to a statechart — see ADR-0005. The demo always uses the first choice; do not import zustand.';
+const ZUSTAND_BANS = ['zustand', 'zustand/vanilla', 'zustand/react'].map((name) => ({
+  name,
+  message: ZUSTAND_SUBSTITUTE_MESSAGE,
+}));
+
+// @xstate/store (rung 2) and xstate (rung 3 — the machine DERIVED from the
+// core/domain transition table) are confined to island cores: importable ONLY
+// inside apps/web/src/features/*/core/**. Everywhere else in apps/web — views,
+// routes, api.ts, main.tsx — is an error: the machine lives behind the seam;
+// views consume the core's selectors, never the store library directly. The
+// island-core config block below drops this pattern, which re-permits it there.
+const STORE_LIB_CONFINEMENT_MESSAGE =
+  '@xstate/store and xstate are confined to island cores (apps/web/src/features/*/core/**): the rung-2 store / rung-3 statechart lives behind the seam. Import the feature core selectors here and move machine code into core/**. (ADR-0005)';
+const STORE_LIB_CONFINEMENT_PATTERN = {
+  group: ['@xstate/store', '@xstate/store/*', 'xstate', 'xstate/*'],
+  message: STORE_LIB_CONFINEMENT_MESSAGE,
+};
 
 const QUERY_CLIENT_SINGLETON_PATTERN = {
   regex: 'query-client\\.js$',
@@ -138,14 +157,14 @@ const SET_QUERY_DATA_BAN = {
     'queryClient.setQueryData is confined to an island core optimistic.ts (single-resource optimistic writes with rollback); everywhere else server collections refresh via invalidation.',
 };
 
-// Island-core bans stay machine-agnostic: the machine behind the seam (rung 2 =
-// island store, rung 3 = statechart/XState) is DECISION-PENDING on a parallel
-// spike (zustand/vanilla vs @xstate/store; table-as-data vs shared machine), so
-// these rules forbid React and persistence — never a specific store library.
-// `zustand/vanilla` and `@xstate/store` both remain importable; only the bare
-// `zustand` React binding (STATE_LIB_BANS) and persist middleware are blocked.
+// Island-core bans forbid React and persistence, never the store library: the
+// machine behind the seam (rung 2 = @xstate/store, rung 3 = the XState machine
+// derived from the core/domain transition table — ADR-0005, decided) is what
+// lives here. `@xstate/store` and `xstate` are IMPORTABLE in island cores (the
+// STORE_LIB_CONFINEMENT_PATTERN below is scoped to the rest of apps/web); only
+// zustand (the substitute, not a dependency) and persist middleware are blocked.
 const ISLAND_CORE_PURITY =
-  'Island cores are pure TypeScript: no react, react-dom or @tanstack/react-query — the machine behind the seam (island store or statechart) stays framework-agnostic; consume @tanstack/query-core descriptors, never the React binding.';
+  'Island cores are pure TypeScript: no react, react-dom or @tanstack/react-query — the machine behind the seam (@xstate/store store or derived XState statechart) stays framework-agnostic; consume @tanstack/query-core descriptors, never the React binding.';
 const ISLAND_CORE_IMPORT_BANS = ['react', 'react-dom', '@tanstack/react-query'].map((name) => ({
   name,
   message: ISLAND_CORE_PURITY,
@@ -437,10 +456,11 @@ export default tseslint.config(
           paths: [
             ...HTTP_IMPORT_BANS,
             ...STATE_LIB_BANS,
+            ...ZUSTAND_BANS,
             ...CLIENT_CONSTRUCTION_BANS,
             ...DEVTOOLS_BAN,
           ],
-          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN, STORE_LIB_CONFINEMENT_PATTERN],
         },
       ],
       'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX],
@@ -457,6 +477,7 @@ export default tseslint.config(
           paths: [
             ...HTTP_IMPORT_BANS,
             ...STATE_LIB_BANS,
+            ...ZUSTAND_BANS,
             ...CLIENT_CONSTRUCTION_BANS,
             ...DEVTOOLS_BAN,
             ...ISLAND_CORE_IMPORT_BANS,
@@ -514,8 +535,8 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS, ...DEVTOOLS_BAN],
-          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+          paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS, ...ZUSTAND_BANS, ...DEVTOOLS_BAN],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN, STORE_LIB_CONFINEMENT_PATTERN],
         },
       ],
     },
@@ -525,7 +546,15 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { paths: [...HTTP_IMPORT_BANS, ...STATE_LIB_BANS, ...CLIENT_CONSTRUCTION_BANS] },
+        {
+          paths: [
+            ...HTTP_IMPORT_BANS,
+            ...STATE_LIB_BANS,
+            ...ZUSTAND_BANS,
+            ...CLIENT_CONSTRUCTION_BANS,
+          ],
+          patterns: [STORE_LIB_CONFINEMENT_PATTERN],
+        },
       ],
     },
   },

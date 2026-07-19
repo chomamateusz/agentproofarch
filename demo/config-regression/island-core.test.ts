@@ -57,6 +57,26 @@ const fixtures = {
     rel: join(coreDir, 'optimistic.ts'),
     content: "export const write = (qc) => qc.setQueryData(['probe'], 1);\n",
   },
+  // @xstate/store is confined to island cores: importing it from a feature VIEW
+  // (outside core/) is an error.
+  storeInView: {
+    rel: join(featureRoot, 'store-view-probe.tsx'),
+    content: "import { createStore } from '@xstate/store';\nexport const make = createStore;\n",
+  },
+  // xstate (the derived machine) is confined to island cores too: importing it
+  // outside core/ is an error.
+  xstateOutsideCore: {
+    rel: join(featureRoot, 'xstate-outside-probe.ts'),
+    content: "import { setup } from 'xstate';\nexport const build = setup;\n",
+  },
+  // Positive probe: BOTH store libraries are importable INSIDE an island core.
+  storeInCoreAllowed: {
+    rel: join(coreDir, 'machine-probe.ts'),
+    content:
+      "import { createStore } from '@xstate/store';\n" +
+      "import { setup } from 'xstate';\n" +
+      'export const parts = { createStore, setup };\n',
+  },
 } satisfies Record<string, { rel: string; content: string }>;
 
 interface EslintMessage {
@@ -137,6 +157,22 @@ describe('island-core lint gate rejects violations on future core files', () => 
   it('permits queryClient.setQueryData inside an optimistic.ts', () => {
     expect(
       messagesOf('optimisticAllowed').some((m) => m.message.includes('setQueryData')),
+    ).toBe(false);
+  });
+
+  it('confines @xstate/store: importing it from a feature view (outside core) is an error', () => {
+    expect(has('storeInView', 'no-restricted-imports', 'confined to island cores')).toBe(true);
+  });
+
+  it('confines xstate: importing it outside an island core is an error', () => {
+    expect(has('xstateOutsideCore', 'no-restricted-imports', 'confined to island cores')).toBe(
+      true,
+    );
+  });
+
+  it('permits @xstate/store and xstate inside an island core (the machine behind the seam)', () => {
+    expect(
+      messagesOf('storeInCoreAllowed').some((m) => m.message.includes('confined to island cores')),
     ).toBe(false);
   });
 });
