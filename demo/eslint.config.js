@@ -264,6 +264,8 @@ export default tseslint.config(
         { type: 'core-client', pattern: 'core/client/**', mode: 'full' },
         { type: 'adapter-db', pattern: 'adapters/db/**', mode: 'full' },
         { type: 'adapter-auth', pattern: 'adapters/auth/**', mode: 'full' },
+        // Reserved for US-009 (DomainPort): the directory does not exist yet;
+        // the element type is pre-wired so boundaries hold when the adapter lands.
         { type: 'adapter-domains', pattern: 'adapters/domain-provisioning/**', mode: 'full' },
         { type: 'app-server', pattern: 'apps/server/**', mode: 'full' },
         { type: 'platform-entry', pattern: 'api/**', mode: 'full' },

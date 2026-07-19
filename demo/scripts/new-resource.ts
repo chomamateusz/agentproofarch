@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
  * prints an ordered checklist for the shared files that must be EDITED by hand,
  * each with its anchor line and a ready-to-paste snippet. Generated edits to
  * shared files rot; the type system is left to enforce completion instead, so
- * `npm run check` stays RED until every checklist step is wired.
+ * `npm run check` stays RED through the type-forced steps. Two steps are not
+ * type-forced (CLI command, web-route registration) — the printed checklist,
+ * not the compiler, guarantees those.
  */
 
 export interface ResourceNames {

@@ -93,7 +93,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `npm ci` enforces on CI; a local npm 11 `npm install` silently prunes
   optional entries and broke CI twice, so **never `npm install` here** — add
   deps with `npx -y npm@10 install`), dependency-cruiser, `doc-lint`
-  (docs ↔ enforcer-config, both ways), and vitest with coverage. **334 tests
+  (docs ↔ enforcer-config, both ways), and vitest with coverage. **340 tests
   across 49 files**; coverage thresholds are a ratchet floor, so a regression
   fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
@@ -104,11 +104,11 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`):
 
 ```bash
-npm run test:integration   # 26 tests against a real Postgres (repositories)
+npm run test:integration   # 27 tests against a real Postgres (repositories)
 npm run e2e                # 3 Playwright spec files (7 tests): real Chromium over the real stack
 ```
 
-21 config-regression probes feed a violating fixture to each covered boundary
+25 config-regression probes feed a violating fixture to each covered boundary
 and island-core rule and assert the gate still goes red — you can't silently
 delete one of those rules and stay green
 ([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).

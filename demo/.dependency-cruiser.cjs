@@ -32,6 +32,9 @@ module.exports = {
       from: { path: '^adapters' },
       to: { path: '^apps' },
     },
+    // `adapters/domain-provisioning` below is reserved for US-009 (DomainPort);
+    // the directory does not exist yet — the ban is pre-wired so it holds from
+    // the day the adapter lands.
     {
       name: 'web-never-server-side',
       severity: 'error',
@@ -47,8 +50,9 @@ module.exports = {
     {
       name: 'vercel-and-neon-only-in-adapters',
       severity: 'error',
-      comment: 'Zero platform lock-in in core and apps (PRD: Goals)',
-      from: { pathNot: '^(adapters|apps/server/src/entry\\.vercel\\.ts|api/index\\.ts)' },
+      comment:
+        'Zero platform lock-in in core and apps (PRD: Goals). api/index.ts is the sanctioned exemption: it is the Vercel platform entry (PRD §0 Errata).',
+      from: { pathNot: '^(adapters|api/index\\.ts)' },
       to: { path: 'node_modules/(@vercel|@neondatabase)' },
     },
     {
