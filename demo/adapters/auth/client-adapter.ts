@@ -88,9 +88,34 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
   };
 };
 
-export const createCliAuthAdapter = (baseUrl: string, onToken: (token: string) => void): AuthClientPort =>
-  ({
-    signUp: (input) => postCliAuth(baseUrl, '/api/auth/sign-up/email', input, onToken),
-    signIn: (input) => postCliAuth(baseUrl, '/api/auth/sign-in/email', input, onToken),
-    signOut: async () => ok(undefined),
-  });
+export const createCliAuthAdapter = (
+  baseUrl: string,
+  onToken: (token: string) => void,
+  token: () => string | null = () => null,
+): AuthClientPort => ({
+  signUp: (input) => postCliAuth(baseUrl, '/api/auth/sign-up/email', input, onToken),
+  signIn: (input) => postCliAuth(baseUrl, '/api/auth/sign-in/email', input, onToken),
+  // Revoke the session server-side (bearer token), not just locally: the CLI
+  // authenticates by token, so sign-out must reach Better Auth or the session
+  // survives every logout. A no-token logout is a local-only no-op.
+  signOut: async () => {
+    const current = token();
+    if (current === null) return ok(undefined);
+    let response: Response;
+    try {
+      response = await fetch(new URL('/api/auth/sign-out', baseUrl), {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: baseUrl,
+          authorization: `Bearer ${current}`,
+        },
+        credentials: 'include',
+      });
+    } catch (cause) {
+      return err(appError('internal', `Network error calling /api/auth/sign-out: ${String(cause)}`));
+    }
+    if (!response.ok) return toResult(undefined, await readAuthError(response));
+    return ok(undefined);
+  },
+});

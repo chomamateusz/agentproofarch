@@ -130,8 +130,12 @@ describe('generateIsland', () => {
     expect(store).toContain('export const createKanbanBoardStore');
     expect(store).toContain('itemAddRequested:');
     expect(store).toContain('export interface KanbanBoardGateway');
-    // The toIndex-clamp finding is carried forward as a comment + a real clamp.
-    expect(store).toContain('Math.max(0, Math.min(index, items.length))');
+    // The toIndex-clamp finding: one shared clamp, and the SAME clamped value
+    // feeds both the local transition and the gateway (no raw payload on the wire).
+    expect(store).toContain('const clampIndex');
+    expect(store).toContain('Math.max(0, Math.min(index, length))');
+    expect(store).toContain('.moveItem({ itemId: event.itemId, toIndex })');
+    expect(store).not.toContain('toIndex: event.toIndex');
     // Events mirror the store handlers.
     expect(contentsOf(result.files, 'core/events.ts')).toContain("type: 'itemAddRequested'");
     // index forwards send to the store and merges its selectors.
@@ -192,6 +196,11 @@ describe('generateIsland', () => {
     expect(drift).toContain('evaluateReleaseFlowMove');
     expect(drift).toContain('canApplyReleaseFlowMove');
     expect(drift).toContain('WIP=1');
+    // The drift-proof ships an EXECUTABLE planted mutant (not a comment): a
+    // hand-written machine that drops a guard, asserted to be caught by `disagree`.
+    expect(drift).toContain('driftedMachine');
+    expect(drift).toContain('planted');
+    expect(drift).not.toContain('EXTENSION POINT');
     // index.ts carries the oracle-guard usage comment and re-exports the oracle.
     const index = contentsOf(result.files, 'core/index.ts');
     expect(index).toContain('ORACLE-GUARD USAGE');
