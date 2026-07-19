@@ -57,6 +57,32 @@ const fixtures = {
     rel: join(coreDir, 'optimistic.ts'),
     content: "export const write = (qc) => qc.setQueryData(['probe'], 1);\n",
   },
+  // @xstate/store is confined to island cores: importing it from a feature VIEW
+  // (outside core/) is an error.
+  storeInView: {
+    rel: join(featureRoot, 'store-view-probe.tsx'),
+    content: "import { createStore } from '@xstate/store';\nexport const make = createStore;\n",
+  },
+  // xstate (the derived machine) is confined to island cores too: importing it
+  // outside core/ is an error.
+  xstateOutsideCore: {
+    rel: join(featureRoot, 'xstate-outside-probe.ts'),
+    content: "import { setup } from 'xstate';\nexport const build = setup;\n",
+  },
+  // zustand is the substitute, not a dependency: even INSIDE an island core the
+  // demo bans it — the demo always uses the first choice (ADR-0005).
+  zustandInCore: {
+    rel: join(coreDir, 'zustand-probe.ts'),
+    content: "import { createStore } from 'zustand/vanilla';\nexport const make = createStore;\n",
+  },
+  // Positive probe: BOTH store libraries are importable INSIDE an island core.
+  storeInCoreAllowed: {
+    rel: join(coreDir, 'machine-probe.ts'),
+    content:
+      "import { createStore } from '@xstate/store';\n" +
+      "import { setup } from 'xstate';\n" +
+      'export const parts = { createStore, setup };\n',
+  },
 } satisfies Record<string, { rel: string; content: string }>;
 
 interface EslintMessage {
@@ -137,6 +163,26 @@ describe('island-core lint gate rejects violations on future core files', () => 
   it('permits queryClient.setQueryData inside an optimistic.ts', () => {
     expect(
       messagesOf('optimisticAllowed').some((m) => m.message.includes('setQueryData')),
+    ).toBe(false);
+  });
+
+  it('confines @xstate/store: importing it from a feature view (outside core) is an error', () => {
+    expect(has('storeInView', 'no-restricted-imports', 'confined to island cores')).toBe(true);
+  });
+
+  it('confines xstate: importing it outside an island core is an error', () => {
+    expect(has('xstateOutsideCore', 'no-restricted-imports', 'confined to island cores')).toBe(
+      true,
+    );
+  });
+
+  it('bans zustand (the substitute) even inside an island core — the demo uses the first choice', () => {
+    expect(has('zustandInCore', 'no-restricted-imports', 'not a demo dependency')).toBe(true);
+  });
+
+  it('permits @xstate/store and xstate inside an island core (the machine behind the seam)', () => {
+    expect(
+      messagesOf('storeInCoreAllowed').some((m) => m.message.includes('confined to island cores')),
     ).toBe(false);
   });
 });

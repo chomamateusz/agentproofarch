@@ -14,11 +14,12 @@ export { __SINGULAR_CAMEL__Selectors } from './selectors.js';
  * writes go through mutation descriptors in the view (invalidation → refetch).
  *
  * <<EXTENSION POINT — machine>>
- * After the machine spike (zustand/vanilla vs @xstate/store) decides the store,
- * create it in this module and forward events to it: rung 2 → `store.send(event)`,
- * rung 3 → `actor.send(event)`. The view's call — `send({ type: '…Requested' })`
- * — never changes. DECISION-PENDING; see docs/architecture.md §Client
- * application state (ADR-0005).
+ * When a graduation trigger fires, create the machine in this module and forward
+ * events to it: rung 2 → an @xstate/store store, `store.send(event)` (scaffold
+ * shape: `--machine=store`); rung 3 → a UI actor consulting the table-derived
+ * oracle, `actor.send(event)` (`--machine=statechart`). The view's call —
+ * `send({ type: '…Requested' })` — never changes (ADR-0005, decided). See
+ * docs/architecture.md §Client application state.
  */
 export const send = (event: __SINGULAR_PASCAL__Event): void => {
   switch (event.type) {

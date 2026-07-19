@@ -80,7 +80,7 @@ describe('generateIsland', () => {
     expect(page).not.toContain('api.js');
   });
 
-  it('emits a checklist that wires shared files, stays RED, and defers the machine to the spike', () => {
+  it('emits a checklist that wires shared files, stays RED, and routes graduation through --machine', () => {
     const { checklist } = generateIsland({
       name: 'gadget-board',
       outDir: sandbox,
@@ -91,9 +91,135 @@ describe('generateIsland', () => {
     expect(checklist).toContain('apps/web/src/api.ts');
     expect(checklist).toContain('apps/web/src/main.tsx');
     expect(checklist).toContain('rung 2 = island store');
-    expect(checklist).toContain('rung 3 = statechart (XState)');
-    expect(checklist).toContain('DECISION-PENDING THE SPIKE');
+    expect(checklist).toContain('RESOLVED (ADR-0005)');
+    expect(checklist).toContain('--machine=store');
+    expect(checklist).not.toContain('DECISION-PENDING');
     expect(checklist).toContain('npm run check && npm run smoke');
+  });
+
+  it('scaffolds a rung-2 store island and every file parses', () => {
+    const result = generateIsland({
+      name: 'kanban-board',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      machine: 'store',
+    });
+
+    expect(result.files.map((file) => file.path)).toEqual([
+      'apps/web/src/features/kanban-board/core/events.ts',
+      'apps/web/src/features/kanban-board/core/selectors.ts',
+      'apps/web/src/features/kanban-board/core/store.ts',
+      'apps/web/src/features/kanban-board/core/index.ts',
+      'apps/web/src/features/kanban-board/core/kanban-board.test.ts',
+      'apps/web/src/features/kanban-board/KanbanBoardPage.tsx',
+      'apps/web/src/routes/kanban-board.tsx',
+    ]);
+
+    for (const file of result.files) {
+      const written = readFileSync(join(sandbox, file.path), 'utf8');
+      expect(written).not.toMatch(/__[A-Z_]+__/);
+      const diagnostics = parses(file.path, written).filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      );
+      expect(diagnostics, `${file.path} should parse without syntax errors`).toEqual([]);
+    }
+
+    const store = contentsOf(result.files, 'core/store.ts');
+    // The @xstate/store `on` map IS the seam: a handler per domain event.
+    expect(store).toContain("import { createStore } from '@xstate/store'");
+    expect(store).toContain('export const createKanbanBoardStore');
+    expect(store).toContain('itemAddRequested:');
+    expect(store).toContain('export interface KanbanBoardGateway');
+    // The toIndex-clamp finding is carried forward as a comment + a real clamp.
+    expect(store).toContain('Math.max(0, Math.min(index, items.length))');
+    // Events mirror the store handlers.
+    expect(contentsOf(result.files, 'core/events.ts')).toContain("type: 'itemAddRequested'");
+    // index forwards send to the store and merges its selectors.
+    const index = contentsOf(result.files, 'core/index.ts');
+    expect(index).toContain('createKanbanBoardStore');
+    expect(index).toContain('store.send(event)');
+    // The store test drives the store with a fake gateway.
+    expect(contentsOf(result.files, 'core/kanban-board.test.ts')).toContain(
+      'createKanbanBoardStore',
+    );
+
+    expect(result.checklist).toContain('RUNG 2');
+    expect(result.checklist).toContain('@xstate/store');
+    expect(result.checklist).toContain('GATEWAY');
+  });
+
+  it('scaffolds a rung-3 statechart island and every file parses', () => {
+    const result = generateIsland({
+      name: 'release-flow',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      machine: 'statechart',
+    });
+
+    expect(result.files.map((file) => file.path)).toEqual([
+      'apps/web/src/features/release-flow/core/events.ts',
+      'apps/web/src/features/release-flow/core/selectors.ts',
+      'apps/web/src/features/release-flow/core/rules.ts',
+      'apps/web/src/features/release-flow/core/machine.ts',
+      'apps/web/src/features/release-flow/core/index.ts',
+      'apps/web/src/features/release-flow/core/release-flow.test.ts',
+      'apps/web/src/features/release-flow/core/rules.drift.test.ts',
+      'apps/web/src/features/release-flow/ReleaseFlowPage.tsx',
+      'apps/web/src/routes/release-flow.tsx',
+    ]);
+
+    for (const file of result.files) {
+      const written = readFileSync(join(sandbox, file.path), 'utf8');
+      expect(written).not.toMatch(/__[A-Z_]+__/);
+      const diagnostics = parses(file.path, written).filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      );
+      expect(diagnostics, `${file.path} should parse without syntax errors`).toEqual([]);
+    }
+
+    // rules.ts = transition-table-as-data with exhaustive Records.
+    const rules = contentsOf(result.files, 'core/rules.ts');
+    expect(rules).toContain('export const guards: Readonly<Record<GuardId, GuardPredicate>>');
+    expect(rules).toContain('export const transitionTable: Readonly<Record<Phase, readonly GuardId[]>>');
+    expect(rules).toContain('export const canApplyReleaseFlowMove');
+    // machine.ts = the derivation generator with the as-free carrier + fail-loud.
+    const machineFile = contentsOf(result.files, 'core/machine.ts');
+    expect(machineFile).toContain('const eventCarrier: MachineEvent = moveEventByPhase.draft');
+    expect(machineFile).toContain('export const evaluateReleaseFlowMove');
+    expect(machineFile).toContain('throw new Error(`machine produced no verdict');
+    // drift test = property test incl. the WIP=1 edge.
+    const drift = contentsOf(result.files, 'core/rules.drift.test.ts');
+    expect(drift).toContain('evaluateReleaseFlowMove');
+    expect(drift).toContain('canApplyReleaseFlowMove');
+    expect(drift).toContain('WIP=1');
+    // index.ts carries the oracle-guard usage comment and re-exports the oracle.
+    const index = contentsOf(result.files, 'core/index.ts');
+    expect(index).toContain('ORACLE-GUARD USAGE');
+    expect(index).toContain('evaluateReleaseFlowMove');
+
+    expect(result.checklist).toContain('RUNG 3');
+    expect(result.checklist).toContain('drift');
+  });
+
+  it('defaults to rung 1 (no machine) when --machine is omitted', () => {
+    const withoutFlag = generateIsland({
+      name: 'plain-board',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      dryRun: true,
+    });
+    const explicitNone = generateIsland({
+      name: 'plain-board',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      machine: 'none',
+      dryRun: true,
+    });
+    const paths = withoutFlag.files.map((file) => file.path);
+    expect(paths).toEqual(explicitNone.files.map((file) => file.path));
+    expect(paths).not.toContain('apps/web/src/features/plain-board/core/store.ts');
+    expect(paths).not.toContain('apps/web/src/features/plain-board/core/rules.ts');
+    expect(withoutFlag.checklist).toContain('RESOLVED (ADR-0005)');
   });
 
   it('does not write files in dry-run mode', () => {

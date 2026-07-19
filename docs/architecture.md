@@ -105,7 +105,7 @@ are deliberately **not** synonyms.
 | **Island** | The same feature, seen from its isolation guarantees: features are islands because lint forbids them to import each other. One word names the thing, the other names its property — "feature (island)". |
 | **View** | A React component inside a feature; renders UI and talks exclusively to its own island's core. |
 | **Island core** | `features/<name>/core/` — a pure TS module: events in, selectors out, machine inside. |
-| **Machine** | The state implementation inside an island core, on a three-rung ladder: rung 1 — descriptor re-exports; rung 2 — island store; rung 3 — statechart (XState). |
+| **Machine** | The state implementation inside an island core, on a three-rung ladder: rung 1 — descriptor re-exports; rung 2 — island store (`@xstate/store`); rung 3 — statechart (XState), derived from a `core/domain` transition table. |
 | **Descriptors** | The typed query/mutation definitions produced by `core/client` factories (server state, TanStack) — see [server-state.md](server-state.md). |
 | **Bus** | Typed, closed unions of client-only, ephemeral signals **between island cores**; views never see it. |
 
@@ -144,9 +144,9 @@ State rules:
   ([ADR-0005](decisions/0005-client-application-state.md)). Trivial,
   component-lifetime state stays `useState`/`useReducer` inside a view; React
   context only for cross-cutting concerns (theme, session). State-library
-  React bindings are banned everywhere in `apps/web` (lint); confining the
-  chosen rung-2 store package to island cores lands with the machine-spike
-  verdict ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5).
+  React bindings are banned everywhere in `apps/web` (lint); the chosen
+  rung-2 store package (`@xstate/store`) and `xstate` are confined to
+  island cores ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5).
 - **URL state**: path params = resource identity, search params = shareable
   filters; neither is duplicated into component state.
 - **Features are islands** (lint): a feature imports only itself. Features
@@ -172,13 +172,21 @@ normative form. Every rule carries an explicit enforcement mini-matrix —
 **TYPE / LINT / TEST / REVIEW+AI** — each cell saying *how*, or `n/a` with a
 reason. A rule without a matrix is prose, and prose decays.
 
-> **Decision-pending marker.** Two implementation choices are being spiked in
-> parallel and are the **owner's decision**: (a) the rung-2 store library
-> (`zustand/vanilla` vs `@xstate/store`) and (b) the isomorphic-rules
-> strategy (transition table as data vs shared machine). This section is
-> written machine-agnostically — "island store" and "statechart" name the
-> rungs, not libraries — and nothing below changes with the verdict except
-> which package the lint confinement rules name.
+> **Decisions resolved (2026-07-19, owner, after the code spike).**
+> (a) The rung-2 store library is **`@xstate/store`** — its event map *is*
+> the events-in seam, and the same-vendor `fromStore` bridge makes rung-2→3
+> graduation a supported move, not a rewrite. (b) The isomorphic-rules
+> strategy is the **transition table as data** in `core/domain`, with the
+> statechart derived from it and a drift test in CI (see §Isomorphic domain
+> rules below). **Substitute clause**: `zustand/vanilla` is an acceptable
+> rung-2 substitute only for a team that foresees no graduation to rung 3 —
+> analogous to Vercel being the example deploy target, not a mandate; the
+> demo always uses the first choice. The section stays written
+> machine-agnostically — "island store" and "statechart" name the rungs —
+> and only the lint confinement rules and the isomorphic-rules block name
+> packages. Evidence and trade-offs:
+> [ADR-0005](decisions/0005-client-application-state.md) and the adjudicated
+> [spike report](decisions/spike-report.md).
 
 **The seam.** Every feature has `features/<name>/core/` — a pure TS module
 whose public API is **events in, selectors out**. Views talk exclusively to
@@ -292,27 +300,86 @@ unit tests run in plain node (no jsdom) — portability exercised on every
 **Isomorphic domain rules for guarded transitions.** When transition
 legality is a business rule (WIP limits, an enforced status path), it is
 domain logic: client-only enforcement is cosmetics — the CLI walks past it.
-Such rules live as pure predicates in `core/domain`
-(`canMoveCard(card, from, to, board)`); the server use-case enforces them on
-mutation; the island's machine wires the same predicates as guards for
-instant UX. **Recommended, decision-pending** (spike): the transition table
-as plain data in `core/domain` — allowed moves + guard predicates, zero new
-dependencies — from which the island derives its statechart and the server
-its check. If a shared machine wins instead, it may contain domain states
-only; UI states (drag, optimism, undo) stay in a client layer around it.
+**Resolved (spike-verified)**: the rules live as a **transition table as
+plain data** in `core/domain` — guard predicates plus a table of allowed
+moves, zero new dependencies, so "zod only" stands unamended. Both sides
+derive from that one table: the island **derives its XState machine
+programmatically** — hand-writing the domain machine is **forbidden** — and
+the server use-case derives a pure check (a few-line loop over the same
+guards, no xstate in its bundle). Derivation and check **fail loud**: no
+verdict produced = throw, never a permissive default. A **drift property
+test in CI** sweeps enumerated board states across both derivations; it
+must include WIP=1 edge limits and prove its own detection power with a
+planted mutant (a hand-wired machine that drops a guard must fail the
+suite). The rejected alternative — one shared machine — mismatched
+board-scoped rules with a card-scoped machine (every server check rebuilt a
+synthetic per-card context) and, probe-verified, **failed open** on
+unhandled transitions (ADR-0005 records both reasons). Accepted cost: the
+derived machine is runtime-assembled and invisible to static XState tooling
+(visualizer/typegen).
 — **TYPE**: both sides import the same predicate signatures from
-`core/domain` · **LINT**: `core-domain-depends-on-nothing` already keeps the
-rules pure · **TEST**: predicates unit-tested once in `core/domain`;
-use-case tests assert the server rejects illegal moves · **REVIEW+AI**: flag
-rule logic re-implemented island-side instead of imported from
-`core/domain`.
+`core/domain`; extending the table is compile-forced through exhaustive
+`Record`s over the column union · **LINT**:
+`core-domain-depends-on-nothing` already keeps the rules pure · **TEST**:
+predicates unit-tested once in `core/domain`; the CI drift property test
+asserts the derived machine and the server check agree on every enumerated
+case; use-case tests assert the server rejects illegal moves ·
+**REVIEW+AI**: flag rule logic re-implemented island-side instead of
+imported from `core/domain`, and any hand-written (non-derived) domain
+machine.
 
-**Demo exemplars — land after the spike decision.** Two boards over the same
-tasks subdomain, the living proof that domain ≠ feature (one subdomain,
-several islands): the **personal board** (free card movement; optimistic
-moves + rollback + undo) exercises rung 2 — island store; the **team board**
-(WIP limits + enforced status path as `core/domain` predicates guarding
-transitions) exercises rung 3 — statechart. Side by side in the tree, the
+**Composing the derived machine with UI state (oracle, not owner).** The
+derived machine contains **domain states only** (columns + guards) — UI
+states (drag lifecycle, optimism, undo) never enter it; the failure mode is
+the server "knowing" about the mouse. The island's own hand-written UI
+machine treats the derived machine as an **oracle**, in either of two
+sanctioned shapes:
+
+- **Oracle-guard**: a guard in the UI machine calls the derivation's
+  evaluator and reads the verdict — the shape the spike shipped:
+
+  ```ts
+  // core/domain: the single source — plain data, zero dependencies
+  export const transitionTable: Readonly<Record<ColumnId, readonly GuardId[]>> = {
+    todo: ['wip-limit'],
+    'in-dev': ['wip-limit'],
+    review: ['review-requires-in-dev', 'wip-limit'],
+    done: ['done-only-from-review', 'wip-limit'],
+  };
+
+  // island core: the UI machine consults the oracle in a guard
+  guards: {
+    moveAllowed: ({ context, event }) =>
+      evaluateMove(context.board, event.move, context.limits).allowed,
+  }
+  ```
+
+  where `evaluateMove` runs one transition of the table-derived machine
+  (`getNextSnapshot`) and throws if no verdict was produced.
+- **Child-actor**: the UI machine `invoke`s the derived machine as a child
+  actor and reads its verdict from the child's context — same oracle, actor
+  plumbing instead of a guard call. Use it when the UI needs to react to
+  the domain machine's state over time, not just gate a single event.
+
+Either way the dependency points one direction: UI machine → derived domain
+machine; domain states never mirror UI states back.
+— **TYPE**: the derived machine's event/context types come from the table
+module, so UI-state additions to it do not typecheck · **LINT**: n/a (which
+machine owns a state is semantic) · **TEST**: the drift test covers the
+oracle — the UI wrapper adds no domain behavior to test · **REVIEW+AI**:
+flag UI states (drag, pending, undo) appearing in the table or the derived
+machine, and verdict logic duplicated outside the oracle.
+
+**Demo exemplars — unblocked by the resolved decisions.** Two boards over
+the same tasks subdomain, the living proof that domain ≠ feature (one
+subdomain, several islands): the **personal board** (free card movement;
+optimistic moves + rollback + undo) exercises rung 2 — an `@xstate/store`
+island store; the **team board** (WIP limits + enforced status path from
+the `core/domain` transition table) exercises rung 3 — the table-derived
+statechart behind a UI machine. Both boards must satisfy the
+spike-learnings requirements recorded in ADR-0005: fail-loud transitions,
+`toIndex` clamped before the gateway, WIP=1 coverage in the drift test, and
+`as`-free event carriers. Side by side in the tree, the
 pair is the "how an island core graduates" guide — readable from the current
 state of the repo, not from git archaeology. Until they land, the demo's
 features are rung 1, honestly: no current feature fires a graduation
