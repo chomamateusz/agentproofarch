@@ -25,7 +25,7 @@ export const __SINGULAR_PASCAL__Page = () => {
       {list.data ? (
         // Placeholder render: `list.data` is typed by the descriptor you bind in
         // core/selectors.ts. Replace with this island's real view.
-        <Typography component="pre" sx={{ whiteSpace: 'pre-wrap' }}>
+        <Typography component="pre" sx={{ overflowX: 'auto' }}>
           {JSON.stringify(list.data, null, 2)}
         </Typography>
       ) : null}
