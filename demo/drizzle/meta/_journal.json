@@ -15,6 +15,13 @@
       "when": 1784282623022,
       "tag": "0001_sleepy_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784488822906,
+      "tag": "0002_lonely_zodiak",
+      "breakpoints": true
     }
   ]
 }

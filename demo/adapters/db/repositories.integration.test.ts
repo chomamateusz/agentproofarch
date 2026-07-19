@@ -4,6 +4,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Db } from './client.js';
+import { createCardRepository } from './cards-repository.js';
 import {
   createHealthPort,
   createTenantAccessReader,
@@ -56,10 +57,16 @@ const todoB1 = {
   createdAt: '2026-01-01T12:00:00.000Z',
 };
 
+const cardA1 = { id: 'itest-card-a1', tenantId: tenantA.id, title: 'A todo 1', column: 'todo', position: 0, createdAt: '2026-01-01T00:00:00.000Z' };
+const cardA2 = { id: 'itest-card-a2', tenantId: tenantA.id, title: 'A todo 2', column: 'todo', position: 1, createdAt: '2026-01-02T00:00:00.000Z' };
+const cardA3 = { id: 'itest-card-a3', tenantId: tenantA.id, title: 'A doing 1', column: 'doing', position: 0, createdAt: '2026-01-03T00:00:00.000Z' };
+const cardB1 = { id: 'itest-card-b1', tenantId: tenantB.id, title: 'B todo 1', column: 'todo', position: 0, createdAt: '2026-01-01T00:00:00.000Z' };
+
 let appPool: pg.Pool;
 let db: Db;
 
 const todoRepo = () => createTodoRepository(db);
+const cardRepo = () => createCardRepository(db);
 const domainRepo = () => createTenantDomainRepository(db);
 const tenantRepo = () => createTenantRepository(db);
 const accessReader = () => createTenantAccessReader(db);
@@ -152,6 +159,11 @@ const seed = async (): Promise<void> => {
   await todoRepo().create(todoA1);
   await todoRepo().create(todoA2);
   await todoRepo().create(todoB1);
+
+  await cardRepo().create(cardA1);
+  await cardRepo().create(cardA2);
+  await cardRepo().create(cardA3);
+  await cardRepo().create(cardB1);
 };
 
 beforeAll(async () => {
@@ -254,6 +266,43 @@ describe('TodoRepository', () => {
   });
 });
 
+describe('CardRepository', () => {
+  it('lists a tenant cards ordered by column then position', async () => {
+    const rows = await cardRepo().listByTenant(tenantA.id);
+    expect(rows.map((c) => c.id)).toEqual([cardA3.id, cardA1.id, cardA2.id]);
+  });
+
+  it('create inserts a card visible only within its tenant', async () => {
+    const extra = { id: 'itest-card-a4', tenantId: tenantA.id, title: 'A doing 2', column: 'doing', position: 1, createdAt: '2026-01-04T00:00:00.000Z' };
+    await cardRepo().create(extra);
+    const aIds = (await cardRepo().listByTenant(tenantA.id)).map((c) => c.id);
+    expect(aIds).toContain(extra.id);
+    const bIds = (await cardRepo().listByTenant(tenantB.id)).map((c) => c.id);
+    expect(bIds).not.toContain(extra.id);
+  });
+
+  it('updatePositions rewrites column + position for the tenant rows', async () => {
+    // Move cardA2 to the front of doing, renumber both columns contiguously.
+    await cardRepo().updatePositions(tenantA.id, [
+      { id: cardA2.id, column: 'doing', position: 0 },
+      { id: cardA3.id, column: 'doing', position: 1 },
+      { id: cardA1.id, column: 'todo', position: 0 },
+    ]);
+    const byId = new Map((await cardRepo().listByTenant(tenantA.id)).map((c) => [c.id, c]));
+    expect(byId.get(cardA2.id)).toMatchObject({ column: 'doing', position: 0 });
+    expect(byId.get(cardA3.id)).toMatchObject({ column: 'doing', position: 1 });
+    expect(byId.get(cardA1.id)).toMatchObject({ column: 'todo', position: 0 });
+  });
+
+  it('updatePositions is tenant-scoped: another tenant cannot renumber these cards', async () => {
+    const before = (await cardRepo().listByTenant(tenantB.id)).find((c) => c.id === cardB1.id);
+    // tenantA attempts to move tenantB's card — the id/tenant guard makes it a no-op.
+    await cardRepo().updatePositions(tenantA.id, [{ id: cardB1.id, column: 'done', position: 9 }]);
+    const after = (await cardRepo().listByTenant(tenantB.id)).find((c) => c.id === cardB1.id);
+    expect(after).toEqual(before);
+  });
+});
+
 describe('TenantDomainRepository', () => {
   it('findByDomain returns only verified domains', async () => {
     expect(await domainRepo().findByDomain('alpha.localhost')).toMatchObject({
@@ -315,6 +364,16 @@ describe('tenant isolation invariant', () => {
     const bTodos = await todoRepo().listByTenant(tenantB.id);
     expect(bTodos.every((t) => t.tenantId === tenantB.id)).toBe(true);
     expect(bTodos.map((t) => t.id)).toEqual([todoB1.id]);
+  });
+
+  it('cards never leak across tenants', async () => {
+    const aCards = await cardRepo().listByTenant(tenantA.id);
+    expect(aCards.every((c) => c.tenantId === tenantA.id)).toBe(true);
+    expect(aCards.map((c) => c.id)).not.toContain(cardB1.id);
+
+    const bCards = await cardRepo().listByTenant(tenantB.id);
+    expect(bCards.every((c) => c.tenantId === tenantB.id)).toBe(true);
+    expect(bCards.map((c) => c.id)).toContain(cardB1.id);
   });
 
   it('findMember is scoped to the tenant and cannot cross tenants', async () => {

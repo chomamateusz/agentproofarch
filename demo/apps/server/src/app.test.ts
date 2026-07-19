@@ -34,6 +34,11 @@ const baseDeps = (): AppDeps => ({
     listByTenant: async () => [],
     create: async () => {},
   },
+  cards: {
+    listByTenant: async () => [],
+    create: async () => {},
+    updatePositions: async () => {},
+  },
   tenantDomains: {
     findByDomain: async () => null,
     listVerifiedDomains: async () => [],
