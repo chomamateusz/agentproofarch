@@ -46,3 +46,13 @@ test('tenant-scoped API responses are never cached', async ({ page }) => {
   const response = await page.request.get('/api/health');
   expect(response.headers()['cache-control']).toBe('no-store');
 });
+
+test('anonymous visitors are redirected off the boards to login', async ({ page }) => {
+  for (const path of ['/board', '/team-board']) {
+    await page.goto(path);
+    // The redirect must land on the login form, and no operable board shell
+    // (add-card form) may ever be shown to an anonymous visitor.
+    await expect(page.getByLabel('email')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'add' })).toHaveCount(0);
+  }
+});

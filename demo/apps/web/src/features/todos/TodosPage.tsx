@@ -91,17 +91,35 @@ const PickTenant = () => {
           </Typography>
         ) : null}
         <List sx={{ mt: '1.2rem' }} disablePadding>
-          {tenants.data?.tenants.map((m) => (
-            <ListItem key={m.tenant.id} disablePadding>
-              <ListItemButton component="a" href={tenantUrl(m.tenant.slug)} sx={{ px: '0.3rem' }}>
-                <ListItemText
-                  primary={m.tenant.name}
-                  secondary={tenantUrl(m.tenant.slug)}
-                  slotProps={{ primary: { sx: { fontWeight: 700 } }, secondary: { variant: 'caption' } }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
+          {tenants.data?.tenants.map((m) => {
+            const url = tenantUrl(m.tenant.slug);
+            return (
+              <ListItem key={m.tenant.id} disablePadding>
+                {url === null ? (
+                  <ListItemText
+                    primary={m.tenant.name}
+                    secondary="no wildcard domain attached — open this tenant via the CLI (--tenant)"
+                    slotProps={{
+                      primary: { sx: { fontWeight: 700 } },
+                      secondary: { variant: 'caption' },
+                    }}
+                    sx={{ px: '0.3rem' }}
+                  />
+                ) : (
+                  <ListItemButton component="a" href={url} sx={{ px: '0.3rem' }}>
+                    <ListItemText
+                      primary={m.tenant.name}
+                      secondary={url}
+                      slotProps={{
+                        primary: { sx: { fontWeight: 700 } },
+                        secondary: { variant: 'caption' },
+                      }}
+                    />
+                  </ListItemButton>
+                )}
+              </ListItem>
+            );
+          })}
         </List>
       </Paper>
     </Box>
@@ -199,13 +217,18 @@ const TenantLedger = ({
           <Typography variant="overline">your tenants →</Typography>
           {tenants.data?.tenants.map((m) => {
             const active = m.tenant.id === tenant.id;
+            const url = tenantUrl(m.tenant.slug);
+            // Without a wildcard domain only the active tenant is reachable in
+            // the web app — sibling slugs render as plain text, not dead links.
+            if (url === null) {
+              return (
+                <Typography key={m.tenant.id} variant="body2" aria-current={active}>
+                  {m.tenant.slug}
+                </Typography>
+              );
+            }
             return (
-              <Link
-                key={m.tenant.id}
-                href={tenantUrl(m.tenant.slug)}
-                variant="body2"
-                aria-current={active}
-              >
+              <Link key={m.tenant.id} href={url} variant="body2" aria-current={active}>
                 {m.tenant.slug}
               </Link>
             );

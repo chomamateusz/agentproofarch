@@ -10,6 +10,9 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+
+import { ApiError } from '#core/client/index.js';
 
 import { boardSelectors, send, subscribe, type BoardCard } from './core/index.js';
 
@@ -21,8 +24,19 @@ import { boardSelectors, send, subscribe, type BoardCard } from './core/index.js
  */
 export const BoardPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const cards = useQuery(boardSelectors.list);
   const overlay = useSyncExternalStore(subscribe, boardSelectors.snapshot);
+
+  const errorCode = cards.error instanceof ApiError ? cards.error.appError.code : null;
+  const unauthorized = errorCode === 'unauthorized';
+  // No tenant resolved (apex host): the ledger at "/" owns tenant selection.
+  const tenantless = errorCode === 'tenant_not_found';
+
+  useEffect(() => {
+    if (unauthorized) void navigate({ to: '/login' });
+    else if (tenantless) void navigate({ to: '/' });
+  }, [unauthorized, tenantless, navigate]);
 
   useEffect(() => {
     if (overlay.committedRev === 0) return;
@@ -32,6 +46,10 @@ export const BoardPage = () => {
   const board = boardSelectors.board(cards.data?.cards ?? []);
   const canUndo = boardSelectors.canUndo();
   const columns = boardSelectors.columns;
+
+  // Never render an operable-looking board without auth + tenant context —
+  // the effect above is already redirecting.
+  if (unauthorized || tenantless) return null;
 
   return (
     <Container disableGutters sx={{ maxWidth: '60rem !important', px: '1.25rem', py: '3rem' }}>
