@@ -64,6 +64,7 @@ export const createDeps = (env: Env): AppDeps => {
     baseUrl: env.APP_BASE_URL,
     baseDomain: env.APP_BASE_DOMAIN,
     secureCookies: env.SECURE_COOKIES,
+    rateLimitEnabled: env.AUTH_RATE_LIMIT,
     trustedOrigins: async () => {
       const domains = await tenantDomains.listVerifiedDomains();
       return [

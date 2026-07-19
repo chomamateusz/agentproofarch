@@ -13,6 +13,8 @@ export interface AuthSettings {
   baseDomain: string;
   trustedOrigins: string[] | ((request?: Request) => string[] | Promise<string[]>);
   secureCookies: boolean;
+  /** Off only in test harnesses (e2e drives many sign-ins from one bucket). */
+  rateLimitEnabled: boolean;
 }
 
 export const BETTER_AUTH_API_PATH_PATTERN = '/api/auth/*';
@@ -26,7 +28,7 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     emailAndPassword: { enabled: true },
     // In-memory counters reset with every serverless isolate, so the limiter
     // stores its windows in the database we already have (no Redis needed).
-    rateLimit: { enabled: true, storage: 'database' },
+    rateLimit: { enabled: settings.rateLimitEnabled, storage: 'database' },
     plugins: [bearer()],
     advanced: {
       useSecureCookies: settings.secureCookies,

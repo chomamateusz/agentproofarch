@@ -20,6 +20,12 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  // Off only in test harnesses: the e2e suite drives many sign-ins from a
+  // single rate-limit bucket (no client IP behind the harness).
+  AUTH_RATE_LIMIT: z
+    .enum(['on', 'off'])
+    .default('on')
+    .transform((value) => value === 'on'),
   WEB_DIST_DIR: z.string().default('dist/web'),
 });
 

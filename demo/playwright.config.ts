@@ -13,6 +13,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: 1,
+  // CI runners are slower and have fewer cores than dev machines: serial
+  // workers avoid sign-in/db contention, and the default 5s expect timeout
+  // is the classic source of CI-only flakes.
+  workers: process.env['CI'] ? 1 : undefined,
+  expect: { timeout: 10_000 },
   reporter: 'list',
   use: {
     baseURL,
