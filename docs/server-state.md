@@ -120,6 +120,9 @@ key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
   `cancelQueries` → snapshot (`getQueryData`) → immutable write → rollback
   context consumed in `onError` → invalidate in `onSettled`. Simpler cases use
   the v5 UI variant (`variables` + `isPending`) instead of cache writes.
+  Optimism over *interaction* state inside a rung-2/3 island machine is
+  governed by architecture.md §Client application state (ADR-0005); this
+  document governs only cache-level optimism.
 
 ## Freshness and polling
 

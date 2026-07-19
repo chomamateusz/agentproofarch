@@ -1,7 +1,8 @@
 # ADR-0005: Client application state — island cores with a ladder of machines
 
-Date: 2026-07-19 · Status: accepted (2026-07-19), with the two machine choices
-deferred to the owner after a code spike (see Consequences)
+Date: 2026-07-19 · Status: accepted (2026-07-19); the two machine choices
+were resolved by the owner on 2026-07-19 after a code spike (see the final
+Decision block)
 
 ## Context
 
@@ -127,26 +128,73 @@ anti-port-theater) and produced the decisions below.
    predicates in `core/domain` (e.g. `canMoveCard(card, from, to, board)`);
    the server use-case enforces them on mutation; the island's machine wires
    the same predicates as transition guards for instant UX (blocked drop,
-   with a reason). Rules once, executed on both sides. **Recommended shape,
-   decision-pending**: the transition table as plain data in `core/domain`
-   (allowed moves + guard predicates, zero dependencies), from which the
-   island derives its statechart and the server derives its check — keeping
-   `core/domain` zod-only. Fallback if derivation proves brittle: a shared
-   machine, adopted as an explicit, argued dependency decision. If a machine
-   is ever shared, it may contain **domain states only** (columns + guards);
-   UI states (drag lifecycle, optimism, undo) stay in a client-side layer
-   around it — the failure mode is the server "knowing" about the mouse.
+   with a reason). Rules once, executed on both sides. **Resolved shape
+   (decision (b) below)**: the transition table as plain data in
+   `core/domain` (allowed moves + guard predicates, zero dependencies), from
+   which the island derives its statechart and the server derives its check
+   — keeping `core/domain` zod-only. The shared-machine fallback was spiked
+   and rejected (see below). The derived machine contains **domain states
+   only** (columns + guards); UI states (drag lifecycle, optimism, undo)
+   stay in a client-side layer around it — the failure mode is the server
+   "knowing" about the mouse.
 
-**Deferred to the spike + owner decision** (status: pending; everything above
-is deliberately machine-agnostic — "island store" and "statechart" name the
-rungs, not libraries):
+**Resolved by the spike + owner decision** (status: decided 2026-07-19;
+everything above stays machine-agnostic — "island store" and "statechart"
+name the rungs; these two decisions name the libraries):
 
-- **(a) Rung-2 store library**: `zustand/vanilla` vs `@xstate/store`, judged
-  on the same board-core sample — criteria: framework-agnosticism, TS
-  inference, fit with the events-in seam, subscription granularity, size,
-  devtools, migration path to full XState. Verdict from code, not opinion.
-- **(b) Isomorphic-rules strategy**: transition table as data (recommended)
-  vs a shared machine.
+- **(a) Rung-2 store library: `@xstate/store`.** WHY: its event map *is* the
+  events-in seam — the store's `on: { cardAdded: … }` keys mirror the
+  island's event union one-to-one with zero explicit generics and zero
+  casts — and the same-vendor `fromStore` bridge makes rung-2→rung-3
+  graduation a supported move instead of a rewrite. **Substitute clause**:
+  `zustand/vanilla` is an acceptable substitute ONLY for a team that
+  foresees no graduation to rung 3 — analogous to Vercel being the example
+  deploy target, not a mandate. The demo always uses the first choice.
+- **(b) Isomorphic-rules strategy: transition-table-as-data.** The table
+  (allowed moves + guard predicates) lives as plain data in `core/domain`
+  with **zero dependencies** — "zod only" stands unamended. The island's
+  XState machine is **derived from the table programmatically —
+  hand-writing the machine is forbidden** — and the server check is derived
+  from the same table (a few-line pure loop); a **drift property test in
+  CI** proves the two derivations agree. WHY: compiler-forced completeness
+  (extending the table is a tour of exhaustive `Record`s the compiler will
+  not let you skip), fail-loud evaluation (no verdict produced = throw),
+  and domain purity (the server check bundles at ~0.4 kB with no xstate).
+  The shared-machine alternative (B2) is **rejected** for two spike-proven
+  reasons: the rules are *board-scoped* while the machine is *card-scoped*
+  — every server check had to rebuild a synthetic per-card context around a
+  board-global question — and it **fails open**: probe-verified, an
+  unhandled transition returned its placeholder verdict
+  `{ allowed: true }` as the server's answer.
+
+**Evidence.** A code spike with **five implementations** over one shared
+behavior suite (rung 2: `zustand/vanilla`, `@xstate/store`, and a
+full-XState reference; isomorphic rules: table-as-data vs shared machine),
+judged by **two independent judge panels** whose disagreements were settled
+by an adjudicator with **verified runtime probes** (fail-open, index
+clamping, interleaving, subscription granularity — each reproduced against
+the code, not argued). Both panels independently picked `@xstate/store` and
+the table. Full record: [spike-report.md](spike-report.md); decision
+context: [island-core-grill-5.md](island-core-grill-5.md).
+
+**Spike learnings — implementation requirements for the demo boards:**
+
+- **Fail loud on unhandled transitions.** The derived machine/check throws
+  when no verdict is produced; never seed a permissive initial verdict —
+  the fail-open hazard is exactly what sank the shared machine.
+- **Clamp raw payload indices (`toIndex`) before the gateway call**, not
+  only in optimistic state — both rung-2 spike stores forwarded raw
+  indices, so persisted order could silently diverge from optimistic
+  order; the server re-clamps regardless.
+- **Drift property tests must cover WIP=1 edge limits** (both spike suites
+  omitted `{todo: 1}`/`{done: 1}`) and must demonstrate their own detection
+  power with a planted mutant (a hand-wired machine that drops a guard must
+  make the suite fail).
+- **The `as`-free event-carrier typing trick.** XState's `types` field
+  infers the event union from a value, and a single object literal
+  collapses the union; under the no-`as` regime, pass a value whose
+  *static* type is already the full union (index a
+  `Record<ColumnId, MachineEvent>`), never `{} as MachineEvent`.
 
 ## Consequences
 
@@ -168,13 +216,15 @@ rungs, not libraries):
   dependency graph) stands; what is sanctioned is exactly the closed-union
   escape hatch that decision reserved, now with a proven need, an owner per
   event, and a views-never-touch-it rule.
-- **The demo gains two exemplar boards** (personal = rung 2, team = rung 3
-  with isomorphic column rules), two islands over one tasks subdomain —
-  landing **after** the spike decides (a) and (b). Until then the demo's
-  features remain rung 1, which is honest: no current feature fires a
-  graduation trigger (the pre-existing features carry no explicit `core/`
-  folder yet — they gain one when first touched by real client state; new
-  islands start from `npm run new:island`, which scaffolds the rung-1 seam).
+- **The demo gains two exemplar boards** (personal = rung 2 on
+  `@xstate/store`, team = rung 3 with the table-derived machine), two
+  islands over one tasks subdomain — unblocked now that (a) and (b) are
+  decided; both boards must satisfy the spike-learnings implementation
+  requirements above. Until they land the demo's features remain rung 1,
+  which is honest: no current feature fires a graduation trigger (the
+  pre-existing features carry no explicit `core/` folder yet — they gain
+  one when first touched by real client state; new islands start from
+  `npm run new:island`, which scaffolds the rung-1 seam).
 - The one-paragraph "Client state" rule in architecture.md §Frontend is
   superseded by the island-core model (rewritten in the same change as this
   ADR).

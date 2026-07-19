@@ -169,7 +169,7 @@ wired versus still pending, and why.
 | Core purity: no `react`, no `react-dom`, no `@tanstack/react-query` in `features/*/core/**` (`@tanstack/query-core` stays allowed) | `no-restricted-imports` in the island-core override, mirroring the `core/**` framework ban; a boundaries/depcruise mirror is deferred until the first real core exists | **wired** — probes per banned import |
 | Persistence bans in islands: no store persist middleware, no `localStorage`/`sessionStorage` (mechanical proxy of "local state dies on reload") | `no-restricted-imports` (persist entrypoint) + the Phase-3 storage rule with **no** helper override on island paths | **wired** — probes for persist and `localStorage` |
 | `queryClient.setQueryData` only inside the island's `optimistic.ts` | `no-restricted-syntax` + path-scoped override | **wired** — probes both ways (fires outside, silent inside `optimistic.ts`) |
-| Store-library confinement: the rung-2 store package importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths) | `no-restricted-imports` with path-scoped override | **blocked on the machine spike** (`zustand/vanilla` vs `@xstate/store` — owner decides which package the rule names; until then both stay importable, only the React bindings are banned) |
+| Store-library confinement: `@xstate/store` and `xstate` importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths; `zustand`, a spike candidate only, returns to the blanket ban) | `no-restricted-imports` with path-scoped override | **unblocked** — the machine spike resolved (ADR-0005): `@xstate/store` is the rung-2 store, rung 3 is an XState machine derived from the `core/domain` transition table; the rule lands with the island-core lint task, React bindings stay banned everywhere |
 | Bus confinement: the typed-signal-bus module importable only from `features/*/core/**` (views never see the bus) | `no-restricted-imports` / boundaries element | planned — lands with the first bus event |
 
 ## Suppression policy (from the hardening guide, verbatim intent)
@@ -225,4 +225,6 @@ honest is not worth it now.
 5. Phase 5 island-core rules: suffix taxonomy, core purity, persistence bans
    and `setQueryData` confinement are wired (probes exercise the future core
    paths); bus confinement lands with the first bus event; the
-   store-confinement rule waits for the machine spike verdict.
+   store-confinement rule (`@xstate/store` + `xstate` only in island cores)
+   is unblocked by the spike verdict and lands with the island-core lint
+   task.
