@@ -172,7 +172,13 @@ todo
     );
   });
 
-const card = program.command('card').description('Cards on a board in the active tenant (default: personal)');
+const card = program
+  .command('card')
+  .description(
+    'Cards on a board in the active tenant (default: personal). ' +
+      'The team board (--board team) enforces ordered columns todo->in-dev->review->done ' +
+      'with WIP limits; illegal moves are rejected (validation, exit 2) naming the broken rule.',
+  );
 
 /** Parse a `--board` value into a `BoardId`, or null when it is not a known board. */
 const parseBoard = (value: string): BoardId | null => {

@@ -306,6 +306,58 @@ describe('card commands', () => {
     expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', board: 'team', column: 'todo' });
   });
 
+  it('adds a team card into the todo column and reports where it landed', async () => {
+    h.api.addCard.mockResolvedValue(
+      ok({ card: { id: 'team-1234ab', title: 'ship it', column: 'todo', position: 0 } }),
+    );
+
+    await run('card', 'add', '--board', 'team', 'ship', 'it');
+
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', board: 'team', column: 'todo' });
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith('added: ship it [todo#0] (team-123)');
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('surfaces a rejected team move as a validation envelope (exit 2) naming the broken rule', async () => {
+    h.api.moveCard.mockResolvedValue(
+      err(appError('validation', 'Move blocked by rule "done-only-from-review"', {
+        rule: 'done-only-from-review',
+      })),
+    );
+
+    await run('--json', 'card', 'move', 'team-1234ab', '--board', 'team', '--to', 'done');
+
+    expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
+      cardId: 'team-1234ab',
+      board: 'team',
+      toColumn: 'done',
+      toIndex: Number.MAX_SAFE_INTEGER,
+    });
+    expect(soleJson()).toMatchObject({
+      ok: false,
+      error: { code: 'validation', details: { rule: 'done-only-from-review' } },
+    });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('walks the legal team chain todo -> in-dev -> review -> done, each move exiting 0', async () => {
+    for (const column of ['in-dev', 'review', 'done'] as const) {
+      h.api.moveCard.mockResolvedValue(
+        ok({ card: { id: 'team-1234ab', title: 'ship it', column, position: 0 } }),
+      );
+
+      await run('card', 'move', 'team-1234ab', '--board', 'team', '--to', column);
+
+      expect(h.api.moveCard).toHaveBeenLastCalledWith({
+        cardId: 'team-1234ab',
+        board: 'team',
+        toColumn: column,
+        toIndex: Number.MAX_SAFE_INTEGER,
+      });
+      expect(process.exitCode).toBe(0);
+    }
+  });
+
   it('rejects an unknown --board locally (validation, exit 2) without calling the API', async () => {
     await run('--json', 'card', 'add', '--board', 'nope', 'ship', 'it');
     expect(h.api.addCard).not.toHaveBeenCalled();
