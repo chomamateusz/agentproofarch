@@ -370,21 +370,24 @@ oracle — the UI wrapper adds no domain behavior to test · **REVIEW+AI**:
 flag UI states (drag, pending, undo) appearing in the table or the derived
 machine, and verdict logic duplicated outside the oracle.
 
-**Demo exemplars — unblocked by the resolved decisions.** Two boards over
-the same tasks subdomain, the living proof that domain ≠ feature (one
-subdomain, several islands): the **personal board** (free card movement;
-optimistic moves + rollback + undo) exercises rung 2 — an `@xstate/store`
-island store; the **team board** (WIP limits + enforced status path from
-the `core/domain` transition table) exercises rung 3 — the table-derived
-statechart behind a UI machine. Both boards must satisfy the
-spike-learnings requirements recorded in ADR-0005: fail-loud transitions,
-`toIndex` clamped before the gateway, WIP=1 coverage in the drift test, and
-`as`-free event carriers. Side by side in the tree, the
+**Demo exemplars — the two living boards.** Two boards over the same
+tasks subdomain, the living proof that domain ≠ feature (one subdomain,
+several islands): the **personal board**
+(`demo/apps/web/src/features/board/`; free card movement, optimistic moves
++ rollback + undo) exercises rung 2 — an `@xstate/store` island store; the
+**team board** (`demo/apps/web/src/features/team-board/`; WIP limits + an
+enforced status path from the `demo/core/domain/team-board.ts` transition
+table, which `demo/core/server/usecases/cards.ts` enforces on mutation)
+exercises rung 3 — the table-derived statechart, consulted as an oracle by
+the island's store and view. Both satisfy the spike-learnings requirements
+recorded in ADR-0005: fail-loud transitions, `toIndex` clamped before the
+gateway, WIP=1 coverage in the drift test with a planted-mutant detection
+proof, and `as`-free event carriers. Side by side in the tree, the
 pair is the "how an island core graduates" guide — readable from the current
 state of the repo, not from git archaeology; the guided reading of that
 diff (triggers, anatomy, derivation contract, costs) is
-[island-graduation.md](island-graduation.md). Until they land, the demo's
-features are rung 1, honestly: no current feature fires a graduation
+[island-graduation.md](island-graduation.md). Every other feature remains
+rung 1, honestly: no other feature fires a graduation
 trigger. The pre-existing features (todos, auth) predate the seam and carry
 no explicit `core/` folder yet; they gain one when first touched by real
 client state, and every **new** island starts from the scaffolder —
