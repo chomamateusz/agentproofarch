@@ -43,17 +43,17 @@ export default defineConfig({
       ],
       // Ratchet floor, not aspiration: each threshold is the measured coverage
       // of the default (database-free) `vitest run --coverage` on 2026-07-19
-      // (stmts/lines 74.12, branches 91.76, funcs 81.37), rounded DOWN to the
+      // (stmts/lines 76.01, branches 91.28, funcs 83.05), rounded DOWN to the
       // whole percent. A regression below the floor fails `npm run check`;
       // raise the floor whenever coverage climbs. Integration-only files
       // (repositories.ts, cards-repository.ts, migrate.ts, …) read 0% here
       // because they are covered by `test:integration`, which runs where
       // Postgres exists (CI smoke job).
       thresholds: {
-        statements: 74,
+        statements: 76,
         branches: 91,
-        functions: 81,
-        lines: 74,
+        functions: 83,
+        lines: 76,
       },
     },
     projects: [
