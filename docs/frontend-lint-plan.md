@@ -141,6 +141,23 @@ The ratchet is an adoption mechanism for real codebases taking these rules on �
 **the demo itself keeps every baseline at zero**: it is the exemplar, it
 carries no tolerated debt.
 
+## Phase 5 — island-core rules (ADR-0005, planned)
+
+Enforcement for the island-core model
+([architecture.md](architecture.md) §Client application state,
+[ADR-0005](decisions/0005-client-application-state.md)). Every rule ships
+with a config-regression probe, like every boundary rule before it. None of
+these are wired yet — the Status column is honest about why.
+
+| Rule | Mechanism | Status |
+|---|---|---|
+| Event suffix taxonomy: island event-union members end in `…Requested`, `…Confirmed`, `…Cancelled`, `…Changed`, `…Selected`, `…Opened`, `…Closed` (imperative names unwritable) | custom plugin rule (existing RuleTester pattern); semantic half stays review + AI tier | planned — lands with the first rung-2 core |
+| Core purity: no `react`, no `@tanstack/react-query`, no DOM globals in `features/*/core/**` | `boundaries/external` ban + `no-restricted-imports`, mirroring the `core/**` framework ban; depcruise mirror | planned — lands with the first island core |
+| Persistence bans in islands: no store persist middleware, no `localStorage`/`sessionStorage` (mechanical proxy of "local state dies on reload") | `no-restricted-imports` (persist entrypoint) + tightening the Phase-3 storage rule: island paths get **no** helper override | planned |
+| `queryClient.setQueryData` only inside the island's `optimistic.ts` | `no-restricted-syntax` + path-scoped override | planned |
+| Store-library confinement: the rung-2 store package importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths) | `no-restricted-imports` with path-scoped override | **blocked on the machine spike** (`zustand/vanilla` vs `@xstate/store` — owner decides which package the rule names) |
+| Bus confinement: the typed-signal-bus module importable only from `features/*/core/**` (views never see the bus) | `no-restricted-imports` / boundaries element | planned — lands with the first bus event |
+
 ## Suppression policy (from the hardening guide, verbatim intent)
 
 - `eslint-disable-next-line` only — file-level disables reserved for generated
@@ -191,3 +208,6 @@ honest is not worth it now.
    original layer-boundary proof).
 3. Phase 3 restricted rules, promoted per the ratchet.
 4. Phase 4 plugin only after Phases 1–3 are at `error` and stable.
+5. Phase 5 island-core rules as their triggers land (first island core, first
+   rung-2 core, first bus event); the store-confinement rule waits for the
+   machine spike verdict.
