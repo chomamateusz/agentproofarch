@@ -132,6 +132,41 @@ const QUERY_CLIENT_SINGLETON_PATTERN = {
     'Do not import the QueryClient singleton: reach it via useQueryClient(). Only main.tsx wires it.',
 };
 
+const SET_QUERY_DATA_BAN = {
+  selector: 'MemberExpression[property.name="setQueryData"]',
+  message:
+    'queryClient.setQueryData is confined to an island core optimistic.ts (single-resource optimistic writes with rollback); everywhere else server collections refresh via invalidation.',
+};
+
+// Island-core bans stay machine-agnostic: the machine behind the seam (rung 2 =
+// island store, rung 3 = statechart/XState) is DECISION-PENDING on a parallel
+// spike (zustand/vanilla vs @xstate/store; table-as-data vs shared machine), so
+// these rules forbid React and persistence — never a specific store library.
+// `zustand/vanilla` and `@xstate/store` both remain importable; only the bare
+// `zustand` React binding (STATE_LIB_BANS) and persist middleware are blocked.
+const ISLAND_CORE_PURITY =
+  'Island cores are pure TypeScript: no react, react-dom or @tanstack/react-query — the machine behind the seam (island store or statechart) stays framework-agnostic; consume @tanstack/query-core descriptors, never the React binding.';
+const ISLAND_CORE_IMPORT_BANS = ['react', 'react-dom', '@tanstack/react-query'].map((name) => ({
+  name,
+  message: ISLAND_CORE_PURITY,
+}));
+
+const ISLAND_CORE_PERSIST_BAN = {
+  name: 'zustand/middleware',
+  importNames: ['persist', 'createJSONStorage'],
+  message:
+    'Persistence is banned in island cores: client state must die on reload (durable state lives on the server via TanStack Query). Do not import persist/createJSONStorage.',
+};
+
+const WEB_RESTRICTED_SYNTAX = [
+  AS_BAN,
+  AUTH_API_LITERAL_BAN,
+  ...REACT_API_BANS,
+  ...QUERY_HOOK_BANS,
+  NEW_QUERY_CLIENT_BAN,
+  QUERY_KEY_BAN,
+];
+
 /**
  * Layer boundaries (PRD §3.2). `boundaries/element-types` denies everything by
  * default; each rule below is an explicit permission. dependency-cruiser
@@ -408,15 +443,50 @@ export default tseslint.config(
           patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
         },
       ],
-      'no-restricted-syntax': [
+      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX],
+    },
+  },
+  {
+    // Island cores (`features/<name>/core/**`) are pure, framework-agnostic TS
+    // modules: events in, selectors out, the machine hidden behind the seam.
+    files: ['apps/web/src/features/*/core/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
         'error',
-        AS_BAN,
-        AUTH_API_LITERAL_BAN,
-        ...REACT_API_BANS,
-        ...QUERY_HOOK_BANS,
-        NEW_QUERY_CLIENT_BAN,
-        QUERY_KEY_BAN,
+        {
+          paths: [
+            ...HTTP_IMPORT_BANS,
+            ...STATE_LIB_BANS,
+            ...CLIENT_CONSTRUCTION_BANS,
+            ...DEVTOOLS_BAN,
+            ...ISLAND_CORE_IMPORT_BANS,
+            ISLAND_CORE_PERSIST_BAN,
+          ],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+        },
       ],
+    },
+  },
+  {
+    // An island's inbound event contract lives in core/events.ts; every event is
+    // named for what happened (intent suffix), never an imperative command.
+    files: ['apps/web/src/features/*/core/events.ts'],
+    rules: {
+      'agentproofarch/event-suffix-taxonomy': 'error',
+    },
+  },
+  {
+    // setQueryData is a single-resource optimistic-write escape hatch; a feature
+    // may use it only inside an optimistic.ts (exempted below).
+    files: ['apps/web/src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX, SET_QUERY_DATA_BAN],
+    },
+  },
+  {
+    files: ['apps/web/src/features/**/optimistic.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX],
     },
   },
   {

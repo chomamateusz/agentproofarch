@@ -115,7 +115,17 @@ Server-state rules (from [server-state.md](server-state.md); same phase):
 ## Phase 4 — custom plugin (`eslint-plugin-agentproofarch`)
 
 Only for conventions the generic mechanisms above cannot express (t3code
-pattern: house rules as a tiny local plugin). Candidates, in order of value:
+pattern: house rules as a tiny local plugin).
+
+Implemented: `event-suffix-taxonomy` — in an island's event module
+(`features/<name>/core/events.ts`), every member of the exported event union
+must end with an approved intent suffix
+(`Requested|Confirmed|Cancelled|Changed|Selected|Opened|Closed|Added|Moved|Removed|Failed|Succeeded`),
+so the view↔core seam carries intents (what happened) not commands (what to do)
+— `deleteCard` cannot pass. It is machine-agnostic: it constrains event *names*,
+never the store library behind the seam.
+
+Candidates, in order of value:
 
 1. `query-descriptors-only` — `useQuery`/`useMutation` arguments must originate
    from `core/client/queries.ts` exports (call expression or spread of an
