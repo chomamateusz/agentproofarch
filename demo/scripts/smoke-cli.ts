@@ -57,8 +57,10 @@ const addSchema = z.object({ todo: todoItemSchema });
 const cardItemSchema = z.object({
   id: z.string(),
   title: z.string(),
+  board: z.string(),
   column: z.string(),
   position: z.number(),
+  visited: z.array(z.string()),
 });
 const cardsSchema = z.object({ cards: z.array(cardItemSchema) });
 const cardWriteSchema = z.object({ card: cardItemSchema });
@@ -81,7 +83,12 @@ const expectOk = (result: Run, label: string): unknown => {
   assert(parsed.ok, `${label}: expected an ok envelope, got an error.`);
   return parsed.data;
 };
-const expectError = (result: Run, label: string, exitCode: number, errorCode: string): void => {
+const expectError = (
+  result: Run,
+  label: string,
+  exitCode: number,
+  errorCode: string,
+): { code: string; message: string } => {
   assert(
     result.code === exitCode,
     `${label}: expected exit ${exitCode}, got ${result.code}.\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
@@ -92,6 +99,7 @@ const expectError = (result: Run, label: string, exitCode: number, errorCode: st
     parsed.error.code === errorCode,
     `${label}: expected error code "${errorCode}", got "${parsed.error.code}".`,
   );
+  return parsed.error;
 };
 
 export interface SmokeTarget {
@@ -125,7 +133,9 @@ const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
 /**
  * The runtime contract every deploy target must satisfy, driven purely through
  * the CLI: health → sign-in → todos list/add/list → cards add/list/move/list
- * (verifying the moved card persists at its new column and index) →
+ * (verifying the moved card persists at its new column and index) → the team
+ * board (add lands in todo → illegal todo→done rejected with a named rule at
+ * exit 2 → legal todo→in-dev at exit 0 → list surfaces board + visited) →
  * unauthorized (exit 3), plus the security/caching response headers.
  * `homes` collects the temp HOME dirs so the caller can clean them up.
  */
@@ -252,6 +262,99 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   assert(
     persisted.column === 'todo' && persisted.position === 0,
     `the moved card did not persist at todo#0: ${JSON.stringify(persisted)}`,
+  );
+
+  // --- team board: ordered columns + WIP limits, enforced server-side ---
+  const teamTitle = `smoke team ${randomUUID()}`;
+  const teamCard = cardWriteSchema.parse(
+    expectOk(
+      await cli(
+        ['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'add', '--board', 'team', teamTitle],
+        authedHome,
+      ),
+      'team card add',
+    ),
+  );
+  assert(
+    teamCard.card.board === 'team' &&
+      teamCard.card.column === 'todo' &&
+      teamCard.card.visited.includes('todo'),
+    `team card add did not land in todo on the team board: ${JSON.stringify(teamCard.card)}`,
+  );
+
+  // Illegal: todo -> done skips the ordered path — rejected (validation, exit 2), rule named.
+  const rejected = expectError(
+    await cli(
+      [
+        '--json',
+        '--api-url',
+        baseUrl,
+        '--tenant',
+        target.tenant,
+        'card',
+        'move',
+        teamCard.card.id,
+        '--board',
+        'team',
+        '--to',
+        'done',
+      ],
+      authedHome,
+    ),
+    'illegal team move todo->done',
+    EXIT_CODE_BY_ERROR_CODE.validation,
+    'validation',
+  );
+  assert(
+    rejected.message.includes('rule'),
+    `illegal team move did not name the broken rule: ${rejected.message}`,
+  );
+
+  // Legal: todo -> in-dev is the first allowed step (exit 0).
+  const advanced = cardWriteSchema.parse(
+    expectOk(
+      await cli(
+        [
+          '--json',
+          '--api-url',
+          baseUrl,
+          '--tenant',
+          target.tenant,
+          'card',
+          'move',
+          teamCard.card.id,
+          '--board',
+          'team',
+          '--to',
+          'in-dev',
+        ],
+        authedHome,
+      ),
+      'legal team move todo->in-dev',
+    ),
+  );
+  assert(
+    advanced.card.column === 'in-dev',
+    `legal team move did not land in in-dev: ${JSON.stringify(advanced.card)}`,
+  );
+
+  const teamCards = cardsSchema.parse(
+    expectOk(
+      await cli(
+        ['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'list', '--board', 'team'],
+        authedHome,
+      ),
+      'team card list',
+    ),
+  );
+  const teamPersisted = teamCards.cards.find((card) => card.id === teamCard.card.id);
+  assert(teamPersisted !== undefined, 'the team card vanished from the team board list');
+  assert(
+    teamPersisted.board === 'team' &&
+      teamPersisted.column === 'in-dev' &&
+      teamPersisted.visited.includes('todo') &&
+      teamPersisted.visited.includes('in-dev'),
+    `team card list did not surface board/visited correctly: ${JSON.stringify(teamPersisted)}`,
   );
 
   expectError(

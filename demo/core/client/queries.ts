@@ -10,7 +10,7 @@ import type {
 } from '@tanstack/query-core';
 
 import type { TenantCreateInput } from '#core/contract/index.js';
-import type { CardMove, NewCard, NewTodo } from '#core/domain/index.js';
+import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
@@ -88,6 +88,8 @@ export const todosScopes = {
 export const cardsScopes = {
   all: () => ['cards'] as const,
   lists: () => ['cards', 'list'] as const,
+  /** One board's list — a distinct cache entry so personal and team never mix. */
+  list: (board: BoardId) => ['cards', 'list', board] as const,
 };
 
 export const authScopes = {
@@ -127,10 +129,10 @@ export const addTodoMutation = (api: ApiClient) =>
 /** The invalidation filter `addTodoMutation` applies after it settles. */
 export const addTodoInvalidates = () => ({ queryKey: todosScopes.lists() });
 
-export const cardsQuery = (api: ApiClient) =>
+export const cardsQuery = (api: ApiClient, board: BoardId = 'personal') =>
   defineQuery({
-    queryKey: cardsScopes.lists(),
-    call: ({ signal }) => api.listCards(signal),
+    queryKey: cardsScopes.list(board),
+    call: ({ signal }) => api.listCards(board, signal),
   });
 
 export const addCardMutation = (api: ApiClient) =>

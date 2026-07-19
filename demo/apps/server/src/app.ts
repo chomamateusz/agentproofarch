@@ -8,6 +8,7 @@ import {
   TENANT_HEADER,
   cardCreateInputSchema,
   cardMoveInputSchema,
+  cardsListQuerySchema,
   tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
@@ -188,7 +189,11 @@ export const buildApp = (deps: AppDeps) => {
   });
 
   app.get(API_PATHS.cards, async (c) => {
-    const result = await listCards({ identity: c.get('identity') }, deps);
+    const parsed = cardsListQuerySchema.safeParse({ board: c.req.query('board') });
+    if (!parsed.success) {
+      return respond(err(validation('Invalid board', parsed.error.flatten())));
+    }
+    const result = await listCards({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok({ cards: result.value }) : result);
   });
 

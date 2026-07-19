@@ -1,4 +1,4 @@
-import type { Card, Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
+import type { BoardId, Card, Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
 
 /**
  * Ports: interfaces the core depends on, implemented in `adapters/`.
@@ -10,17 +10,26 @@ export interface TodoRepository {
   create(todo: Todo): Promise<void>;
 }
 
-/** A single card's new column + 0-based position, applied tenant-scoped. */
+/**
+ * A single card's new column + 0-based position, applied tenant-scoped.
+ * `visited` is set only for the moving card (the one whose column changed), so
+ * the reorder pass leaves every other card's history untouched.
+ */
 export interface CardPositionUpdate {
   id: string;
   column: string;
   position: number;
+  visited?: readonly string[];
 }
 
 export interface CardRepository {
-  listByTenant(tenantId: string): Promise<Card[]>;
+  listByTenant(tenantId: string, board: BoardId): Promise<Card[]>;
   create(card: Card): Promise<void>;
-  updatePositions(tenantId: string, updates: readonly CardPositionUpdate[]): Promise<void>;
+  updatePositions(
+    tenantId: string,
+    board: BoardId,
+    updates: readonly CardPositionUpdate[],
+  ): Promise<void>;
 }
 
 export interface TenantDomainRepository {

@@ -43,6 +43,7 @@ export const actions = {
   addTodo: addTodoMutation(apiClient),
   addTodoInvalidates,
   board: cardsQuery(apiClient),
+  teamBoard: cardsQuery(apiClient, 'team'),
   boardInvalidates: cardsInvalidates,
   signUp: signUpMutation(authClient),
   signIn: signInMutation(authClient),
@@ -65,4 +66,17 @@ export const boardGateway = {
     apiClient.addCard(input).then(toGatewayResult),
   moveCard: (input: { cardId: string; toColumn: string; toIndex: number }) =>
     apiClient.moveCard(input).then(toGatewayResult),
+};
+
+/**
+ * The team island's gateway — identical plumbing to `boardGateway`, but every
+ * write is scoped to the team board (`board: 'team'`) so the server enforces the
+ * team column set and its transition table. The island's optimistic store gates
+ * moves through the domain oracle first; this gateway only persists the survivors.
+ */
+export const teamBoardGateway = {
+  addCard: (input: { title: string; column: string }) =>
+    apiClient.addCard({ ...input, board: 'team' }).then(toGatewayResult),
+  moveCard: (input: { cardId: string; toColumn: string; toIndex: number }) =>
+    apiClient.moveCard({ ...input, board: 'team' }).then(toGatewayResult),
 };

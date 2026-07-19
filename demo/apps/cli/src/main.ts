@@ -4,7 +4,7 @@ import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
 import type { AuthClientPort } from '#core/client/index.js';
 import { createApiClient, type ApiClient } from '#core/client/index.js';
 import { TENANT_HEADER } from '#core/contract/index.js';
-import { err, internal, notFound, ok, validation } from '#core/domain/index.js';
+import { boardIdSchema, err, internal, notFound, ok, validation, type BoardId } from '#core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
 import { emit } from './output.js';
@@ -172,28 +172,55 @@ todo
     );
   });
 
-const card = program.command('card').description('Cards on the personal board in the active tenant');
-
-card.command('list').description('List cards, grouped by column').action(async () => {
-  const ctx = cliCtx();
-  emit(await ctx.api.listCards(), ctx.json, (data) =>
-    data.cards.length === 0
-      ? 'no cards'
-      : [...data.cards]
-          .sort((a, b) => a.column.localeCompare(b.column) || a.position - b.position)
-          .map((c) => `- [${c.column}] ${c.title}  (${c.id.slice(0, 8)})`)
-          .join('\n'),
+const card = program
+  .command('card')
+  .description(
+    'Cards on a board in the active tenant (default: personal). ' +
+      'The team board (--board team) enforces ordered columns todo->in-dev->review->done ' +
+      'with WIP limits; illegal moves are rejected (validation, exit 2) naming the broken rule.',
   );
-});
+
+/** Parse a `--board` value into a `BoardId`, or null when it is not a known board. */
+const parseBoard = (value: string): BoardId | null => {
+  const parsed = boardIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+};
+
+card
+  .command('list')
+  .description('List cards on a board, grouped by column')
+  .option('--board <board>', 'board (personal|team)', 'personal')
+  .action(async (options: { board: string }) => {
+    const ctx = cliCtx();
+    const board = parseBoard(options.board);
+    if (board === null) {
+      emit(err(validation(`--board must be personal or team, got "${options.board}"`)), ctx.json, () => '');
+      return;
+    }
+    emit(await ctx.api.listCards(board), ctx.json, (data) =>
+      data.cards.length === 0
+        ? 'no cards'
+        : [...data.cards]
+            .sort((a, b) => a.column.localeCompare(b.column) || a.position - b.position)
+            .map((c) => `- [${c.column}] ${c.title}  (${c.id.slice(0, 8)})`)
+            .join('\n'),
+    );
+  });
 
 card
   .command('add <title...>')
   .description('Add a card to a column (default: todo)')
+  .option('--board <board>', 'board (personal|team)', 'personal')
   .option('--column <column>', 'target column', 'todo')
-  .action(async (titleWords: string[], options: { column: string }) => {
+  .action(async (titleWords: string[], options: { board: string; column: string }) => {
     const ctx = cliCtx();
+    const board = parseBoard(options.board);
+    if (board === null) {
+      emit(err(validation(`--board must be personal or team, got "${options.board}"`)), ctx.json, () => '');
+      return;
+    }
     emit(
-      await ctx.api.addCard({ title: titleWords.join(' '), column: options.column }),
+      await ctx.api.addCard({ title: titleWords.join(' '), board, column: options.column }),
       ctx.json,
       (data) => `added: ${data.card.title} [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
     );
@@ -202,17 +229,23 @@ card
 card
   .command('move <id>')
   .description('Move a card to a column, at an optional 0-based index (default: end)')
+  .option('--board <board>', 'board (personal|team)', 'personal')
   .requiredOption('--to <column>', 'destination column')
   .option('--index <n>', 'destination index within the column')
-  .action(async (id: string, options: { to: string; index?: string }) => {
+  .action(async (id: string, options: { board: string; to: string; index?: string }) => {
     const ctx = cliCtx();
+    const board = parseBoard(options.board);
+    if (board === null) {
+      emit(err(validation(`--board must be personal or team, got "${options.board}"`)), ctx.json, () => '');
+      return;
+    }
     const toIndex = options.index === undefined ? Number.MAX_SAFE_INTEGER : Number(options.index);
     if (!Number.isInteger(toIndex)) {
       emit(err(validation(`--index must be an integer, got "${options.index}"`)), ctx.json, () => '');
       return;
     }
     emit(
-      await ctx.api.moveCard({ cardId: id, toColumn: options.to, toIndex }),
+      await ctx.api.moveCard({ cardId: id, board, toColumn: options.to, toIndex }),
       ctx.json,
       (data) => `moved: ${data.card.title} -> [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
     );

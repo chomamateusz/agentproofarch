@@ -20,8 +20,10 @@ const card = (id: string, title: string, column: string, position: number): Card
   id,
   tenantId: 't1',
   title,
+  board: 'personal',
   column,
   position,
+  visited: [column],
   createdAt: '2026-07-11T00:00:00.000Z',
 });
 

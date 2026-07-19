@@ -1,14 +1,21 @@
 import {
+  canApplyTeamMove,
+  cardListQuerySchema,
   cardMoveSchema,
   err,
   isPersonalColumn,
+  isTeamColumn,
   newCardSchema,
   notFound,
   ok,
+  TEAM_BOARD_ENTRY_COLUMN,
+  TEAM_WIP_LIMITS,
   tenantNotFound,
   validation,
   type AppError,
+  type BoardId,
   type Card,
+  type CardListQuery,
   type CardMove,
   type NewCard,
   type Result,
@@ -25,9 +32,23 @@ export interface CardDeps {
 
 const byPosition = (a: Card, b: Card): number => a.position - b.position;
 
-export const listCards = async (ctx: Ctx, deps: CardDeps): Promise<Result<Card[], AppError>> => {
+/** Which column set governs a board — the domain fact each board enforces. */
+const isColumnOfBoard = (board: BoardId, column: string): boolean =>
+  board === 'team' ? isTeamColumn(column) : isPersonalColumn(column);
+
+/** Append the entered column to a card's history, de-duplicated and order-preserving. */
+const enter = (visited: readonly string[], column: string): string[] =>
+  visited.includes(column) ? [...visited] : [...visited, column];
+
+export const listCards = async (
+  ctx: Ctx,
+  input: CardListQuery,
+  deps: CardDeps,
+): Promise<Result<Card[], AppError>> => {
   if (!ctx.identity.tenantId) return err(tenantNotFound('Select a tenant to list cards'));
-  return ok(await deps.cards.listByTenant(ctx.identity.tenantId));
+  const parsed = cardListQuerySchema.safeParse(input);
+  if (!parsed.success) return err(validation('Invalid card query', parsed.error.flatten()));
+  return ok(await deps.cards.listByTenant(ctx.identity.tenantId, parsed.data.board));
 };
 
 export const addCard = async (
@@ -39,19 +60,32 @@ export const addCard = async (
 
   const parsed = newCardSchema.safeParse(input);
   if (!parsed.success) return err(validation('Invalid card', parsed.error.flatten()));
-  if (!isPersonalColumn(parsed.data.column)) {
-    return err(validation(`Unknown column "${parsed.data.column}"`));
+  const { board, column, title } = parsed.data;
+  if (!isColumnOfBoard(board, column)) {
+    return err(validation(`Unknown column "${column}" for the ${board} board`));
+  }
+  if (board === 'team' && column !== TEAM_BOARD_ENTRY_COLUMN) {
+    return err(
+      validation(
+        `Team cards start in "${TEAM_BOARD_ENTRY_COLUMN}" — creating one in "${column}" would bypass the path guards`,
+        { rule: 'entry-column' },
+      ),
+    );
   }
 
-  const existing = await deps.cards.listByTenant(ctx.identity.tenantId);
-  const position = existing.filter((card) => card.column === parsed.data.column).length;
+  const existing = await deps.cards.listByTenant(ctx.identity.tenantId, board);
+  const position = existing.filter((card) => card.column === column).length;
 
   const card: Card = {
     id: deps.ids.nextId(),
     tenantId: ctx.identity.tenantId,
-    title: parsed.data.title,
-    column: parsed.data.column,
+    title,
+    board,
+    column,
     position,
+    // A new card's history starts with the column it was created in — the team
+    // board's review-requires-in-dev guard reads this; inert for personal.
+    visited: [column],
     createdAt: deps.clock.nowIso(),
   };
   await deps.cards.create(card);
@@ -59,12 +93,16 @@ export const addCard = async (
 };
 
 /**
- * Free movement, no rules: any card to any column at any index. Positions are
- * rewritten as contiguous 0-based indices (not fractional) — deterministic, no
- * precision drift, and the clamp target is simply the column length. `toIndex`
- * is clamped into the valid range HERE, before persistence (ADR-0005
- * spike-learning: clamp raw payload indices at the gateway, never trust the
- * client's optimistic index), so persisted order can never diverge.
+ * Movement is board-aware. The team board consults `canApplyTeamMove` (derived
+ * from the `core/domain` transition table) BEFORE persisting — a rejected move
+ * returns a `validation` error naming the offending rule (→ HTTP 400 → CLI exit
+ * 2) and touches nothing. The personal board keeps free movement.
+ *
+ * On success the entered column is appended to the moving card's `visited`
+ * history, and positions are rewritten as contiguous 0-based indices. `toIndex`
+ * is clamped into range HERE, before persistence (ADR-0005 spike-learning:
+ * clamp raw payload indices at the gateway, never trust the client's optimistic
+ * index), so persisted order can never diverge.
  */
 export const moveCard = async (
   ctx: Ctx,
@@ -75,25 +113,41 @@ export const moveCard = async (
 
   const parsed = cardMoveSchema.safeParse(input);
   if (!parsed.success) return err(validation('Invalid move', parsed.error.flatten()));
-  const { cardId, toColumn, toIndex } = parsed.data;
-  if (!isPersonalColumn(toColumn)) return err(validation(`Unknown column "${toColumn}"`));
+  const { cardId, board, toColumn, toIndex } = parsed.data;
 
   const tenantId = ctx.identity.tenantId;
-  const all = await deps.cards.listByTenant(tenantId);
+  const all = await deps.cards.listByTenant(tenantId, board);
   const moving = all.find((card) => card.id === cardId);
   if (!moving) return err(notFound(`Card ${cardId} not found`));
+
+  if (board === 'team') {
+    // `isTeamColumn` narrows `toColumn` to a `TeamColumn` so the check derives
+    // from the same transition table the island machine derives from — no cast.
+    if (!isTeamColumn(toColumn)) {
+      return err(validation(`Unknown column "${toColumn}" for the team board`));
+    }
+    const verdict = canApplyTeamMove(all, { cardId, toColumn }, TEAM_WIP_LIMITS);
+    if (!verdict.allowed) {
+      return err(validation(`Move blocked by rule "${verdict.rule}"`, { rule: verdict.rule }));
+    }
+  } else if (!isPersonalColumn(toColumn)) {
+    return err(validation(`Unknown column "${toColumn}" for the personal board`));
+  }
 
   const target = all
     .filter((card) => card.column === toColumn && card.id !== cardId)
     .sort(byPosition);
   const clampedIndex = Math.max(0, Math.min(toIndex, target.length));
-  const moved: Card = { ...moving, column: toColumn, position: clampedIndex };
+  const nextVisited = enter(moving.visited, toColumn);
+  const moved: Card = { ...moving, column: toColumn, position: clampedIndex, visited: nextVisited };
   target.splice(clampedIndex, 0, moved);
 
   const updates: CardPositionUpdate[] = target.map((card, index) => ({
     id: card.id,
     column: toColumn,
     position: index,
+    // Only the moving card's history changed; carry it just for that row.
+    ...(card.id === cardId ? { visited: nextVisited } : {}),
   }));
 
   if (moving.column !== toColumn) {
@@ -105,6 +159,6 @@ export const moveCard = async (
       });
   }
 
-  await deps.cards.updatePositions(tenantId, updates);
+  await deps.cards.updatePositions(tenantId, board, updates);
   return ok(moved);
 };

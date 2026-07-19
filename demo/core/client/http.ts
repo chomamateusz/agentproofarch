@@ -22,6 +22,7 @@ import {
   internal,
   ok,
   type AppError,
+  type BoardId,
   type CardMove,
   type NewCard,
   type NewTodo,
@@ -123,8 +124,15 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.todos.method, API_ROUTES.todos.path, todoListOutputSchema, undefined, signal),
   addTodo: (input: NewTodo, signal?: AbortSignal) =>
     request(options, API_ROUTES.todosCreate.method, API_ROUTES.todosCreate.path, todoCreateOutputSchema, input, signal),
-  listCards: (signal?: AbortSignal) =>
-    request(options, API_ROUTES.cards.method, API_ROUTES.cards.path, cardsListOutputSchema, undefined, signal),
+  listCards: (board: BoardId = 'personal', signal?: AbortSignal) =>
+    request(
+      options,
+      API_ROUTES.cards.method,
+      `${API_ROUTES.cards.path}?board=${encodeURIComponent(board)}`,
+      cardsListOutputSchema,
+      undefined,
+      signal,
+    ),
   addCard: (input: NewCard, signal?: AbortSignal) =>
     request(options, API_ROUTES.cardsCreate.method, API_ROUTES.cardsCreate.path, cardCreateOutputSchema, input, signal),
   moveCard: (input: CardMove, signal?: AbortSignal) =>

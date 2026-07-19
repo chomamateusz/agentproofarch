@@ -1,4 +1,6 @@
-import { boolean, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+
+import { BOARD_IDS } from '#core/domain/index.js';
 
 export const tenants = pgTable(
   'tenants',
@@ -70,15 +72,29 @@ export const cards = pgTable(
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
+    // Which board this card lives on. Defaults to 'personal' so every card that
+    // predates the team board — and every payload that omits `board` — stays on
+    // the personal board with no backfill.
+    board: text('board', { enum: BOARD_IDS }).notNull().default('personal'),
     // Board-agnostic: the legal column set is data of a board, validated at the
     // use-case boundary, so the substrate stores a plain string.
     column: text('column').notNull(),
-    // Contiguous 0-based index within a (tenant, column); rewritten on move.
+    // Contiguous 0-based index within a (tenant, board, column); rewritten on move.
     position: integer('position').notNull(),
+    // Ordered columns the card has entered — read by the team board's
+    // review-requires-in-dev guard. jsonb string array; defaults to empty.
+    visited: jsonb('visited').$type<string[]>().notNull().default([]),
     // ISO 8601 string; the domain speaks ISO strings, not driver-specific Dates.
     createdAt: text('created_at').notNull(),
   },
-  (table) => [index('cards_tenant_column_idx').on(table.tenantId, table.column, table.position)],
+  (table) => [
+    index('cards_tenant_board_column_idx').on(
+      table.tenantId,
+      table.board,
+      table.column,
+      table.position,
+    ),
+  ],
 );
 
 export const tenantDomains = pgTable(

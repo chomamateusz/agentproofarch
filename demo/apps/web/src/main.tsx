@@ -18,6 +18,7 @@ import { RefreshSnackbar } from './RefreshSnackbar.js';
 import { renderRootErrorFallback } from './RootErrorFallback.js';
 import { BoardRoute } from './routes/board.js';
 import { LoginRoute } from './routes/login.js';
+import { TeamBoardRoute } from './routes/team-board.js';
 import { TodosRoute } from './routes/todos.js';
 import { ThemeModeProvider } from './theme-mode.js';
 
@@ -52,9 +53,14 @@ const boardRoute = createRoute({
   path: '/board',
   component: BoardRoute,
 });
+const teamBoardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/team-board',
+  component: TeamBoardRoute,
+});
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, loginRoute, boardRoute]),
+  routeTree: rootRoute.addChildren([indexRoute, loginRoute, boardRoute, teamBoardRoute]),
 });
 
 declare module '@tanstack/react-router' {
