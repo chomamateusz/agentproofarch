@@ -6,6 +6,8 @@ import {
   API_PATHS,
   HTTP_STATUS_BY_ERROR_CODE,
   TENANT_HEADER,
+  cardCreateInputSchema,
+  cardMoveInputSchema,
   tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
@@ -21,10 +23,13 @@ import {
   type Result,
 } from '#core/domain/index.js';
 import {
+  addCard,
   addTodo,
   createTenant,
+  listCards,
   listMyTenants,
   listTodos,
+  moveCard,
   resolveIdentity,
   type AuthenticatedUser,
 } from '#core/server/index.js';
@@ -180,6 +185,31 @@ export const buildApp = (deps: AppDeps) => {
     }
     const result = await addTodo({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok({ todo: result.value }) : result);
+  });
+
+  app.get(API_PATHS.cards, async (c) => {
+    const result = await listCards({ identity: c.get('identity') }, deps);
+    return respond(result.ok ? ok({ cards: result.value }) : result);
+  });
+
+  app.post(API_PATHS.cards, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = cardCreateInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid card payload', parsed.error.flatten())));
+    }
+    const result = await addCard({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok({ card: result.value }) : result);
+  });
+
+  app.post(API_PATHS.cardsMove, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = cardMoveInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid card move payload', parsed.error.flatten())));
+    }
+    const result = await moveCard({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok({ card: result.value }) : result);
   });
 
   return app;

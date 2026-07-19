@@ -24,6 +24,7 @@ const auth = createAuth(db, {
   baseDomain: 'localhost',
   trustedOrigins: () => ['http://localhost:47100'],
   secureCookies: false,
+  rateLimitEnabled: false,
 });
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';

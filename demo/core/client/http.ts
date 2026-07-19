@@ -2,6 +2,9 @@ import { type z } from 'zod';
 
 import {
   API_ROUTES,
+  cardCreateOutputSchema,
+  cardMoveOutputSchema,
+  cardsListOutputSchema,
   looseEnvelopeSchema,
   healthOutputSchema,
   meOutputSchema,
@@ -14,7 +17,16 @@ import {
   type TenantCreateInput,
   type WriteMethod,
 } from '#core/contract/index.js';
-import { err, internal, ok, type AppError, type NewTodo, type Result } from '#core/domain/index.js';
+import {
+  err,
+  internal,
+  ok,
+  type AppError,
+  type CardMove,
+  type NewCard,
+  type NewTodo,
+  type Result,
+} from '#core/domain/index.js';
 
 declare const HTTP_METHOD_BRAND: unique symbol;
 
@@ -111,6 +123,12 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.todos.method, API_ROUTES.todos.path, todoListOutputSchema, undefined, signal),
   addTodo: (input: NewTodo, signal?: AbortSignal) =>
     request(options, API_ROUTES.todosCreate.method, API_ROUTES.todosCreate.path, todoCreateOutputSchema, input, signal),
+  listCards: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.cards.method, API_ROUTES.cards.path, cardsListOutputSchema, undefined, signal),
+  addCard: (input: NewCard, signal?: AbortSignal) =>
+    request(options, API_ROUTES.cardsCreate.method, API_ROUTES.cardsCreate.path, cardCreateOutputSchema, input, signal),
+  moveCard: (input: CardMove, signal?: AbortSignal) =>
+    request(options, API_ROUTES.cardsMove.method, API_ROUTES.cardsMove.path, cardMoveOutputSchema, input, signal),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;

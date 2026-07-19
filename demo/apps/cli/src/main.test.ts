@@ -25,6 +25,9 @@ type TenantList = { tenants: Membership[] };
 type TenantCreate = { tenant: { name: string; slug: string } };
 type TodoList = { todos: { id: string; title: string }[] };
 type TodoCreate = { todo: { id: string; title: string } };
+type CardItem = { id: string; title: string; column: string; position: number };
+type CardList = { cards: CardItem[] };
+type CardWrite = { card: CardItem };
 type Session = { token: string | null };
 
 interface FakeApi {
@@ -34,6 +37,9 @@ interface FakeApi {
   createTenant: Mock<AsyncIn<{ slug: string; name: string }, TenantCreate>>;
   listTodos: Mock<Async<TodoList>>;
   addTodo: Mock<AsyncIn<{ title: string }, TodoCreate>>;
+  listCards: Mock<Async<CardList>>;
+  addCard: Mock<AsyncIn<{ title: string; column: string }, CardWrite>>;
+  moveCard: Mock<AsyncIn<{ cardId: string; toColumn: string; toIndex: number }, CardWrite>>;
 }
 
 interface FakeAuth {
@@ -65,6 +71,9 @@ const h = vi.hoisted(
       createTenant: vi.fn<AsyncIn<{ slug: string; name: string }, TenantCreate>>(),
       listTodos: vi.fn<Async<TodoList>>(),
       addTodo: vi.fn<AsyncIn<{ title: string }, TodoCreate>>(),
+      listCards: vi.fn<Async<CardList>>(),
+      addCard: vi.fn<AsyncIn<{ title: string; column: string }, CardWrite>>(),
+      moveCard: vi.fn<AsyncIn<{ cardId: string; toColumn: string; toIndex: number }, CardWrite>>(),
     },
     auth: {
       signUp: vi.fn<AsyncIn<{ name: string; email: string; password: string }, Session>>(),
@@ -119,7 +128,17 @@ beforeEach(() => {
   h.authBaseUrl = null;
   h.onToken = null;
 
-  for (const fn of [h.api.health, h.api.me, h.api.listTenants, h.api.createTenant, h.api.listTodos, h.api.addTodo]) {
+  for (const fn of [
+    h.api.health,
+    h.api.me,
+    h.api.listTenants,
+    h.api.createTenant,
+    h.api.listTodos,
+    h.api.addTodo,
+    h.api.listCards,
+    h.api.addCard,
+    h.api.moveCard,
+  ]) {
     fn.mockReset();
   }
   h.auth.signUp.mockReset();
@@ -131,6 +150,13 @@ beforeEach(() => {
   h.api.createTenant.mockResolvedValue(ok({ tenant: { name: 'Acme Corp', slug: 'acme-corp' } }));
   h.api.listTodos.mockResolvedValue(ok({ todos: [] }));
   h.api.addTodo.mockResolvedValue(ok({ todo: { id: 'todo-1234abcd', title: 'buy milk' } }));
+  h.api.listCards.mockResolvedValue(ok({ cards: [] }));
+  h.api.addCard.mockResolvedValue(
+    ok({ card: { id: 'card-1234abcd', title: 'ship it', column: 'todo', position: 0 } }),
+  );
+  h.api.moveCard.mockResolvedValue(
+    ok({ card: { id: 'card-1234abcd', title: 'ship it', column: 'doing', position: 1 } }),
+  );
   h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
   h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
 
@@ -235,6 +261,81 @@ describe('command wiring', () => {
   it('uses the explicit --slug override for `tenant create`', async () => {
     await run('tenant', 'create', '--slug', 'custom-slug', 'Acme', 'Corp');
     expect(h.api.createTenant).toHaveBeenCalledExactlyOnceWith({ slug: 'custom-slug', name: 'Acme Corp' });
+  });
+});
+
+describe('card commands', () => {
+  it('reports the empty state for `card list`', async () => {
+    await run('card', 'list');
+    expect(h.api.listCards).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith('no cards');
+  });
+
+  it('groups a non-empty `card list` by column then position', async () => {
+    h.api.listCards.mockResolvedValue(
+      ok({
+        cards: [
+          { id: 'ddddddddaa', title: 'Deploy', column: 'doing', position: 1 },
+          { id: 'aaaaaaaabb', title: 'Design', column: 'doing', position: 0 },
+          { id: 'ccccccccdd', title: 'Done thing', column: 'done', position: 0 },
+        ],
+      }),
+    );
+
+    await run('card', 'list');
+
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+      ['- [doing] Design  (aaaaaaaa)', '- [doing] Deploy  (dddddddd)', '- [done] Done thing  (cccccccc)'].join('\n'),
+    );
+  });
+
+  it('joins variadic words and defaults the column to todo for `card add`', async () => {
+    await run('card', 'add', 'ship', 'it');
+
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', column: 'todo' });
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith('added: ship it [todo#0] (card-123)');
+  });
+
+  it('passes the explicit --column to `card add`', async () => {
+    await run('card', 'add', '--column', 'doing', 'ship', 'it');
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', column: 'doing' });
+  });
+
+  it('moves a card to the end of a column when --index is omitted', async () => {
+    await run('card', 'move', 'card-1234abcd', '--to', 'doing');
+
+    expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
+      cardId: 'card-1234abcd',
+      toColumn: 'doing',
+      toIndex: Number.MAX_SAFE_INTEGER,
+    });
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith('moved: ship it -> [doing#1] (card-123)');
+  });
+
+  it('passes an explicit --index to `card move`', async () => {
+    await run('card', 'move', 'card-1234abcd', '--to', 'doing', '--index', '0');
+    expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
+      cardId: 'card-1234abcd',
+      toColumn: 'doing',
+      toIndex: 0,
+    });
+  });
+
+  it('rejects a non-integer --index locally (validation, exit 2) without calling the API', async () => {
+    await run('--json', 'card', 'move', 'card-1234abcd', '--to', 'doing', '--index', 'abc');
+
+    expect(h.api.moveCard).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('maps an unauthorized `card list` to exit code 3', async () => {
+    h.api.listCards.mockResolvedValue(err(appError('unauthorized', 'login first')));
+
+    await run('--json', 'card', 'list');
+
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'unauthorized' } });
+    expect(process.exitCode).toBe(3);
   });
 });
 

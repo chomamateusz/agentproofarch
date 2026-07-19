@@ -210,6 +210,10 @@ const TenantLedger = ({
               </Link>
             );
           })}
+          <Box sx={{ flex: 1 }} />
+          <Link href="/board" variant="body2">
+            board →
+          </Link>
         </LedgerNav>
 
         <Box component="section" sx={{ mt: '48px', animation: 'settle 0.5s 0.16s ease-out both' }}>

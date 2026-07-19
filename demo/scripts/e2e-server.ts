@@ -87,6 +87,9 @@ const bootServer = (): void => {
       APP_BASE_URL: `http://localhost:${PORT}`,
       APP_BASE_DOMAIN: 'localhost',
       WEB_DIST_DIR,
+      // The suite fires many sign-ins from one shared bucket (no client IP
+      // behind the harness) — production keeps the limiter on.
+      AUTH_RATE_LIMIT: 'off',
     },
   });
   child.on('exit', (code) => process.exit(code ?? 0));

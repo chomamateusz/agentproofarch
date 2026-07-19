@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { createDb } from '#adapters/db/client.js';
+import { createCardRepository } from '#adapters/db/cards-repository.js';
 import {
   createHealthPort,
   createTenantAccessReader,
@@ -11,6 +12,7 @@ import {
 import { createAuth, createAuthPort, type Auth } from '#adapters/auth/create-auth.js';
 import type {
   AuthPort,
+  CardRepository,
   Clock,
   HealthPort,
   IdGenerator,
@@ -26,6 +28,7 @@ export interface AppDeps {
   auth: Auth;
   authPort: AuthPort;
   todos: TodoRepository;
+  cards: CardRepository;
   tenantDomains: TenantDomainRepository;
   tenants: TenantRepository;
   tenantAccess: TenantAccessReader;
@@ -61,6 +64,7 @@ export const createDeps = (env: Env): AppDeps => {
     baseUrl: env.APP_BASE_URL,
     baseDomain: env.APP_BASE_DOMAIN,
     secureCookies: env.SECURE_COOKIES,
+    rateLimitEnabled: env.AUTH_RATE_LIMIT,
     trustedOrigins: async () => {
       const domains = await tenantDomains.listVerifiedDomains();
       return [
@@ -75,6 +79,7 @@ export const createDeps = (env: Env): AppDeps => {
     auth,
     authPort: createAuthPort(auth),
     todos: createTodoRepository(db),
+    cards: createCardRepository(db),
     tenantDomains,
     tenants: createTenantRepository(db),
     tenantAccess: createTenantAccessReader(db),

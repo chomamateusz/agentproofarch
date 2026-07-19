@@ -33,19 +33,27 @@ export default defineConfig({
         // by the `e2e` CI job's real browser, so counting it as 0% would falsely
         // depress the database-free ratchet floor below.
         'scripts/e2e-server.ts',
+        // Smoke-gate orchestration, same rationale: these boot the real server /
+        // drive a real deploy through the CLI (`npm run smoke` / `smoke:remote`),
+        // so they have no database-free unit surface and are exercised by the
+        // smoke CI job — counting them as 0% would falsely depress the floor.
+        'scripts/smoke.ts',
+        'scripts/smoke-cli.ts',
+        'scripts/smoke-remote.ts',
       ],
       // Ratchet floor, not aspiration: each threshold is the measured coverage
-      // of the default (database-free) `vitest run --coverage` on 2026-07-17
-      // (stmts/lines 62.13, branches 89.51, funcs 80.12), rounded DOWN to the
+      // of the default (database-free) `vitest run --coverage` on 2026-07-19
+      // (stmts/lines 76.01, branches 91.28, funcs 83.05), rounded DOWN to the
       // whole percent. A regression below the floor fails `npm run check`;
       // raise the floor whenever coverage climbs. Integration-only files
-      // (repositories.ts, migrate.ts, …) read 0% here because they are covered
-      // by `test:integration`, which runs where Postgres exists (CI smoke job).
+      // (repositories.ts, cards-repository.ts, migrate.ts, …) read 0% here
+      // because they are covered by `test:integration`, which runs where
+      // Postgres exists (CI smoke job).
       thresholds: {
-        statements: 62,
-        branches: 89,
-        functions: 80,
-        lines: 62,
+        statements: 76,
+        branches: 91,
+        functions: 83,
+        lines: 76,
       },
     },
     projects: [

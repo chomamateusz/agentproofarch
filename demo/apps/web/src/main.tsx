@@ -16,6 +16,7 @@ import { initWebObservability, reportError } from './observability.js';
 import { queryClient } from './query-client.js';
 import { RefreshSnackbar } from './RefreshSnackbar.js';
 import { renderRootErrorFallback } from './RootErrorFallback.js';
+import { BoardRoute } from './routes/board.js';
 import { LoginRoute } from './routes/login.js';
 import { TodosRoute } from './routes/todos.js';
 import { ThemeModeProvider } from './theme-mode.js';
@@ -46,8 +47,15 @@ const loginRoute = createRoute({
   path: '/login',
   component: LoginRoute,
 });
+const boardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/board',
+  component: BoardRoute,
+});
 
-const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute, loginRoute]) });
+const router = createRouter({
+  routeTree: rootRoute.addChildren([indexRoute, loginRoute, boardRoute]),
+});
 
 declare module '@tanstack/react-router' {
   interface Register {

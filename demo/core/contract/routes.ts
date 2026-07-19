@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 import {
+  cardMoveSchema,
+  cardSchema,
   membershipSchema,
+  newCardSchema,
   newTodoSchema,
   staffRoleSchema,
   tenantSchema,
@@ -61,6 +64,22 @@ export const todoCreateOutputSchema = z.object({
   todo: todoSchema,
 });
 
+export const cardsListOutputSchema = z.object({
+  cards: z.array(cardSchema),
+});
+
+export const cardCreateInputSchema = newCardSchema;
+
+export const cardCreateOutputSchema = z.object({
+  card: cardSchema,
+});
+
+export const cardMoveInputSchema = cardMoveSchema;
+
+export const cardMoveOutputSchema = z.object({
+  card: cardSchema,
+});
+
 /**
  * Every route carries its HTTP method so clients can discriminate reads from
  * writes at the type level (CQRS partition). Safe GETs are queries; unsafe
@@ -73,6 +92,9 @@ export const API_ROUTES = {
   tenantsCreate: { method: 'POST', path: '/api/tenants' },
   todos: { method: 'GET', path: '/api/todos' },
   todosCreate: { method: 'POST', path: '/api/todos' },
+  cards: { method: 'GET', path: '/api/cards' },
+  cardsCreate: { method: 'POST', path: '/api/cards' },
+  cardsMove: { method: 'POST', path: '/api/cards/move' },
 } as const;
 
 export type HttpMethod = (typeof API_ROUTES)[keyof typeof API_ROUTES]['method'];
@@ -84,6 +106,8 @@ export const API_PATHS = {
   me: API_ROUTES.me.path,
   tenants: API_ROUTES.tenants.path,
   todos: API_ROUTES.todos.path,
+  cards: API_ROUTES.cards.path,
+  cardsMove: API_ROUTES.cardsMove.path,
 } as const;
 
 /** Header used by non-browser clients (CLI, tests) to select the tenant. */

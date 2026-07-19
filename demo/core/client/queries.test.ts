@@ -6,11 +6,16 @@ import { err, internal, ok } from '#core/domain/index.js';
 import type { AuthClientPort } from './auth-port.js';
 import { ApiError, type ApiClient } from './http.js';
 import {
+  addCardMutation,
   addTodoInvalidates,
   addTodoMutation,
+  cardsInvalidates,
+  cardsQuery,
+  cardsScopes,
   createTenantMutation,
   meQuery,
   meScopes,
+  moveCardMutation,
   signInMutation,
   signOutMutation,
   signUpMutation,
@@ -28,6 +33,15 @@ const todo = {
   createdAt: '2026-07-03T00:00:00.000Z',
 };
 
+const card = {
+  id: 'card-1',
+  tenantId: 't-acme',
+  title: 'Card one',
+  column: 'todo',
+  position: 0,
+  createdAt: '2026-07-03T00:00:00.000Z',
+};
+
 const tenant = { id: 't-acme', slug: 'acme', name: 'Acme Inc' };
 
 const happyApi: ApiClient = {
@@ -37,6 +51,9 @@ const happyApi: ApiClient = {
   createTenant: async (input) => ok({ tenant: { id: 't-new', slug: input.slug, name: input.name } }),
   listTodos: async () => ok({ todos: [todo] }),
   addTodo: async (input) => ok({ todo: { ...todo, title: input.title } }),
+  listCards: async () => ok({ cards: [card] }),
+  addCard: async (input) => ok({ card: { ...card, title: input.title, column: input.column } }),
+  moveCard: async (input) => ok({ card: { ...card, column: input.toColumn, position: input.toIndex } }),
 };
 
 const sadApi: ApiClient = {
@@ -46,6 +63,9 @@ const sadApi: ApiClient = {
   createTenant: async () => err({ code: 'conflict', message: 'Already exists' }),
   listTodos: async () => err(internal('boom')),
   addTodo: async () => err(internal('boom')),
+  listCards: async () => err(internal('boom')),
+  addCard: async () => err(internal('boom')),
+  moveCard: async () => err(internal('boom')),
 };
 
 const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -55,6 +75,7 @@ describe('query descriptors', () => {
     expect(meQuery(happyApi).queryKey).toEqual(meScopes.all());
     expect(tenantsQuery(happyApi).queryKey).toEqual(tenantsScopes.all());
     expect(todosQuery(happyApi).queryKey).toEqual(todosScopes.lists());
+    expect(cardsQuery(happyApi).queryKey).toEqual(cardsScopes.lists());
   });
 
   it('unwrap the Result value through the queryFn on success', async () => {
@@ -70,6 +91,7 @@ describe('query descriptors', () => {
       tenants: [{ tenant, staffRole: 'owner' }],
     });
     await expect(client.fetchQuery(todosQuery(happyApi))).resolves.toEqual({ todos: [todo] });
+    await expect(client.fetchQuery(cardsQuery(happyApi))).resolves.toEqual({ cards: [card] });
   });
 
   it('throw an ApiError carrying the AppError when the call fails', async () => {
@@ -86,6 +108,8 @@ describe('mutation descriptors', () => {
   it('carry a create-suffixed mutation key', () => {
     expect(createTenantMutation(happyApi).mutationKey).toEqual([...tenantsScopes.all(), 'create']);
     expect(addTodoMutation(happyApi).mutationKey).toEqual([...todosScopes.all(), 'create']);
+    expect(addCardMutation(happyApi).mutationKey).toEqual([...cardsScopes.all(), 'create']);
+    expect(moveCardMutation(happyApi).mutationKey).toEqual([...cardsScopes.all(), 'move']);
   });
 
   it('unwrap the write Result through the mutationFn on success', async () => {
@@ -98,6 +122,14 @@ describe('mutation descriptors', () => {
     await expect(
       new MutationObserver(client, addTodoMutation(happyApi)).mutate({ title: 'Ship it' }),
     ).resolves.toEqual({ todo: { ...todo, title: 'Ship it' } });
+
+    await expect(
+      new MutationObserver(client, addCardMutation(happyApi)).mutate({ title: 'New card', column: 'doing' }),
+    ).resolves.toEqual({ card: { ...card, title: 'New card', column: 'doing' } });
+
+    await expect(
+      new MutationObserver(client, moveCardMutation(happyApi)).mutate({ cardId: 'card-1', toColumn: 'done', toIndex: 2 }),
+    ).resolves.toEqual({ card: { ...card, column: 'done', position: 2 } });
   });
 
   it('throw an ApiError from the mutationFn when the call fails', async () => {
@@ -110,6 +142,10 @@ describe('mutation descriptors', () => {
 
   it('invalidates the todo lists after a successful add', () => {
     expect(addTodoInvalidates()).toEqual({ queryKey: todosScopes.lists() });
+  });
+
+  it('invalidates the card lists after a successful add or move', () => {
+    expect(cardsInvalidates()).toEqual({ queryKey: cardsScopes.lists() });
   });
 });
 

@@ -4,6 +4,8 @@ import { createBetterAuthClientAdapter } from '#adapters/auth/client-adapter.js'
 import {
   addTodoInvalidates,
   addTodoMutation,
+  cardsInvalidates,
+  cardsQuery,
   createApiClient,
   meQuery,
   signInMutation,
@@ -40,7 +42,27 @@ export const actions = {
   todos: todosQuery(apiClient),
   addTodo: addTodoMutation(apiClient),
   addTodoInvalidates,
+  board: cardsQuery(apiClient),
+  boardInvalidates: cardsInvalidates,
   signUp: signUpMutation(authClient),
   signIn: signInMutation(authClient),
   signOut: signOutMutation(authClient),
+};
+
+/**
+ * The board island's optimistic store persists each edit through this gateway.
+ * It maps the typed API client's `Result` to the store's ok/error verdict; the
+ * store never sees HTTP, a `Result` or an `AppError`. The shape is validated
+ * structurally where `core/board` consumes it (api.ts must not import a feature).
+ */
+const toGatewayResult = (
+  result: Awaited<ReturnType<typeof apiClient.addCard>>,
+): { ok: true } | { ok: false; error: string } =>
+  result.ok ? { ok: true } : { ok: false, error: result.error.message };
+
+export const boardGateway = {
+  addCard: (input: { title: string; column: string }) =>
+    apiClient.addCard(input).then(toGatewayResult),
+  moveCard: (input: { cardId: string; toColumn: string; toIndex: number }) =>
+    apiClient.moveCard(input).then(toGatewayResult),
 };

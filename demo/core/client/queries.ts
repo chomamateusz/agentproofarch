@@ -10,7 +10,7 @@ import type {
 } from '@tanstack/query-core';
 
 import type { TenantCreateInput } from '#core/contract/index.js';
-import type { NewTodo } from '#core/domain/index.js';
+import type { CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
@@ -85,6 +85,11 @@ export const todosScopes = {
   lists: () => ['todos', 'list'] as const,
 };
 
+export const cardsScopes = {
+  all: () => ['cards'] as const,
+  lists: () => ['cards', 'list'] as const,
+};
+
 export const authScopes = {
   all: () => ['auth'] as const,
 };
@@ -121,6 +126,27 @@ export const addTodoMutation = (api: ApiClient) =>
 
 /** The invalidation filter `addTodoMutation` applies after it settles. */
 export const addTodoInvalidates = () => ({ queryKey: todosScopes.lists() });
+
+export const cardsQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: cardsScopes.lists(),
+    call: ({ signal }) => api.listCards(signal),
+  });
+
+export const addCardMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...cardsScopes.all(), 'create'],
+    call: (input: NewCard) => api.addCard(input),
+  });
+
+export const moveCardMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...cardsScopes.all(), 'move'],
+    call: (input: CardMove) => api.moveCard(input),
+  });
+
+/** Both card writes reorder the board, so both invalidate the list scope. */
+export const cardsInvalidates = () => ({ queryKey: cardsScopes.lists() });
 
 /**
  * Auth side effects are mutation descriptors over `AuthClientPort` like any

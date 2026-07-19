@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const tenants = pgTable(
   'tenants',
@@ -60,6 +60,25 @@ export const todos = pgTable(
     createdAt: text('created_at').notNull(),
   },
   (table) => [index('todos_tenantId_idx').on(table.tenantId)],
+);
+
+export const cards = pgTable(
+  'cards',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    // Board-agnostic: the legal column set is data of a board, validated at the
+    // use-case boundary, so the substrate stores a plain string.
+    column: text('column').notNull(),
+    // Contiguous 0-based index within a (tenant, column); rewritten on move.
+    position: integer('position').notNull(),
+    // ISO 8601 string; the domain speaks ISO strings, not driver-specific Dates.
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('cards_tenant_column_idx').on(table.tenantId, table.column, table.position)],
 );
 
 export const tenantDomains = pgTable(

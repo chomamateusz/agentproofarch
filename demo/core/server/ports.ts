@@ -1,4 +1,4 @@
-import type { Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
+import type { Card, Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
 
 /**
  * Ports: interfaces the core depends on, implemented in `adapters/`.
@@ -8,6 +8,19 @@ import type { Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '
 export interface TodoRepository {
   listByTenant(tenantId: string): Promise<Todo[]>;
   create(todo: Todo): Promise<void>;
+}
+
+/** A single card's new column + 0-based position, applied tenant-scoped. */
+export interface CardPositionUpdate {
+  id: string;
+  column: string;
+  position: number;
+}
+
+export interface CardRepository {
+  listByTenant(tenantId: string): Promise<Card[]>;
+  create(card: Card): Promise<void>;
+  updatePositions(tenantId: string, updates: readonly CardPositionUpdate[]): Promise<void>;
 }
 
 export interface TenantDomainRepository {
