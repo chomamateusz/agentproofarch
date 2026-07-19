@@ -1,5 +1,43 @@
 # PRD: Agentproofarch — Agent-First Full-Stack Foundation
 
+## 0. Errata (mechanical corrections, 2026-07-20)
+
+This PRD is the original accepted source; some of its concrete mechanics drifted
+from what the demo actually shipped. The corrections below supersede the cited
+passages **on mechanics only** — they do not re-adjudicate scope (which parts of
+the PRD are built vs roadmap is a separate open question). Where this block and
+the body disagree, this block wins.
+
+- **Platform entry file (§2 Goals, §3.1 `apps/server`, §3.2, US-023).** There is
+  no `entry.vercel.ts`. The Vercel entry is `demo/api/index.ts`, which exports a
+  node-style handler via `@hono/node-server/vercel` (see
+  [ADR-0003](decisions/0003-vercel-environments.md) §4). Everywhere the PRD says
+  `entry.vercel.ts` (including the `@vercel/*`/`@neondatabase/*` containment
+  exemption), read `api/index.ts`.
+- **Module resolution (§3.1, US-001 acceptance).** There are **no** tsconfig
+  path aliases `@core/*`/`@adapters/*`. The repo uses Node **subpath imports**
+  declared in `package.json` (`"imports": { "#core/*": "./core/*",
+  "#adapters/*": "./adapters/*" }`); all code imports `#core/...` / `#adapters/...`.
+- **No `tasks/` directory (§3.1).** The `tasks/` entry in the directory layout
+  does not exist; PRDs and agent docs live under `docs/`. The whole
+  implementation is rooted in `demo/` (its own `package.json`); paths in this
+  PRD are relative to that root.
+- **`AuthPort` return type (§3.4 vs §3.5).** §3.5 lists `AuthPort` as
+  `request → Identity or error`, which contradicts §3.4 ("`AuthPort` yields the
+  authenticated user; the resolver builds `Identity`"). §3.4 is correct:
+  `AuthPort.getAuthenticatedUser(headers)` returns `AuthenticatedUser | null`
+  (userId, email, name); the core tenant-resolution resolver builds `Identity`
+  from that plus tenant context. Read §3.5's `AuthPort` line accordingly.
+- **Tenancy vocabulary — no "organizations" (§2 Goals, US-013/US-016/US-017,
+  FR-7).** Tenancy is foundation-owned `tenants` with flat `owner`/`admin`
+  grants in `tenant_admins`; there is deliberately **no organization/team
+  concept** (see [ADR-0002](decisions/0002-member-identity-and-idp.md) and the
+  §3.4 model this PRD already adopted). "organizations/invitations" in the Goals
+  list, the `org …` CLI verbs (US-013), and "a personal default organization
+  created" (US-016) are legacy wording: registration creates a **tenant** with
+  its **owner row**, the CLI namespace is `tenant`, and the auth provider is
+  never involved in tenancy.
+
 ## 1. Introduction / Overview
 
 Agentproofarch is a foundation (starter architecture, not a product) for building multi-tenant SaaS web applications that are maximally friendly to AI-agent development. Every business feature built on top of it flows through strictly enforced layers: a pure-TypeScript core, thin adapters for external resources, and thin client/server applications. The primary feedback loop for agents is the CLI: every capability of the platform is invocable from the command line with structured JSON output and deterministic exit codes, so an agent can implement, run, and verify features without a browser.

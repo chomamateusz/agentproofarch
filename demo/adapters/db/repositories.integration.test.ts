@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import { migrate as migrateNodePg } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
@@ -15,7 +16,7 @@ import {
   createTenantRepository,
   createTodoRepository,
 } from './repositories.js';
-import { members, tenantAdmins, tenantDomains } from './schema.js';
+import { cards, members, tenantAdmins, tenantDomains, tenants, todos } from './schema.js';
 import * as schema from './schema.js';
 
 const ITEST_DB = 'agentproofarch_itest';
@@ -497,5 +498,55 @@ describe('team board rules against Postgres', () => {
     expect(personal.ok && personal.value.every((c) => c.board === 'personal')).toBe(true);
     const team = await listCards(ctx, { board: 'team' }, teamDeps());
     expect(team.ok && team.value.every((c) => c.board === 'team')).toBe(true);
+  });
+});
+
+// Runs LAST: it deletes tenant A, so every earlier suite must have observed the
+// seeded A rows before this destructive cascade removes them.
+describe('tenant offboarding cascade', () => {
+  // Every tenant-owned aggregate, counted directly against the tables (cards
+  // spans both boards, so it is not board-scoped here).
+  const tenantRowCounts = async (tenantId: string) => {
+    const [todoRows, cardRows, memberRows, adminRows, domainRows, tenantRows] = await Promise.all([
+      db.select().from(todos).where(eq(todos.tenantId, tenantId)),
+      db.select().from(cards).where(eq(cards.tenantId, tenantId)),
+      db.select().from(members).where(eq(members.tenantId, tenantId)),
+      db.select().from(tenantAdmins).where(eq(tenantAdmins.tenantId, tenantId)),
+      db.select().from(tenantDomains).where(eq(tenantDomains.tenantId, tenantId)),
+      db.select().from(tenants).where(eq(tenants.id, tenantId)),
+    ]);
+    return {
+      todos: todoRows.length,
+      cards: cardRows.length,
+      members: memberRows.length,
+      admins: adminRows.length,
+      domains: domainRows.length,
+      tenant: tenantRows.length,
+    };
+  };
+
+  it('deleteTenant erases every A aggregate and leaves every B row untouched', async () => {
+    const beforeA = await tenantRowCounts(tenantA.id);
+    // A owns at least one row in each aggregate, so the cascade has something to prove.
+    expect(beforeA.tenant).toBe(1);
+    expect(beforeA.todos).toBeGreaterThan(0);
+    expect(beforeA.cards).toBeGreaterThan(0);
+    expect(beforeA.members).toBeGreaterThan(0);
+    expect(beforeA.admins).toBeGreaterThan(0);
+    expect(beforeA.domains).toBeGreaterThan(0);
+
+    const beforeB = await tenantRowCounts(tenantB.id);
+
+    await tenantRepo().deleteTenant(tenantA.id);
+
+    expect(await tenantRowCounts(tenantA.id)).toEqual({
+      todos: 0,
+      cards: 0,
+      members: 0,
+      admins: 0,
+      domains: 0,
+      tenant: 0,
+    });
+    expect(await tenantRowCounts(tenantB.id)).toEqual(beforeB);
   });
 });

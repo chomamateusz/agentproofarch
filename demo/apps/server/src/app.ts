@@ -38,6 +38,7 @@ import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
 import { recordAppError, recordException, telemetryMiddleware } from './telemetry.js';
+import { APP_VERSION } from './version.js';
 
 type Vars = { Variables: { identity: Identity } };
 
@@ -108,7 +109,7 @@ export const buildApp = (deps: AppDeps) => {
     respond(
       ok({
         status: 'ok' as const,
-        version: '0.1.0',
+        version: APP_VERSION,
         database: (await deps.health.pingDatabase()) ? ('up' as const) : ('down' as const),
       }),
     ),

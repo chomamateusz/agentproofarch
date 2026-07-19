@@ -80,15 +80,19 @@ type SettleEvent =
 const indexOf = (items: readonly __SINGULAR_PASCAL__Item[], itemId: string): number =>
   items.findIndex((item) => item.id === itemId);
 
+// Clamp any view-supplied index into [0, length]. A view can send ANY toIndex,
+// so it is pinned in ONE place and the SAME clamped value feeds both the local
+// transition and the gateway call — the optimistic list can never diverge from
+// the server (the spike's toIndex-clamp finding). One clamp, one place.
+const clampIndex = (length: number, index: number): number =>
+  Math.max(0, Math.min(index, length));
+
 const insertAt = (
   items: readonly __SINGULAR_PASCAL__Item[],
   item: __SINGULAR_PASCAL__Item,
   index: number,
 ): readonly __SINGULAR_PASCAL__Item[] => {
-  // Clamp the raw payload index BEFORE it touches the array (and, in a real
-  // island, before the gateway): a view can send any toIndex, so pin it into
-  // [0, length] here — the spike's toIndex-clamp finding. One clamp, one place.
-  const clamped = Math.max(0, Math.min(index, items.length));
+  const clamped = clampIndex(items.length, index);
   return [...items.slice(0, clamped), item, ...items.slice(clamped)];
 };
 
@@ -174,13 +178,17 @@ export const create__SINGULAR_PASCAL__Store = (
         if (from === -1) return;
         const prevItems = ctx.items;
         const prevUndo = ctx.undo;
+        // Clamp ONCE against the post-removal length; the SAME index goes to the
+        // local transition AND the gateway, so no raw payload index reaches the
+        // wire. (moveTo removes the item first, so its target list is length-1.)
+        const toIndex = clampIndex(prevItems.length - 1, event.toIndex);
         const commitUndo: UndoOp = { kind: 'move', itemId: event.itemId, toIndex: from };
         enq.effect(({ send }) => {
           void gateway
-            .moveItem({ itemId: event.itemId, toIndex: event.toIndex })
+            .moveItem({ itemId: event.itemId, toIndex })
             .then((result) => send(settleEvent(result, commitUndo, prevItems, prevUndo)));
         });
-        return { items: moveTo(prevItems, event.itemId, event.toIndex), undo: prevUndo };
+        return { items: moveTo(prevItems, event.itemId, toIndex), undo: prevUndo };
       },
 
       itemRemoveRequested: (ctx, event: { itemId: string }, enq) => {

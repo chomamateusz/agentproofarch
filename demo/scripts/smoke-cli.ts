@@ -131,6 +131,22 @@ const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
 };
 
 /**
+ * The SPA shell must carry Vercel's revalidate-always default explicitly on
+ * self-host (architecture §HTTP caching): hashed assets are immutable, but
+ * index.html is served with `public, max-age=0, must-revalidate` so a new
+ * deploy is picked up immediately. Parity with the `vercel.json` behaviour.
+ */
+const assertIndexHtmlCacheHeader = async (baseUrl: string): Promise<void> => {
+  const response = await fetch(`${baseUrl}/`);
+  assert(response.ok, `GET / (index.html) must serve the SPA shell, got ${response.status}`);
+  const cacheControl = response.headers.get('cache-control') ?? '(missing)';
+  assert(
+    cacheControl === 'public, max-age=0, must-revalidate',
+    `index.html cache-control must be "public, max-age=0, must-revalidate" (Vercel revalidate-always parity), got "${cacheControl}"`,
+  );
+};
+
+/**
  * The runtime contract every deploy target must satisfy, driven purely through
  * the CLI: health → sign-in → todos list/add/list → cards add/list/move/list
  * (verifying the moved card persists at its new column and index) → the team
@@ -142,6 +158,7 @@ const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
 export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<void> => {
   const { baseUrl } = target;
   await assertResponseHeaders(baseUrl);
+  await assertIndexHtmlCacheHeader(baseUrl);
   const authedHome = mkdtempSync(join(tmpdir(), 'smoke-cli-'));
   const anonHome = mkdtempSync(join(tmpdir(), 'smoke-anon-'));
   homes.push(authedHome, anonHome);

@@ -177,6 +177,24 @@ const ISLAND_CORE_PERSIST_BAN = {
     'Persistence is banned in island cores: client state must die on reload (durable state lives on the server via TanStack Query). Do not import persist/createJSONStorage.',
 };
 
+// The vanilla @xstate/store store and the xstate machine are importable in an
+// island core, but their REACT bindings are not: `@xstate/store/react` /
+// `@xstate/react` pull React back into the pure core through the store, undoing
+// the framework-agnostic seam. The core exposes selectors; the view calls
+// `useSelector` against them. Without these bans the island-core override drops
+// the STORE_LIB_CONFINEMENT_PATTERN and would silently re-permit the React
+// binding (ADR-0005).
+const ISLAND_CORE_STORE_REACT_MESSAGE =
+  'Island cores stay framework-agnostic: import the vanilla @xstate/store store / xstate machine, never their React bindings (@xstate/store/react, @xstate/react). Expose selectors from the core; the view calls useSelector. (ADR-0005)';
+const ISLAND_CORE_STORE_REACT_BANS = ['@xstate/store/react', '@xstate/react'].map((name) => ({
+  name,
+  message: ISLAND_CORE_STORE_REACT_MESSAGE,
+}));
+const ISLAND_CORE_STORE_REACT_PATTERN = {
+  group: ['@xstate/store/react/*', '@xstate/react/*'],
+  message: ISLAND_CORE_STORE_REACT_MESSAGE,
+};
+
 const WEB_RESTRICTED_SYNTAX = [
   AS_BAN,
   AUTH_API_LITERAL_BAN,
@@ -194,6 +212,12 @@ const WEB_RESTRICTED_SYNTAX = [
 export default tseslint.config(
   {
     ignores: ['node_modules/**', 'dist/**', 'drizzle/**'],
+  },
+  {
+    // Suppression policy (frontend-lint-plan §Suppression policy): an
+    // `eslint-disable` that no longer suppresses anything is itself a lint
+    // error, so stale carve-outs cannot linger unnoticed.
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
   {
     files: ['**/*.js', '**/*.mjs'],
@@ -240,6 +264,8 @@ export default tseslint.config(
         { type: 'core-client', pattern: 'core/client/**', mode: 'full' },
         { type: 'adapter-db', pattern: 'adapters/db/**', mode: 'full' },
         { type: 'adapter-auth', pattern: 'adapters/auth/**', mode: 'full' },
+        // Reserved for US-009 (DomainPort): the directory does not exist yet;
+        // the element type is pre-wired so boundaries hold when the adapter lands.
         { type: 'adapter-domains', pattern: 'adapters/domain-provisioning/**', mode: 'full' },
         { type: 'app-server', pattern: 'apps/server/**', mode: 'full' },
         { type: 'platform-entry', pattern: 'api/**', mode: 'full' },
@@ -463,7 +489,10 @@ export default tseslint.config(
           patterns: [QUERY_CLIENT_SINGLETON_PATTERN, STORE_LIB_CONFINEMENT_PATTERN],
         },
       ],
-      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX],
+      // setQueryData is banned across all of apps/web (server collections
+      // refresh via invalidation); the sole carve-out is a feature's
+      // optimistic.ts, re-permitted in its own override below.
+      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX, SET_QUERY_DATA_BAN],
     },
   },
   {
@@ -481,9 +510,10 @@ export default tseslint.config(
             ...CLIENT_CONSTRUCTION_BANS,
             ...DEVTOOLS_BAN,
             ...ISLAND_CORE_IMPORT_BANS,
+            ...ISLAND_CORE_STORE_REACT_BANS,
             ISLAND_CORE_PERSIST_BAN,
           ],
-          patterns: [QUERY_CLIENT_SINGLETON_PATTERN],
+          patterns: [QUERY_CLIENT_SINGLETON_PATTERN, ISLAND_CORE_STORE_REACT_PATTERN],
         },
       ],
     },
@@ -497,14 +527,9 @@ export default tseslint.config(
     },
   },
   {
-    // setQueryData is a single-resource optimistic-write escape hatch; a feature
-    // may use it only inside an optimistic.ts (exempted below).
-    files: ['apps/web/src/features/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX, SET_QUERY_DATA_BAN],
-    },
-  },
-  {
+    // setQueryData is a single-resource optimistic-write escape hatch confined
+    // to a feature's optimistic.ts. The ban is app-wide (general apps/web block);
+    // this override drops it for optimistic.ts alone.
     files: ['apps/web/src/features/**/optimistic.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...WEB_RESTRICTED_SYNTAX],
@@ -519,6 +544,8 @@ export default tseslint.config(
   {
     files: ['apps/web/src/query-client.ts'],
     rules: {
+      // NEW_QUERY_CLIENT_BAN is dropped here (this is the sanctioned construction
+      // site); SET_QUERY_DATA_BAN stays so the app-wide ban has no hole.
       'no-restricted-syntax': [
         'error',
         AS_BAN,
@@ -526,6 +553,7 @@ export default tseslint.config(
         ...REACT_API_BANS,
         ...QUERY_HOOK_BANS,
         QUERY_KEY_BAN,
+        SET_QUERY_DATA_BAN,
       ],
     },
   },

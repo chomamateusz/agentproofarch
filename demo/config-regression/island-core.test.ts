@@ -5,11 +5,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
  * Behavioral config-regression probes for the machine-agnostic island-core
- * enforcement. No `features/<name>/core/` exists in the demo yet, so each probe
- * writes a deliberately-illegal fixture into the real tree at the exact path an
- * island core will occupy, runs the real linter, and asserts the specific
- * ruleId fires — proving the rules bite on FUTURE files. Fixtures live under a
- * per-run token feature and are always removed.
+ * enforcement. The demo now ships real island cores (`features/board/core/`,
+ * `features/team-board/core/`), but each probe still writes a
+ * deliberately-illegal fixture into the real tree at the exact path an island
+ * core occupies, runs the real linter, and asserts the specific ruleId fires —
+ * proving the rules bite regardless of the current features. Fixtures live
+ * under a per-run token feature and are always removed.
  */
 
 const demoRoot = join(import.meta.dirname, '..');
@@ -74,6 +75,12 @@ const fixtures = {
   zustandInCore: {
     rel: join(coreDir, 'zustand-probe.ts'),
     content: "import { createStore } from 'zustand/vanilla';\nexport const make = createStore;\n",
+  },
+  // The vanilla store is allowed inside a core, but its REACT binding is not:
+  // `@xstate/store/react` pulls React back into the pure core through the store.
+  storeReactBindingInCore: {
+    rel: join(coreDir, 'store-react-probe.ts'),
+    content: "import { useSelector } from '@xstate/store/react';\nexport const probe = useSelector;\n",
   },
   // Positive probe: BOTH store libraries are importable INSIDE an island core.
   storeInCoreAllowed: {
@@ -178,6 +185,12 @@ describe('island-core lint gate rejects violations on future core files', () => 
 
   it('bans zustand (the substitute) even inside an island core — the demo uses the first choice', () => {
     expect(has('zustandInCore', 'no-restricted-imports', 'not a demo dependency')).toBe(true);
+  });
+
+  it('bans the @xstate/store React binding inside an island core (framework-agnostic)', () => {
+    expect(has('storeReactBindingInCore', 'no-restricted-imports', '@xstate/store/react')).toBe(
+      true,
+    );
   });
 
   it('permits @xstate/store and xstate inside an island core (the machine behind the seam)', () => {

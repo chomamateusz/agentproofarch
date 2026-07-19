@@ -85,10 +85,34 @@ describe('__SINGULAR_KEBAB__ rules drift-proof', () => {
     expect(allowed).toBeGreaterThan(0);
   });
 
-  // <<EXTENSION POINT — prove the harness catches drift>>
-  // Add a deliberately DRIFTED machine (e.g. a hand-written one that DROPS a guard
-  // on one transition) and assert `disagree` flags at least one scenario — the
-  // b-table spike does this to show the property test is not vacuous. Keep the
-  // drifted machine hand-written and INLINE (hoisting its transitions into consts
-  // widens their literal types and XState's config type rejects them).
+  it('is not vacuous: a hand-written machine that DROPS a guard is caught by `disagree`', () => {
+    // The planted mutant (proves the drift-proof has teeth). A deliberately
+    // DRIFTED, hand-written oracle: it still honours the wip-limit guard but
+    // FORGETS `done-requires-active`, so it wrongly allows any item to jump
+    // straight to `done`. If the enumeration + `disagree` above were vacuous
+    // this bug would slip through unnoticed; instead they MUST flag at least one
+    // scenario against the real table walk. Kept INLINE and self-contained — a
+    // drifted copy of `canApply` with one guard removed.
+    const driftedMachine = (
+      state: __SINGULAR_PASCAL__State,
+      move: __SINGULAR_PASCAL__Move,
+      limits: WipLimits,
+    ): __SINGULAR_PASCAL__Verdict => {
+      const item = state.items.find((candidate) => candidate.id === move.itemId);
+      if (item === undefined) return { allowed: false, rule: 'unknown-item' };
+      if (item.phase === move.to) return { allowed: true };
+      // BUG (planted): only the wip-limit guard survives — the ordering guard
+      // `done-requires-active` is dropped, so `done` is reachable from anywhere.
+      const limit = limits[move.to];
+      if (limit !== undefined) {
+        const occupants = state.items.filter((i) => i.phase === move.to && i.id !== item.id).length;
+        if (occupants >= limit) return { allowed: false, rule: 'wip-limit' };
+      }
+      return { allowed: true };
+    };
+    const caught = scenarios.some(({ state, move, limits }) =>
+      disagree(driftedMachine(state, move, limits), canApply__SINGULAR_PASCAL__Move(state, move, limits)),
+    );
+    expect(caught).toBe(true);
+  });
 });

@@ -1,9 +1,16 @@
 import { Command } from 'commander';
+import { z } from 'zod';
 
 import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
 import type { AuthClientPort } from '#core/client/index.js';
 import { createApiClient, type ApiClient } from '#core/client/index.js';
-import { TENANT_HEADER } from '#core/contract/index.js';
+import {
+  TENANT_HEADER,
+  cardCreateInputSchema,
+  cardMoveInputSchema,
+  tenantCreateInputSchema,
+  todoCreateInputSchema,
+} from '#core/contract/index.js';
 import { boardIdSchema, err, internal, notFound, ok, validation, type BoardId } from '#core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
@@ -31,6 +38,33 @@ const slugFromName = (name: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+// Auth args have no shared contract schema (the auth flow goes through Better
+// Auth, not the API routes), so the CLI carries its own boundary schemas.
+// Format/policy stays the server's job; the CLI only refuses empty input.
+const registerArgsSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().min(1),
+  password: z.string().min(1),
+});
+const loginArgsSchema = z.object({
+  email: z.string().trim().min(1),
+  password: z.string().min(1),
+});
+const tenantSwitchArgsSchema = z.object({ slug: z.string().trim().min(1) });
+
+/**
+ * Parse Commander-collected args/options through a domain/contract schema at
+ * the CLI boundary (architecture: zod-parse every boundary). On failure it
+ * emits one `validation` envelope (exit 2) and returns undefined so the action
+ * bails without ever calling the API.
+ */
+const parseArgs = <T>(schema: z.ZodType<T>, value: unknown, json: boolean): T | undefined => {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  emit(err(validation('Invalid CLI arguments', result.error.flatten())), json, () => '');
+  return undefined;
+};
+
 const cliCtx = (): CliCtx => {
   const config = loadConfig();
   const globals = program.opts<{ json: boolean; apiUrl?: string; tenant?: string }>();
@@ -43,9 +77,13 @@ const cliCtx = (): CliCtx => {
       ...(tenant ? { [TENANT_HEADER]: tenant } : {}),
     }),
   });
-  const auth = createCliAuthAdapter(apiUrl, (token) => {
-    saveConfig({ ...config, apiUrl, token });
-  });
+  const auth = createCliAuthAdapter(
+    apiUrl,
+    (token) => {
+      saveConfig({ ...config, apiUrl, token });
+    },
+    () => config.token,
+  );
   return { config, api, auth, apiUrl, tenant, json: globals.json };
 };
 
@@ -62,11 +100,13 @@ program
   .requiredOption('--password <password>')
   .action(async (options: { name: string; email: string; password: string }) => {
     const ctx = cliCtx();
-    const result = await ctx.auth.signUp(options);
+    const input = parseArgs(registerArgsSchema, options, ctx.json);
+    if (input === undefined) return;
+    const result = await ctx.auth.signUp(input);
     if (result.ok && result.value.token) {
       saveConfig({ ...ctx.config, apiUrl: ctx.apiUrl, token: result.value.token });
     }
-    emit(result, ctx.json, () => `registered and signed in as ${options.email}`);
+    emit(result, ctx.json, () => `registered and signed in as ${input.email}`);
   });
 
 program
@@ -76,7 +116,9 @@ program
   .requiredOption('--password <password>')
   .action(async (options: { email: string; password: string }) => {
     const ctx = cliCtx();
-    const result = await ctx.auth.signIn(options);
+    const input = parseArgs(loginArgsSchema, options, ctx.json);
+    if (input === undefined) return;
+    const result = await ctx.auth.signIn(input);
     if (result.ok) {
       if (!result.value.token) {
         emit(err(internal('Server did not return a session token')), ctx.json, () => '');
@@ -84,13 +126,16 @@ program
       }
       saveConfig({ ...ctx.config, apiUrl: ctx.apiUrl, token: result.value.token });
     }
-    emit(result, ctx.json, () => `signed in as ${options.email}`);
+    emit(result, ctx.json, () => `signed in as ${input.email}`);
   });
 
-program.command('logout').description('Drop the stored session token').action(() => {
+program.command('logout').description('Drop the stored session token').action(async () => {
   const ctx = cliCtx();
+  // Revoke the session server-side FIRST (the CLI is bearer-authenticated, so a
+  // local-only clear leaves the session valid), then drop the stored token.
+  const signedOut = await ctx.auth.signOut();
   saveConfig({ ...ctx.config, token: null });
-  emit(ok({ loggedOut: true }), ctx.json, () => 'signed out');
+  emit(signedOut.ok ? ok({ loggedOut: true }) : signedOut, ctx.json, () => 'signed out');
 });
 
 program.command('whoami').description('Current user and active tenant').action(async () => {
@@ -123,7 +168,9 @@ tenant
     const ctx = cliCtx();
     const name = nameWords.join(' ');
     const slug = options.slug ?? slugFromName(name);
-    emit(await ctx.api.createTenant({ slug, name }), ctx.json, (data) =>
+    const input = parseArgs(tenantCreateInputSchema, { slug, name }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.createTenant(input), ctx.json, (data) =>
       `created tenant: ${data.tenant.name} (${data.tenant.slug})`,
     );
   });
@@ -131,8 +178,11 @@ tenant
 tenant
   .command('switch <slug>')
   .description('Set the active tenant for subsequent commands')
-  .action(async (slug: string) => {
+  .action(async (slugArg: string) => {
     const ctx = cliCtx();
+    const input = parseArgs(tenantSwitchArgsSchema, { slug: slugArg }, ctx.json);
+    if (input === undefined) return;
+    const { slug } = input;
     const tenants = await ctx.api.listTenants();
     if (!tenants.ok) {
       emit(tenants, ctx.json, () => '');
@@ -167,7 +217,9 @@ todo
   .description('Add a todo')
   .action(async (titleWords: string[]) => {
     const ctx = cliCtx();
-    emit(await ctx.api.addTodo({ title: titleWords.join(' ') }), ctx.json, (data) =>
+    const input = parseArgs(todoCreateInputSchema, { title: titleWords.join(' ') }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.addTodo(input), ctx.json, (data) =>
       `added: ${data.todo.title} (${data.todo.id.slice(0, 8)})`,
     );
   });
@@ -219,8 +271,14 @@ card
       emit(err(validation(`--board must be personal or team, got "${options.board}"`)), ctx.json, () => '');
       return;
     }
+    const input = parseArgs(
+      cardCreateInputSchema,
+      { title: titleWords.join(' '), board, column: options.column },
+      ctx.json,
+    );
+    if (input === undefined) return;
     emit(
-      await ctx.api.addCard({ title: titleWords.join(' '), board, column: options.column }),
+      await ctx.api.addCard(input),
       ctx.json,
       (data) => `added: ${data.card.title} [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
     );
@@ -240,12 +298,14 @@ card
       return;
     }
     const toIndex = options.index === undefined ? Number.MAX_SAFE_INTEGER : Number(options.index);
-    if (!Number.isInteger(toIndex)) {
-      emit(err(validation(`--index must be an integer, got "${options.index}"`)), ctx.json, () => '');
-      return;
-    }
+    const input = parseArgs(
+      cardMoveInputSchema,
+      { cardId: id, board, toColumn: options.to, toIndex },
+      ctx.json,
+    );
+    if (input === undefined) return;
     emit(
-      await ctx.api.moveCard({ cardId: id, board, toColumn: options.to, toIndex }),
+      await ctx.api.moveCard(input),
       ctx.json,
       (data) => `moved: ${data.card.title} -> [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
     );

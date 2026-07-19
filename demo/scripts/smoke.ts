@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -188,6 +188,9 @@ try {
   console.log(`smoke: booting server on port ${port}...`);
   const webDistDir = mkdtempSync(join(tmpdir(), 'smoke-web-'));
   homes.push(webDistDir);
+  // Minimal SPA shell so the server serves index.html — smoke asserts its
+  // revalidate-always cache header (Vercel parity) without a full web build.
+  writeFileSync(join(webDistDir, 'index.html'), '<!doctype html><title>agentproofarch smoke</title>\n');
   server = await bootServer(port, smokeDatabaseUrl, webDistDir);
   console.log('smoke: driving the CLI...');
   await driveCli(

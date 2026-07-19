@@ -174,8 +174,9 @@ judged by **two independent judge panels** whose disagreements were settled
 by an adjudicator with **verified runtime probes** (fail-open, index
 clamping, interleaving, subscription granularity — each reproduced against
 the code, not argued). Both panels independently picked `@xstate/store` and
-the table. Full record: [spike-report.md](spike-report.md); decision
-context: [island-core-grill-5.md](island-core-grill-5.md).
+the table. The full spike report and the decision-context notes
+(`spike-report.md`, `island-core-grill-5.md`) are **not committed** to this
+repo; their conclusions and probe results are summarized in this ADR.
 
 **Spike learnings — implementation requirements for the demo boards:**
 
@@ -220,11 +221,16 @@ context: [island-core-grill-5.md](island-core-grill-5.md).
   `@xstate/store`, team = rung 3 with the table-derived machine), two
   islands over one tasks subdomain — unblocked now that (a) and (b) are
   decided; both boards must satisfy the spike-learnings implementation
-  requirements above. Until they land the demo's features remain rung 1,
-  which is honest: no current feature fires a graduation trigger (the
-  pre-existing features carry no explicit `core/` folder yet — they gain
-  one when first touched by real client state; new islands start from
-  `npm run new:island`, which scaffolds the rung-1 seam).
+  requirements above.
+
+  > **Landed (2026-07-20).** Both boards now exist in the tree
+  > (`demo/apps/web/src/features/board/` with its `core/` island store, and
+  > `demo/apps/web/src/features/team-board/` with its `core/` over the
+  > `demo/core/domain/team-board.ts` transition table). Every *other* demo
+  > feature (todos, auth) remains rung 1 and honestly so — none fires a
+  > graduation trigger; the pre-existing features still carry no explicit
+  > `core/` folder and gain one when first touched by real client state. New
+  > islands start from `npm run new:island`, which scaffolds the rung-1 seam.
 - The one-paragraph "Client state" rule in architecture.md §Frontend is
   superseded by the island-core model (rewritten in the same change as this
   ADR).

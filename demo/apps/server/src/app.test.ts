@@ -53,6 +53,9 @@ const baseDeps = (): AppDeps => ({
     createOwnerGrant: async () => {
       throw new Error('not implemented in fake');
     },
+    deleteTenant: async () => {
+      throw new Error('not implemented in fake');
+    },
   },
   tenantAccess: {
     listTenantsForStaff: async () => [],

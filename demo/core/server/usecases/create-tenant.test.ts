@@ -33,6 +33,10 @@ const fakeTenants = (initialTenants: Tenant[] = []) => {
     createOwnerGrant: async (input) => {
       ownerGrants.push(input);
     },
+    deleteTenant: async (tenantId) => {
+      const index = tenants.findIndex((tenant) => tenant.id === tenantId);
+      if (index >= 0) tenants.splice(index, 1);
+    },
   };
 
   return { repo, tenants, ownerGrants };

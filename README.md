@@ -4,12 +4,15 @@ An agent-first, strictly layered full-stack TypeScript architecture for
 multi-tenant SaaS — and a working reference implementation of it.
 
 The idea in one paragraph: a pure-TypeScript core (domain, API contract,
-use-cases + ports, typed client) surrounded by thin adapters (database, auth,
-domain provisioning) and thin apps (HTTP server, web SPA, CLI). Every layer
+use-cases + ports, typed client) surrounded by thin adapters (database, auth)
+and thin apps (HTTP server, web SPA, CLI). Every layer
 boundary is machine-enforced by lint, every capability is verifiable from the
 CLI with JSON output and deterministic exit codes — so AI agents can build,
 run and verify features in a closed loop, and the same commit deploys to
-Vercel or a self-hosted Docker stack.
+Vercel today, with a self-hosted Docker stack as the designed — but
+intentionally not-yet-built — second target (US-020…023). A tenant
+domain-provisioning adapter (`DomainPort`) is likewise designed and normative
+when triggered (US-009/014/019–021), not yet built.
 
 ## Live demo
 
@@ -21,8 +24,10 @@ CLI stay fully multi-tenant via the `X-Tenant` header.
 ## The layers
 
 Arrows are the **only** allowed dependency directions. Clients (`apps/web`,
-`apps/cli`) reach exactly one node — `core/client` — and nothing else; that
-single edge is what the boundary lint exists to guarantee.
+`apps/cli`) reach `core/client` for all HTTP — plus the shared vocabulary they
+type against (`core/contract`, `core/domain`) and the auth client adapter they
+bind — and never `core/server` or `adapters/db`; that boundary is what the
+lint exists to guarantee.
 
 ```mermaid
 graph TD
@@ -60,8 +65,10 @@ graph TD
 ```
 
 `core/contract` is the single seam between server and clients; `core/domain`
-depends on zod alone; only `apps/server/src/composition.ts` ever instantiates an
-adapter. See [docs/architecture.md](docs/architecture.md) for the full rationale.
+depends on zod alone; `apps/server/src/composition.ts` is the only place a
+*server* adapter is instantiated (the auth *client* adapter is constructed in
+`apps/web/src/api.ts` for web and in the CLI's `cliCtx`). See
+[docs/architecture.md](docs/architecture.md) for the full rationale.
 
 ## Quickstart
 
@@ -114,26 +121,29 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **254 tests across 41 files.**
+  `doc-lint` + vitest with coverage. **340 tests across 49 files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (254, in `check`) · **integration** (17,
-  real Postgres, run in the `smoke` CI job) · **e2e** (4 Playwright specs, a
-  real Chromium over the real stack) · **smoke** (runtime) — plus
+- **Four test levels** — **unit** (340, in `check`) · **integration** (27,
+  real Postgres, run in the `smoke` CI job) · **e2e** (3 Playwright spec files,
+  7 tests, a real Chromium over the real stack) · **smoke** (runtime) — plus
   **`smoke:remote`**, the same CLI suite against deployed URLs.
 - **CI jobs** — `check`, `smoke` (Postgres service + integration), and `e2e`
   run on every PR; `post-deploy-smoke` re-runs `smoke:remote` against real
   production/preview after each deploy.
-- **Config-regression probes** — 17 tests assert every boundary and
-  island-core rule still fails on a violating fixture, so a rule cannot be
-  silently deleted and stay green.
-- **Doc-lint** — docs and enforcer config must agree both ways: every guarantee
-  the docs promise must exist in config, and every custom lint rule must be
-  documented. Divergence fails the gate.
+- **Config-regression probes** — 25 tests feed a violating fixture to each
+  covered boundary and island-core rule and assert the gate still goes red, so
+  those rules cannot be silently deleted and stay green.
+- **Doc-lint** — a fixed manifest (8 prose-promised guarantees) is checked both
+  ways against enforcer config, matched by rule name: every guarantee in the
+  manifest must still map to an ESLint / dependency-cruiser entry, and every
+  custom `agentproofarch/*` rule must be named somewhere under `docs/`.
+  Divergence fails the gate. It is a named-manifest check, not a proof that
+  *every* guarantee or boundary is covered.
 
 ## Environments
 
@@ -166,8 +176,6 @@ human and an agent build a feature the same way.
 | Folder | Contents |
 |---|---|
 | [`docs/`](docs/) | [architecture.md](docs/architecture.md), the [PRD](docs/prd-agentproofarch-foundation.md), [decisions/](docs/decisions/) (ADRs), and the [first-feature guide](docs/first-feature.md) |
-| [`demo/`](demo/) | The walking skeleton: multi-tenant todos with auth, organizations, tenant subdomains, themed Material UI web, full CLI and enforced boundaries — see [demo/README.md](demo/README.md) |
+| [`demo/`](demo/) | The walking skeleton: multi-tenant todos with auth, tenants (foundation-owned, flat `owner`/`admin` grants — no organizations/teams concept), tenant subdomains, themed Material UI web, full CLI and enforced boundaries — see [demo/README.md](demo/README.md) |
 
 Changing the architecture means changing [`docs/`](docs/) first, then the code.
-</content>
-</invoke>

@@ -45,6 +45,7 @@ interface FakeApi {
 interface FakeAuth {
   signUp: Mock<AsyncIn<{ name: string; email: string; password: string }, Session>>;
   signIn: Mock<AsyncIn<{ email: string; password: string }, Session>>;
+  signOut: Mock<Async<void>>;
 }
 
 interface Hoisted {
@@ -78,6 +79,7 @@ const h = vi.hoisted(
     auth: {
       signUp: vi.fn<AsyncIn<{ name: string; email: string; password: string }, Session>>(),
       signIn: vi.fn<AsyncIn<{ email: string; password: string }, Session>>(),
+      signOut: vi.fn<Async<void>>(),
     },
   }),
 );
@@ -143,6 +145,7 @@ beforeEach(() => {
   }
   h.auth.signUp.mockReset();
   h.auth.signIn.mockReset();
+  h.auth.signOut.mockReset();
 
   h.api.health.mockResolvedValue(ok({ status: 'ok', database: 'up', version: '1.2.3' }));
   h.api.me.mockResolvedValue(ok({ email: 'demo@x', tenant: null }));
@@ -159,6 +162,7 @@ beforeEach(() => {
   );
   h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
   h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
+  h.auth.signOut.mockResolvedValue(ok(undefined));
 
   logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -500,13 +504,36 @@ describe('auth commands persist the session token', () => {
     expect(h.saved).toEqual([{ apiUrl: 'http://localhost:47100', token: 'reg-tok', tenant: null }]);
   });
 
-  it('clears the stored token on logout', async () => {
+  it('revokes the session server-side then clears the stored token on logout', async () => {
     h.config = { apiUrl: 'http://localhost:47100', token: 'existing', tenant: 'acme' };
 
     await run('logout');
 
+    expect(h.auth.signOut).toHaveBeenCalledTimes(1);
     expect(h.saved).toEqual([{ apiUrl: 'http://localhost:47100', token: null, tenant: 'acme' }]);
     expect(logSpy).toHaveBeenCalledExactlyOnceWith('signed out');
+  });
+
+  it('surfaces a failed server sign-out (and still clears the local token)', async () => {
+    h.config = { apiUrl: 'http://localhost:47100', token: 'existing', tenant: 'acme' };
+    h.auth.signOut.mockResolvedValue(err(appError('internal', 'sign-out failed')));
+
+    await run('--json', 'logout');
+
+    expect(h.auth.signOut).toHaveBeenCalledTimes(1);
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'internal' } });
+    expect(h.saved).toEqual([{ apiUrl: 'http://localhost:47100', token: null, tenant: 'acme' }]);
+    expect(process.exitCode).toBe(10);
+  });
+});
+
+describe('CLI boundary validation', () => {
+  it('rejects an empty --email at the CLI boundary (validation, exit 2) without calling auth', async () => {
+    await run('--json', 'login', '--email', '', '--password', 'pw');
+
+    expect(h.auth.signIn).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
   });
 });
 

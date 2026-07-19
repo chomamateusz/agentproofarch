@@ -88,7 +88,7 @@ Scope `apps/web` unless noted:
 | No global state libraries: `redux`, `zustand`, `jotai`, `mobx`, `valtio`, `recoil` | `no-restricted-imports` | error |
 | No inline query definitions: object literal with `queryKey` outside `core/client` | `no-restricted-syntax` selector on `Property[key.name="queryKey"]`, scoped to `apps/web` | error |
 | No `React.FC`, no `forwardRef`, no `defaultProps`, no `<Context.Provider>` in new code | `no-restricted-syntax` | error |
-| No raw color values outside `theme.ts`: hex/`rgb(`/`hsl(` string literals in `.tsx` | `no-restricted-syntax` regex on Literal value | warn → error |
+| No raw color values outside `theme.ts`: hex/`rgb(`/`hsl(` string literals in `.tsx` | `no-restricted-syntax` regex on Literal value | **NOT WIRED** (planned) |
 | No `localStorage`/`sessionStorage` outside designated persistence helpers | `no-restricted-globals` + override for the helper file | error |
 | No `console` in `apps/web` (route errors through the error surface) | `no-console` (allow `warn`/`error` initially) | warn → error |
 | Type-only imports explicit | `@typescript-eslint/consistent-type-imports` (all TS scopes) | error |
@@ -107,7 +107,7 @@ Server-state rules (from [server-state.md](server-state.md); same phase):
 | No explicit type arguments on `useQuery`/`useQueries`/`useMutation` (types flow from descriptors) | `no-restricted-syntax` on TSTypeParameterInstantiation | error |
 | No `defaultOptions.queries.queryFn` (global queryFn bypasses the typed client) | `no-restricted-syntax` | error |
 | No non-null assertion on query results/params; `skipToken` for optional-param gating | `@typescript-eslint/no-non-null-assertion` | error |
-| `refetchType: 'all'`, blanket `refetchOnWindowFocus: false`/`retry: false` (outside test helpers), `staleTime: Infinity` | flagged for justification | warn |
+| `refetchType: 'all'`, blanket `refetchOnWindowFocus: false`/`retry: false` (outside test helpers), `staleTime: Infinity` | flagged for justification | **NOT WIRED** (planned) |
 | No `jest.mock`/`vi.mock` of `@tanstack/react-query` or `core/client` | `no-restricted-syntax` in test scope | error |
 | `@tanstack/react-query-devtools` importable only in `main.tsx` (and must be wired there, dev-only) | `no-restricted-imports` + override | error |
 | No hand-rolled pending/error `useState` around a port/action call — server side effects use `useMutation` with an action descriptor | review (lint heuristic infeasible) | review |
@@ -125,22 +125,32 @@ so the view↔core seam carries intents (what happened) not commands (what to do
 — `deleteCard` cannot pass. It is machine-agnostic: it constrains event *names*,
 never the store library behind the seam.
 
+Also implemented:
+
+- `query-descriptors-only` — `useQuery`/`useQueries`/`useMutation` arguments
+  must originate from a **canonical** descriptor module: `#core/client`, the web
+  `api.ts` binding site (bound `actions`), or an island core's `core/index.ts`
+  seam (call expression or spread of an imported descriptor), never an object
+  literal and never a look-alike descriptor from an arbitrary local/re-export
+  module (allow-list, RuleTester-proven with local-module and re-export evasion
+  fixtures). Complements — does not replace — the Phase-3 `queryKey` syntax
+  selector: the selector additionally catches stray inline keys outside hook
+  arguments (e.g. `invalidateQueries`), proven by probe.
+- `sx-layout-only` — `sx` props may use spacing/layout/flex/grid keys; color,
+  typography, background and border-styling keys are reserved for `theme.ts`.
+  The rule opens an sx scope on both a literal `sx` prop **and** a nested `sx:`
+  object property, so the MUI `slotProps={{ primary: { sx: … } }}` path is not a
+  bypass (RuleTester fixture from `TodosPage`). A frozen baseline may only
+  shrink; the demo keeps it at zero.
+
 Candidates, in order of value:
 
-1. `query-descriptors-only` — `useQuery`/`useMutation` arguments must originate
-   from `core/client/queries.ts` exports (call expression or spread of an
-   imported descriptor), not object literals. Complements — does not replace —
-   the Phase-3 `queryKey` syntax selector: the selector additionally catches
-   stray inline keys outside hook arguments (e.g. `invalidateQueries`), proven
-   by probe.
-2. `sx-layout-only` — `sx` props may use spacing/layout/flex/grid keys; color,
-   typography and border-styling keys are reserved for `theme.ts`.
-3. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
+1. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
    `defineMutation` only unsafe ones. Prefer the type-level mechanism over an
    AST rule: contract routes carry their HTTP method, `ApiClient` method types
    carry a read/write brand, and the define helpers accept only the matching
    brand — a violation is a compile error.
-4. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
+2. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
    under `core/server` takes `ctx: { identity }` first; currently a PRD "lint
    or review" item with no rule.
 
@@ -156,20 +166,22 @@ carries no tolerated debt.
 Enforcement for the island-core model
 ([architecture.md](architecture.md) §Client application state,
 [ADR-0005](decisions/0005-client-application-state.md)). Every rule ships
-with a config-regression probe, like every boundary rule before it. Four of
-the six are wired ahead of the first real core — their probes
-(`config-regression/island-core.test.ts`) write violating fixtures into the
-exact future `features/<name>/core/` path and assert each rule fires, so the
-rules provably bite before any core exists. The Status column records what is
-wired versus still pending, and why.
+with a config-regression probe, like every boundary rule before it. Five of
+the six are wired — bus confinement is the only one still pending. Real island
+cores now exist (the two `board`/`team-board` features), but the probes
+(`config-regression/island-core.test.ts`) still synthesize violating fixtures
+under a throwaway `features/<name>/core/` path and assert each rule fires, so
+enforcement is proven on the exact shape a core takes, independent of the
+committed cores. The Status column records what is wired versus still pending,
+and why.
 
 | Rule | Mechanism | Status |
 |---|---|---|
 | Event suffix taxonomy: island event-union members end in an approved intent suffix (the 12-suffix list under Phase 4; imperative names unwritable) | `agentproofarch/event-suffix-taxonomy` (custom plugin rule, RuleTester-tested); semantic half stays review + AI tier | **wired** — probe asserts `deleteCard` fails in a future `core/events.ts` |
-| Core purity: no `react`, no `react-dom`, no `@tanstack/react-query` in `features/*/core/**` (`@tanstack/query-core` stays allowed) | `no-restricted-imports` in the island-core override, mirroring the `core/**` framework ban; a boundaries/depcruise mirror is deferred until the first real core exists | **wired** — probes per banned import |
+| Core purity: no `react`, no `react-dom`, no `@tanstack/react-query` (nor the store React bindings `@xstate/store/react`/`@xstate/react`) in `features/*/core/**` (`@tanstack/query-core` and the vanilla `@xstate/store`/`xstate` stay allowed) | `no-restricted-imports` in the island-core override, mirroring the `core/**` framework ban, **plus** a depcruise mirror (`island-core-is-framework-agnostic`) now that real cores exist | **wired** — ESLint probes per banned import (incl. the `@xstate/store/react` binding); depcruise mirror probed in `gates.test.ts` |
 | Persistence bans in islands: no store persist middleware, no `localStorage`/`sessionStorage` (mechanical proxy of "local state dies on reload") | `no-restricted-imports` (persist entrypoint) + the Phase-3 storage rule with **no** helper override on island paths | **wired** — probes for persist and `localStorage` |
 | `queryClient.setQueryData` only inside the island's `optimistic.ts` | `no-restricted-syntax` + path-scoped override | **wired** — probes both ways (fires outside, silent inside `optimistic.ts`) |
-| Store-library confinement: `@xstate/store` and `xstate` importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths; `zustand`, a spike candidate only, returns to the blanket ban) | `no-restricted-imports` with path-scoped override | **unblocked** — the machine spike resolved (ADR-0005): `@xstate/store` is the rung-2 store, rung 3 is an XState machine derived from the `core/domain` transition table; the rule lands with the island-core lint task, React bindings stay banned everywhere |
+| Store-library confinement: `@xstate/store` and `xstate` importable only in `features/*/core/**` — rescopes the Phase-3 blanket ban on state libraries (which stays for all other paths; `zustand`, a spike candidate only, returns to the blanket ban) | `no-restricted-imports` with path-scoped override | **wired** — the machine spike resolved (ADR-0005): `@xstate/store` is the rung-2 store, rung 3 is an XState machine derived from the `core/domain` transition table. The vanilla store/machine is importable in a core; their React bindings are banned everywhere (incl. cores). Probes assert `@xstate/store`/`xstate` fire outside a core and pass inside |
 | Bus confinement: the typed-signal-bus module importable only from `features/*/core/**` (views never see the bus) | `no-restricted-imports` / boundaries element | planned — lands with the first bus event |
 
 ## Suppression policy (from the hardening guide, verbatim intent)
@@ -180,8 +192,11 @@ wired versus still pending, and why.
   `-- architectural-exception: composition root wires adapters`.
   Categories: `typescript-limitation | generated-code | third-party-api |
   architectural-exception | defensive-runtime-check`.
-- `--report-unused-disable-directives` already in the lint script stays; a
-  `scripts/lint-suppressions.mjs` counter gates the total (fails on increase).
+- Unused `eslint-disable` directives are themselves errors: the ESLint config
+  sets `linterOptions.reportUnusedDisableDirectives: 'error'` (wired), so a
+  disable that no longer suppresses anything fails `npm run check`. A
+  `scripts/lint-suppressions.mjs` counter that gates the *total* suppression
+  count (fails on any increase) is **planned, not yet built**.
 - "Make lint pass" is never a standalone instruction to an agent; every new
   suppression must be explained in the PR.
 
@@ -222,9 +237,8 @@ honest is not worth it now.
    original layer-boundary proof).
 3. Phase 3 restricted rules, promoted per the ratchet.
 4. Phase 4 plugin only after Phases 1–3 are at `error` and stable.
-5. Phase 5 island-core rules: suffix taxonomy, core purity, persistence bans
-   and `setQueryData` confinement are wired (probes exercise the future core
-   paths); bus confinement lands with the first bus event; the
-   store-confinement rule (`@xstate/store` + `xstate` only in island cores)
-   is unblocked by the spike verdict and lands with the island-core lint
-   task.
+5. Phase 5 island-core rules: suffix taxonomy, core purity (ESLint + depcruise
+   mirror, React store bindings included), persistence bans, `setQueryData`
+   confinement and store-library confinement (`@xstate/store` + `xstate` only
+   in island cores) are all wired (probes exercise the core path); only bus
+   confinement stays pending, landing with the first bus event.

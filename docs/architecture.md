@@ -43,8 +43,17 @@ does not belong in this document.
   CLI, asserting taxonomy exit codes. Static-green is not done; the app must
   actually run.
 - **Two first-class deploy targets** from the same commit: Vercel (serverless +
-  Neon) and Docker self-host (Node + Postgres + Caddy). Platform names may
-  appear only in `adapters/` and platform entry files.
+  Neon) and Docker self-host (Node + Postgres + Caddy). Vercel is live today;
+  the Docker/Caddy packaging (Dockerfile, prod compose, Caddyfile) is designed
+  but **intentionally not built yet** (US-020…023 in the PRD) — the same commit
+  is written to run on both, the second target's artifacts just do not exist in
+  the tree yet. **Vendor packages are contained**: `@vercel/*` and
+  `@neondatabase/*` may be imported only inside `adapters/` and platform entry
+  files (lint-enforced). This is dependency containment, not a ban on the
+  vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
+  read in `env.ts`, `composition.ts` and `adapters/db/migrate.ts` to select
+  behavior, and that is fine; what must not leak into core is the coupling to a
+  vendor SDK.
 
 ## Layers
 
@@ -53,7 +62,8 @@ core/domain     entities, Result, error taxonomy, zod schemas   → zod only
 core/contract   API routes + I/O schemas + error envelope       → domain
 core/server     use-cases + ports (interfaces)                  → domain
 core/client     typed HTTP client + query definitions           → contract
-adapters/*      implement ports (db, auth, domain provisioning) → core
+adapters/*      implement ports (db, auth; domain provisioning
+                when triggered — not yet built)               → core
 apps/server     HTTP wiring + composition root                  → everything server-side
 apps/web        SPA (no SSR)                                    → core/client (+ auth client adapter)
 apps/cli        commands                                        → core/client
@@ -65,11 +75,16 @@ Dependency rules (enforced):
   drizzle, better-auth, pg, commander).
 - `core/contract` is the only bridge between server and clients; clients never
   import `core/server` or `adapters/db`.
-- Adapters are instantiated exclusively in the composition root
+- Server adapters are instantiated exclusively in the composition root
   (`apps/server/src/composition.ts`), where env decides implementations
-  (`DB_DRIVER`, `DOMAIN_PROVISIONER`).
+  (`DB_DRIVER`; `DOMAIN_PROVISIONER` is reserved for when the domain-provisioning
+  adapter is built — US-009/014/019–021). The one deliberate exception is the
+  auth *client* adapter, constructed in `apps/web/src/api.ts` (web) and the
+  CLI's `cliCtx`; the operational entry `adapters/db/migrate.ts` also reads
+  `DB_DRIVER`/`DATABASE_URL`/`VERCEL` itself as a sanctioned composition point
+  outside the server root.
 - `@vercel/*` and `@neondatabase/*` are importable only inside `adapters/`
-  (and `entry.vercel.ts`).
+  (and the platform entry `api/index.ts`).
 - No `any`, no `as` (except `as const`), zod-parse at every boundary.
 
 Dependency-free is not the goal; replaceability is. Core bans *infrastructure*
@@ -185,8 +200,8 @@ reason. A rule without a matrix is prose, and prose decays.
 > machine-agnostically — "island store" and "statechart" name the rungs —
 > and only the lint confinement rules and the isomorphic-rules block name
 > packages. Evidence and trade-offs:
-> [ADR-0005](decisions/0005-client-application-state.md) and the adjudicated
-> [spike report](decisions/spike-report.md).
+> [ADR-0005](decisions/0005-client-application-state.md); the underlying spike
+> report is not committed to the repo — its findings are summarized in that ADR.
 
 **The seam.** Every feature has `features/<name>/core/` — a pure TS module
 whose public API is **events in, selectors out**. Views talk exclusively to
@@ -400,11 +415,12 @@ flowing from contract route methods through the client types. All client
 interfaces (web, CLI, future) consume the same partition.
 
 App-level policies (the foundation prescribes the mechanism, each product
-sets the numbers): **bundle budgets** — a size gate in `check` with
-route-level splitting already mandated; thresholds are per app, none imposed
-here. **Browser matrix** — default is evergreen-latest only (browserslist
-`last 2 versions, not dead`); widening support is a per-app decision with its
-own cost.
+sets the numbers) — both **prescribed, not yet wired** in the demo: **bundle
+budgets** — a size gate in `check` with route-level splitting; thresholds are
+per app, none imposed here, and no size gate is wired yet. **Browser matrix** —
+the intended default is evergreen-latest only (browserslist
+`last 2 versions, not dead`); no `browserslist` config ships yet. Widening
+support is a per-app decision with its own cost.
 
 Mutations invalidate hierarchical query keys; manual cache writes only for a
 single resource with rollback. Errors surface as `ApiError` carrying the
@@ -638,11 +654,26 @@ revalidation (public caching busts by content-version key).
 
 ## Ports (complete list)
 
-- `AuthPort` (server): request headers → authenticated user. Better Auth.
+The list below is generated from `demo/core/server/ports.ts` (plus the one
+client port in `core/client`). It is the *built* set — keep it in sync with the
+code.
+
+- `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
 - `AuthClientPort` (client): sign-up/in/out + magic link. Better Auth client.
-- `DomainPort`: add/check/remove tenant domains. Implementations: Vercel
-  Domains API, Caddy on-demand TLS, noop (dev).
-- Repository interfaces per aggregate (todos, tenant domains, memberships).
+- `TodoRepository`, `CardRepository`, `TenantDomainRepository`,
+  `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
+  (todos, board cards, tenant domains, tenants + owner grants, staff/member
+  access reads).
+- `HealthPort`: database ping for the health route.
+- `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
+  keep use-cases pure and deterministic in tests.
+
+**NORMATIVE WHEN TRIGGERED — not yet built** (US-009/014/019–021):
+
+- `DomainPort`: add/check/remove tenant domains. Designed implementations:
+  Vercel Domains API, Caddy on-demand TLS, noop (dev). No interface or adapter
+  exists in the tree yet; the `DOMAIN_PROVISIONER` env switch is reserved for
+  it.
 
 Add a port only when a second implementation or a platform difference actually
 exists.
@@ -710,7 +741,13 @@ all app-domain, decided per product.
 
 ## Deployment matrix
 
-| | Vercel | Docker self-host |
+The Vercel column is live today. The **Docker self-host column is designed but
+its packaging is intentionally not built yet** — there is no `Dockerfile`,
+production `docker-compose.yml` or `Caddyfile` in the tree (US-020…023 in the
+PRD). The same commit is written to run on a Node container; the artifacts that
+would boot it there simply do not exist yet.
+
+| | Vercel | Docker self-host (packaging not built yet) |
 |---|---|---|
 | API | Hono handler as a function | same Hono app in a Node container |
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
@@ -720,9 +757,10 @@ all app-domain, decided per product.
 Vercel is the default because it is the simplest for most applications — the
 same reasoning that makes TanStack Query the default over Effect. It is
 invocation-only: no resident process, so no queue workers, schedulers,
-websockets or long-running jobs. The Docker image is the full-runtime escape
-hatch from the same commit and runs anywhere (VPS, Railway, Fly.io,
-Kubernetes); anything that needs a resident process lives on that target.
+websockets or long-running jobs. The Docker image is the designed full-runtime
+escape hatch from the same commit — meant to run anywhere (VPS, Railway,
+Fly.io, Kubernetes); anything that needs a resident process is designed to live
+on that target once the packaging lands.
 
 ## Environments (Vercel target)
 
@@ -762,7 +800,11 @@ every tenant-scoped repository method takes `tenantId`, so the type system will
 not let a query span tenants — this is the primary access control, everything
 below is defense-in-depth around it. Everything under NORMATIVE NOW is wired in
 the demo (`app.ts` `secureHeaders`/`bodyLimit`, `create-auth.ts` rate limiting,
-`vercel.json` headers) and asserted by the smoke gate.
+`vercel.json` headers). The `smoke` gate asserts the subset that shows up on a
+live response header — `Cache-Control: no-store`, `X-Content-Type-Options:
+nosniff`, and the CSP's `script-src 'self'` directive; the remaining NORMATIVE
+NOW items (body limits, rate limiting, cookie flags) are covered by unit/config
+tests and review, not by a live smoke assertion.
 
 **NORMATIVE NOW:**
 
@@ -789,9 +831,10 @@ the demo (`app.ts` `secureHeaders`/`bodyLimit`, `create-auth.ts` rate limiting,
 - **Auth rate limiting.** Better Auth's built-in limiter guards **only
   `/api/auth/*`**; its default in-memory storage is useless on Vercel (every
   invocation is a fresh isolate), so set `storage: "database"` to keep counters in
-  the Neon we already have — $0, no Redis — and enable it explicitly (off in dev by
-  default). It does not protect mutation routes, which is why those stay gated by
-  auth + tenant scope.
+  the Neon we already have — $0, no Redis. It is controlled by the
+  `AUTH_RATE_LIMIT` env flag, which **defaults to on** (including in dev); set
+  `AUTH_RATE_LIMIT=off` to disable it locally. It does not protect mutation
+  routes, which is why those stay gated by auth + tenant scope.
 - **Request body limits.** Mount Hono's `bodyLimit` on mutation routes (JSON
   payloads are small — a ~64–100KB cap is a cheap DoS floor); Vercel's 4.5MB
   serverless cap is a backstop, not policy.
@@ -933,8 +976,9 @@ the gates.
   own tree and numbering, never by mutating foundation docs in place.
 - **`demo/` stays exemplary** (NORMATIVE NOW): it is the fixture the gates run
   against and the thing every product forks from, so it carries only the walking
-  skeleton (auth, tenants, one resource end-to-end) — a change that would not
-  generalise to every app on the foundation does not belong in it.
+  skeleton (auth, tenants, one tasks subdomain — todos plus the two exemplar
+  boards — end-to-end) — a change that would not generalise to every app on the
+  foundation does not belong in it.
 
 **Extract configs to a package** (NORMATIVE WHEN TRIGGERED — a real second app
 exists): the enforcement configs alone MAY graduate to a versioned package (they

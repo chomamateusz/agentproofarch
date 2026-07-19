@@ -43,12 +43,16 @@ test rather than a runtime surprise. It is also repo-rule-aware in a way no
 generic generator is: it *knows* `check` must stay red until the checklist is
 wired, and its name validation rejects collisions and reserved names.
 
-**Separability is an explicit boundary**: `scripts/` imports nothing from
-`core/` or `apps/` — node builtins and its own templates only; the coupling
-to the repo is conventions (paths, anchors), not code. Extracting the
-scaffolder into a versioned package later — the same trigger as the
-enforcement configs (a real second app, see architecture.md §Foundation
-evolution) — is therefore mechanical.
+**Separability is an explicit boundary**: the *scaffolders*
+(`new-resource.ts`, `new-island.ts`) import nothing from `core/` or `apps/` —
+node builtins and their own templates only; the coupling to the repo is
+conventions (paths, anchors), not code. (Not every file under `scripts/` is
+core-free — the smoke harness `smoke-cli.ts` imports the `EXIT_CODE_BY_ERROR_CODE`
+table from `#core/contract`, deliberately, so it asserts the *same* exit-code
+mapping the CLI ships; that is a test reusing the contract, not the scaffolder
+coupling to it.) Extracting a scaffolder into a versioned package later — the
+same trigger as the enforcement configs (a real second app, see
+architecture.md §Foundation evolution) — is therefore mechanical.
 
 (The scaffolder has a client-state sibling, `npm run new:island -- <name>`,
 which plants a feature's island core — the events-in / selectors-out seam of
@@ -170,7 +174,7 @@ bundle that goes stale after a contract change.
 Both gates, plus the browser gate since you touched `apps/web`:
 
 ```bash
-npm run check                # static: typecheck + lint + depcruise + doc-lint + coverage
+npm run check                # static: typecheck + lint + lock-lint + depcruise + doc-lint + coverage
 npm run smoke                # runtime: real server + CLI flow, ~5s
 npm run e2e                  # browser: Playwright over the real stack
 ```
@@ -191,4 +195,3 @@ it runs.
 - [docs/architecture.md](architecture.md) — why the seams are where they are.
 - [ADR-0004](decisions/0004-no-exceptions-enforcement.md) — how the gates can't
   be bypassed.
-</content>
