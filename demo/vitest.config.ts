@@ -7,6 +7,10 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // default run (they still match the `**/*.test.ts` glob).
 const integrationEnabled = process.env['VITEST_INTEGRATION'] === '1';
 
+// The machine spike (spike/) is opt-in the same way: `VITEST_SPIKE=1` adds the
+// `spike` project so throwaway spike suites never run in the CI check job.
+const spikeEnabled = process.env['VITEST_SPIKE'] === '1';
+
 export default defineConfig({
   test: {
     coverage: {
@@ -94,6 +98,18 @@ export default defineConfig({
                 name: 'integration',
                 environment: 'node',
                 include: ['adapters/**/*.integration.test.ts'],
+              },
+            },
+          ]
+        : []),
+      ...(spikeEnabled
+        ? [
+            {
+              extends: true as const,
+              test: {
+                name: 'spike',
+                environment: 'node',
+                include: ['spike/**/*.test.ts'],
               },
             },
           ]
