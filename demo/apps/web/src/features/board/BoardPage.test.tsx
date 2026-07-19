@@ -13,8 +13,10 @@ interface ServerCard {
   id: string;
   tenantId: string;
   title: string;
+  board: string;
   column: string;
   position: number;
+  visited: string[];
   createdAt: string;
 }
 
@@ -22,8 +24,10 @@ const makeCard = (id: string, title: string, column: string, position: number): 
   id,
   tenantId: 't1',
   title,
+  board: 'personal',
   column,
   position,
+  visited: [column],
   createdAt: '2026-07-11T00:00:00.000Z',
 });
 

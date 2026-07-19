@@ -37,8 +37,10 @@ const card = {
   id: 'card-1',
   tenantId: 't-acme',
   title: 'Card one',
+  board: 'personal' as const,
   column: 'todo',
   position: 0,
+  visited: ['todo'],
   createdAt: '2026-07-03T00:00:00.000Z',
 };
 
@@ -75,7 +77,7 @@ describe('query descriptors', () => {
     expect(meQuery(happyApi).queryKey).toEqual(meScopes.all());
     expect(tenantsQuery(happyApi).queryKey).toEqual(tenantsScopes.all());
     expect(todosQuery(happyApi).queryKey).toEqual(todosScopes.lists());
-    expect(cardsQuery(happyApi).queryKey).toEqual(cardsScopes.lists());
+    expect(cardsQuery(happyApi).queryKey).toEqual(cardsScopes.list('personal'));
   });
 
   it('unwrap the Result value through the queryFn on success', async () => {

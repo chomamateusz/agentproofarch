@@ -38,8 +38,8 @@ interface FakeApi {
   listTodos: Mock<Async<TodoList>>;
   addTodo: Mock<AsyncIn<{ title: string }, TodoCreate>>;
   listCards: Mock<Async<CardList>>;
-  addCard: Mock<AsyncIn<{ title: string; column: string }, CardWrite>>;
-  moveCard: Mock<AsyncIn<{ cardId: string; toColumn: string; toIndex: number }, CardWrite>>;
+  addCard: Mock<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>;
+  moveCard: Mock<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>;
 }
 
 interface FakeAuth {
@@ -72,8 +72,8 @@ const h = vi.hoisted(
       listTodos: vi.fn<Async<TodoList>>(),
       addTodo: vi.fn<AsyncIn<{ title: string }, TodoCreate>>(),
       listCards: vi.fn<Async<CardList>>(),
-      addCard: vi.fn<AsyncIn<{ title: string; column: string }, CardWrite>>(),
-      moveCard: vi.fn<AsyncIn<{ cardId: string; toColumn: string; toIndex: number }, CardWrite>>(),
+      addCard: vi.fn<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>(),
+      moveCard: vi.fn<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>(),
     },
     auth: {
       signUp: vi.fn<AsyncIn<{ name: string; email: string; password: string }, Session>>(),
@@ -292,13 +292,25 @@ describe('card commands', () => {
   it('joins variadic words and defaults the column to todo for `card add`', async () => {
     await run('card', 'add', 'ship', 'it');
 
-    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', column: 'todo' });
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', board: 'personal', column: 'todo' });
     expect(logSpy).toHaveBeenCalledExactlyOnceWith('added: ship it [todo#0] (card-123)');
   });
 
   it('passes the explicit --column to `card add`', async () => {
     await run('card', 'add', '--column', 'doing', 'ship', 'it');
-    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', column: 'doing' });
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', board: 'personal', column: 'doing' });
+  });
+
+  it('passes an explicit --board to `card add`', async () => {
+    await run('card', 'add', '--board', 'team', 'ship', 'it');
+    expect(h.api.addCard).toHaveBeenCalledExactlyOnceWith({ title: 'ship it', board: 'team', column: 'todo' });
+  });
+
+  it('rejects an unknown --board locally (validation, exit 2) without calling the API', async () => {
+    await run('--json', 'card', 'add', '--board', 'nope', 'ship', 'it');
+    expect(h.api.addCard).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
   });
 
   it('moves a card to the end of a column when --index is omitted', async () => {
@@ -306,6 +318,7 @@ describe('card commands', () => {
 
     expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
       cardId: 'card-1234abcd',
+      board: 'personal',
       toColumn: 'doing',
       toIndex: Number.MAX_SAFE_INTEGER,
     });
@@ -316,8 +329,22 @@ describe('card commands', () => {
     await run('card', 'move', 'card-1234abcd', '--to', 'doing', '--index', '0');
     expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
       cardId: 'card-1234abcd',
+      board: 'personal',
       toColumn: 'doing',
       toIndex: 0,
+    });
+  });
+
+  it('passes an explicit --board to `card move`', async () => {
+    h.api.moveCard.mockResolvedValue(
+      ok({ card: { id: 'card-123', title: 'ship it', column: 'in-dev', position: 0 } }),
+    );
+    await run('card', 'move', 'card-1234abcd', '--board', 'team', '--to', 'in-dev');
+    expect(h.api.moveCard).toHaveBeenCalledExactlyOnceWith({
+      cardId: 'card-1234abcd',
+      board: 'team',
+      toColumn: 'in-dev',
+      toIndex: Number.MAX_SAFE_INTEGER,
     });
   });
 

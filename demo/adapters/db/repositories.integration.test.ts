@@ -3,6 +3,9 @@ import { migrate as migrateNodePg } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import type { Identity } from '#core/domain/index.js';
+import { addCard, listCards, moveCard } from '#core/server/index.js';
+
 import type { Db } from './client.js';
 import { createCardRepository } from './cards-repository.js';
 import {
@@ -57,10 +60,10 @@ const todoB1 = {
   createdAt: '2026-01-01T12:00:00.000Z',
 };
 
-const cardA1 = { id: 'itest-card-a1', tenantId: tenantA.id, title: 'A todo 1', column: 'todo', position: 0, createdAt: '2026-01-01T00:00:00.000Z' };
-const cardA2 = { id: 'itest-card-a2', tenantId: tenantA.id, title: 'A todo 2', column: 'todo', position: 1, createdAt: '2026-01-02T00:00:00.000Z' };
-const cardA3 = { id: 'itest-card-a3', tenantId: tenantA.id, title: 'A doing 1', column: 'doing', position: 0, createdAt: '2026-01-03T00:00:00.000Z' };
-const cardB1 = { id: 'itest-card-b1', tenantId: tenantB.id, title: 'B todo 1', column: 'todo', position: 0, createdAt: '2026-01-01T00:00:00.000Z' };
+const cardA1 = { id: 'itest-card-a1', tenantId: tenantA.id, title: 'A todo 1', board: 'personal' as const, column: 'todo', position: 0, visited: ['todo'], createdAt: '2026-01-01T00:00:00.000Z' };
+const cardA2 = { id: 'itest-card-a2', tenantId: tenantA.id, title: 'A todo 2', board: 'personal' as const, column: 'todo', position: 1, visited: ['todo'], createdAt: '2026-01-02T00:00:00.000Z' };
+const cardA3 = { id: 'itest-card-a3', tenantId: tenantA.id, title: 'A doing 1', board: 'personal' as const, column: 'doing', position: 0, visited: ['doing'], createdAt: '2026-01-03T00:00:00.000Z' };
+const cardB1 = { id: 'itest-card-b1', tenantId: tenantB.id, title: 'B todo 1', board: 'personal' as const, column: 'todo', position: 0, visited: ['todo'], createdAt: '2026-01-01T00:00:00.000Z' };
 
 let appPool: pg.Pool;
 let db: Db;
@@ -268,37 +271,37 @@ describe('TodoRepository', () => {
 
 describe('CardRepository', () => {
   it('lists a tenant cards ordered by column then position', async () => {
-    const rows = await cardRepo().listByTenant(tenantA.id);
+    const rows = await cardRepo().listByTenant(tenantA.id, 'personal');
     expect(rows.map((c) => c.id)).toEqual([cardA3.id, cardA1.id, cardA2.id]);
   });
 
   it('create inserts a card visible only within its tenant', async () => {
-    const extra = { id: 'itest-card-a4', tenantId: tenantA.id, title: 'A doing 2', column: 'doing', position: 1, createdAt: '2026-01-04T00:00:00.000Z' };
+    const extra = { id: 'itest-card-a4', tenantId: tenantA.id, title: 'A doing 2', board: 'personal' as const, column: 'doing', position: 1, visited: ['doing'], createdAt: '2026-01-04T00:00:00.000Z' };
     await cardRepo().create(extra);
-    const aIds = (await cardRepo().listByTenant(tenantA.id)).map((c) => c.id);
+    const aIds = (await cardRepo().listByTenant(tenantA.id, 'personal')).map((c) => c.id);
     expect(aIds).toContain(extra.id);
-    const bIds = (await cardRepo().listByTenant(tenantB.id)).map((c) => c.id);
+    const bIds = (await cardRepo().listByTenant(tenantB.id, 'personal')).map((c) => c.id);
     expect(bIds).not.toContain(extra.id);
   });
 
   it('updatePositions rewrites column + position for the tenant rows', async () => {
     // Move cardA2 to the front of doing, renumber both columns contiguously.
-    await cardRepo().updatePositions(tenantA.id, [
+    await cardRepo().updatePositions(tenantA.id, 'personal', [
       { id: cardA2.id, column: 'doing', position: 0 },
       { id: cardA3.id, column: 'doing', position: 1 },
       { id: cardA1.id, column: 'todo', position: 0 },
     ]);
-    const byId = new Map((await cardRepo().listByTenant(tenantA.id)).map((c) => [c.id, c]));
+    const byId = new Map((await cardRepo().listByTenant(tenantA.id, 'personal')).map((c) => [c.id, c]));
     expect(byId.get(cardA2.id)).toMatchObject({ column: 'doing', position: 0 });
     expect(byId.get(cardA3.id)).toMatchObject({ column: 'doing', position: 1 });
     expect(byId.get(cardA1.id)).toMatchObject({ column: 'todo', position: 0 });
   });
 
   it('updatePositions is tenant-scoped: another tenant cannot renumber these cards', async () => {
-    const before = (await cardRepo().listByTenant(tenantB.id)).find((c) => c.id === cardB1.id);
+    const before = (await cardRepo().listByTenant(tenantB.id, 'personal')).find((c) => c.id === cardB1.id);
     // tenantA attempts to move tenantB's card — the id/tenant guard makes it a no-op.
-    await cardRepo().updatePositions(tenantA.id, [{ id: cardB1.id, column: 'done', position: 9 }]);
-    const after = (await cardRepo().listByTenant(tenantB.id)).find((c) => c.id === cardB1.id);
+    await cardRepo().updatePositions(tenantA.id, 'personal', [{ id: cardB1.id, column: 'done', position: 9 }]);
+    const after = (await cardRepo().listByTenant(tenantB.id, 'personal')).find((c) => c.id === cardB1.id);
     expect(after).toEqual(before);
   });
 });
@@ -367,11 +370,11 @@ describe('tenant isolation invariant', () => {
   });
 
   it('cards never leak across tenants', async () => {
-    const aCards = await cardRepo().listByTenant(tenantA.id);
+    const aCards = await cardRepo().listByTenant(tenantA.id, 'personal');
     expect(aCards.every((c) => c.tenantId === tenantA.id)).toBe(true);
     expect(aCards.map((c) => c.id)).not.toContain(cardB1.id);
 
-    const bCards = await cardRepo().listByTenant(tenantB.id);
+    const bCards = await cardRepo().listByTenant(tenantB.id, 'personal');
     expect(bCards.every((c) => c.tenantId === tenantB.id)).toBe(true);
     expect(bCards.map((c) => c.id)).toContain(cardB1.id);
   });
@@ -392,5 +395,107 @@ describe('tenant isolation invariant', () => {
     expect(await accessReader().findStaffGrant(staffA, { tenantId: tenantB.id })).toBeNull();
     expect(await accessReader().findStaffGrant(staffA, { tenantSlug: tenantB.slug })).toBeNull();
     expect(await accessReader().findStaffGrant(staffB, { tenantId: tenantA.id })).toBeNull();
+  });
+});
+
+describe('team board rules against Postgres', () => {
+  const identityA: Identity = {
+    userId: staffA,
+    email: 'staff-a@example.com',
+    name: 'Staff A',
+    tenantId: tenantA.id,
+    tenantSlug: tenantA.slug,
+    tenantName: tenantA.name,
+    staffRole: 'owner',
+    memberId: null,
+  };
+  const ctx = { identity: identityA };
+  const teamDeps = () => ({
+    cards: cardRepo(),
+    ids: { nextId: () => `itest-team-${crypto.randomUUID()}` },
+    clock: { nowIso: () => '2026-03-01T00:00:00.000Z' },
+  });
+
+  it('cross-board isolation: the personal list never shows team cards', async () => {
+    const teamCard = {
+      id: 'itest-team-iso',
+      tenantId: tenantA.id,
+      title: 'Team iso',
+      board: 'team' as const,
+      column: 'todo',
+      position: 0,
+      visited: ['todo'],
+      createdAt: '2026-03-01T00:00:00.000Z',
+    };
+    await cardRepo().create(teamCard);
+
+    const personal = await cardRepo().listByTenant(tenantA.id, 'personal');
+    expect(personal.map((c) => c.id)).not.toContain(teamCard.id);
+    expect(personal.every((c) => c.board === 'personal')).toBe(true);
+
+    const team = await cardRepo().listByTenant(tenantA.id, 'team');
+    expect(team.map((c) => c.id)).toContain(teamCard.id);
+    expect(team.every((c) => c.board === 'team')).toBe(true);
+  });
+
+  it('drives the guarded path and round-trips visited history through jsonb', async () => {
+    const created = await addCard(ctx, { title: 'Guarded task', board: 'team', column: 'todo' }, teamDeps());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const id = created.value.id;
+    expect(created.value.visited).toEqual(['todo']);
+
+    // review before in-dev is rejected with its rule, and persists nothing.
+    const early = await moveCard(ctx, { cardId: id, board: 'team', toColumn: 'review', toIndex: 0 }, teamDeps());
+    expect(early).toMatchObject({
+      ok: false,
+      error: { code: 'validation', details: { rule: 'review-requires-in-dev' } },
+    });
+    const afterReject = (await cardRepo().listByTenant(tenantA.id, 'team')).find((c) => c.id === id);
+    expect(afterReject).toMatchObject({ column: 'todo', visited: ['todo'] });
+
+    // The legal path advances the card and grows visited, round-tripped through PG.
+    for (const toColumn of ['in-dev', 'review', 'done']) {
+      const step = await moveCard(ctx, { cardId: id, board: 'team', toColumn, toIndex: 0 }, teamDeps());
+      expect(step.ok).toBe(true);
+    }
+    const settled = (await cardRepo().listByTenant(tenantA.id, 'team')).find((c) => c.id === id);
+    expect(settled).toMatchObject({ column: 'done' });
+    expect(settled?.visited).toEqual(['todo', 'in-dev', 'review', 'done']);
+  });
+
+  it('enforces the WIP limit against real rows', async () => {
+    // in-dev limit is 3: seed three occupants, a fourth move is rejected.
+    for (let i = 0; i < 3; i += 1) {
+      await cardRepo().create({
+        id: `itest-team-wip-${i}`,
+        tenantId: tenantA.id,
+        title: `WIP ${i}`,
+        board: 'team' as const,
+        column: 'in-dev',
+        position: i,
+        visited: ['todo', 'in-dev'],
+        createdAt: '2026-03-01T00:00:00.000Z',
+      });
+    }
+    const created = await addCard(ctx, { title: 'Fourth', board: 'team', column: 'todo' }, teamDeps());
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const blocked = await moveCard(
+      ctx,
+      { cardId: created.value.id, board: 'team', toColumn: 'in-dev', toIndex: 0 },
+      teamDeps(),
+    );
+    expect(blocked).toMatchObject({
+      ok: false,
+      error: { code: 'validation', details: { rule: 'wip-limit' } },
+    });
+  });
+
+  it('listCards use-case is board-scoped end to end', async () => {
+    const personal = await listCards(ctx, { board: 'personal' }, teamDeps());
+    expect(personal.ok && personal.value.every((c) => c.board === 'personal')).toBe(true);
+    const team = await listCards(ctx, { board: 'team' }, teamDeps());
+    expect(team.ok && team.value.every((c) => c.board === 'team')).toBe(true);
   });
 });

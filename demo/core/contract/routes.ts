@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  cardListQuerySchema,
   cardMoveSchema,
   cardSchema,
   membershipSchema,
@@ -63,6 +64,13 @@ export const todoCreateInputSchema = newTodoSchema;
 export const todoCreateOutputSchema = z.object({
   todo: todoSchema,
 });
+
+/**
+ * The card list is board-scoped via an optional `?board=` query param (absent =
+ * personal). Additive: an old client that sends no query still reads its
+ * personal board.
+ */
+export const cardsListQuerySchema = cardListQuerySchema;
 
 export const cardsListOutputSchema = z.object({
   cards: z.array(cardSchema),
