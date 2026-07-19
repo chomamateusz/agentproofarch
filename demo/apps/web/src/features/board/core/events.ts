@@ -6,8 +6,9 @@
  *
  * RUNG 2 (island store): every DOMAIN member below has a matching handler in the
  * store's `on` map (core/store.ts), so the compiler ties the two together — the
- * event map IS the seam. `refreshRequested` is the server-read seam: it drops the
- * optimistic overlay so the fresh list in the TanStack cache becomes the truth.
+ * event map IS the seam. `refreshRequested` is the server-read seam: the store
+ * deliberately no-ops (in-flight ops reconcile through their own settlement) and
+ * the view refetches the cache, so the server list becomes the truth.
  *
  * NAMING TAXONOMY (lint-enforced on this union: agentproofarch/event-suffix-taxonomy):
  * every member names a user INTENT, never a decision the core should own. Allowed
