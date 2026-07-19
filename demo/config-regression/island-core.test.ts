@@ -69,6 +69,12 @@ const fixtures = {
     rel: join(featureRoot, 'xstate-outside-probe.ts'),
     content: "import { setup } from 'xstate';\nexport const build = setup;\n",
   },
+  // zustand is the substitute, not a dependency: even INSIDE an island core the
+  // demo bans it — the demo always uses the first choice (ADR-0005).
+  zustandInCore: {
+    rel: join(coreDir, 'zustand-probe.ts'),
+    content: "import { createStore } from 'zustand/vanilla';\nexport const make = createStore;\n",
+  },
   // Positive probe: BOTH store libraries are importable INSIDE an island core.
   storeInCoreAllowed: {
     rel: join(coreDir, 'machine-probe.ts'),
@@ -168,6 +174,10 @@ describe('island-core lint gate rejects violations on future core files', () => 
     expect(has('xstateOutsideCore', 'no-restricted-imports', 'confined to island cores')).toBe(
       true,
     );
+  });
+
+  it('bans zustand (the substitute) even inside an island core — the demo uses the first choice', () => {
+    expect(has('zustandInCore', 'no-restricted-imports', 'not a demo dependency')).toBe(true);
   });
 
   it('permits @xstate/store and xstate inside an island core (the machine behind the seam)', () => {

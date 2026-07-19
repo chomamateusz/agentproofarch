@@ -80,7 +80,7 @@ describe('generateIsland', () => {
     expect(page).not.toContain('api.js');
   });
 
-  it('emits a checklist that wires shared files, stays RED, and defers the machine to the spike', () => {
+  it('emits a checklist that wires shared files, stays RED, and routes graduation through --machine', () => {
     const { checklist } = generateIsland({
       name: 'gadget-board',
       outDir: sandbox,
@@ -91,8 +91,9 @@ describe('generateIsland', () => {
     expect(checklist).toContain('apps/web/src/api.ts');
     expect(checklist).toContain('apps/web/src/main.tsx');
     expect(checklist).toContain('rung 2 = island store');
-    expect(checklist).toContain('rung 3 = statechart (XState)');
-    expect(checklist).toContain('DECISION-PENDING THE SPIKE');
+    expect(checklist).toContain('RESOLVED (ADR-0005)');
+    expect(checklist).toContain('--machine=store');
+    expect(checklist).not.toContain('DECISION-PENDING');
     expect(checklist).toContain('npm run check && npm run smoke');
   });
 
@@ -218,7 +219,7 @@ describe('generateIsland', () => {
     expect(paths).toEqual(explicitNone.files.map((file) => file.path));
     expect(paths).not.toContain('apps/web/src/features/plain-board/core/store.ts');
     expect(paths).not.toContain('apps/web/src/features/plain-board/core/rules.ts');
-    expect(withoutFlag.checklist).toContain('DECISION-PENDING THE SPIKE');
+    expect(withoutFlag.checklist).toContain('RESOLVED (ADR-0005)');
   });
 
   it('does not write files in dry-run mode', () => {

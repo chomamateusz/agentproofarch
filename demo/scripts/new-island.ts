@@ -182,14 +182,16 @@ note at the end). Work top to bottom:
    is generated with a passing rung-1 assertion and TODO homes for the machine's
    unit tests. Write the core's tests before growing the view.
 
-MACHINE (rung 2 / rung 3) — DECISION-PENDING THE SPIKE.
-   This island ships at RUNG 1 (no client store). Do NOT add zustand/@xstate/store
-   here yet: the store choice (zustand/vanilla vs @xstate/store) and the
-   isomorphic-rules strategy are being settled by the machine spike. When it
-   lands, graduate at the marked <<EXTENSION POINT>>s in core/index.ts and
-   core/selectors.ts — rung 2 = island store, rung 3 = statechart (XState) — and
-   the view keeps talking to the same send/selectors seam. See
-   docs/architecture.md §Client application state (ADR-0005).
+MACHINE (rung 2 / rung 3) — RESOLVED (ADR-0005): graduate via --machine.
+   This island ships at RUNG 1 (no client store) — the honest default until a
+   graduation trigger fires. When one does, scaffold the machine instead of
+   hand-rolling it: rung 2 = island store (@xstate/store; zustand is NOT a demo
+   dependency) via \`npm run new:island -- <name> --machine=store\`; rung 3 =
+   statechart (an XState oracle DERIVED from a core/domain transition table) via
+   \`--machine=statechart\` — or grow this island at the marked
+   <<EXTENSION POINT>>s in core/index.ts and core/selectors.ts following those
+   scaffolds' shapes. The view keeps talking to the same send/selectors seam
+   either way. See docs/architecture.md §Client application state (ADR-0005).
 
 Verify (write core tests before wiring the UI):
   npm run check && npm run smoke
