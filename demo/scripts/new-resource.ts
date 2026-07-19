@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Resource scaffolder — the mechanical form of the 8-step "adding a resource"
+ * Resource scaffolder — the mechanical form of the 12-step "adding a resource"
  * chain in demo/CLAUDE.md. It GENERATES the files a resource owns outright and
  * prints an ordered checklist for the shared files that must be EDITED by hand,
  * each with its anchor line and a ready-to-paste snippet. Generated edits to
@@ -189,8 +189,11 @@ Scaffolded resource "${n.singularKebab}". Generated files (owned by this resourc
 ${generated}
 
 These GENERATED files already participate in typecheck and import symbols that do
-not exist yet, so \`npm run check\` will stay RED until every step below is wired.
-Work top to bottom — this is the 8-step chain from demo/CLAUDE.md:
+not exist yet, so \`npm run check\` will stay RED through the type-forced steps
+below. Two steps are NOT type-forced — the CLI command (10) and the web route
+registration (12) both typecheck while unwired — so finish the whole list; the
+checklist, not the compiler, guarantees those two.
+Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
 
 1. DOMAIN — core/domain/index.ts
    anchor:  export * from './todo.js';

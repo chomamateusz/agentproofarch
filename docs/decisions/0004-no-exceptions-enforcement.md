@@ -29,8 +29,9 @@ green.
 
 1. **Both gates are required CI checks on every PR.** A GitHub Actions
    workflow (`ci`) runs on `pull_request` and on `push` to `main`:
-   - **`check`** — `npm ci && npm run check` (typecheck + ESLint boundaries +
-     dependency-cruiser + vitest), the static gate, from a clean install.
+   - **`check`** — `npm ci && npm run check`, the static gate, from a clean
+     install. Its six members are: typecheck + ESLint (layer boundaries) +
+     lock-lint + dependency-cruiser + doc-lint + vitest with coverage.
    - **`smoke`** — `npm ci && npm run smoke` against a `postgres:16` service
      container, the runtime gate: it verifies the installed tree matches
      `package-lock.json`, drops+recreates the isolated `agentproofarch_smoke`
@@ -96,3 +97,21 @@ green.
 - Config-regression and doc-lint probes add maintenance surface (fixtures must
   track the rules they guard), accepted as the price of making "you cannot
   silently disable a rule" a mechanical guarantee rather than a hope.
+
+## Amendment (2026-07-20): post-deploy-smoke scope and target URL
+
+Decision point 2 above described the narrowest form of the post-deploy gate.
+The shipped `.github/workflows/post-deploy-smoke.yml` and ADR-0003 agree on a
+broader behavior, recorded here so all three sources match:
+
+- **Both Production *and* Preview deployments are smoked**, not Production only.
+  The job runs on any `deployment_status` with `state == 'success'` whose
+  environment is `Production` or `Preview` (staging is deployed as a Preview),
+  so previews and staging are verified too — as ADR-0003 §1 states.
+- **The target URL depends on the environment, and is not always
+  `environment_url`.** A **Production** deploy drives the production **alias**
+  (`https://agentproofarch.vercel.app`, hardcoded in the workflow): the alias
+  is what users hit, it proves promotion/aliasing worked, and Better Auth only
+  trusts `APP_BASE_URL` as the CSRF origin. **Preview/staging** deploys drive
+  their own per-deployment `environment_url`, which their `VERCEL_URL`-derived
+  auth origin already trusts.

@@ -27,9 +27,13 @@ must actually run. Do not weaken lint rules to make either green.
 
 - `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
   the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
-  single-tenant custom domain, `entry.node.ts` serving the built bundle) through
-  login → seeded todos → add-todo → failed-login → cache headers. It needs a
-  browser and Postgres, so it is its own CI job (`e2e`), never part of `check`.
+  single-tenant custom domain, `entry.node.ts` serving the built bundle) across
+  three spec files (7 tests): `app.spec.ts` (login → seeded todos → add-todo →
+  failed-login → cache headers), `board.spec.ts` (the personal board: add,
+  reorder, persist across reload, move across columns, undo) and
+  `team-board.spec.ts` (the team board: entry-column-only, the WIP guard
+  blocking and releasing, and a legal chain persisting). It needs a browser and
+  Postgres, so it is its own CI job (`e2e`), never part of `check`.
 
 ## Layer rules (enforced, but know them anyway)
 
@@ -40,7 +44,8 @@ must actually run. Do not weaken lint rules to make either green.
 - `adapters/**` implement ports; only `apps/server/src/composition.ts` instantiates them.
 - `apps/web` and `apps/cli` import `core/client` (+ auth client adapter), never
   `core/server`, never `adapters/db`.
-- `@vercel/*` / `@neondatabase/*` only inside `adapters/` (and `entry.vercel.ts`).
+- `@vercel/*` / `@neondatabase/*` only inside `adapters/` (and the platform
+  entry `api/index.ts`).
 - No `any`. No `as` (except `as const`). Parse with zod at every boundary.
 - Use-cases return `Result<T, AppError>`; never throw across a boundary.
   New error kinds go into `ERROR_CODES` in `core/domain/errors.ts` and get an
@@ -59,9 +64,10 @@ npm run --silent cli -- --tenant acme todo list
 ```
 
 `--json` prints exactly one JSON envelope on stdout; exit codes come from
-`EXIT_CODE_BY_ERROR_CODE`. Adding a resource = domain schema → contract route →
-port + use-case → adapter repo → server route → `core/client` method →
-CLI command → web page, in that order, with tests at the core layer.
+`EXIT_CODE_BY_ERROR_CODE`. Adding a resource walks a 12-step chain: domain →
+contract → port → use-case index → adapter schema → composition → server routes
+→ client → client queries → CLI → web binding → web route, in that order, with
+tests at the core layer.
 
 Client state follows the island-core model (`../docs/architecture.md`
 §Client application state, ADR-0005): a feature's `core/` is pure TS —
@@ -75,8 +81,11 @@ files a resource owns outright (domain type, use-cases + test, repository, web
 page + route) and prints an ordered checklist for the shared files you must wire
 by hand, each with its anchor line and a paste-ready snippet. It deliberately
 does **not** edit shared files: the generated code imports symbols that don't
-exist yet, so `npm run check` stays RED until every checklist step is wired —
-the type system, not the generator, enforces completion.
+exist yet, so `npm run check` stays RED through the type-forced steps (domain,
+contract, port/use-case, client wiring). Two steps are **not** type-forced — a
+missing CLI command and an unregistered web route both typecheck fine — so
+`check` can go green with those still unwired; the checklist, not the compiler,
+is what guarantees they are done.
 
 ## Dev notes
 

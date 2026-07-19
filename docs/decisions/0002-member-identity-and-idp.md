@@ -92,11 +92,16 @@ export (CSV/JSON incl. email) is a foundation capability.
 
 - Foundation PRD §3.4 rewritten; FR-6/7 amended; FR-19..25 and US-025..028
   added; US-007 redefined (no organization plugin).
-- Implementation debt: the demo currently models tenants as Better Auth
+- Implementation debt: the demo originally modelled tenants as Better Auth
   organizations — to be migrated to foundation-owned `tenants` +
   `tenant_admins` tables. The full inventory of provider couplings, with
   priorities and fixes, lives in
   [provider-coupling-audit.md](../provider-coupling-audit.md) (docs first,
   code follows).
+
+  > **Landed (2026-07-20).** The P1 migration batch is complete: `demo/` now
+  > ships foundation-owned `tenants`, `tenant_admins` and `members` tables (see
+  > `demo/adapters/db/app-schema.ts`), the organization plugin is gone, and no
+  > provider organization/member table backs tenancy. This debt is resolved.
 - Together PRD FR-3 should be rephrased from "isolated member accounts" to
   "isolated member relationship ownership over shared authentication".

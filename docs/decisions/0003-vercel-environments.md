@@ -44,7 +44,9 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
 6. **No custom domain yet** (accepted constraint): web is single-tenant on
    `*.vercel.app`; API/CLI remain fully multi-tenant via `X-Tenant`. Attaching
    a wildcard domain later changes env vars (`APP_BASE_DOMAIN`), not code.
-   The `DOMAIN_PROVISIONER` stays `noop` until then.
+   The `DOMAIN_PROVISIONER` switch and its adapter are reserved for the
+   domain-provisioning work (US-009/014/019–021) and are not built yet; until
+   then there is nothing to provision.
 7. **Remote runtime gate**: `smoke:remote` reuses the smoke CLI suite against
    a deployment URL (health → sign-in → todos → negative case), replacing the
    boot-a-server phase with the deployed target.
