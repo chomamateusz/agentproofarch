@@ -54,6 +54,15 @@ const todoItemSchema = z.object({ id: z.string(), title: z.string() });
 const todosSchema = z.object({ todos: z.array(todoItemSchema) });
 const addSchema = z.object({ todo: todoItemSchema });
 
+const cardItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  column: z.string(),
+  position: z.number(),
+});
+const cardsSchema = z.object({ cards: z.array(cardItemSchema) });
+const cardWriteSchema = z.object({ card: cardItemSchema });
+
 const readEnvelope = (result: Run, label: string): unknown => {
   try {
     return JSON.parse(result.stdout);
@@ -115,8 +124,9 @@ const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
 
 /**
  * The runtime contract every deploy target must satisfy, driven purely through
- * the CLI: health → sign-in → todos list/add/list → unauthorized (exit 3),
- * plus the security/caching response headers.
+ * the CLI: health → sign-in → todos list/add/list → cards add/list/move/list
+ * (verifying the moved card persists at its new column and index) →
+ * unauthorized (exit 3), plus the security/caching response headers.
  * `homes` collects the temp HOME dirs so the caller can clean them up.
  */
 export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<void> => {
@@ -176,6 +186,72 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   assert(
     after.todos.length === before.todos.length + 1,
     `expected exactly one more todo (${before.todos.length} -> ${after.todos.length})`,
+  );
+
+  const cardTitle = `smoke card ${randomUUID()}`;
+  const addedCard = cardWriteSchema.parse(
+    expectOk(
+      await cli(
+        ['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'add', '--column', 'doing', cardTitle],
+        authedHome,
+      ),
+      'card add',
+    ),
+  );
+  assert(
+    addedCard.card.title === cardTitle && addedCard.card.column === 'doing',
+    `card add echoed the wrong card: ${JSON.stringify(addedCard.card)}`,
+  );
+
+  const cardsAfterAdd = cardsSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'list'], authedHome),
+      'card list (after add)',
+    ),
+  );
+  assert(
+    cardsAfterAdd.cards.some((card) => card.id === addedCard.card.id && card.column === 'doing'),
+    'the added card did not appear in "doing" in the card list',
+  );
+
+  const movedCard = cardWriteSchema.parse(
+    expectOk(
+      await cli(
+        [
+          '--json',
+          '--api-url',
+          baseUrl,
+          '--tenant',
+          target.tenant,
+          'card',
+          'move',
+          addedCard.card.id,
+          '--to',
+          'todo',
+          '--index',
+          '0',
+        ],
+        authedHome,
+      ),
+      'card move',
+    ),
+  );
+  assert(
+    movedCard.card.column === 'todo' && movedCard.card.position === 0,
+    `card move did not land at todo#0: ${JSON.stringify(movedCard.card)}`,
+  );
+
+  const cardsAfterMove = cardsSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'list'], authedHome),
+      'card list (after move)',
+    ),
+  );
+  const persisted = cardsAfterMove.cards.find((card) => card.id === addedCard.card.id);
+  assert(persisted !== undefined, 'the moved card vanished from the card list');
+  assert(
+    persisted.column === 'todo' && persisted.position === 0,
+    `the moved card did not persist at todo#0: ${JSON.stringify(persisted)}`,
   );
 
   expectError(

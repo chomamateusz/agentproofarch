@@ -4,7 +4,7 @@ import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
 import type { AuthClientPort } from '#core/client/index.js';
 import { createApiClient, type ApiClient } from '#core/client/index.js';
 import { TENANT_HEADER } from '#core/contract/index.js';
-import { err, internal, notFound, ok } from '#core/domain/index.js';
+import { err, internal, notFound, ok, validation } from '#core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
 import { emit } from './output.js';
@@ -169,6 +169,52 @@ todo
     const ctx = cliCtx();
     emit(await ctx.api.addTodo({ title: titleWords.join(' ') }), ctx.json, (data) =>
       `added: ${data.todo.title} (${data.todo.id.slice(0, 8)})`,
+    );
+  });
+
+const card = program.command('card').description('Cards on the personal board in the active tenant');
+
+card.command('list').description('List cards, grouped by column').action(async () => {
+  const ctx = cliCtx();
+  emit(await ctx.api.listCards(), ctx.json, (data) =>
+    data.cards.length === 0
+      ? 'no cards'
+      : [...data.cards]
+          .sort((a, b) => a.column.localeCompare(b.column) || a.position - b.position)
+          .map((c) => `- [${c.column}] ${c.title}  (${c.id.slice(0, 8)})`)
+          .join('\n'),
+  );
+});
+
+card
+  .command('add <title...>')
+  .description('Add a card to a column (default: todo)')
+  .option('--column <column>', 'target column', 'todo')
+  .action(async (titleWords: string[], options: { column: string }) => {
+    const ctx = cliCtx();
+    emit(
+      await ctx.api.addCard({ title: titleWords.join(' '), column: options.column }),
+      ctx.json,
+      (data) => `added: ${data.card.title} [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
+    );
+  });
+
+card
+  .command('move <id>')
+  .description('Move a card to a column, at an optional 0-based index (default: end)')
+  .requiredOption('--to <column>', 'destination column')
+  .option('--index <n>', 'destination index within the column')
+  .action(async (id: string, options: { to: string; index?: string }) => {
+    const ctx = cliCtx();
+    const toIndex = options.index === undefined ? Number.MAX_SAFE_INTEGER : Number(options.index);
+    if (!Number.isInteger(toIndex)) {
+      emit(err(validation(`--index must be an integer, got "${options.index}"`)), ctx.json, () => '');
+      return;
+    }
+    emit(
+      await ctx.api.moveCard({ cardId: id, toColumn: options.to, toIndex }),
+      ctx.json,
+      (data) => `moved: ${data.card.title} -> [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
     );
   });
 
