@@ -189,6 +189,30 @@ describe('cards use-cases — listing + adding', () => {
       ),
     ).toMatchObject({ ok: false, error: { code: 'validation' } });
   });
+
+  it('refuses to create a team card outside the entry column (entry-column rule)', async () => {
+    const { repo } = fakeRepo();
+    for (const column of ['in-dev', 'review', 'done']) {
+      expect(
+        await addCard(
+          { identity: identity('t-acme') },
+          { title: 'spawned late', board: 'team', column },
+          deps(repo),
+        ),
+      ).toMatchObject({
+        ok: false,
+        error: { code: 'validation', details: { rule: 'entry-column' } },
+      });
+    }
+    // The personal board keeps free placement.
+    expect(
+      await addCard(
+        { identity: identity('t-acme') },
+        { title: 'free', board: 'personal', column: 'done' },
+        deps(repo),
+      ),
+    ).toMatchObject({ ok: true, value: { column: 'done' } });
+  });
 });
 
 describe('cards use-cases — moveCard (personal, free movement)', () => {

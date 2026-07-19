@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { TEAM_BOARD_ENTRY_COLUMN } from '#core/domain/index.js';
 import type { Card, MoveVerdict, TeamColumn } from '#core/domain/index.js';
 
 import { send, subscribe, teamBoardSelectors, type TeamCard } from './core/index.js';
@@ -103,7 +104,7 @@ export const TeamBoardPage = () => {
                   />
                 ))}
               </Stack>
-              <AddCardForm column={column} />
+              {column === TEAM_BOARD_ENTRY_COLUMN ? <AddCardForm column={column} /> : null}
             </Paper>
           );
         })}

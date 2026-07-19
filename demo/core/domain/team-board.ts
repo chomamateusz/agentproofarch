@@ -24,6 +24,11 @@ export const teamColumnSchema = z.enum(TEAM_BOARD_COLUMNS);
 export const isTeamColumn = (value: string): value is TeamColumn =>
   TEAM_BOARD_COLUMNS.some((column) => column === value);
 
+// Team cards are born at the start of the flow: creating a card directly in a
+// later column would bypass every path guard below (a card spawned in `done`
+// never visited `in-dev`), so the entry column is a rule, not a default.
+export const TEAM_BOARD_ENTRY_COLUMN: TeamColumn = 'todo';
+
 /** WIP limits as data: a column absent from the map is unbounded. */
 export type WipLimits = Readonly<Partial<Record<TeamColumn, number>>>;
 

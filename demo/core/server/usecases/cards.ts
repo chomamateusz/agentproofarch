@@ -8,6 +8,7 @@ import {
   newCardSchema,
   notFound,
   ok,
+  TEAM_BOARD_ENTRY_COLUMN,
   TEAM_WIP_LIMITS,
   tenantNotFound,
   validation,
@@ -62,6 +63,14 @@ export const addCard = async (
   const { board, column, title } = parsed.data;
   if (!isColumnOfBoard(board, column)) {
     return err(validation(`Unknown column "${column}" for the ${board} board`));
+  }
+  if (board === 'team' && column !== TEAM_BOARD_ENTRY_COLUMN) {
+    return err(
+      validation(
+        `Team cards start in "${TEAM_BOARD_ENTRY_COLUMN}" — creating one in "${column}" would bypass the path guards`,
+        { rule: 'entry-column' },
+      ),
+    );
   }
 
   const existing = await deps.cards.listByTenant(ctx.identity.tenantId, board);
