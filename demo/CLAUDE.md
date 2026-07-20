@@ -47,8 +47,9 @@ rejected.)
 - `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
   the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
   single-tenant custom domain, `entry.node.ts` serving the built bundle) across
-  three spec files (7 tests): `app.spec.ts` (login → seeded todos → add-todo →
-  failed-login → cache headers), `board.spec.ts` (the personal board: add,
+  three spec files (9 tests): `app.spec.ts` (login → seeded todos → add-todo →
+  failed-login → cache headers → liveness/readiness → anonymous redirect to
+  login), `board.spec.ts` (the personal board: add,
   reorder, persist across reload, move across columns, undo) and
   `team-board.spec.ts` (the team board: entry-column-only, the WIP guard
   blocking and releasing, and a legal chain persisting). The harness boots the
@@ -80,6 +81,11 @@ rejected.)
   HTTP status + exit code mapping in `core/contract/http-status.ts` (exhaustive).
 - Every tenant-scoped use-case takes `ctx: { identity }` first; every
   tenant-scoped repository method requires `tenantId`.
+- Every tenant-scoped use-case authorizes FIRST — its opening statement is the
+  capability predicate (`authorize` / `authorizeTenant` from `core/server`,
+  default-deny; see `../docs/architecture.md` §Authorization) — before any
+  repository access; a self-scoped read that carries no capability (e.g.
+  `listMyTenants`) is the only exception and is a reasoned allowlist entry.
 
 ## Verify features through the CLI first
 

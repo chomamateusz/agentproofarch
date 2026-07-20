@@ -9,6 +9,7 @@ import {
   type Tenant,
 } from '#core/domain/index.js';
 
+import { authorize } from '../authorize.js';
 import type { Ctx } from '../context.js';
 import type { Clock, IdGenerator, TenantRepository } from '../ports.js';
 
@@ -23,6 +24,9 @@ export const createTenant = async (
   input: { slug: string; name: string },
   deps: CreateTenantDeps,
 ): Promise<Result<Tenant, AppError>> => {
+  const denial = authorize(ctx, 'tenant:create');
+  if (denial) return err(denial);
+
   const parsedSlug = slugSchema.safeParse(input.slug);
   if (!parsedSlug.success) {
     return errValidation(parsedSlug.error.issues[0]?.message ?? 'Invalid tenant slug');

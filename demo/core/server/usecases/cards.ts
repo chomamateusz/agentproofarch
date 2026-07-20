@@ -10,7 +10,6 @@ import {
   ok,
   TEAM_BOARD_ENTRY_COLUMN,
   TEAM_WIP_LIMITS,
-  tenantNotFound,
   validation,
   type AppError,
   type BoardId,
@@ -21,6 +20,7 @@ import {
   type Result,
 } from '#core/domain/index.js';
 
+import { authorizeTenant } from '../authorize.js';
 import type { Ctx } from '../context.js';
 import type { CardPositionUpdate, CardRepository, Clock, IdGenerator } from '../ports.js';
 
@@ -45,10 +45,11 @@ export const listCards = async (
   input: CardListQuery,
   deps: CardDeps,
 ): Promise<Result<Card[], AppError>> => {
-  if (!ctx.identity.tenantId) return err(tenantNotFound('Select a tenant to list cards'));
+  const scope = authorizeTenant(ctx, 'card:read');
+  if (!scope.ok) return scope;
   const parsed = cardListQuerySchema.safeParse(input);
   if (!parsed.success) return err(validation('Invalid card query', parsed.error.flatten()));
-  return ok(await deps.cards.listByTenant(ctx.identity.tenantId, parsed.data.board));
+  return ok(await deps.cards.listByTenant(scope.value, parsed.data.board));
 };
 
 export const addCard = async (
@@ -56,7 +57,8 @@ export const addCard = async (
   input: NewCard,
   deps: CardDeps,
 ): Promise<Result<Card, AppError>> => {
-  if (!ctx.identity.tenantId) return err(tenantNotFound('Select a tenant to add cards'));
+  const scope = authorizeTenant(ctx, 'card:write');
+  if (!scope.ok) return scope;
 
   const parsed = newCardSchema.safeParse(input);
   if (!parsed.success) return err(validation('Invalid card', parsed.error.flatten()));
@@ -73,12 +75,12 @@ export const addCard = async (
     );
   }
 
-  const existing = await deps.cards.listByTenant(ctx.identity.tenantId, board);
+  const existing = await deps.cards.listByTenant(scope.value, board);
   const position = existing.filter((card) => card.column === column).length;
 
   const card: Card = {
     id: deps.ids.nextId(),
-    tenantId: ctx.identity.tenantId,
+    tenantId: scope.value,
     title,
     board,
     column,
@@ -109,13 +111,14 @@ export const moveCard = async (
   input: CardMove,
   deps: CardDeps,
 ): Promise<Result<Card, AppError>> => {
-  if (!ctx.identity.tenantId) return err(tenantNotFound('Select a tenant to move cards'));
+  const scope = authorizeTenant(ctx, 'card:write');
+  if (!scope.ok) return scope;
 
   const parsed = cardMoveSchema.safeParse(input);
   if (!parsed.success) return err(validation('Invalid move', parsed.error.flatten()));
   const { cardId, board, toColumn, toIndex } = parsed.data;
 
-  const tenantId = ctx.identity.tenantId;
+  const tenantId = scope.value;
   const all = await deps.cards.listByTenant(tenantId, board);
   const moving = all.find((card) => card.id === cardId);
   if (!moving) return err(notFound(`Card ${cardId} not found`));

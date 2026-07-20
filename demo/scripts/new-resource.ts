@@ -233,11 +233,26 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
          }
 
 4. USE-CASE INDEX — core/server/index.ts
-   anchor:  export * from './usecases/todos.js';
-   add:     export * from './usecases/${n.pluralKebab}.js';
-   (The use-case + its test skeleton are already generated. Turn the generated
-    it.todo(...) cases in core/server/usecases/${n.pluralKebab}.test.ts into real
-    tests before wiring the UI.)
+   4a. anchor:  export * from './usecases/todos.js';
+       add:     export * from './usecases/${n.pluralKebab}.js';
+   4b. AUTHORIZATION — core/domain/authorization.ts
+       The generated use-cases call authorizeTenant(ctx, '${n.singularKebab}:read' |
+       '${n.singularKebab}:write'). Those capabilities are not in the Capability
+       union yet, so \`check\` stays RED (type-forced) until you name them and
+       decide their grants — default-deny, no wildcard.
+       anchor:  'todo:read',                 (the CAPABILITIES array)
+       add:     '${n.singularKebab}:read',
+                '${n.singularKebab}:write',
+       anchor:  'todo:read': ['staff', 'member'],   (the GRANTS table)
+       add:     '${n.singularKebab}:read': ['staff', 'member'],
+                '${n.singularKebab}:write': ['staff', 'member'],
+       Baseline above = collaborative (staff + member read+write), matching the
+       generated tests. For a staff-only aggregate, grant only ['staff'] and flip
+       the member test in the generated test file to assert a 'forbidden' denial.
+   (The use-case + its test skeleton are already generated. The three authorization
+    outcomes — staff allowed, member per policy, tenant-less denied — ship as REAL
+    tests (RED until wired); turn the remaining it.todo(...) cases in
+    core/server/usecases/${n.pluralKebab}.test.ts into real tests before wiring the UI.)
 
 5. ADAPTER SCHEMA — adapters/db/app-schema.ts
    anchor:  export const todos = pgTable(

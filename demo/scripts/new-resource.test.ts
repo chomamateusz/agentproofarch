@@ -110,6 +110,9 @@ describe('generateResource', () => {
 
     expect(result.files[0]?.contents).toContain('export const blogPostSchema');
     expect(result.files[1]?.contents).toContain('export const listBlogPosts');
+    // The use-case names its capability — type-forced against the closed union.
+    expect(result.files[1]?.contents).toContain("authorizeTenant(ctx, 'blog-post:read')");
+    expect(result.files[1]?.contents).toContain("authorizeTenant(ctx, 'blog-post:write')");
     expect(result.files[3]?.contents).toContain('createBlogPostRepository');
 
     // ADR-0005 no-opt-outs reconciliation: the generated page is honest about
@@ -133,7 +136,7 @@ describe('generateResource', () => {
     expect(checklist).toContain('actions.diaryEntries');
   });
 
-  it('ships the use-case test skeleton as visible it.todo entries, not comment-only TODOs', () => {
+  it('ships the three authorization outcomes as REAL tests and the rest as visible it.todo entries', () => {
     const { files } = generateResource({
       name: 'memo',
       outDir: sandbox,
@@ -141,8 +144,14 @@ describe('generateResource', () => {
       dryRun: true,
     });
     const usecaseTest = files.find((file) => file.path.endsWith('memos.test.ts'))?.contents ?? '';
+    // The three default-deny outcomes ship as REAL tests (staff allowed, member
+    // per policy, tenant-less denied), never as it.todo stubs.
+    expect(usecaseTest).toContain('scopes listing to the tenant');
+    expect(usecaseTest).toContain('denies a tenant-less caller with forbidden');
+    expect(usecaseTest).toContain('allows a tenant member to read and write');
+    expect(usecaseTest).toContain('member }, deps(repo)');
+    expect(usecaseTest).not.toContain('decide the member policy');
     expect(usecaseTest).toContain('it.todo(');
-    expect(usecaseTest).toContain("without a tenant (error code 'tenant_not_found')");
     expect(usecaseTest).toContain("rejects blank/oversized input with 'validation'");
     expect(usecaseTest).toContain("never returns another tenant's rows");
     expect(usecaseTest).not.toMatch(/^\s*\/\/ TODO:/m);
@@ -171,6 +180,10 @@ describe('generateResource', () => {
     expect(checklist).toContain('write core tests before wiring the UI');
     expect(checklist).toContain('npm run check && npm run smoke');
     expect(checklist).toContain("path: '/api/gadgets'");
+    // The authorization step is part of the type-forced RED chain.
+    expect(checklist).toContain('AUTHORIZATION');
+    expect(checklist).toContain("'gadget:read'");
+    expect(checklist).toContain("'gadget:write'");
   });
 
   it('does not write files in dry-run mode', () => {

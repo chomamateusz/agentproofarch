@@ -18,6 +18,17 @@ const identity: Identity = {
   memberId: null,
 };
 
+const memberIdentity: Identity = {
+  userId: 'u2',
+  email: 'member@example.com',
+  name: 'Member',
+  tenantId: 't-acme',
+  tenantSlug: 'acme',
+  tenantName: 'Acme Inc',
+  staffRole: null,
+  memberId: 'm-1',
+};
+
 const fakeTenants = (initialTenants: Tenant[] = []) => {
   const tenants = [...initialTenants];
   const ownerGrants: OwnerGrant[] = [];
@@ -78,6 +89,20 @@ describe('createTenant', () => {
         staffRole: 'owner',
       },
     ]);
+  });
+
+  it('denies an end-customer member with forbidden before touching the repository', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity: memberIdentity },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
   });
 
   it('rejects slug conflicts before creating records', async () => {

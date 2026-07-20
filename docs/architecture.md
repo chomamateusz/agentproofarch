@@ -529,6 +529,92 @@ and every tenant-scoped repository call requires `tenantId`. Sessions span
 `APP_BASE_DOMAIN` subdomains; each custom domain is its own cookie world
 (sign-in per domain — deliberate isolation).
 
+Tenant slugs are a value object (`core/domain/slug.ts`): free API input is
+first **normalized** (lowercased, every run of non-alphanumerics collapsed to a
+single hyphen, leading/trailing hyphens trimmed) and then **validated** against
+the canonical shape (`slugSchema` = `transform(normalizeSlug).pipe(canonicalSlugSchema)`:
+3–63 chars, `^[a-z0-9]+(?:-[a-z0-9]+)*$`, not a reserved subdomain), so the edge
+accepts human input while only one canonical form is ever persisted or resolved.
+
+### Authorization
+
+**Default-deny at every use-case entry** (NORMATIVE NOW). Tenant resolution
+answers *which* tenant and *whether* the caller belongs to it
+([ADR-0002](decisions/0002-member-identity-and-idp.md)); authorization answers
+*what* they may do there, and the two are separate steps. The capability model
+lives in `core/domain/authorization.ts`: a closed `Capability` union (one entry
+per aggregate action — `todo:read`, `todo:write`, `card:read`, `card:write`,
+`tenant:create`) and a pure `decide(identity, capability)` predicate over three
+principals derived from the identity — **staff** (owner|admin grant), **member**
+(an end-customer membership, no staff grant) and **visitor** (neither — the
+tenant-less identity). The policy is a `Record<Capability, Principal[]>` grant
+table: a capability names exactly the principals that hold it and **nothing is
+granted by wildcard** — a principal absent from a capability's list is denied.
+The demo policy:
+
+| capability      | staff (owner\|admin) | member | visitor (tenant-less) |
+| --------------- | -------------------- | ------ | --------------------- |
+| `todo:read`     | allow                | allow  | deny                  |
+| `todo:write`    | allow                | allow  | deny                  |
+| `card:read`     | allow                | allow  | deny                  |
+| `card:write`    | allow                | allow  | deny                  |
+| `tenant:create` | allow                | deny   | allow                 |
+
+Members are full collaborators on the tenant's boards (todos and cards are
+collaborative aggregates) but may not administer tenants; `tenant:create` is
+tenant-less self-service (the caller becomes owner), so a visitor holds it while
+a member of one tenant may not provision others. The member-deny cell is
+**use-case-layer only**: over HTTP the create route deliberately sits above
+tenant resolution, every authenticated caller presents as visitor, and a member
+could in any case drop the tenant header and present as one legitimately — the
+cell exists as defense-in-depth for future callers that carry a member context,
+not as an HTTP-reachable barrier.
+
+**One line per use-case.** Every tenant-scoped use-case runs the predicate — via
+the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
+statement, **before any repository access**:
+
+```ts
+export const listTodos = async (ctx: Ctx, deps: TodoDeps) => {
+  const scope = authorizeTenant(ctx, 'todo:read'); // deny → forbidden (exit 4)
+  if (!scope.ok) return scope;                      // else scope.value is the tenantId
+  return ok(await deps.todos.listByTenant(scope.value));
+};
+```
+
+`authorizeTenant` both denies and hands back the resolved non-null `tenantId`, so
+an allowed caller narrows to its tenant without a second guard and a tenant-less
+caller is denied there rather than reaching a repository; `authorize` is the
+tenant-agnostic variant used by `createTenant` (tenant-less self-service). A
+capability is modelled only where authorization is a real decision: `listMyTenants`
+enumerates the caller's *own* staff memberships, so it is gated by authentication
+and carries no capability — a self-scoped read is not an access decision.
+
+— **TYPE**: `Capability` is a closed union and the helpers take it as a required
+argument, so a use-case cannot name a capability the union does not declare;
+`Record<Capability, Principal[]>` is exhaustive, so adding a capability without
+deciding its grants fails to compile. NOT type-forced (honest limit): a use-case
+that never calls the predicate still compiles — the compiler forces the
+capability *name*, not the *call* · **LINT**: n/a (the predicate is a call-site
+discipline, not a syntactic shape a rule can match) · **TEST**: the `decide` unit
+suite asserts every capability × principal cell (an exhaustive
+`Record<Capability, Record<Principal, boolean>>`); each tenant-scoped use-case
+test asserts staff-allowed, member allowed/denied per policy and tenant-less
+denied; `new:resource` scaffolds all three outcomes as real tests for every new
+aggregate — staff allowed, member allowed per the baseline collaborative policy
+(the test title carries the flip-to-forbidden guidance for a staff-only
+aggregate) and the tenant-less caller `forbidden`; and a config-regression
+**structural probe** (`config-regression/authorization.test.ts`) asserts every
+exported tenant-scoped use-case (first param `ctx: Ctx`) references the
+`authorize`/`authorizeTenant` helper, so a new use-case cannot silently skip
+authorization — its honest limit is that it matches the helper *in the function
+body* (a regex over source), not that the call precedes repository access, and an
+intentional authentication-only use-case is a named, reasoned allowlist entry
+(`listMyTenants`), not a silent omission · **REVIEW+AI**: flag a tenant-scoped
+use-case that touches a repository before the predicate, any grant that widens a
+capability to a principal the table above does not name, and any new entry added
+to the probe's authentication-only allowlist without a self-scoped-read rationale.
+
 **Tenant, not instance**: one instance (one DB) hosts many tenants over one
 shared account pool — a creator's unrelated brands should be tenants, not new
 deployments. Cross-instance/cross-app SSO is an evolution path (central OIDC
@@ -1007,8 +1093,10 @@ The threat model is a multi-tenant SPA and API on one origin behind Better Auth.
 The two invariants that actually hold the system together are already enforced
 (§Layers, §Identity and multi-tenancy): auth runs *before* tenant resolution, and
 every tenant-scoped repository method takes `tenantId`, so the type system will
-not let a query span tenants — this is the primary access control, everything
-below is defense-in-depth around it. Everything under NORMATIVE NOW is wired in
+not let a query span tenants; on top of those, every tenant-scoped use-case runs
+a default-deny authorization predicate before it touches a repository
+(§Authorization). These three are the primary access control — everything
+below is defense-in-depth around them. Everything under NORMATIVE NOW is wired in
 the demo (`app.ts` `secureHeaders`/`bodyLimit`, `create-auth.ts` rate limiting,
 `vercel.json` headers). The `smoke` gate asserts the subset that shows up on a
 live response header — `Cache-Control: no-store`, `X-Content-Type-Options:

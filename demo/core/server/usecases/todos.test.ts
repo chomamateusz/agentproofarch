@@ -16,6 +16,17 @@ const identity = (tenantId: string | null): Identity => ({
   memberId: null,
 });
 
+const memberIdentity: Identity = {
+  userId: 'u2',
+  email: 'member@example.com',
+  name: 'Member',
+  tenantId: 't-acme',
+  tenantSlug: 'acme',
+  tenantName: 'Acme Inc',
+  staffRole: null,
+  memberId: 'm-1',
+};
+
 const fakeRepo = (initial: Todo[] = []) => {
   const store = [...initial];
   const repo: TodoRepository = {
@@ -43,13 +54,25 @@ describe('todos use-cases', () => {
     expect(result.ok && result.value.map((t) => t.id)).toEqual(['1']);
   });
 
-  it('refuses to operate without a tenant', async () => {
+  it('denies a tenant-less caller with forbidden (default-deny predicate runs first)', async () => {
     const { repo } = fakeRepo();
     const listed = await listTodos({ identity: identity(null) }, deps(repo));
-    expect(listed).toMatchObject({ ok: false, error: { code: 'tenant_not_found' } });
+    expect(listed).toMatchObject({ ok: false, error: { code: 'forbidden' } });
 
     const added = await addTodo({ identity: identity(null) }, { title: 'x' }, deps(repo));
-    expect(added).toMatchObject({ ok: false, error: { code: 'tenant_not_found' } });
+    expect(added).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+  });
+
+  it('allows a tenant member to read and write todos (collaborative aggregate)', async () => {
+    const { repo, store } = fakeRepo([
+      { id: '1', tenantId: 't-acme', title: 'a', createdBy: 'u1', createdAt: 'x' },
+    ]);
+    const listed = await listTodos({ identity: memberIdentity }, deps(repo));
+    expect(listed.ok && listed.value.map((t) => t.id)).toEqual(['1']);
+
+    const added = await addTodo({ identity: memberIdentity }, { title: 'from member' }, deps(repo));
+    expect(added).toMatchObject({ ok: true, value: { tenantId: 't-acme', title: 'from member' } });
+    expect(store).toHaveLength(2);
   });
 
   it('validates input and stamps tenant + author on create', async () => {
