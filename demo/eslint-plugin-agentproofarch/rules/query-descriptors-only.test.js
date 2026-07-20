@@ -34,6 +34,9 @@ it('query-descriptors-only', () => {
       web("import { meQuery } from '#core/client/index.js'; useQuery(meQuery);"),
       // Island core public seam re-exports the bound descriptors.
       board("import { boardSelectors } from './core/index.js'; useQuery(boardSelectors.list);"),
+      // Island web composition (index.web.ts): where the portable core is bound to
+      // its real gateway + descriptors; the view consumes the seam through it.
+      board("import { boardSelectors } from './index.web.js'; useQuery(boardSelectors.list);"),
       web("import { actions } from './api.js'; useMutation({ ...actions.addTodo, onSuccess() {} });"),
       web("import { actions } from './api.js'; useQueries({ queries: [actions.me, actions.todos()] });"),
       web("import { actions } from './api.js'; const q = actions.me; useQuery(q);"),

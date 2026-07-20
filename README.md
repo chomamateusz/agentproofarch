@@ -138,7 +138,7 @@ Two gates, four test levels, and probes that keep the enforcers honest
 - **CI jobs** — `check`, `smoke` (Postgres service + integration), and `e2e`
   run on every PR; `post-deploy-smoke` re-runs `smoke:remote` against real
   production/preview after each deploy.
-- **Config-regression probes** — <!--count:config-regression-->32<!--/count--> tests guard the covered boundary and
+- **Config-regression probes** — <!--count:config-regression-->34<!--/count--> tests guard the covered boundary and
   island-core rules: most feed a violating fixture to a rule and assert the gate
   still goes red; a few are structural rule-presence checks rather than
   fixture-feeding probes. Together they mean those rules cannot be silently

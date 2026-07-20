@@ -195,6 +195,22 @@ const ISLAND_CORE_STORE_REACT_PATTERN = {
   message: ISLAND_CORE_STORE_REACT_MESSAGE,
 };
 
+// Island cores are portable, DOM-free modules — they must not reach out of their
+// own core directory. That bans api.ts (the web composition), a sibling feature
+// and any apps/web path outside the core: those imports drag web wiring into a
+// module that has to typecheck without DOM (tsconfig.islands.json) and run in
+// plain node. Every parent-relative specifier (`../…`) escapes the core, so the
+// whole class is banned; shared contracts come through the `#core/*` alias, and
+// the gateway + bound descriptors are INJECTED in features/<name>/index.web.ts.
+// Without this the `web-features`→`web-api` boundary (element-type granularity)
+// would silently re-permit a core importing api.ts (ADR-0005 §Pure-TS cores).
+const ISLAND_CORE_PORTABILITY_MESSAGE =
+  'Island cores are portable and DOM-free: no parent-relative import — not api.ts, a sibling feature, or any apps/web path outside this core. Inject the gateway + bound descriptors in features/<name>/index.web.ts and reach shared contracts via the #core/* alias. (ADR-0005 §Pure-TS cores)';
+const ISLAND_CORE_PORTABILITY_PATTERN = {
+  group: ['../*', '../**'],
+  message: ISLAND_CORE_PORTABILITY_MESSAGE,
+};
+
 const WEB_RESTRICTED_SYNTAX = [
   AS_BAN,
   AUTH_API_LITERAL_BAN,
@@ -513,7 +529,11 @@ export default tseslint.config(
             ...ISLAND_CORE_STORE_REACT_BANS,
             ISLAND_CORE_PERSIST_BAN,
           ],
-          patterns: [QUERY_CLIENT_SINGLETON_PATTERN, ISLAND_CORE_STORE_REACT_PATTERN],
+          patterns: [
+            QUERY_CLIENT_SINGLETON_PATTERN,
+            ISLAND_CORE_STORE_REACT_PATTERN,
+            ISLAND_CORE_PORTABILITY_PATTERN,
+          ],
         },
       ],
     },
