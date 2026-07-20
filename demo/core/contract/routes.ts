@@ -7,6 +7,7 @@ import {
   membershipSchema,
   newCardSchema,
   newTodoSchema,
+  slugSchema,
   staffRoleSchema,
   tenantSchema,
   todoSchema,
@@ -49,7 +50,7 @@ export const todoListOutputSchema = z.object({
 });
 
 export const tenantCreateInputSchema = z.object({
-  slug: z.string(),
+  slug: slugSchema,
   name: z.string(),
 });
 

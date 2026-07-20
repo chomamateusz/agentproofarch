@@ -97,18 +97,31 @@ describe('createTenant', () => {
     expect(store.ownerGrants).toEqual([]);
   });
 
-  it('validates slug and name before writing', async () => {
+  it('normalizes free-form slug input before writing', async () => {
     const store = fakeTenants();
 
     const result = await createTenant(
       { identity },
-      { slug: 'No Spaces', name: 'Invalid' },
+      { slug: '  New Co!!  ', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: true, value: { slug: 'new-co' } });
+    expect(store.tenants).toEqual([{ id: 't-new', slug: 'new-co', name: 'New Co' }]);
+  });
+
+  it('rejects a reserved slug before writing', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity },
+      { slug: 'admin', name: 'Invalid' },
       deps(store.repo),
     );
 
     expect(result).toMatchObject({
       ok: false,
-      error: { code: 'validation', message: 'Tenant slug must be 3-63 lowercase letters, numbers or hyphens' },
+      error: { code: 'validation', message: 'Slug is reserved' },
     });
     expect(store.tenants).toEqual([]);
     expect(store.ownerGrants).toEqual([]);
