@@ -80,6 +80,11 @@ rejected.)
   HTTP status + exit code mapping in `core/contract/http-status.ts` (exhaustive).
 - Every tenant-scoped use-case takes `ctx: { identity }` first; every
   tenant-scoped repository method requires `tenantId`.
+- Every tenant-scoped use-case authorizes FIRST — its opening statement is the
+  capability predicate (`authorize` / `authorizeTenant` from `core/server`,
+  default-deny; see `../docs/architecture.md` §Authorization) — before any
+  repository access; a self-scoped read that carries no capability (e.g.
+  `listMyTenants`) is the only exception and is a reasoned allowlist entry.
 
 ## Verify features through the CLI first
 

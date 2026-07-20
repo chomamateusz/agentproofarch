@@ -121,14 +121,14 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **<!--count:test-files-->53<!--/count--> test files.**
+  `doc-lint` + vitest with coverage. **<!--count:test-files-->54<!--/count--> test files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (<!--count:test-files-->53<!--/count--> files,
+- **Four test levels** — **unit** (<!--count:test-files-->54<!--/count--> files,
   in `check`) · **integration** (<!--count:integration-tests-->27<!--/count-->,
   real Postgres, run in the `smoke` CI job) · **e2e**
   (<!--count:e2e-tests-->9<!--/count--> tests across
@@ -138,7 +138,7 @@ Two gates, four test levels, and probes that keep the enforcers honest
 - **CI jobs** — `check`, `smoke` (Postgres service + integration), and `e2e`
   run on every PR; `post-deploy-smoke` re-runs `smoke:remote` against real
   production/preview after each deploy.
-- **Config-regression probes** — <!--count:config-regression-->25<!--/count--> tests guard the covered boundary and
+- **Config-regression probes** — <!--count:config-regression-->28<!--/count--> tests guard the covered boundary and
   island-core rules: most feed a violating fixture to a rule and assert the gate
   still goes red; a few are structural rule-presence checks rather than
   fixture-feeding probes. Together they mean those rules cannot be silently
