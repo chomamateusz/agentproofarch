@@ -8,18 +8,17 @@
 import { eq } from 'drizzle-orm';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
+import { seedEnvSchema } from '#core/server/config.js';
 
 import { createDb } from './client.js';
 import { members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 
-const connectionString =
-  process.env['DATABASE_URL'] ??
-  'postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch';
+const { DATABASE_URL: connectionString, BETTER_AUTH_SECRET } = seedEnvSchema.parse(process.env);
 
 const db = createDb('node-postgres', connectionString);
 
 const auth = createAuth(db, {
-  secret: process.env['BETTER_AUTH_SECRET'] ?? 'dev-only-secret-do-not-use-in-prod',
+  secret: BETTER_AUTH_SECRET,
   baseUrl: 'http://localhost:47100',
   baseDomain: 'localhost',
   trustedOrigins: () => ['http://localhost:47100'],

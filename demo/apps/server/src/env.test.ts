@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  DEFAULT_DATABASE_URL,
+  databaseEnvSchema,
+  observabilityEnvSchema,
+  seedEnvSchema,
+} from '#core/server/config.js';
+
 import { DEV_ONLY_SECRET, loadEnv, parseEnv } from './env.js';
 
 beforeEach(() => {
@@ -124,5 +131,32 @@ describe('production env hardening (B2)', () => {
     it('leaves node-postgres untouched off Vercel', () => {
       expect(parseEnv({ ...localDev(), DB_DRIVER: 'node-postgres' }).success).toBe(true);
     });
+  });
+});
+
+// The command-specific subsets (DECIDE F4): each entry point parses only the
+// keys it needs, off the one shared config module, with the shared defaults.
+describe('config subsets', () => {
+  it('the database subset defaults the connection string and the driver', () => {
+    const parsed = databaseEnvSchema.parse({});
+    expect(parsed.DATABASE_URL).toBe(DEFAULT_DATABASE_URL);
+    expect(parsed.DB_DRIVER).toBe('node-postgres');
+  });
+
+  it('the database subset takes an explicit driver', () => {
+    expect(databaseEnvSchema.parse({ DB_DRIVER: 'neon-http' }).DB_DRIVER).toBe('neon-http');
+  });
+
+  it('the seed subset defaults the URL and the dev secret', () => {
+    const parsed = seedEnvSchema.parse({});
+    expect(parsed.DATABASE_URL).toBe(DEFAULT_DATABASE_URL);
+    expect(parsed.BETTER_AUTH_SECRET).toBe(DEV_ONLY_SECRET);
+  });
+
+  it('the observability subset defaults the service name and leaves endpoints unset', () => {
+    const parsed = observabilityEnvSchema.parse({});
+    expect(parsed.OTEL_SERVICE_NAME).toBe('agentproofarch-server');
+    expect(parsed.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
+    expect(parsed.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).toBeUndefined();
   });
 });
