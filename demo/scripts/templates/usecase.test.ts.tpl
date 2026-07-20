@@ -51,8 +51,9 @@ describe('__PLURAL_KEBAB__ use-cases', () => {
     expect(listed.ok && listed.value.map((row) => row.title)).toEqual(['First entry']);
   });
 
-  // TODO: assert list__PLURAL_PASCAL__ and add__SINGULAR_PASCAL__ refuse to operate
-  //       without a tenant (error code 'tenant_not_found').
-  // TODO: assert add__SINGULAR_PASCAL__ rejects blank/oversized input with 'validation'.
-  // TODO: assert list__PLURAL_PASCAL__ never returns another tenant's rows.
+  it.todo(
+    "list__PLURAL_PASCAL__ and add__SINGULAR_PASCAL__ refuse to operate without a tenant (error code 'tenant_not_found')",
+  );
+  it.todo("add__SINGULAR_PASCAL__ rejects blank/oversized input with 'validation'");
+  it.todo("list__PLURAL_PASCAL__ never returns another tenant's rows");
 });

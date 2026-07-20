@@ -19,10 +19,12 @@ re-type a large API surface, defeat `@tanstack/eslint-plugin-query`, and hide a
 library every model knows behind an abstraction none does. Never do it.
 
 `queryOptions()`/`infiniteQueryOptions()` live in `@tanstack/react-query` and
-are therefore banned from `core/client`; descriptors are typed by a local
-`defineQuery`/`defineInfiniteQuery` identity helper (typed against
+are therefore banned from `core/client`; descriptors are typed by the local
+`defineQuery`/`defineMutation` identity helpers (typed against
 `@tanstack/query-core` option types, binding the `queryFn` result type to the
-key). `skipToken` imports from `@tanstack/query-core` and is allowed in core.
+key). The shipped pair is `defineQuery`/`defineMutation` (`core/client/queries.ts`);
+a `defineInfiniteQuery` helper lands with the first infinite list, not before.
+`skipToken` imports from `@tanstack/query-core` and is allowed in core.
 
 ## Descriptors
 

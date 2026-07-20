@@ -71,10 +71,16 @@ core/server     use-cases + ports (interfaces)            → domain
 core/client     typed HTTP client + query definitions     → contract
 adapters/db     Drizzle repos, driver factory (pg|neon)   → implements ports
 adapters/auth   Better Auth (server + client adapter)     → implements ports
-apps/server     Hono wiring + composition root            → the only place adapters are instantiated
+apps/server     Hono wiring + composition root            → the only place server adapters are instantiated
 apps/web        React SPA (Vite, TanStack Router/Query)   → core/client only
 apps/cli        commander commands                        → core/client only
 ```
+
+`composition.ts` is the only place a *server* adapter is instantiated. Two
+deliberate exceptions: the auth *client* adapter is constructed in
+`apps/web/src/api.ts` (web) and the CLI's `cliCtx`, and `adapters/db/migrate.ts`
+reads `DB_DRIVER`/`DATABASE_URL`/`VERCEL` itself as a sanctioned composition
+point outside the server root.
 
 Rules are **machine-enforced**: `eslint-plugin-boundaries` + `dependency-cruiser`
 fail the build on any cross-layer import, on `@vercel/*`/`@neondatabase/*`
@@ -108,9 +114,10 @@ npm run test:integration   # 27 tests against a real Postgres (repositories)
 npm run e2e                # 3 Playwright spec files (7 tests): real Chromium over the real stack
 ```
 
-25 config-regression probes feed a violating fixture to each covered boundary
-and island-core rule and assert the gate still goes red — you can't silently
-delete one of those rules and stay green
+25 config-regression probes guard the covered boundary and island-core rules —
+most feed a violating fixture and assert the gate still goes red, a few are
+structural rule-presence checks rather than fixture-feeding probes — so you
+can't silently delete one of those rules and stay green
 ([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).
 
 ## Adding a resource
@@ -125,8 +132,11 @@ It generates the files a resource owns (domain type, use-cases + test,
 repository, web page + route) and prints an ordered checklist for the shared
 files you wire by hand, each with its anchor line and a paste-ready snippet. It
 does **not** edit shared files: the generated code imports symbols that don't
-exist yet, so `npm run check` stays RED until every step is wired — the type
-system enforces completion. Full narrated walkthrough:
+exist yet, so `npm run check` stays RED through the type-forced steps (domain,
+contract, port/use-case, client wiring). Three steps — the CLI command,
+server-route registration, and the web route — typecheck fine while unwired, so
+for those the checklist, not the compiler, enforces completion. Full narrated
+walkthrough:
 [../docs/first-feature.md](../docs/first-feature.md).
 
 Its client-state sibling scaffolds a feature (island) with a rung-1 island

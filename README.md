@@ -135,15 +135,20 @@ Two gates, four test levels, and probes that keep the enforcers honest
 - **CI jobs** — `check`, `smoke` (Postgres service + integration), and `e2e`
   run on every PR; `post-deploy-smoke` re-runs `smoke:remote` against real
   production/preview after each deploy.
-- **Config-regression probes** — 25 tests feed a violating fixture to each
-  covered boundary and island-core rule and assert the gate still goes red, so
-  those rules cannot be silently deleted and stay green.
+- **Config-regression probes** — 25 tests guard the covered boundary and
+  island-core rules: most feed a violating fixture to a rule and assert the gate
+  still goes red; a few are structural rule-presence checks rather than
+  fixture-feeding probes. Together they mean those rules cannot be silently
+  deleted and stay green.
 - **Doc-lint** — a fixed manifest (8 prose-promised guarantees) is checked both
   ways against enforcer config, matched by rule name: every guarantee in the
   manifest must still map to an ESLint / dependency-cruiser entry, and every
   custom `agentproofarch/*` rule must be named somewhere under `docs/`.
-  Divergence fails the gate. It is a named-manifest check, not a proof that
-  *every* guarantee or boundary is covered.
+  Divergence fails the gate. A third check scans every git-tracked `.md` for
+  leaked tool/XML delimiters (the stray closing `content`/`invoke` tags of the
+  round-1 audit C1 leak) so stray agent-output markup can't survive into
+  committed prose. It is a named-manifest check, not a proof that *every*
+  guarantee or boundary is covered.
 
 ## Environments
 
@@ -165,8 +170,11 @@ npm run new:resource -- note
 ```
 
 It generates the files a resource owns outright and prints an ordered checklist
-for the shared files you wire by hand; the type system keeps `check` RED until
-every step is done. Full narrated walkthrough:
+for the shared files you wire by hand. The type system keeps `check` RED through
+the type-forced steps (domain, contract, port/use-case, client wiring); three
+steps — the CLI command, server-route registration, and the web route —
+typecheck fine while still unwired, so for those the checklist, not the compiler,
+guarantees completion. Full narrated walkthrough:
 **[docs/first-feature.md](docs/first-feature.md) — your first feature in 30
 minutes.** [`AGENTS.md`](AGENTS.md) points agents at the very same rules, so a
 human and an agent build a feature the same way.

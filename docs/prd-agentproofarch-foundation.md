@@ -37,6 +37,22 @@ the body disagree, this block wins.
   created" (US-016) are legacy wording: registration creates a **tenant** with
   its **owner row**, the CLI namespace is `tenant`, and the auth provider is
   never involved in tenancy.
+- **`tenant_domains.createdAt` struck (§3, ~line 171).** The `tenant_domains`
+  shape in §3 lists a `createdAt` column, but the shipped domain schema
+  (`core/domain/tenant.ts`), the Drizzle table (`adapters/db/app-schema.ts`) and
+  migration `0000` have **no `created_at`**. Read the table as
+  `{ id, tenantId, domain, kind, verified }` — no `createdAt`. The column is
+  struck here rather than added, since nothing reads it. (The round-1 audit
+  finding R1 flagged this and was **rejected on a misread** — the round-1 judge
+  attributed `memberSchema.createdAt` to `tenantDomainSchema`. The round-2
+  consensus of 2026-07-20 overturned that rejection and is the record; the
+  round-1 rejection was factually wrong.)
+- **Built `AuthClientPort` surface — no `getSession` (§3.5, ~line 197).** The
+  shipped `AuthClientPort` has `signUp`/`signIn`/`signOut` only. It deliberately
+  has **no `getSession`**: current session state is read over HTTP via
+  `/api/me`, not through the client port. The further methods §3.5 lists (magic
+  link, social sign-in, passkeys, 2FA) remain product-required roadmap —
+  normative when triggered, not part of the built port.
 
 ## 1. Introduction / Overview
 

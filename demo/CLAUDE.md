@@ -32,8 +32,11 @@ must actually run. Do not weaken lint rules to make either green.
   failed-login → cache headers), `board.spec.ts` (the personal board: add,
   reorder, persist across reload, move across columns, undo) and
   `team-board.spec.ts` (the team board: entry-column-only, the WIP guard
-  blocking and releasing, and a legal chain persisting). It needs a browser and
-  Postgres, so it is its own CI job (`e2e`), never part of `check`.
+  blocking and releasing, and a legal chain persisting). The harness boots the
+  server with `AUTH_RATE_LIMIT: 'off'` (`scripts/e2e-server.ts`) — the baseline
+  is on (including dev), but the specs replay many logins that would otherwise
+  trip the limiter and flake the run. It needs a browser and Postgres, so it is
+  its own CI job (`e2e`), never part of `check`.
 
 ## Layer rules (enforced, but know them anyway)
 
@@ -41,7 +44,11 @@ must actually run. Do not weaken lint rules to make either green.
 - `core/domain` depends on zod only. `core/server` = use-cases + ports.
   `core/contract` = the only bridge between server and clients.
   `core/client` = the only way any client talks HTTP.
-- `adapters/**` implement ports; only `apps/server/src/composition.ts` instantiates them.
+- `adapters/**` implement ports; only `apps/server/src/composition.ts`
+  instantiates a *server* adapter. Two deliberate exceptions: the auth *client*
+  adapter is constructed in `apps/web/src/api.ts` (web) and the CLI's `cliCtx`,
+  and `adapters/db/migrate.ts` reads `DB_DRIVER`/`DATABASE_URL`/`VERCEL` itself
+  as a sanctioned composition point outside the server root.
 - `apps/web` and `apps/cli` import `core/client` (+ auth client adapter), never
   `core/server`, never `adapters/db`.
 - `@vercel/*` / `@neondatabase/*` only inside `adapters/` (and the platform
@@ -82,10 +89,11 @@ page + route) and prints an ordered checklist for the shared files you must wire
 by hand, each with its anchor line and a paste-ready snippet. It deliberately
 does **not** edit shared files: the generated code imports symbols that don't
 exist yet, so `npm run check` stays RED through the type-forced steps (domain,
-contract, port/use-case, client wiring). Two steps are **not** type-forced — a
-missing CLI command and an unregistered web route both typecheck fine — so
-`check` can go green with those still unwired; the checklist, not the compiler,
-is what guarantees they are done.
+contract, port/use-case, client wiring). Three steps are **not** type-forced — a
+missing CLI command, an unregistered web route, and a hand-registered server
+route (routes are wired by hand against `API_PATHS`, with no parity check) all
+typecheck fine — so `check` can go green with those still unwired; the checklist,
+not the compiler, is what guarantees they are done.
 
 ## Dev notes
 

@@ -154,6 +154,31 @@ describe('buildApp routes', () => {
     expect(errorRes.headers.get('cache-control')).toBe('no-store');
   });
 
+  it('answers an unknown /api/* path with a not_found envelope, never a bare text/plain 404', async () => {
+    const deps = baseDeps();
+    deps.authPort = { getAuthenticatedUser: async () => user };
+    const res = await buildApp(deps).request('/api/does-not-exist');
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(false);
+    if (!body.ok) expect(body.error.code).toBe('not_found');
+  });
+
+  it('answers a wrong method on a known route (POST /api/me) with a not_found envelope', async () => {
+    const deps = baseDeps();
+    deps.authPort = { getAuthenticatedUser: async () => user };
+    const res = await buildApp(deps).request(API_PATHS.me, { method: 'POST' });
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(false);
+    if (!body.ok) expect(body.error.code).toBe('not_found');
+  });
+
   it('reports the database as down when the health ping fails', async () => {
     const deps = baseDeps();
     deps.health = { pingDatabase: async () => false };
