@@ -54,7 +54,7 @@ export default {
     type: 'problem',
     docs: {
       description:
-        "Every member of an island core's exported event union must be named for what happened, ending in an approved intent suffix. Convention: an island declares its inbound events in `features/<name>/core/events.ts` as one closed discriminated-union type whose alias name ends in `Event` (e.g. `PersonalBoardEvent`); each union member is an object type with a string-literal `type` discriminant (e.g. `{ type: 'cardMoved' }`), or the union is a bare string-literal union, or a union of same-file object-type aliases. Members whose discriminant cannot be determined statically are skipped. This keeps the view↔core seam a stream of intents (what the user did) rather than commands (what the core should do), so imperatives like `deleteCard` never enter the vocabulary.",
+        "Every member of an island core's exported event union must be named for what happened, ending in an approved intent suffix. An island declares its inbound events in `features/<name>/core/events.ts`; EVERY exported type alias there is inspected, not only those whose name ends in `Event` (renaming `FooEvent` to `FooEvents` must not disable the taxonomy). Each inspected member is an object type with a string-literal `type` discriminant (e.g. `{ type: 'cardMoved' }`), a bare string-literal, or a reference to a same-file object-type alias; members whose discriminant cannot be determined statically are skipped. This keeps the view↔core seam a stream of intents (what the user did) rather than commands (what the core should do), so imperatives like `deleteCard` never enter the vocabulary.",
     },
     schema: [],
     messages: {
@@ -112,7 +112,6 @@ export default {
         };
 
         for (const declaration of exportedUnions) {
-          if (!/Event$/.test(declaration.id.name)) continue;
           for (const member of membersOf(declaration.typeAnnotation)) {
             const event = eventFromMember(member);
             if (event) report(event.name, event.node);

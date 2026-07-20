@@ -57,6 +57,13 @@ it('sx-layout-only', () => {
         errors: [{ messageId: 'reserved' }],
       },
       {
+        // CP-3 quoted-key bypass: a string-literal `'sx'` key opens the scope
+        // just like the identifier key — fontWeight is typography.
+        code: "const C = () => <div slotProps={{ primary: { 'sx': { fontWeight: 700 } } }} />;",
+        filename,
+        errors: [{ messageId: 'reserved' }],
+      },
+      {
         code: "const C = () => <div sx={{ color: 'red' }} />;",
         filename,
         errors: [{ messageId: 'reserved' }],
