@@ -125,6 +125,7 @@ export const __SINGULAR_CAMEL__ItemsOf = (
     const from = items.findIndex((item) => item.id === op.itemId);
     if (from === -1) continue;
     const [moved] = items.splice(from, 1);
+    if (!moved) continue;
     items.splice(clamp(op.toIndex, 0, items.length), 0, { ...moved, pending: true });
   }
   return items;
