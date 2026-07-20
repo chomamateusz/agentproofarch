@@ -17,8 +17,7 @@ export const DEFAULT_DATABASE_URL =
 /** The placeholder secret that ships in `.env.example`; refused on any deploy. */
 export const DEV_ONLY_SECRET = 'dev-only-secret-do-not-use-in-prod';
 
-export const dbDriverSchema = z.enum(['node-postgres', 'neon-http']);
-export type DbDriver = z.infer<typeof dbDriverSchema>;
+const dbDriverSchema = z.enum(['node-postgres', 'neon-http']);
 
 const databaseUrlField = z.string().default(DEFAULT_DATABASE_URL);
 

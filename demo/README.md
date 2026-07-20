@@ -90,7 +90,7 @@ type assertions (`as`, except `as const`) are lint errors.
 ## The two gates
 
 ```bash
-npm run check   # static gate: typecheck + lint + lock-lint + depcruise + doc-lint + coverage
+npm run check   # static gate: typecheck + lint + lock-lint + depcruise + knip + doc-lint + coverage
 npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s)
 ```
 
@@ -98,7 +98,8 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   (validates `package-lock.json` under npm-10 semantics — the exact rules
   `npm ci` enforces on CI; a local npm 11 `npm install` silently prunes
   optional entries and broke CI twice, so **never `npm install` here** — add
-  deps with `npx -y npm@10 install`), dependency-cruiser, `doc-lint`
+  deps with `npx -y npm@10 install`), dependency-cruiser, `knip`
+  (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
   **<!--count:test-files-->51<!--/count--> test files**; coverage thresholds are
