@@ -563,7 +563,12 @@ The demo policy:
 Members are full collaborators on the tenant's boards (todos and cards are
 collaborative aggregates) but may not administer tenants; `tenant:create` is
 tenant-less self-service (the caller becomes owner), so a visitor holds it while
-a member of one tenant may not provision others.
+a member of one tenant may not provision others. The member-deny cell is
+**use-case-layer only**: over HTTP the create route deliberately sits above
+tenant resolution, every authenticated caller presents as visitor, and a member
+could in any case drop the tenant header and present as one legitimately — the
+cell exists as defense-in-depth for future callers that carry a member context,
+not as an HTTP-reachable barrier.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
