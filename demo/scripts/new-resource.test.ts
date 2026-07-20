@@ -111,6 +111,26 @@ describe('generateResource', () => {
     expect(result.files[0]?.contents).toContain('export const blogPostSchema');
     expect(result.files[1]?.contents).toContain('export const listBlogPosts');
     expect(result.files[3]?.contents).toContain('createBlogPostRepository');
+
+    // ADR-0005 no-opt-outs reconciliation: the generated page is honest about
+    // being a coreless rung-0 start and names the new:island graduation path.
+    const page = result.files.find((file) => file.path.endsWith('BlogPostsPage.tsx'))?.contents ?? '';
+    expect(page).toContain('ADR-0005');
+    expect(page).toContain('npm run new:island -- blog-post');
+  });
+
+  it('reconciles the two scaffolders: the checklist routes the rung-1 core through new:island', () => {
+    const { checklist } = generateResource({
+      name: 'diary-entry',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      dryRun: true,
+    });
+    expect(checklist).toContain('RUNG-1 CORE');
+    expect(checklist).toContain('no opt-outs');
+    expect(checklist).toContain('npm run new:island -- diary-entry');
+    expect(checklist).toContain('diaryEntrySelectors.list');
+    expect(checklist).toContain('actions.diaryEntries');
   });
 
   it('ships the use-case test skeleton as visible it.todo entries, not comment-only TODOs', () => {

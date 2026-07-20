@@ -384,6 +384,17 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
            });
          then extend addChildren([indexRoute, loginRoute, ${n.pluralCamel}Route]).
 
+RUNG-1 CORE — ADR-0005 (the events-in / selectors-out seam is uniform, no opt-outs)
+   The generated page (apps/web/src/features/${n.pluralKebab}/${n.pluralPascal}Page.tsx)
+   reads server state DIRECTLY through \`actions\` — a rung-0 starting point, like
+   the pre-existing todos page. That is deliberately coreless, NOT an exemption:
+   when this feature grows its own client state, give it the island seam with
+   \`npm run new:island -- ${n.singularKebab}\`, point that island's
+   \`${n.singularCamel}Selectors.list\` at this resource's \`actions.${n.pluralCamel}\`,
+   and read through the core instead of api.ts. new:resource owns the server/data
+   slice; new:island owns the client feature and its rung-1 seam. See
+   docs/decisions/0005-client-application-state.md.
+
 Verify (write core tests before wiring the UI):
   npm run check && npm run smoke
 `;
