@@ -47,8 +47,9 @@ rejected.)
 - `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
   the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
   single-tenant custom domain, `entry.node.ts` serving the built bundle) across
-  three spec files (7 tests): `app.spec.ts` (login → seeded todos → add-todo →
-  failed-login → cache headers), `board.spec.ts` (the personal board: add,
+  three spec files (9 tests): `app.spec.ts` (login → seeded todos → add-todo →
+  failed-login → cache headers → liveness/readiness → anonymous redirect to
+  login), `board.spec.ts` (the personal board: add,
   reorder, persist across reload, move across columns, undo) and
   `team-board.spec.ts` (the team board: entry-column-only, the WIP guard
   blocking and releasing, and a legal chain persisting). The harness boots the

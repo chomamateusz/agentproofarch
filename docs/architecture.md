@@ -595,8 +595,10 @@ discipline, not a syntactic shape a rule can match) · **TEST**: the `decide` un
 suite asserts every capability × principal cell (an exhaustive
 `Record<Capability, Record<Principal, boolean>>`); each tenant-scoped use-case
 test asserts staff-allowed, member allowed/denied per policy and tenant-less
-denied; `new:resource` scaffolds the tenant-less-`forbidden` test plus a
-staff/member `it.todo` for every new aggregate; and a config-regression
+denied; `new:resource` scaffolds all three outcomes as real tests for every new
+aggregate — staff allowed, member allowed per the baseline collaborative policy
+(the test title carries the flip-to-forbidden guidance for a staff-only
+aggregate) and the tenant-less caller `forbidden`; and a config-regression
 **structural probe** (`config-regression/authorization.test.ts`) asserts every
 exported tenant-scoped use-case (first param `ctx: Ctx`) references the
 `authorize`/`authorizeTenant` helper, so a new use-case cannot silently skip
