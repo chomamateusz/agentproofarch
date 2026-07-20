@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 import { EXIT_CODE_BY_ERROR_CODE } from '#core/contract/index.js';
+import { probeSignInCookies } from '#adapters/auth/client-adapter.js';
 
 export const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const tsxBin = join(rootDir, 'node_modules/.bin/tsx');
@@ -128,6 +129,14 @@ const assertResponseHeaders = async (baseUrl: string): Promise<void> => {
     csp.includes("script-src 'self'"),
     `content-security-policy must pin script-src 'self', got "${csp}"`,
   );
+  // CSRF/CORS doctrine (architecture §Security baseline): no CORS middleware on
+  // the authenticated /api/* surface, so no Access-Control-Allow-Origin may
+  // appear. Mounting cors() here would regress the same-origin session boundary.
+  const acao = response.headers.get('access-control-allow-origin');
+  assert(
+    acao === null,
+    `authenticated /api/* must not enable CORS, got access-control-allow-origin: "${acao}"`,
+  );
 };
 
 /**
@@ -147,18 +156,63 @@ const assertIndexHtmlCacheHeader = async (baseUrl: string): Promise<void> => {
 };
 
 /**
+ * The session cookie's hardening is the load-bearing half of the CSRF/CORS
+ * doctrine (architecture §Security baseline): the primary session boundary is
+ * `SameSite=Lax` cookies on a same-origin SPA with **no** CORS middleware on the
+ * authenticated `/api/*` surface — so a cross-site page cannot ride the session.
+ * Adding `cors()` or relaxing `SameSite` would silently regress that boundary,
+ * so we assert the attributes Better Auth actually emits on a live sign-in. The
+ * sign-in is a raw POST (not the CLI, which authenticates by bearer token) so
+ * the assertion reads the real `Set-Cookie` a browser would receive. `Secure` is
+ * required only on https — it is off by design on plaintext `*.localhost` dev.
+ */
+const assertSessionCookieHardening = async (target: SmokeTarget): Promise<void> => {
+  const { baseUrl } = target;
+  const probe = await probeSignInCookies(baseUrl, {
+    email: target.email,
+    password: target.password,
+  });
+  assert(probe.ok, `sign-in for the cookie assertion failed: ${probe.status} ${probe.body}`);
+  const cookies = probe.setCookie;
+  const sessionCookie = cookies.find((cookie) => /session_token=/i.test(cookie));
+  assert(
+    sessionCookie !== undefined,
+    `sign-in set no session cookie; Set-Cookie: ${cookies.join(' | ') || '(none)'}`,
+  );
+  const attributes = sessionCookie.split(';').map((part) => part.trim().toLowerCase());
+  assert(attributes.includes('httponly'), `session cookie must be HttpOnly: ${sessionCookie}`);
+  assert(
+    attributes.includes('samesite=lax'),
+    `session cookie must be SameSite=Lax (the CSRF boundary): ${sessionCookie}`,
+  );
+  const isHttps = new URL(baseUrl).protocol === 'https:';
+  assert(
+    attributes.includes('secure') === isHttps,
+    `session cookie Secure flag must match the transport (https=${isHttps}): ${sessionCookie}`,
+  );
+};
+
+/**
  * The runtime contract every deploy target must satisfy, driven purely through
- * the CLI: health → sign-in → todos list/add/list → cards add/list/move/list
+ * the CLI: health → sign-in → todos list/add/list → cards add/list/move (→done)
  * (verifying the moved card persists at its new column and index) → the team
  * board (add lands in todo → illegal todo→done rejected with a named rule at
- * exit 2 → legal todo→in-dev at exit 0 → list surfaces board + visited) →
- * unauthorized (exit 3), plus the security/caching response headers.
+ * exit 2 → the full legal chain todo→in-dev→review→done at exit 0 → list
+ * surfaces board + visited) → unauthorized (exit 3), plus the security/caching
+ * response headers and the session-cookie hardening assertion.
+ *
+ * Non-self-poisoning property (architecture §Environments, smoke-account
+ * doctrine): every card this run creates is parked in an **unbounded** column
+ * (`done` on both boards — absent from `TEAM_WIP_LIMITS`) before the run ends, so
+ * repeated production runs can never saturate the `in-dev`/`review` WIP limits
+ * and turn the deploy gate false-red.
  * `homes` collects the temp HOME dirs so the caller can clean them up.
  */
 export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<void> => {
   const { baseUrl } = target;
   await assertResponseHeaders(baseUrl);
   await assertIndexHtmlCacheHeader(baseUrl);
+  await assertSessionCookieHardening(target);
   const authedHome = mkdtempSync(join(tmpdir(), 'smoke-cli-'));
   const anonHome = mkdtempSync(join(tmpdir(), 'smoke-anon-'));
   homes.push(authedHome, anonHome);
@@ -281,6 +335,22 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     `the moved card did not persist at todo#0: ${JSON.stringify(persisted)}`,
   );
 
+  // Park the personal card in `done` (unbounded — the personal board has no WIP
+  // limits) so this run leaves nothing that a later run's WIP guard could trip.
+  const parkedCard = cardWriteSchema.parse(
+    expectOk(
+      await cli(
+        ['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'move', addedCard.card.id, '--to', 'done'],
+        authedHome,
+      ),
+      'personal card move to done',
+    ),
+  );
+  assert(
+    parkedCard.card.column === 'done',
+    `personal card did not park in done: ${JSON.stringify(parkedCard.card)}`,
+  );
+
   // --- team board: ordered columns + WIP limits, enforced server-side ---
   const teamTitle = `smoke team ${randomUUID()}`;
   const teamCard = cardWriteSchema.parse(
@@ -327,33 +397,25 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     `illegal team move did not name the broken rule: ${rejected.message}`,
   );
 
-  // Legal: todo -> in-dev is the first allowed step (exit 0).
-  const advanced = cardWriteSchema.parse(
-    expectOk(
-      await cli(
-        [
-          '--json',
-          '--api-url',
-          baseUrl,
-          '--tenant',
-          target.tenant,
-          'card',
-          'move',
-          teamCard.card.id,
-          '--board',
-          'team',
-          '--to',
-          'in-dev',
-        ],
-        authedHome,
+  // Legal: walk the full ordered chain todo -> in-dev -> review -> done (exit 0
+  // each). The run leaves the card in `done`, which is absent from
+  // TEAM_WIP_LIMITS (unbounded), so repeated production runs never accumulate in
+  // the bounded `in-dev`/`review` columns and can never trip a WIP guard.
+  const teamMove = async (to: string, label: string): Promise<void> => {
+    const moved = cardWriteSchema.parse(
+      expectOk(
+        await cli(
+          ['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'card', 'move', teamCard.card.id, '--board', 'team', '--to', to],
+          authedHome,
+        ),
+        label,
       ),
-      'legal team move todo->in-dev',
-    ),
-  );
-  assert(
-    advanced.card.column === 'in-dev',
-    `legal team move did not land in in-dev: ${JSON.stringify(advanced.card)}`,
-  );
+    );
+    assert(moved.card.column === to, `${label} did not land in ${to}: ${JSON.stringify(moved.card)}`);
+  };
+  await teamMove('in-dev', 'legal team move todo->in-dev');
+  await teamMove('review', 'legal team move in-dev->review');
+  await teamMove('done', 'legal team move review->done');
 
   const teamCards = cardsSchema.parse(
     expectOk(
@@ -368,9 +430,8 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   assert(teamPersisted !== undefined, 'the team card vanished from the team board list');
   assert(
     teamPersisted.board === 'team' &&
-      teamPersisted.column === 'in-dev' &&
-      teamPersisted.visited.includes('todo') &&
-      teamPersisted.visited.includes('in-dev'),
+      teamPersisted.column === 'done' &&
+      ['todo', 'in-dev', 'review'].every((column) => teamPersisted.visited.includes(column)),
     `team card list did not surface board/visited correctly: ${JSON.stringify(teamPersisted)}`,
   );
 

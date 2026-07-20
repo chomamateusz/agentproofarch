@@ -3,6 +3,14 @@ name: post-deploy-smoke
 on:
   deployment_status:
 
+# Serialize smoke runs per environment+ref so two overlapping runs can't race on
+# the shared canary tenant (the `before + 1` todo assertion and the team board's
+# WIP guards assume a single writer). Never cancel in progress: a running smoke
+# is a live production verification that must finish, not be pre-empted.
+concurrency:
+  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.sha }}
+  cancel-in-progress: false
+
 jobs:
   smoke-remote:
     if: >-
@@ -18,7 +26,7 @@ jobs:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
         with:
           ref: ${{ github.event.deployment.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm

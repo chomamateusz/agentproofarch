@@ -67,6 +67,38 @@ const postCliAuth = async (
   return ok({ token });
 };
 
+export interface SignInCookieProbe {
+  ok: boolean;
+  status: number;
+  body: string;
+  /** The raw `Set-Cookie` header values Better Auth emitted on the sign-in. */
+  setCookie: string[];
+}
+
+/**
+ * A raw sign-in used only by the smoke gate to assert the session cookie's
+ * hardening (HttpOnly + SameSite=Lax + Secure-on-https). It lives here because
+ * spelling a Better Auth HTTP route is only sanctioned inside `adapters/auth`;
+ * the port deliberately hides cookies, so this returns the raw `Set-Cookie`
+ * strings the assertion parses (see architecture §Security baseline).
+ */
+export const probeSignInCookies = async (
+  baseUrl: string,
+  input: SignInInput,
+): Promise<SignInCookieProbe> => {
+  const response = await fetch(new URL('/api/auth/sign-in/email', baseUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: baseUrl },
+    body: JSON.stringify(input),
+  });
+  return {
+    ok: response.ok,
+    status: response.status,
+    body: response.ok ? '' : await response.text(),
+    setCookie: response.headers.getSetCookie(),
+  };
+};
+
 /** Better Auth implementation of the client-side auth port. */
 export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort => {
   const client = createAuthClient({
