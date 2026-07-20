@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { send, __SINGULAR_CAMEL__Selectors } from './index.js';
 import {
+  canUndoOf,
   create__SINGULAR_PASCAL__Store,
+  __SINGULAR_CAMEL__ItemsOf,
   type GatewayResult,
   type __SINGULAR_PASCAL__Gateway,
 } from './store.js';
@@ -34,33 +36,50 @@ const stubGateway = (ok: boolean): __SINGULAR_PASCAL__Gateway => {
   };
 };
 
-// Flush the store's async gateway effect (an optimistic apply settles on the next
+// Flush the store's async gateway effect (an optimistic op settles on the next
 // macrotask) so an assertion can observe the committed state.
 const flush = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-describe('__SINGULAR_PASCAL__ store (rung 2)', () => {
-  it('optimistically applies an add before the gateway settles', () => {
+describe('__SINGULAR_PASCAL__ store (rung 2) — overlay only', () => {
+  it('lays an optimistic add over the server list without copying it', () => {
     const store = create__SINGULAR_PASCAL__Store({
       gateway: stubGateway(true),
       generateId: () => 'id-1',
     });
-    store.send({ type: 'itemAddRequested', title: 'first' });
-    expect(store.selectors.items().map((item) => item.title)).toEqual(['first']);
+    store.send({ type: 'itemAddRequested', title: 'typed' });
+    // The store holds only the pending op; the list truth is passed in at merge.
+    const merged = __SINGULAR_CAMEL__ItemsOf(store.getState(), [{ id: 's1', title: 'from server' }]);
+    expect(merged.map((item) => item.title)).toEqual(['from server', 'typed']);
+    expect(merged.find((item) => item.title === 'typed')?.pending).toBe(true);
   });
 
-  it('offers undo once the add commits', async () => {
+  it('drops the pending op and bumps committedRev once the add commits', async () => {
     const store = create__SINGULAR_PASCAL__Store({
       gateway: stubGateway(true),
       generateId: () => 'id-1',
     });
-    store.send({ type: 'itemAddRequested', title: 'first' });
-    expect(store.selectors.canUndo()).toBe(false);
+    store.send({ type: 'itemAddRequested', title: 'typed' });
+    expect(store.getState().pending).toHaveLength(1);
+    expect(store.getState().committedRev).toBe(0);
     await flush();
-    expect(store.selectors.canUndo()).toBe(true);
+    expect(store.getState().pending).toHaveLength(0);
+    expect(store.getState().committedRev).toBe(1);
+  });
+
+  it('offers undo once a move commits', async () => {
+    const store = create__SINGULAR_PASCAL__Store({
+      gateway: stubGateway(true),
+      generateId: () => 'id-1',
+    });
+    expect(canUndoOf(store.getState())).toBe(false);
+    store.send({ type: 'itemMoveRequested', itemId: 's1', fromIndex: 0, toIndex: 2, listSize: 3 });
+    await flush();
+    expect(canUndoOf(store.getState())).toBe(true);
   });
 
   // <<EXTENSION POINT — store tests>>
-  // Assert rollback: with `stubGateway(false)`, an optimistic apply reverts after
-  // `flush()` and the selector reads the pre-op state. Assert undo replays the
-  // inverse gateway call. Drive the store directly here; never render to test it.
+  // Assert rollback: with `stubGateway(false)`, a pending op is dropped after
+  // `flush()` and `__SINGULAR_CAMEL__ItemsOf` reads back the untouched server list.
+  // Assert undo replays the inverse gateway move. Drive the store directly here;
+  // never render to test it.
 });

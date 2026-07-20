@@ -130,22 +130,35 @@ describe('generateIsland', () => {
     expect(store).toContain('export const createKanbanBoardStore');
     expect(store).toContain('itemAddRequested:');
     expect(store).toContain('export interface KanbanBoardGateway');
+    // OVERLAY / intent-only (ADR-0005, mirrors the living board): the store holds
+    // pending ops + a single undo + a committed-revision counter, never a copy of
+    // the item list. The merge selector lays the overlay over the cache truth.
+    expect(store).toContain('readonly pending: readonly PendingOp[]');
+    expect(store).toContain('readonly committedRev: number');
+    expect(store).toContain('export const kanbanBoardItemsOf');
+    expect(store).toContain('getState(): KanbanBoardOverlayState');
+    // No server-items copy: the store context never carries an items array.
+    expect(store).not.toContain('items: readonly');
     // The toIndex-clamp finding: one shared clamp, and the SAME clamped value
-    // feeds both the local transition and the gateway (no raw payload on the wire).
-    expect(store).toContain('const clampIndex');
-    expect(store).toContain('Math.max(0, Math.min(index, length))');
+    // feeds both the overlay op and the gateway (no raw payload on the wire).
+    expect(store).toContain('const clamp');
+    expect(store).toContain('Math.max(min, Math.min(value, max))');
     expect(store).toContain('.moveItem({ itemId: event.itemId, toIndex })');
     expect(store).not.toContain('toIndex: event.toIndex');
-    // Events mirror the store handlers.
+    // Events mirror the store handlers; the move carries what an overlay needs.
     expect(contentsOf(result.files, 'core/events.ts')).toContain("type: 'itemAddRequested'");
-    // index forwards send to the store and merges its selectors.
+    expect(contentsOf(result.files, 'core/events.ts')).toContain('listSize: number');
+    // index forwards send to the store and merges its selectors over the cache.
     const index = contentsOf(result.files, 'core/index.ts');
     expect(index).toContain('createKanbanBoardStore');
     expect(index).toContain('store.send(event)');
-    // The store test drives the store with a fake gateway.
+    expect(index).toContain('kanbanBoardItemsOf');
+    expect(index).toContain('export const subscribe');
+    // The store test drives the store with a fake gateway and merges the overlay.
     expect(contentsOf(result.files, 'core/kanban-board.test.ts')).toContain(
       'createKanbanBoardStore',
     );
+    expect(contentsOf(result.files, 'core/kanban-board.test.ts')).toContain('kanbanBoardItemsOf');
 
     expect(result.checklist).toContain('RUNG 2');
     expect(result.checklist).toContain('@xstate/store');
