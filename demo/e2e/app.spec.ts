@@ -47,6 +47,24 @@ test('tenant-scoped API responses are never cached', async ({ page }) => {
   expect(response.headers()['cache-control']).toBe('no-store');
 });
 
+test('liveness is 200 with attestation and never gates on the database', async ({ page }) => {
+  const response = await page.request.get('/api/health/live');
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBe(true);
+  expect(body.data.status).toBe('ok');
+  expect(typeof body.data.sha).toBe('string');
+  expect(typeof body.data.version).toBe('string');
+});
+
+test('readiness is 200 with database up when the stack is healthy', async ({ page }) => {
+  const response = await page.request.get('/api/health/ready');
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBe(true);
+  expect(body.data.database).toBe('up');
+});
+
 test('anonymous visitors are redirected off the boards to login', async ({ page }) => {
   for (const path of ['/board', '/team-board']) {
     await page.goto(path);

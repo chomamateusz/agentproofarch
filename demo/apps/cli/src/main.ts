@@ -117,7 +117,11 @@ const cliCtx = (): CliCtx => {
 
 program.command('health').description('API and database status').action(async () => {
   const ctx = cliCtx();
-  emit(await ctx.api.health(), ctx.json, (h) => `status=${h.status} db=${h.database} v${h.version}`);
+  emit(
+    await ctx.api.health(),
+    ctx.json,
+    (h) => `status=${h.status} db=${h.database} v${h.version} sha=${h.sha}`,
+  );
 });
 
 program

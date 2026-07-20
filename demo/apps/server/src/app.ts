@@ -19,6 +19,7 @@ import {
   notFound,
   ok,
   unauthorized,
+  unavailable,
   validation,
   type AppError,
   type Identity,
@@ -110,11 +111,26 @@ export const buildApp = (deps: AppDeps) => {
     return respond(err(internal()));
   });
 
+  // Health surface (public, before tenant resolution): liveness never touches
+  // the database; readiness gates on it (503 when down); the compat `/api/health`
+  // reports the database inline at 200. All three carry the deploy attestation.
+  const attestation = { version: APP_VERSION, sha: deps.commitSha };
+
+  app.get(API_PATHS.healthLive, () => respond(ok({ status: 'ok' as const, ...attestation })));
+
+  app.get(API_PATHS.healthReady, async () =>
+    respond(
+      (await deps.health.pingDatabase())
+        ? ok({ status: 'ok' as const, ...attestation, database: 'up' as const })
+        : err(unavailable('Database is not reachable')),
+    ),
+  );
+
   app.get(API_PATHS.health, async () =>
     respond(
       ok({
         status: 'ok' as const,
-        version: APP_VERSION,
+        ...attestation,
         database: (await deps.health.pingDatabase()) ? ('up' as const) : ('down' as const),
       }),
     ),

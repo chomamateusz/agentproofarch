@@ -36,6 +36,8 @@ export interface AppDeps {
   ids: IdGenerator;
   clock: Clock;
   baseDomain: string;
+  /** Build attestation surfaced by the health routes; 'unknown' outside a deploy. */
+  commitSha: string;
 }
 
 /**
@@ -87,5 +89,6 @@ export const createDeps = (env: Env): AppDeps => {
     ids: { nextId: () => randomUUID() },
     clock: { nowIso: () => new Date().toISOString() },
     baseDomain: env.APP_BASE_DOMAIN,
+    commitSha: env.APP_COMMIT_SHA ?? 'unknown',
   };
 };

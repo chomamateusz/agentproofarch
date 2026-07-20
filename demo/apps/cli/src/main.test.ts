@@ -147,7 +147,7 @@ beforeEach(() => {
   h.auth.signIn.mockReset();
   h.auth.signOut.mockReset();
 
-  h.api.health.mockResolvedValue(ok({ status: 'ok', database: 'up', version: '1.2.3' }));
+  h.api.health.mockResolvedValue(ok({ status: 'ok', database: 'up', version: '1.2.3', sha: 'cafe1234' }));
   h.api.me.mockResolvedValue(ok({ email: 'demo@x', tenant: null }));
   h.api.listTenants.mockResolvedValue(ok({ tenants: [] }));
   h.api.createTenant.mockResolvedValue(ok({ tenant: { name: 'Acme Corp', slug: 'acme-corp' } }));
@@ -183,7 +183,7 @@ describe('command wiring', () => {
     await run('health');
 
     expect(h.api.health).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledExactlyOnceWith('status=ok db=up v1.2.3');
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith('status=ok db=up v1.2.3 sha=cafe1234');
     expect(process.exitCode).toBe(0);
   });
 
@@ -428,7 +428,7 @@ describe('--json envelope', () => {
 
     expect(soleJson()).toEqual({
       ok: true,
-      data: { status: 'ok', database: 'up', version: '1.2.3' },
+      data: { status: 'ok', database: 'up', version: '1.2.3', sha: 'cafe1234' },
     });
     expect(errorSpy).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(0);

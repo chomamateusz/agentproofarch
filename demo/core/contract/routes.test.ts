@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   API_PATHS,
   API_ROUTES,
+  healthLiveOutputSchema,
   healthOutputSchema,
+  healthReadyOutputSchema,
   meOutputSchema,
   TENANT_HEADER,
   tenantCreateInputSchema,
@@ -49,9 +51,22 @@ describe('TENANT_HEADER', () => {
 
 describe('route schemas parse their example payloads', () => {
   it('healthOutputSchema', () => {
-    const example = { status: 'ok', version: '0.1.0', database: 'up' };
+    const example = { status: 'ok', version: '0.1.0', sha: 'deadbeef', database: 'up' };
     expect(healthOutputSchema.parse(example)).toEqual(example);
     expect(healthOutputSchema.safeParse({ ...example, database: 'sideways' }).success).toBe(false);
+    expect(healthOutputSchema.safeParse({ status: 'ok', version: '0.1.0', database: 'up' }).success).toBe(false);
+  });
+
+  it('healthLiveOutputSchema carries attestation without a database field', () => {
+    const example = { status: 'ok', version: '0.1.0', sha: 'deadbeef' };
+    expect(healthLiveOutputSchema.parse(example)).toEqual(example);
+    expect(healthLiveOutputSchema.safeParse({ ...example, sha: undefined }).success).toBe(false);
+  });
+
+  it('healthReadyOutputSchema only accepts database up', () => {
+    const example = { status: 'ok', version: '0.1.0', sha: 'deadbeef', database: 'up' };
+    expect(healthReadyOutputSchema.parse(example)).toEqual(example);
+    expect(healthReadyOutputSchema.safeParse({ ...example, database: 'down' }).success).toBe(false);
   });
 
   it('meOutputSchema with a tenant', () => {
