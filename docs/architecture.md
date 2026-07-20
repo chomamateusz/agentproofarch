@@ -777,7 +777,8 @@ code.
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
   access reads).
-- `HealthPort`: database ping for the health route.
+- `HealthPort`: database ping for the readiness route (`/api/health/ready` and
+  the compat `/api/health`); liveness never calls it.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
   keep use-cases pure and deterministic in tests.
 
@@ -961,6 +962,45 @@ touches:
   fork pointing at its own deployment **must** supply its own values, and the
   `deployment_status` job is already fenced to the canonical repo.
 
+## Health & deploy attestation
+
+Health is split by the two questions an operator actually asks, and every health
+response carries a build attestation (release `version` + commit `sha`) so a
+smoke run can prove *which* deploy it verified. The `sha` is a vendor-neutral
+`APP_COMMIT_SHA`; the platform entry (`api/index.ts`) maps Vercel's
+`VERCEL_GIT_COMMIT_SHA` into it, so the vendor name stays contained to the one
+platform boundary (§Layers). Unset (local dev) it reports `unknown`.
+
+- **`/api/health/live` (liveness).** Always `200` as long as the process
+  answers; **never touches the database**. Body: `{ status, version, sha }`. This
+  is what a platform restarts a wedged container on — a DB blip must not kill a
+  live process.
+- **`/api/health/ready` (readiness).** Pings the database. Up → `200` with
+  `{ status, version, sha, database: 'up' }`; down → the `unavailable` error
+  envelope at **HTTP 503** (`exit 8`), never a `200`. This is what a load
+  balancer drains traffic on.
+- **`/api/health` (compat).** Kept for existing callers: `200` with
+  `{ status, version, sha, database: 'up' | 'down' }` — the readiness *information*
+  inline without the non-200 gate. New callers use `/live` or `/ready`; this
+  endpoint reports readiness semantics but does not gate on them.
+
+**Attestation gate.** `smoke:remote` reads `EXPECTED_SHA` (the deployment
+event's SHA, passed by `post-deploy-smoke.yml`) and asserts `health.sha ===
+EXPECTED_SHA`, closing the "smoke verified the wrong deployment" class (a stale
+alias, a promotion that didn't land). Local `smoke` omits it (`unknown`).
+
+Enforcement — **TYPE**: the three response shapes are zod schemas in
+`core/contract` (`healthLive`/`healthReady`/`healthOutputSchema`), and `core/client`
+brands its call surface from them, so no client hand-writes a health payload ·
+**LINT**: n/a (route wiring is hand-registered against `API_PATHS`, like every
+route) · **TEST**: `app.test.ts` asserts liveness is 200 without a DB touch,
+readiness is 200/up and 503/`unavailable` when the ping fails, and the compat
+route stays 200 with `sha`; `e2e` hits `/live` and `/ready` on the real stack;
+`smoke:remote` runs the `EXPECTED_SHA` equality · **REVIEW+AI**: flag a health
+route that pings the DB on the liveness path, a readiness path that returns 200
+while degraded, or a new deploy target that surfaces the raw vendor SHA var
+instead of mapping it into `APP_COMMIT_SHA`.
+
 ## Security baseline
 
 The threat model is a multi-tenant SPA and API on one origin behind Better Auth.
@@ -1033,6 +1073,23 @@ live smoke assertion.
   prefix means public (today's only one, `VITE_SENTRY_DSN`, is a public DSN).
   `BETTER_AUTH_SECRET` is server-only and its `dev-only-secret…` default must be
   overridden with strong entropy outside local.
+- **Production env hardening** (NORMATIVE NOW). The env schema (`env.ts`) does
+  not merely *document* the prod requirements above — it **refuses to boot** on
+  dev-only config once the process is deployed. "Deployed" is a heuristic that
+  needs no new flag: `VERCEL` is set (Vercel injects it), **or** `SECURE_COOKIES`
+  is on (a self-host prod turns it on). When deployed the schema rejects the
+  `dev-only-secret…` `BETTER_AUTH_SECRET` sentinel and rejects
+  `SECURE_COOKIES=false`; independently, `VERCEL` set forces
+  `DB_DRIVER=neon-http` (the wrong driver on Vercel is a boot-time refusal, not a
+  runtime surprise). Local dev and the `smoke`/`e2e` harnesses set neither
+  signal, so they are never subject to these rules.
+  — **TYPE**: n/a (the values are strings; the constraint is cross-field) ·
+  **LINT**: n/a · **TEST**: `env.test.ts` unit-tests each refinement both ways —
+  the sentinel and `SECURE_COOKIES=false` pass in local dev and fail when
+  deployed, and `DB_DRIVER` passes as `neon-http` / fails as `node-postgres`
+  under `VERCEL` · **REVIEW+AI**: flag any new deploy-only requirement added as
+  prose-only instead of a schema refinement, and any widening of the "deployed"
+  heuristic that would catch local dev.
 - **Dependency hygiene.** `package-lock.json` is committed and validated by
   lock-lint in `check`. `npm audit --omit=dev --audit-level=high` runs in CI as an
   **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
