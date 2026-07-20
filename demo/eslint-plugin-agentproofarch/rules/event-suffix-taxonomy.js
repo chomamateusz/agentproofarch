@@ -77,11 +77,21 @@ export default {
         const aliases = new Map();
         const exportedUnions = [];
 
+        const exportListNames = new Set();
+        for (const statement of program.body) {
+          if (statement.type === 'ExportNamedDeclaration' && !statement.declaration) {
+            for (const specifier of statement.specifiers) {
+              if (specifier.local.type === 'Identifier') exportListNames.add(specifier.local.name);
+            }
+          }
+        }
+
         for (const statement of program.body) {
           let declaration = null;
           let exported = false;
           if (statement.type === 'TSTypeAliasDeclaration') {
             declaration = statement;
+            exported = exportListNames.has(statement.id.name);
           } else if (
             statement.type === 'ExportNamedDeclaration' &&
             statement.declaration &&
@@ -95,7 +105,16 @@ export default {
           if (exported) exportedUnions.push(declaration);
         }
 
-        const membersOf = (node) => (node.type === 'TSUnionType' ? node.types : [node]);
+        const membersOf = (node) => {
+          if (node.type === 'TSUnionType') return node.types;
+          // A same-file alias standing for a union is statically determinable —
+          // resolve one level so `export type FooEvents = Inner` cannot hide it.
+          if (node.type === 'TSTypeReference' && node.typeName.type === 'Identifier') {
+            const referenced = aliases.get(node.typeName.name);
+            if (referenced && referenced.type === 'TSUnionType') return referenced.types;
+          }
+          return [node];
+        };
 
         const eventFromMember = (member) => {
           if (member.type === 'TSTypeLiteral') return discriminantOf(member);
