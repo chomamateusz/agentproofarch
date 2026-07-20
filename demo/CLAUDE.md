@@ -25,6 +25,17 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.
 
+**Flake doctrine (owner ruling 2026-07-20, DECIDE F3): the gates are
+deterministic; a flake is a P1 bug, never rerun-to-green.** A red gate means
+the commit is wrong or the gate is wrong — one of them gets fixed; rerunning a
+red CI job until it passes is prohibited. Playwright keeps `retries: 1`
+(`trace: 'on-first-retry'` is the diagnostic capture), but any run where the
+retry is what turned it green is flaky-flagged and requires a **filed P1**
+before merging. (Enforcement — TYPE/LINT: n/a, flakiness is not syntactic ·
+TEST: the retry-plus-trace config itself surfaces and records every flake ·
+REVIEW+AI: the PR-template line; a rerun-to-green merge without a filed P1 is
+rejected.)
+
 - `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
   the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
   single-tenant custom domain, `entry.node.ts` serving the built bundle) across
