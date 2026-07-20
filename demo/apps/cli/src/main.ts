@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 import { z } from 'zod';
 
 import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
@@ -21,6 +21,14 @@ const program = new Command('agentproofarch')
   .option('--json', 'machine-readable JSON output', false)
   .option('--api-url <url>', 'API base URL (overrides config)')
   .option('--tenant <slug>', 'tenant slug for this invocation (overrides config)');
+
+// Own Commander's parse failures (unknown command, missing option/argument, bad
+// option) instead of letting it process.exit(1) with plain-text stderr: throw so
+// the catch around parseAsync can emit exactly one `validation` envelope with the
+// taxonomy exit code, and swallow the default stderr so nothing prints twice.
+// Set before any subcommand exists so every command inherits it (Commander copies
+// _exitCallback / _outputConfiguration into subcommands at registration).
+program.exitOverride().configureOutput({ writeErr: () => {} });
 
 interface CliCtx {
   config: CliConfig;
@@ -52,6 +60,24 @@ const loginArgsSchema = z.object({
 });
 const tenantSwitchArgsSchema = z.object({ slug: z.string().trim().min(1) });
 
+// Merged global options (Commander parses them onto the root program). They flow
+// straight into transport, so they are zod-parsed like every other boundary:
+// --api-url must be a URL, --tenant a slug, before any client is constructed.
+const globalOptionsSchema = z.object({
+  json: z.boolean(),
+  apiUrl: z.string().url('--api-url must be a valid URL').optional(),
+  tenant: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, '--tenant must be a slug (lowercase letters, digits, dashes)')
+    .optional(),
+});
+
+/**
+ * Thrown by cliCtx after it has already emitted a `validation` envelope for a
+ * bad global option, so the top-level catch stays silent (no second envelope).
+ */
+class CliBail extends Error {}
+
 /**
  * Parse Commander-collected args/options through a domain/contract schema at
  * the CLI boundary (architecture: zod-parse every boundary). On failure it
@@ -67,7 +93,9 @@ const parseArgs = <T>(schema: z.ZodType<T>, value: unknown, json: boolean): T | 
 
 const cliCtx = (): CliCtx => {
   const config = loadConfig();
-  const globals = program.opts<{ json: boolean; apiUrl?: string; tenant?: string }>();
+  const rawGlobals = program.opts<{ json: boolean; apiUrl?: string; tenant?: string }>();
+  const globals = parseArgs(globalOptionsSchema, rawGlobals, rawGlobals.json);
+  if (globals === undefined) throw new CliBail();
   const apiUrl = globals.apiUrl ?? config.apiUrl;
   const tenant = globals.tenant ?? config.tenant;
   const api = createApiClient({
@@ -311,4 +339,20 @@ card
     );
   });
 
-await program.parseAsync(process.argv);
+const wantsJson = process.argv.includes('--json');
+try {
+  await program.parseAsync(process.argv);
+} catch (error) {
+  if (error instanceof CliBail) {
+    // cliCtx already emitted the validation envelope and set the exit code.
+  } else if (error instanceof CommanderError) {
+    // Commander parse failure surfaced via exitOverride. exitCode 0 = help/version
+    // whose text is already on stdout; anything else is a real parse failure that
+    // must become one validation envelope with the taxonomy exit code.
+    if (error.exitCode !== 0) {
+      emit(err(validation(error.message.replace(/^error:\s*/i, ''))), wantsJson, () => '');
+    }
+  } else {
+    throw error;
+  }
+}

@@ -233,8 +233,9 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
 4. USE-CASE INDEX — core/server/index.ts
    anchor:  export * from './usecases/todos.js';
    add:     export * from './usecases/${n.pluralKebab}.js';
-   (The use-case + its test skeleton are already generated. Fill in the TODO
-    cases in core/server/usecases/${n.pluralKebab}.test.ts before wiring the UI.)
+   (The use-case + its test skeleton are already generated. Turn the generated
+    it.todo(...) cases in core/server/usecases/${n.pluralKebab}.test.ts into real
+    tests before wiring the UI.)
 
 5. ADAPTER SCHEMA — adapters/db/app-schema.ts
    anchor:  export const todos = pgTable(
@@ -330,28 +331,32 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
          export const add${n.singularPascal}Invalidates = () => ({ queryKey: ${n.pluralCamel}Scopes.lists() });
 
 10. CLI — apps/cli/src/main.ts
-    anchor:  await program.parseAsync(process.argv);   (add the command group above it)
-    add:
-      const ${n.singularCamel} = program.command('${n.singularKebab}').description('${n.pluralPascal} in the active tenant');
+    10a. anchor:  todoCreateInputSchema,       (the '#core/contract/index.js' import)
+         add:     ${n.singularCamel}CreateInputSchema,
+    10b. anchor:  await program.parseAsync(process.argv);   (add the command group above the final parse block)
+         add:
+           const ${n.singularCamel} = program.command('${n.singularKebab}').description('${n.pluralPascal} in the active tenant');
 
-      ${n.singularCamel}.command('list').description('List ${n.pluralKebab}').action(async () => {
-        const ctx = cliCtx();
-        emit(await ctx.api.list${n.pluralPascal}(), ctx.json, (data) =>
-          data.${n.pluralCamel}.length === 0
-            ? 'no ${n.pluralKebab}'
-            : data.${n.pluralCamel}.map((row) => \`- \${row.title}  (\${row.id.slice(0, 8)})\`).join('\\n'),
-        );
-      });
+           ${n.singularCamel}.command('list').description('List ${n.pluralKebab}').action(async () => {
+             const ctx = cliCtx();
+             emit(await ctx.api.list${n.pluralPascal}(), ctx.json, (data) =>
+               data.${n.pluralCamel}.length === 0
+                 ? 'no ${n.pluralKebab}'
+                 : data.${n.pluralCamel}.map((row) => \`- \${row.title}  (\${row.id.slice(0, 8)})\`).join('\\n'),
+             );
+           });
 
-      ${n.singularCamel}
-        .command('add <title...>')
-        .description('Add a ${n.singularKebab}')
-        .action(async (titleWords: string[]) => {
-          const ctx = cliCtx();
-          emit(await ctx.api.add${n.singularPascal}({ title: titleWords.join(' ') }), ctx.json, (data) =>
-            \`added: \${data.${n.singularCamel}.title} (\${data.${n.singularCamel}.id.slice(0, 8)})\`,
-          );
-        });
+           ${n.singularCamel}
+             .command('add <title...>')
+             .description('Add a ${n.singularKebab}')
+             .action(async (titleWords: string[]) => {
+               const ctx = cliCtx();
+               const input = parseArgs(${n.singularCamel}CreateInputSchema, { title: titleWords.join(' ') }, ctx.json);
+               if (input === undefined) return;
+               emit(await ctx.api.add${n.singularPascal}(input), ctx.json, (data) =>
+                 \`added: \${data.${n.singularCamel}.title} (\${data.${n.singularCamel}.id.slice(0, 8)})\`,
+               );
+             });
 
 11. WEB BINDING — apps/web/src/api.ts
     11a. anchor:  todosQuery,        (the '#core/client/index.js' import)

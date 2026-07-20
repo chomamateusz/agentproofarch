@@ -16,6 +16,7 @@ import {
 import {
   err,
   internal,
+  notFound,
   ok,
   unauthorized,
   validation,
@@ -41,6 +42,10 @@ import { recordAppError, recordException, telemetryMiddleware } from './telemetr
 import { APP_VERSION } from './version.js';
 
 type Vars = { Variables: { identity: Identity } };
+
+// The Better Auth namespace prefix, derived from the one sanctioned pattern so no
+// route string is spelled by hand (lint bans literal auth routes outside adapters).
+const BETTER_AUTH_PATH_PREFIX = BETTER_AUTH_API_PATH_PATTERN.slice(0, -1);
 
 const respond = <T>(result: Result<T, AppError>): Response => {
   const envelope = toEnvelope(result);
@@ -217,6 +222,19 @@ export const buildApp = (deps: AppDeps) => {
     const result = await moveCard({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok({ card: result.value }) : result);
   });
+
+  // Total the API surface: any /api/* request that reached here matched no route
+  // above — an unknown path or a wrong method on a known path. Return the taxonomy
+  // `not_found` envelope through `respond` (so it inherits no-store + is folded
+  // into the request span) instead of Hono's bare 404 text/plain, which the client
+  // can only degrade to a generic `internal` "Non-JSON response". The Better Auth
+  // namespace is carved out: it owns that prefix for every method, so defer to its
+  // handler rather than masking a real auth route with our envelope.
+  app.all('/api/*', (c) =>
+    c.req.path.startsWith(BETTER_AUTH_PATH_PREFIX)
+      ? deps.auth.handler(c.req.raw)
+      : respond(err(notFound(`No API route for ${c.req.method} ${new URL(c.req.url).pathname}`))),
+  );
 
   return app;
 };

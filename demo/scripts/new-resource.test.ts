@@ -113,6 +113,33 @@ describe('generateResource', () => {
     expect(result.files[3]?.contents).toContain('createBlogPostRepository');
   });
 
+  it('ships the use-case test skeleton as visible it.todo entries, not comment-only TODOs', () => {
+    const { files } = generateResource({
+      name: 'memo',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      dryRun: true,
+    });
+    const usecaseTest = files.find((file) => file.path.endsWith('memos.test.ts'))?.contents ?? '';
+    expect(usecaseTest).toContain('it.todo(');
+    expect(usecaseTest).toContain("without a tenant (error code 'tenant_not_found')");
+    expect(usecaseTest).toContain("rejects blank/oversized input with 'validation'");
+    expect(usecaseTest).toContain("never returns another tenant's rows");
+    expect(usecaseTest).not.toMatch(/^\s*\/\/ TODO:/m);
+  });
+
+  it('routes the generated CLI add snippet through the parseArgs + zod funnel', () => {
+    const { checklist } = generateResource({
+      name: 'gadget',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      dryRun: true,
+    });
+    expect(checklist).toContain('parseArgs(gadgetCreateInputSchema, { title: titleWords.join(\' \') }, ctx.json)');
+    expect(checklist).toContain('if (input === undefined) return;');
+    expect(checklist).toContain('add:     gadgetCreateInputSchema,');
+  });
+
   it('emits a checklist that ends with the verification ritual and stays RED', () => {
     const { checklist } = generateResource({
       name: 'gadget',

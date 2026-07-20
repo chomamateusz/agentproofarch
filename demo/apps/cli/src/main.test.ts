@@ -537,6 +537,51 @@ describe('CLI boundary validation', () => {
   });
 });
 
+describe('Commander parse-failure protocol', () => {
+  it('emits one validation envelope (exit 2) for `--json login` with missing options', async () => {
+    await run('--json', 'login');
+
+    expect(h.auth.signIn).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('emits one validation envelope (exit 2) for an unknown subcommand in --json mode', async () => {
+    await run('--json', 'bogus-command');
+
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('emits a single clean human error line (exit 2) for a missing option without --json', async () => {
+    await run('login', '--email', 'demo@x');
+
+    expect(h.auth.signIn).not.toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('error(validation)');
+    expect(process.exitCode).toBe(2);
+  });
+});
+
+describe('global option validation', () => {
+  it('rejects a non-URL --api-url with a validation envelope (exit 2) before any client call', async () => {
+    await run('--json', '--api-url', 'not a url', 'health');
+
+    expect(h.api.health).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('rejects a non-slug --tenant with a validation envelope (exit 2) before any client call', async () => {
+    await run('--json', '--tenant', 'Not A Slug', 'health');
+
+    expect(h.api.health).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+});
+
 describe('tenant switch', () => {
   it('stores the slug when it matches an administered tenant', async () => {
     h.api.listTenants.mockResolvedValue(
