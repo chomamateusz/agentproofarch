@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { send, __SINGULAR_CAMEL__Selectors } from './index.js';
+import { create__SINGULAR_PASCAL__Core } from './index.js';
 import {
   canUndoOf,
   create__SINGULAR_PASCAL__Store,
@@ -11,19 +11,11 @@ import {
 
 /**
  * Core seam test — exercises the __SINGULAR_KEBAB__ island core WITHOUT rendering
- * (no React). RUNG 2 (island store): the seam assertions below stay RED until the
- * server read and the gateway are bound (see the checklist); the store block
- * drives the store directly with a fake gateway and is green immediately.
+ * (no React, plain node). RUNG 2 (island store): the seam block drives the PUBLIC
+ * factory with a FAKE gateway and a FAKE descriptor — no api.ts, no network, no
+ * DOM — proving the whole seam (send in, selectors out) runs in plain node. The
+ * store block drives the store directly with the same fake gateway.
  */
-describe('__SINGULAR_KEBAB__ island core seam', () => {
-  it('exposes its read seam as selectors', () => {
-    expect(__SINGULAR_CAMEL__Selectors).toHaveProperty('list');
-  });
-
-  it('accepts the example intent without throwing', () => {
-    expect(() => send({ type: 'refreshRequested' })).not.toThrow();
-  });
-});
 
 // A fake gateway: the store is pure over its injected deps, so a test drives it
 // with an in-memory gateway — no network. Pass `ok: false` to exercise rollback.
@@ -36,9 +28,34 @@ const stubGateway = (ok: boolean): __SINGULAR_PASCAL__Gateway => {
   };
 };
 
+const fakeDescriptors = { list: { queryKey: ['__SINGULAR_KEBAB__'] } };
+
 // Flush the store's async gateway effect (an optimistic op settles on the next
 // macrotask) so an assertion can observe the committed state.
 const flush = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+describe('__SINGULAR_KEBAB__ island core seam', () => {
+  it('exposes its read seam as selectors (the injected descriptor threads through)', () => {
+    const core = create__SINGULAR_PASCAL__Core({
+      gateway: stubGateway(true),
+      descriptors: fakeDescriptors,
+      generateId: () => 'id-1',
+    });
+    expect(core.__SINGULAR_CAMEL__Selectors.list).toBe(fakeDescriptors.list);
+  });
+
+  it('applies an event through send and merges it over the server list', () => {
+    const core = create__SINGULAR_PASCAL__Core({
+      gateway: stubGateway(true),
+      descriptors: fakeDescriptors,
+      generateId: () => 'id-1',
+    });
+    core.send({ type: 'itemAddRequested', title: 'typed' });
+    const merged = core.__SINGULAR_CAMEL__Selectors.items([{ id: 's1', title: 'from server' }]);
+    expect(merged.map((item) => item.title)).toEqual(['from server', 'typed']);
+    expect(merged.find((item) => item.title === 'typed')?.pending).toBe(true);
+  });
+});
 
 describe('__SINGULAR_PASCAL__ store (rung 2) — overlay only', () => {
   it('lays an optimistic add over the server list without copying it', () => {

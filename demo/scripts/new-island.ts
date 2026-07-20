@@ -98,6 +98,17 @@ const indexTemplate = (machine: MachineMode): string => {
   return 'island-index.ts.tpl';
 };
 
+/**
+ * The web composition (index.web.ts) — the ONE site that binds the portable core
+ * to its real gateway + bound descriptors. One per rung, mirroring the index
+ * shapes: rung 2 also injects a gateway + id source; rung 3 re-exports the oracle.
+ */
+const webIndexTemplate = (machine: MachineMode): string => {
+  if (machine === 'store') return 'island-index.web.store.ts.tpl';
+  if (machine === 'statechart') return 'island-index.web.statechart.ts.tpl';
+  return 'island-index.web.ts.tpl';
+};
+
 const coreTestTemplate = (machine: MachineMode): string =>
   machine === 'store' ? 'island-core.store.test.ts.tpl' : 'island-core.test.ts.tpl';
 
@@ -148,6 +159,9 @@ const planIslandFiles = (
     files.push(statechartFile('island-rules.drift.test.ts.tpl', `${feature}/core/rules.drift.test.ts`));
   }
 
+  // The web composition binds the portable core to api.ts (gateway + descriptors);
+  // it lives at the feature root, OUTSIDE core/, so the core stays api-free.
+  files.push(file(webIndexTemplate(machine), `${feature}/index.web.ts`));
   files.push(file('island-page.tsx.tpl', `${feature}/${names.singularPascal}Page.tsx`));
   files.push(file('island-route.tsx.tpl', `apps/web/src/routes/${names.singularKebab}.tsx`));
 
@@ -229,17 +243,21 @@ descriptors behind the seam and a stubbed \`send\`; the client machine is
 deliberately absent (see the machine note at the end). Work top to bottom:
 
 1. READ DESCRIPTOR — bind the island's server-state read.
-   The view reads through \`${n.singularCamel}Selectors.list\`, which re-exports
-   \`actions.${n.singularCamel}\` from apps/web/src/api.ts. Either point
-   core/selectors.ts at an EXISTING resource query (e.g. \`list: actions.todos\`),
-   or scaffold a new resource (\`npm run new:resource -- <name>\`), wire its
-   checklist, and bind it here:
+   The view reads through \`${n.singularCamel}Selectors.list\`. The core is
+   PORTABLE — it imports no api.ts — so the descriptor is INJECTED by the generated
+   web composition (features/${n.singularKebab}/index.web.ts), which passes
+   \`actions.${n.singularCamel}\` into \`create${n.singularPascal}Core\`. Either reuse
+   an EXISTING resource query (edit index.web.ts to \`list: actions.todos\`), or
+   scaffold a new resource (\`npm run new:resource -- <name>\`), wire its checklist,
+   and bind it here:
    apps/web/src/api.ts
      1a. anchor:  todosQuery,        (the '#core/client/index.js' import)
          add:     ${n.singularCamel}Query,
      1b. anchor:  todos: todosQuery(apiClient),   (the actions object)
          add:     ${n.singularCamel}: ${n.singularCamel}Query(apiClient),
-   Then reconcile the key in core/selectors.ts if you aliased a different action.
+   Then reconcile the injected key in features/${n.singularKebab}/index.web.ts
+   (the WEB COMPOSITION — the one site that binds the core to api.ts) if you
+   aliased a different action.
 
 2. WEB ROUTE — apps/web/src/main.tsx
    (The route component — apps/web/src/routes/${n.singularKebab}.tsx — is already
@@ -278,10 +296,13 @@ Verify (write core tests before wiring the UI):
 /** Shared shared-file wiring steps (identical for store and statechart). */
 const sharedWiringSteps = (n: ResourceNames): string => `
 1. READ DESCRIPTOR — bind the island's server-state read.
-   The view reads through \`${n.singularCamel}Selectors.list\`, which re-exports
-   \`actions.${n.singularCamel}\` from apps/web/src/api.ts. Point core/selectors.ts
-   at an EXISTING resource query (e.g. \`list: actions.todos\`), or scaffold a new
-   resource (\`npm run new:resource -- <name>\`), wire its checklist, and bind it:
+   The view reads through \`${n.singularCamel}Selectors.list\`. The core is
+   PORTABLE — it imports no api.ts — so the descriptor is INJECTED by the generated
+   web composition (features/${n.singularKebab}/index.web.ts), which passes
+   \`actions.${n.singularCamel}\` into \`create${n.singularPascal}Core\`. Reuse an
+   EXISTING resource query (edit index.web.ts to \`list: actions.todos\`), or
+   scaffold a new resource (\`npm run new:resource -- <name>\`), wire its checklist,
+   and bind it:
    apps/web/src/api.ts
      1a. anchor:  todosQuery,        (the '#core/client/index.js' import)
          add:     ${n.singularCamel}Query,
@@ -315,9 +336,10 @@ const buildMachineChecklist = (
   const storeSection = `
 3. GATEWAY — apps/web/src/api.ts
    The store (core/store.ts) is OPTIMISTIC: it applies each edit locally, then
-   persists it through an injected gateway (${n.singularPascal}Gateway). core/index.ts
-   imports \`${n.singularCamel}Gateway\` from apps/web/src/api.ts — it does not exist
-   yet, so \`npm run check\` stays RED until you bind one.
+   persists it through an injected gateway (${n.singularPascal}Gateway). The web
+   composition (features/${n.singularKebab}/index.web.ts) imports
+   \`${n.singularCamel}Gateway\` from apps/web/src/api.ts and injects it into the core
+   — it does not exist yet, so \`npm run check\` stays RED until you bind one.
    anchor:  todos: todosQuery(apiClient),   (near the actions object)
    add a gateway that maps each method to a core/client mutation:
      export const ${n.singularCamel}Gateway: ${n.singularPascal}Gateway = {

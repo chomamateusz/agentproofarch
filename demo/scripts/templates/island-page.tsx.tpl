@@ -1,13 +1,13 @@
 import { Alert, Button, Container, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
-import { send, __SINGULAR_CAMEL__Selectors } from './core/index.js';
+import { send, __SINGULAR_CAMEL__Selectors } from './index.web.js';
 
 /**
- * __SINGULAR_PASCAL__ view — talks ONLY to the island core: it reads through
- * `__SINGULAR_CAMEL__Selectors` and emits intents through `send`. It never
- * imports api.ts, a descriptor or a machine, so the core can graduate rungs
- * without touching this file.
+ * __SINGULAR_PASCAL__ view — talks ONLY to the island seam (the web composition
+ * index.web.ts): it reads through `__SINGULAR_CAMEL__Selectors` and emits intents
+ * through `send`. It never imports api.ts, the core factory, a descriptor or a
+ * machine, so the core can graduate rungs without touching this file.
  */
 export const __SINGULAR_PASCAL__Page = () => {
   const list = useQuery(__SINGULAR_CAMEL__Selectors.list);
