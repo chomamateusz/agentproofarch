@@ -302,11 +302,12 @@ form is unwritable ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) ·
 "do these events report intent, or smuggle a decision?" — PR checklist +
 AI tier.
 
-**Pure-TS cores (TUI-portable).** An island core exposes selectors plus
-`subscribe`/`getState`; the web adapter turns that into a hook in one
-generated line, a TUI consumes `subscribe(selector, cb)` + `getState()`
-directly. React in the browser is one view adapter, not a dependency of the
-core.
+**Pure-TS cores (TUI-portable).** An island core's seam is `send(event)` in,
+`subscribe(listener)` for change notification, and a selectors object out
+(including `snapshot()` for the current overlay state); the web adapter feeds
+`subscribe` plus the `snapshot` selector into `useSyncExternalStore` in one
+generated line, a TUI consumes `subscribe(listener)` + the selectors directly.
+React in the browser is one view adapter, not a dependency of the core.
 — **TYPE**: cores compile with no JSX and no DOM types · **LINT**: the same
 `features/*/core/**` react/framework ban as the seam rule · **TEST**: core
 unit tests run in plain node (no jsdom) — portability exercised on every
@@ -659,7 +660,7 @@ client port in `core/client`). It is the *built* set — keep it in sync with th
 code.
 
 - `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
-- `AuthClientPort` (client): sign-up/in/out + magic link. Better Auth client.
+- `AuthClientPort` (client): sign-up/in/out. Better Auth client.
 - `TodoRepository`, `CardRepository`, `TenantDomainRepository`,
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
@@ -674,6 +675,9 @@ code.
   Vercel Domains API, Caddy on-demand TLS, noop (dev). No interface or adapter
   exists in the tree yet; the `DOMAIN_PROVISIONER` env switch is reserved for
   it.
+- Magic-link sign-in: a Better Auth client capability `AuthClientPort` would
+  expose when a passwordless flow is pulled in. The shipped port has
+  sign-up/in/out only — no magic-link code exists in the tree yet.
 
 Add a port only when a second implementation or a platform difference actually
 exists.
@@ -791,6 +795,32 @@ Rules:
   deployed environment (`npm run smoke:remote` = the same CLI suite against a
   deployment URL).
 
+**Production smoke-account doctrine.** `smoke:remote` runs against **live
+production** on every successful deploy ([ADR-0004](decisions/0004-no-exceptions-enforcement.md)),
+so it must be safe to run repeatedly and forever without corrupting the tenant it
+touches:
+
+- **A dedicated canary tenant, never a real customer.** The run signs in as a
+  ring-fenced smoke account in its own tenant (default slug `acme` for local/dev;
+  overridden per environment). Its data is disposable and belongs to no creator.
+- **Never `db:seed` against a real database.** `smoke:remote` only drives the
+  public CLI/API — it never seeds. Only the isolated local `smoke` harness (its
+  own throwaway `agentproofarch_smoke` DB) seeds; production is seeded once at
+  provisioning, out of band.
+- **Non-self-poisoning by construction.** Every card a run creates is parked in
+  an **unbounded** column before it ends (`done` on both boards — absent from
+  `TEAM_WIP_LIMITS`), and the team card walks the full legal chain
+  `todo→in-dev→review→done`. So repeated runs never accumulate in the bounded
+  `in-dev`/`review` columns and can never hit a WIP limit that would turn the
+  deploy gate false-red. A per-environment `concurrency` group
+  (`post-deploy-smoke.yml`, `cancel-in-progress: false`) serializes runs so
+  overlapping deploys don't race the `before + 1` assertions.
+- **Credentials via CI secrets; forks override the defaults.** `SMOKE_EMAIL` /
+  `SMOKE_PASSWORD` / `SMOKE_TENANT` / `BASE_URL` come from repository secrets in
+  CI, not the repo. The script's baked-in defaults are the local canary only; a
+  fork pointing at its own deployment **must** supply its own values, and the
+  `deployment_status` job is already fenced to the canonical repo.
+
 ## Security baseline
 
 The threat model is a multi-tenant SPA and API on one origin behind Better Auth.
@@ -802,9 +832,12 @@ below is defense-in-depth around it. Everything under NORMATIVE NOW is wired in
 the demo (`app.ts` `secureHeaders`/`bodyLimit`, `create-auth.ts` rate limiting,
 `vercel.json` headers). The `smoke` gate asserts the subset that shows up on a
 live response header — `Cache-Control: no-store`, `X-Content-Type-Options:
-nosniff`, and the CSP's `script-src 'self'` directive; the remaining NORMATIVE
-NOW items (body limits, rate limiting, cookie flags) are covered by unit/config
-tests and review, not by a live smoke assertion.
+nosniff`, the CSP's `script-src 'self'` directive, the **absence** of any
+`Access-Control-Allow-Origin` on `/api/*` (the no-CORS half of the CSRF
+doctrine), and the session cookie's `HttpOnly` + `SameSite=Lax` (+ `Secure` on
+https) attributes from a live sign-in; the remaining NORMATIVE NOW items (body
+limits, rate limiting) are covered by unit/config tests and review, not by a
+live smoke assertion.
 
 **NORMATIVE NOW:**
 
@@ -828,6 +861,22 @@ tests and review, not by a live smoke assertion.
   `Secure` flag; defaults false only because `*.localhost` is plaintext), and
   `crossSubDomainCookies` is on for a real `APP_BASE_DOMAIN` (sessions span tenant
   subdomains) and off for `localhost` (browsers reject `Domain=.localhost`).
+- **CSRF / CORS doctrine.** The primary session boundary is `SameSite=Lax`
+  session cookies on a **same-origin** SPA with **no CORS middleware on the
+  authenticated `/api/*` surface** — so a cross-site page can neither attach the
+  session cookie on a state-changing request (`Lax` withholds it on cross-site
+  sub-requests) nor read an authenticated response (no CORS = the browser blocks
+  the read). Better Auth layers its own `Origin` check on `/api/auth/*` on top.
+  Open `GET` CORS is set on the **future public contract group only** (§Public
+  surface, §HTTP caching), never on authenticated `/api/*`. Adding `cors()` to
+  `/api/*`, or relaxing `SameSite`, silently regresses this boundary — so both
+  halves have a red gate:
+
+  | Doctrine rule | Where it lives | How a regression goes red |
+  |---|---|---|
+  | Session cookie is `HttpOnly` + `SameSite=Lax` (+ `Secure` on https) | `create-auth.ts` (Better Auth defaults + `SECURE_COOKIES`) | `smoke` signs in with a raw POST and asserts the live `Set-Cookie` attributes |
+  | No CORS middleware on authenticated `/api/*` | `app.ts` (no `cors()` mounted) | `smoke` asserts no `Access-Control-Allow-Origin` on `/api/*` |
+  | Open `GET` CORS only on the public contract group | route-scoped helper (§Public surface) | added with the first public GET; authenticated `/api/*` stays uncovered |
 - **Auth rate limiting.** Better Auth's built-in limiter guards **only
   `/api/auth/*`**; its default in-memory storage is useless on Vercel (every
   invocation is a fresh isolate), so set `storage: "database"` to keep counters in
@@ -918,12 +967,17 @@ OpenTelemetry is the instrumentation standard (`@opentelemetry/api` is a
 no-op facade — vocabulary, not infrastructure; SDK and exporters wire in the
 composition root). The practice is **wide events**: one context-rich event per
 request per service hop — annotate the active span as context accrues, emit
-once; never step-log. One W3C trace id spans SPA → API → DB (injected in
-`core/client`'s `request()`, continued by Hono middleware) and is shown in the
-error fallback for support. Sentry is the default sink (errors + traces);
+once; never step-log. The design is one W3C trace id spanning SPA → API → DB:
+the seam for it lives in `core/client`'s `request()` and Hono middleware
+continues an incoming one. What is wired today is narrower — the web app
+installs only the Sentry browser SDK, no OTel browser provider, so
+`request()`'s `traceparent` injection reads the no-op facade and the SPA does
+not yet originate a trace id; there is no DB-hop instrumentation; and the
+tail-sampling policy is documented, not implemented (the actual wiring choice is
+DECIDE, see observability.md). Sentry is the default sink (errors + traces);
 columnar stores (Axiom / self-hosted ClickHouse) are the named upgrade for
-event analytics. Tail sampling controls cost: keep all errors and slow
-requests, sample the happy path. Full policy:
+event analytics. The intended tail sampling keeps all errors and slow requests
+and samples the happy path. Full policy:
 [observability.md](observability.md).
 
 ## Foundation evolution (consuming the foundation)

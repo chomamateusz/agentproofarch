@@ -147,6 +147,17 @@ budgets.
 - `scripts/**` and `**/*.mjs` (the visual-diff tooling) are outside both ESLint
   and dependency-cruiser scope.
 
+**Landed (2026-07-20):** all four defects above are closed and enforced.
+`eslint-plugin-react-hooks`, `eslint-plugin-react` and `eslint-plugin-jsx-a11y`
+are wired in `demo/eslint.config.js` (`react-hooks/exhaustive-deps` and
+`rules-of-hooks` at error, the jsx-a11y recommended set). `demo/vitest.config.ts`
+now includes `**/*.test.tsx` and runs `apps/web` tests under a `jsdom`
+environment (with a `node` project for the pure cores). The root error surface
+ships as `apps/web/src/RootErrorFallback.tsx` + `components/ui/ErrorBoundary.tsx`
+(with tests). `scripts/**` and `**/*.mjs` are inside the ESLint config's file
+globs. The gap analysis above is retained as the record of why these enforcers
+exist.
+
 ## 5. Conclusions
 
 1. **The architecture's spine needs no change.** Both t3code and the course

@@ -30,8 +30,12 @@ shared files, because generated edits to shared files rot. It writes:
 
 Then it prints an ordered checklist for the shared files you wire by hand. It
 deliberately does **not** touch them: the generated code imports symbols that
-don't exist yet, so `npm run check` stays RED until every step is wired. The
-type system, not the generator, tells you when you're done.
+don't exist yet, so `npm run check` stays RED through the type-forced steps
+(domain, contract, port/use-case, client wiring). Three steps are **not**
+type-forced — a missing CLI command, an unregistered web route, and a
+hand-registered server route (routes are wired by hand against `API_PATHS`, with
+no parity check) all typecheck fine — so for those the checklist, not the
+compiler, is what tells you you're done.
 
 **Why a ~400-line script and not Plop** (or any generator framework): a
 framework would add a dependency and its own template syntax for something
@@ -40,8 +44,9 @@ dependencies — templates are plain text files (`scripts/templates/*.tpl`)
 read at runtime, and the scaffolder's self-test renders every template and
 parses each output with the TypeScript compiler, so template rot is a failing
 test rather than a runtime surprise. It is also repo-rule-aware in a way no
-generic generator is: it *knows* `check` must stay red until the checklist is
-wired, and its name validation rejects collisions and reserved names.
+generic generator is: it *knows* `check` must stay red through the type-forced
+steps of the checklist, and its name validation rejects collisions and reserved
+names.
 
 **Separability is an explicit boundary**: the *scaffolders*
 (`new-resource.ts`, `new-island.ts`) import nothing from `core/` or `apps/` —

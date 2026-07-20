@@ -112,10 +112,12 @@ anti-port-theater) and produced the decisions below.
    semantics is a review/AI-tier check.
 
 8. **Pure-TS cores.** An island core is a pure TypeScript module: no React,
-   no DOM, no `react-query`. It exposes selectors plus `subscribe`/
-   `getState`; the web adapter turns that into a hook in one generated line
-   (`useSyncExternalStore` or the store's own binding), and a TUI consumes
-   `subscribe(selector, cb)` + `getState()` directly. Same cores, two
+   no DOM, no `react-query`. Its seam is `send(event)` in,
+   `subscribe(listener)` for change notification, and a selectors object out
+   (including `snapshot()` for the current overlay state); the web adapter
+   feeds `subscribe` plus the `snapshot` selector into `useSyncExternalStore`
+   in one generated line, and a TUI consumes `subscribe(listener)` + the
+   selectors directly. Same cores, two
    consumers — React in the browser is just one view adapter. This composes
    with what already holds: `core/client` is typed against
    `@tanstack/query-core`, and both candidate machines are

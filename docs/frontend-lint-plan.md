@@ -143,14 +143,19 @@ Also implemented:
   bypass (RuleTester fixture from `TodosPage`). A frozen baseline may only
   shrink; the demo keeps it at zero.
 
+Resolved (no lint rule needed):
+
+- `cqrs-partition` — **resolved at the type level, shipped in `core/client`**
+  (`core/client/queries.ts`). `defineQuery` accepts only a read-tagged (GET)
+  contract route and `defineMutation` only a write-tagged one: contract routes
+  carry their HTTP method, `ApiClient` method types carry a read/write brand,
+  and the define helpers accept only the matching brand — a violation is a
+  compile error. The type-level mechanism was preferred over an AST rule, so
+  this never became a custom lint rule.
+
 Candidates, in order of value:
 
-1. `cqrs-partition` — `defineQuery` may wrap only safe (GET) contract routes,
-   `defineMutation` only unsafe ones. Prefer the type-level mechanism over an
-   AST rule: contract routes carry their HTTP method, `ApiClient` method types
-   carry a read/write brand, and the define helpers accept only the matching
-   brand — a violation is a compile error.
-2. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
+1. `tenant-scoped-ctx` — (server-side, listed for completeness) every use-case
    under `core/server` takes `ctx: { identity }` first; currently a PRD "lint
    or review" item with no rule.
 

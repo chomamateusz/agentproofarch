@@ -40,6 +40,18 @@ Core use-cases may add business annotations via the `@opentelemetry/api`
 facade (allowlisted vocabulary); they never import an SDK, exporter or vendor
 package.
 
+**What is wired today.** The table above describes the seams; the trace *id* is
+only as end-to-end as the registered providers, and today none are on the
+browser. `apps/web` installs the Sentry browser SDK but **no OTel browser
+provider**, so `core/client`'s `traceparent` injection reads the no-op facade
+and emits nothing — the SPA does not yet originate a trace id, and the
+error-fallback trace id appears only once a browser provider is registered. Hono
+continues an incoming `traceparent`, but there is **no DB-hop instrumentation**,
+and the **tail-sampling policy is documented intent, not implemented code**.
+Which providers/samplers to register (and the web `tracesSampleRate` vs the
+happy-path tail-sampling policy above) is the open wiring decision — DECIDE, not
+shipped.
+
 ## Sinks
 
 - **Default: Sentry** (errors + distributed traces + endpoint timings + web
@@ -55,9 +67,9 @@ package.
 
 ## Enforcement
 
-- `no-console` already errors in `apps/web`; extend to server code — the wide
-  event is the log. Scoped exception: the composition root's startup/fatal
-  path.
+- `no-console` errors in `apps/web` **and** `apps/server` — the wide event is
+  the log (scoped exception wired for the composition root's startup/fatal
+  path: `apps/server/src/entry.*.ts` and `env.ts`).
 - Review rule (Phase 4 candidate once patterns settle): request handlers and
   use-cases annotate spans, they do not emit events — emission belongs to the
   middleware, exactly once.

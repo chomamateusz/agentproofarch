@@ -67,8 +67,19 @@ green.
    - **config → docs**: every custom rule in `eslint-plugin-agentproofarch/rules`
      (excluding `*.test.js`) must be documented by name somewhere under `docs/`,
      so an enforcer cannot be added in silence.
+   - **leaked-delimiter scan**: a third check reads every git-tracked `.md` in
+     the repo and fails if a stray tool/XML delimiter (the closing `content` or
+     `invoke` tags of the round-1 audit C1 leak) survived into committed prose,
+     so stray agent-output markup can't ship in the docs.
    Failure output names the identifier, which side is missing it, and which file
    to fix.
+
+5. **Third-party actions are pinned by full commit SHA.** Every `uses:` in every
+   workflow (`ci`, `post-deploy-smoke`, `mirror`) references an immutable commit
+   SHA, never a mutable tag like `@v4` — a tag can be force-moved onto malicious
+   code under an unchanged CI config. A trailing `# vX.Y.Z` comment records the
+   human-readable version the SHA resolved to; bumps come through the same
+   Dependabot/Renovate PRs as dependencies and pass both gates.
 
 ## Consequences
 
@@ -115,3 +126,11 @@ broader behavior, recorded here so all three sources match:
   trusts `APP_BASE_URL` as the CSRF origin. **Preview/staging** deploys drive
   their own per-deployment `environment_url`, which their `VERCEL_URL`-derived
   auth origin already trusts.
+- **Because it drives live production, `smoke:remote` obeys the production
+  smoke-account doctrine** — a dedicated canary tenant, never `db:seed` against a
+  real database, credentials from CI secrets, forks override the defaults, and a
+  non-self-poisoning drive that parks every card in an unbounded column. The
+  doctrine lives in [architecture.md §Environments](../architecture.md#environments-vercel-target);
+  the workflow enforces its concurrency half with a per-environment
+  `concurrency` group (`cancel-in-progress: false`) so overlapping deploys can't
+  race the shared canary.
