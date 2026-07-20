@@ -99,26 +99,30 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `npm ci` enforces on CI; a local npm 11 `npm install` silently prunes
   optional entries and broke CI twice, so **never `npm install` here** — add
   deps with `npx -y npm@10 install`), dependency-cruiser, `doc-lint`
-  (docs ↔ enforcer-config, both ways), and vitest with coverage. **340 tests
-  across 49 files**; coverage thresholds are a ratchet floor, so a regression
-  fails the gate.
+  (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
+  links), and vitest with coverage across
+  **<!--count:test-files-->51<!--/count--> test files**; coverage thresholds are
+  a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
   unauthorized through the CLI, asserting taxonomy exit codes. **Done =
   `check` green AND `smoke` green.** Static-green is not done.
 
-Two more levels, their own CI jobs (browser + Postgres, kept out of `check`):
+Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
+<!--count:integration-tests-->27<!--/count--> integration tests against a real
+Postgres and <!--count:e2e-tests-->9<!--/count--> Playwright tests across
+<!--count:e2e-specs-->3<!--/count--> spec files:
 
 ```bash
-npm run test:integration   # 27 tests against a real Postgres (repositories)
-npm run e2e                # 3 Playwright spec files (7 tests): real Chromium over the real stack
+npm run test:integration   # repositories, against a real Postgres
+npm run e2e                # real Chromium over the real stack
 ```
 
-25 config-regression probes guard the covered boundary and island-core rules —
-most feed a violating fixture and assert the gate still goes red, a few are
-structural rule-presence checks rather than fixture-feeding probes — so you
-can't silently delete one of those rules and stay green
-([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).
+<!--count:config-regression-->25<!--/count--> config-regression probes guard the
+covered boundary and island-core rules — most feed a violating fixture and
+assert the gate still goes red, a few are structural rule-presence checks rather
+than fixture-feeding probes — so you can't silently delete one of those rules and
+stay green ([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).
 
 ## Adding a resource
 
