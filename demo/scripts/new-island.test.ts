@@ -165,7 +165,7 @@ describe('generateIsland', () => {
     expect(result.checklist).toContain('GATEWAY');
   });
 
-  it('scaffolds a rung-3 statechart island and every file parses', () => {
+  it('scaffolds a rung-3 statechart island (default --rules=domain) and every file parses', () => {
     const result = generateIsland({
       name: 'release-flow',
       outDir: sandbox,
@@ -173,10 +173,11 @@ describe('generateIsland', () => {
       machine: 'statechart',
     });
 
+    // DEFAULT rules=domain: the table lives in the SHARED core/domain, not the island.
     expect(result.files.map((file) => file.path)).toEqual([
       'apps/web/src/features/release-flow/core/events.ts',
       'apps/web/src/features/release-flow/core/selectors.ts',
-      'apps/web/src/features/release-flow/core/rules.ts',
+      'core/domain/release-flow-rules.ts',
       'apps/web/src/features/release-flow/core/machine.ts',
       'apps/web/src/features/release-flow/core/index.ts',
       'apps/web/src/features/release-flow/core/release-flow.test.ts',
@@ -194,18 +195,23 @@ describe('generateIsland', () => {
       expect(diagnostics, `${file.path} should parse without syntax errors`).toEqual([]);
     }
 
-    // rules.ts = transition-table-as-data with exhaustive Records.
-    const rules = contentsOf(result.files, 'core/rules.ts');
+    // rules = transition-table-as-data with exhaustive Records, in core/domain.
+    const rules = contentsOf(result.files, 'core/domain/release-flow-rules.ts');
     expect(rules).toContain('export const guards: Readonly<Record<GuardId, GuardPredicate>>');
     expect(rules).toContain('export const transitionTable: Readonly<Record<Phase, readonly GuardId[]>>');
     expect(rules).toContain('export const canApplyReleaseFlowMove');
-    // machine.ts = the derivation generator with the as-free carrier + fail-loud.
+    // Domain mode: the server-shares-the-table claim is TRUE and stated.
+    expect(rules).toContain('core/domain');
+    expect(rules).toContain('core/server');
+    // machine.ts = the derivation generator; imports the SHARED core/domain table.
     const machineFile = contentsOf(result.files, 'core/machine.ts');
+    expect(machineFile).toContain("from '#core/domain/release-flow-rules.js'");
     expect(machineFile).toContain('const eventCarrier: MachineEvent = moveEventByPhase.draft');
     expect(machineFile).toContain('export const evaluateReleaseFlowMove');
     expect(machineFile).toContain('throw new Error(`machine produced no verdict');
-    // drift test = property test incl. the WIP=1 edge.
+    // drift test = property test incl. the WIP=1 edge, over the shared table.
     const drift = contentsOf(result.files, 'core/rules.drift.test.ts');
+    expect(drift).toContain("from '#core/domain/release-flow-rules.js'");
     expect(drift).toContain('evaluateReleaseFlowMove');
     expect(drift).toContain('canApplyReleaseFlowMove');
     expect(drift).toContain('WIP=1');
@@ -221,6 +227,55 @@ describe('generateIsland', () => {
 
     expect(result.checklist).toContain('RUNG 3');
     expect(result.checklist).toContain('drift');
+    // Domain checklist routes the shared-table export through core/domain/index.ts.
+    expect(result.checklist).toContain('RULES EXPORT');
+    expect(result.checklist).toContain('core/domain/index.ts');
+    expect(result.checklist).toContain("export * from './release-flow-rules.js';");
+  });
+
+  it('scaffolds a rung-3 statechart island with --rules=local (island-local table, no server claim)', () => {
+    const result = generateIsland({
+      name: 'draft-flow',
+      outDir: sandbox,
+      repoRoot: sandbox,
+      machine: 'statechart',
+      rules: 'local',
+    });
+
+    // LOCAL rules: the table stays inside the island (core/rules.ts), not core/domain.
+    expect(result.files.map((file) => file.path)).toEqual([
+      'apps/web/src/features/draft-flow/core/events.ts',
+      'apps/web/src/features/draft-flow/core/selectors.ts',
+      'apps/web/src/features/draft-flow/core/rules.ts',
+      'apps/web/src/features/draft-flow/core/machine.ts',
+      'apps/web/src/features/draft-flow/core/index.ts',
+      'apps/web/src/features/draft-flow/core/draft-flow.test.ts',
+      'apps/web/src/features/draft-flow/core/rules.drift.test.ts',
+      'apps/web/src/features/draft-flow/DraftFlowPage.tsx',
+      'apps/web/src/routes/draft-flow.tsx',
+    ]);
+
+    for (const file of result.files) {
+      const written = readFileSync(join(sandbox, file.path), 'utf8');
+      expect(written).not.toMatch(/__[A-Z_]+__/);
+      const diagnostics = parses(file.path, written).filter(
+        (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+      );
+      expect(diagnostics, `${file.path} should parse without syntax errors`).toEqual([]);
+    }
+
+    // The machine imports the island-local table, not core/domain.
+    const machineFile = contentsOf(result.files, 'core/machine.ts');
+    expect(machineFile).toContain("from './rules.js'");
+    expect(machineFile).not.toContain('#core/domain/');
+    // The misleading server-check comment is GONE: local rules never feed the server.
+    const rules = contentsOf(result.files, 'core/rules.ts');
+    expect(rules).toContain('CLIENT-ONLY');
+    expect(rules).not.toContain('core/server use-case');
+    // The checklist is honest about the client-only scope and offers the upgrade.
+    expect(result.checklist).toContain('CLIENT-ONLY');
+    expect(result.checklist).toContain('--rules=domain');
+    expect(result.checklist).not.toContain('core/domain/index.ts');
   });
 
   it('defaults to rung 1 (no machine) when --machine is omitted', () => {

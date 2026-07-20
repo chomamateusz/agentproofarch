@@ -12,10 +12,10 @@ import {
   type __SINGULAR_PASCAL__Move,
   type __SINGULAR_PASCAL__State,
   type __SINGULAR_PASCAL__Verdict,
-} from './rules.js';
+} from '__RULES_MODULE__';
 
 /**
- * Machine — the XState oracle DERIVED from the core/rules.ts table. It is NOT
+ * Machine — the XState oracle DERIVED from the __RULES_PATH__ table. It is NOT
  * hand-written: `buildStates` walks the transition table and emits, for each
  * (from, to) pair, one allow branch guarded by ALL the target's guards plus one
  * reject branch per guard that names the failing rule. Hand-authoring these

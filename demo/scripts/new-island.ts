@@ -17,10 +17,19 @@ import type { GeneratedFile, ResourceNames } from './new-resource.js';
  *   store       RUNG 2 — additionally an @xstate/store island store (core/store.ts;
  *               the owner's first choice, its event map IS the seam), wired into
  *               the seam's send/selectors, with a store test.
- *   statechart  RUNG 3 — additionally the transition-table-as-data (core/rules.ts),
- *               the DERIVED XState oracle (core/machine.ts, hand-writing forbidden),
- *               and a drift property test (core/rules.drift.test.ts). The oracle is
+ *   statechart  RUNG 3 — additionally the transition-table-as-data, the DERIVED
+ *               XState oracle (core/machine.ts, hand-writing forbidden), and a
+ *               drift property test (core/rules.drift.test.ts). The oracle is
  *               consulted by a UI machine in a guard (see core/index.ts).
+ *
+ * For `--machine=statechart`, `--rules` picks WHERE the transition table lives
+ * (D2 — the owner's post-audit decision, default domain):
+ *   domain  (default)  the table is a core/domain module (<name>-rules.ts), so
+ *                      core/server can import it — the server enforces the SAME
+ *                      table as the client. The machine imports it from core/domain.
+ *   local              the table stays inside the island (core/rules.ts). It is
+ *                      CLIENT-ONLY — a feature cannot be imported by core/server —
+ *                      so it carries no (misleading) server-shares-the-table claim.
  *
  * Every mode carries marked `<<EXTENSION POINT>>`s where the seam grows. Like
  * new-resource, it does NOT edit shared files: the generated code imports symbols
@@ -38,6 +47,45 @@ const MACHINE_MODES: readonly MachineMode[] = ['none', 'store', 'statechart'];
 const isMachineMode = (value: string): value is MachineMode =>
   MACHINE_MODES.some((mode) => mode === value);
 
+/** Where a rung-3 transition table lives: shared core/domain, or island-local. */
+export type RulesMode = 'domain' | 'local';
+
+const RULES_MODES: readonly RulesMode[] = ['domain', 'local'];
+
+const isRulesMode = (value: string): value is RulesMode =>
+  RULES_MODES.some((mode) => mode === value);
+
+/**
+ * Prose that differs between rules modes. In domain mode the table is server-
+ * importable, so the server-shares-the-table claim is TRUE; in local mode it is a
+ * client-only table and the claim would be misleading, so it is replaced by an
+ * honest "regenerate with --rules=domain" note.
+ */
+const rulesTokens = (names: ResourceNames, rules: RulesMode): Record<string, string> => {
+  const domainPath = `core/domain/${names.singularKebab}-rules.ts`;
+  return rules === 'domain'
+    ? {
+        __RULES_MODULE__: `#core/domain/${names.singularKebab}-rules.js`,
+        __RULES_PATH__: domainPath,
+        __RULES_SERVER_NOTE__: `This table lives in core/domain, so core/server imports the SAME table — the \`canApply${names.singularPascal}Move\` walk below is that shared reference; client and server can never diverge.`,
+        __RULES_SERVER_REF__: `The server check, DERIVED FROM THE SAME TABLE: a direct walk with no XState. It is the reference core/rules.drift.test.ts holds the derived machine to, and — because the table is in core/domain — a core/server use-case runs this exact walk, so client and server enforce one table.`,
+        __RULES_INDEX_SERVER_NOTE__: `The server derives its check from the SAME table (${domainPath}), and`,
+      }
+    : {
+        __RULES_MODULE__: './rules.js',
+        __RULES_PATH__: 'core/rules.ts',
+        __RULES_SERVER_NOTE__: `This table is CLIENT-ONLY: it lives inside the island and core/server cannot import a feature, so it feeds NO server check. Regenerate with \`--rules=domain\` to lift it into core/domain when the server must enforce the same moves.`,
+        __RULES_SERVER_REF__: `A direct table walk with no XState: the reference core/rules.drift.test.ts holds the derived machine to. It runs CLIENT-SIDE ONLY — a feature-local table cannot feed core/server. Regenerate with \`--rules=domain\` when a server check must share this table.`,
+        __RULES_INDEX_SERVER_NOTE__: `This oracle is CLIENT-ONLY (core/rules.ts is island-local, unreachable from core/server); regenerate with \`--rules=domain\` for a server-shared table, and`,
+      };
+};
+
+const applyRulesTokens = (contents: string, tokens: Record<string, string>): string =>
+  Object.entries(tokens).reduce(
+    (acc, [token, value]) => acc.replaceAll(token, value),
+    contents,
+  );
+
 /** Existing feature folders an island name must not clobber. */
 const RESERVED_ISLANDS = new Set(['todos', 'auth']);
 
@@ -53,12 +101,28 @@ const indexTemplate = (machine: MachineMode): string => {
 const coreTestTemplate = (machine: MachineMode): string =>
   machine === 'store' ? 'island-core.store.test.ts.tpl' : 'island-core.test.ts.tpl';
 
-const planIslandFiles = (names: ResourceNames, machine: MachineMode): GeneratedFile[] => {
+const planIslandFiles = (
+  names: ResourceNames,
+  machine: MachineMode,
+  rules: RulesMode,
+): GeneratedFile[] => {
   const feature = `apps/web/src/features/${names.singularKebab}`;
   const file = (templateFile: string, path: string): GeneratedFile => ({
     path,
     contents: renderTemplateFile(templateFile, names),
   });
+  // Statechart files carry the extra rules-mode tokens (import specifier, path,
+  // server-shares-the-table prose) on top of the name tokens.
+  const tokens = rulesTokens(names, rules);
+  const statechartFile = (templateFile: string, path: string): GeneratedFile => ({
+    path,
+    contents: applyRulesTokens(renderTemplateFile(templateFile, names), tokens),
+  });
+  // Domain rules are a shared core/domain module; local rules stay island-local.
+  const rulesPath =
+    rules === 'domain'
+      ? `core/domain/${names.singularKebab}-rules.ts`
+      : `${feature}/core/rules.ts`;
 
   const files: GeneratedFile[] = [
     file(eventsTemplate(machine), `${feature}/core/events.ts`),
@@ -69,15 +133,19 @@ const planIslandFiles = (names: ResourceNames, machine: MachineMode): GeneratedF
     files.push(file('island-store.ts.tpl', `${feature}/core/store.ts`));
   }
   if (machine === 'statechart') {
-    files.push(file('island-rules.ts.tpl', `${feature}/core/rules.ts`));
-    files.push(file('island-machine.ts.tpl', `${feature}/core/machine.ts`));
+    files.push(statechartFile('island-rules.ts.tpl', rulesPath));
+    files.push(statechartFile('island-machine.ts.tpl', `${feature}/core/machine.ts`));
   }
 
-  files.push(file(indexTemplate(machine), `${feature}/core/index.ts`));
+  const indexFile =
+    machine === 'statechart'
+      ? statechartFile(indexTemplate(machine), `${feature}/core/index.ts`)
+      : file(indexTemplate(machine), `${feature}/core/index.ts`);
+  files.push(indexFile);
   files.push(file(coreTestTemplate(machine), `${feature}/core/${names.singularKebab}.test.ts`));
 
   if (machine === 'statechart') {
-    files.push(file('island-rules.drift.test.ts.tpl', `${feature}/core/rules.drift.test.ts`));
+    files.push(statechartFile('island-rules.drift.test.ts.tpl', `${feature}/core/rules.drift.test.ts`));
   }
 
   files.push(file('island-page.tsx.tpl', `${feature}/${names.singularPascal}Page.tsx`));
@@ -94,6 +162,11 @@ export interface GenerateIslandOptions {
   repoRoot: string;
   /** Client-state machine to scaffold behind the seam. Defaults to 'none' (rung 1). */
   machine?: MachineMode;
+  /**
+   * Where a rung-3 transition table lives (statechart only). Defaults to 'domain'
+   * (a server-importable core/domain module); 'local' keeps it island-local.
+   */
+  rules?: RulesMode;
   /** When true, plan and return files without writing them. */
   dryRun?: boolean;
 }
@@ -107,12 +180,13 @@ export interface GenerateIslandResult {
 export const generateIsland = (options: GenerateIslandOptions): GenerateIslandResult => {
   const names = deriveNames(options.name);
   const machine = options.machine ?? 'none';
+  const rules = options.rules ?? 'domain';
 
   if (RESERVED_ISLANDS.has(names.singularKebab)) {
     throw new ResourceNameError(`Island "${names.singularKebab}" is reserved or already exists.`);
   }
 
-  const files = planIslandFiles(names, machine);
+  const files = planIslandFiles(names, machine, rules);
 
   for (const file of files) {
     if (existsSync(join(options.repoRoot, file.path))) {
@@ -130,15 +204,16 @@ export const generateIsland = (options: GenerateIslandOptions): GenerateIslandRe
     }
   }
 
-  return { names, files, checklist: buildChecklist(names, files, machine) };
+  return { names, files, checklist: buildChecklist(names, files, machine, rules) };
 };
 
 const buildChecklist = (
   names: ResourceNames,
   files: GeneratedFile[],
   machine: MachineMode,
+  rules: RulesMode,
 ): string => {
-  if (machine !== 'none') return buildMachineChecklist(names, files, machine);
+  if (machine !== 'none') return buildMachineChecklist(names, files, machine, rules);
   const n = names;
   const generated = files.map((file) => `  + ${file.path}`).join('\n');
   return `
@@ -231,6 +306,7 @@ const buildMachineChecklist = (
   names: ResourceNames,
   files: GeneratedFile[],
   machine: 'store' | 'statechart',
+  rules: RulesMode,
 ): string => {
   const n = names;
   const generated = files.map((file) => `  + ${file.path}`).join('\n');
@@ -262,13 +338,36 @@ RUNG 2 — @xstate/store (the owner's first choice; its event map IS the seam).
    to it and exposes its client selectors alongside the server read. The view's
    calls never change. See docs/architecture.md §Client application state (ADR-0005).`;
 
-  const statechartSection = `
-3. CORE TEST — apps/web/src/features/${n.singularKebab}/core/${n.singularKebab}.test.ts
+  const domainRulesStep = `
+3. RULES EXPORT — core/domain/index.ts (\`--rules=domain\`, the default)
+   The transition table is a SHARED core/domain module — core/domain/${n.singularKebab}-rules.ts
+   — so core/server can enforce the SAME table as the client. Export it from the
+   barrel so both sides import it:
+   anchor:  export * from './todo.js';   (the core/domain/index.ts re-exports)
+   add:     export * from './${n.singularKebab}-rules.js';
+   Then feed the table to a core/server use-case (the \`canApply${n.singularPascal}Move\`
+   walk) so client and server can never diverge.`;
+  const localRulesStep = `
+3. RULES (island-local, \`--rules=local\`)
+   The transition table lives in core/rules.ts, INSIDE this island. It is
+   CLIENT-ONLY — core/server cannot import a feature — so nothing to export. When
+   the server must enforce these same moves, regenerate with \`--rules=domain\` to
+   lift the table into core/domain.`;
+  const rulesStep = rules === 'domain' ? domainRulesStep : localRulesStep;
+  const rulesPath = rules === 'domain' ? `core/domain/${n.singularKebab}-rules.ts` : 'core/rules.ts';
+  const serverLine =
+    rules === 'domain'
+      ? 'The server derives its check from the SAME table (it is in core/domain).'
+      : 'This table is client-only (island-local); use --rules=domain for a server-shared table.';
+
+  const statechartSection = `${rulesStep}
+
+4. CORE TEST — apps/web/src/features/${n.singularKebab}/core/${n.singularKebab}.test.ts
    holds the rung-1 seam assertions; grow them into your UI-machine tests. The
-   domain oracle is proven separately by the drift test (below).
+   domain oracle is proven separately by the drift test (core/rules.drift.test.ts).
 
 RUNG 3 — transition-table-as-data + a DERIVED oracle.
-   core/rules.ts is the SINGLE SOURCE OF TRUTH (exhaustive Records; adding a phase
+   ${rulesPath} is the SINGLE SOURCE OF TRUTH (exhaustive Records; adding a phase
    or rule is a compile error until every site is covered). core/machine.ts DERIVES
    the XState oracle from that table programmatically — hand-writing the machine is
    forbidden. core/rules.drift.test.ts is a property test over every (state, event)
@@ -276,9 +375,8 @@ RUNG 3 — transition-table-as-data + a DERIVED oracle.
    machine and the table disagree.
    COMPOSE, don't embed: this island's own hand-written UI machine CONSULTS the
    oracle (\`evaluate${n.singularPascal}Move\`) in a guard — see the oracle-guard note
-   in core/index.ts. UI states never enter the domain machine. The server derives
-   its check from the SAME table. See docs/architecture.md §Client application state
-   (ADR-0005).`;
+   in core/index.ts. UI states never enter the domain machine. ${serverLine}
+   See docs/architecture.md §Client application state (ADR-0005).`;
 
   return `
 Scaffolded island "${n.singularKebab}" (feature = island, RUNG ${rung}). Generated
@@ -310,20 +408,36 @@ const parseMachine = (args: readonly string[]): MachineMode => {
   return value;
 };
 
+const parseRules = (args: readonly string[], machine: MachineMode): RulesMode => {
+  const flag = args.find((arg) => arg.startsWith('--rules='));
+  if (flag === undefined) return 'domain';
+  const value = flag.slice('--rules='.length);
+  if (!isRulesMode(value)) {
+    throw new ResourceNameError(
+      `Invalid --rules=${value}: expected one of ${RULES_MODES.join(', ')}.`,
+    );
+  }
+  if (machine !== 'statechart') {
+    throw new ResourceNameError('--rules only applies to --machine=statechart.');
+  }
+  return value;
+};
+
 const runCli = (): void => {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const name = args.find((arg) => !arg.startsWith('--'));
   if (name === undefined) {
     process.stderr.write(
-      'Usage: npm run new:island -- <name> [--machine=store|statechart] [--dry-run]\n',
+      'Usage: npm run new:island -- <name> [--machine=store|statechart] [--rules=domain|local] [--dry-run]\n',
     );
     process.exit(1);
   }
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   try {
     const machine = parseMachine(args);
-    const result = generateIsland({ name, outDir: repoRoot, repoRoot, machine, dryRun });
+    const rules = parseRules(args, machine);
+    const result = generateIsland({ name, outDir: repoRoot, repoRoot, machine, rules, dryRun });
     process.stdout.write(result.checklist);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
