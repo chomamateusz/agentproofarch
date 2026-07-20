@@ -81,6 +81,12 @@ green.
    human-readable version the SHA resolved to; bumps come through the same
    Dependabot/Renovate PRs as dependencies and pass both gates.
 
+Direction note (owner decision, 2026-07-20, DECIDE F1): the **REVIEW+AI** tier
+that architecture.md's enforcement matrices reference is commissioned as a
+**full AI-review CI gate** — not a transitional PR-template checklist. Its
+scope and wiring are their own upcoming package; until it lands, REVIEW+AI
+cells name a commissioned gate, not a shipped one.
+
 ## Consequences
 
 - Every PR is marked red until both gates pass, and every production deploy is
