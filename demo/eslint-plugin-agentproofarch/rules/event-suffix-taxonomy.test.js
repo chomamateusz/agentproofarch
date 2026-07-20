@@ -38,6 +38,23 @@ it('event-suffix-taxonomy', () => {
         errors: [{ messageId: 'badSuffix' }],
       },
       {
+        // R4-1a: exporting through an export list is still an export.
+        code: [
+          "type FooEvent = { type: 'deleteCard' } | { type: 'cardMoved' };",
+          'export type { FooEvent };',
+        ].join('\n'),
+        errors: [{ messageId: 'badSuffix' }],
+      },
+      {
+        // R4-1b: a same-file union alias standing behind the exported name is
+        // statically determinable and resolved one level deep.
+        code: [
+          "type Inner = { type: 'deleteCard' } | { type: 'cardMoved' };",
+          'export type FooEvents = Inner;',
+        ].join('\n'),
+        errors: [{ messageId: 'badSuffix' }],
+      },
+      {
         code: "export type BoardEvent = { type: 'deleteCard' } | { type: 'cardMoved' };",
         errors: [{ messageId: 'badSuffix' }],
       },
