@@ -1,9 +1,9 @@
 /**
- * Rules — the transition table AS DATA for the __SINGULAR_KEBAB__ domain (RUNG 3,
- * ZERO deps). This file is the SINGLE SOURCE OF TRUTH for what moves are legal:
- * core/machine.ts DERIVES an XState oracle from it programmatically (hand-writing
- * that machine is forbidden), and the server derives its check from the SAME
- * table — the `canApply__SINGULAR_PASCAL__Move` walk below is that reference.
+ * Rules — the transition table AS DATA (__RULES_PATH__) for the __SINGULAR_KEBAB__
+ * domain (RUNG 3, ZERO deps). This file is the SINGLE SOURCE OF TRUTH for what
+ * moves are legal: core/machine.ts DERIVES an XState oracle from it programmatically
+ * (hand-writing that machine is forbidden).
+ * __RULES_SERVER_NOTE__
  * core/rules.drift.test.ts fails CI the moment the two disagree on any pair.
  *
  * The Records are typed EXHAUSTIVELY (`Record<Phase, …>`, `Record<GuardId, …>`):
@@ -88,10 +88,7 @@ export const buildGuardContext = (
 ): GuardContext => ({ from: item.phase, to: move.to, item, state, limits });
 
 /**
- * The server check, DERIVED FROM THE SAME TABLE: a direct walk with no XState.
- * This is the reference core/rules.drift.test.ts holds the derived machine to —
- * on a real feature this logic lives in a core/server use-case, fed by the same
- * core/rules.ts table so client and server can never diverge.
+ * __RULES_SERVER_REF__
  */
 export const canApply__SINGULAR_PASCAL__Move = (
   state: __SINGULAR_PASCAL__State,

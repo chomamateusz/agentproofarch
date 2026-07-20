@@ -4,7 +4,9 @@ import { createAuth } from '#adapters/auth/create-auth.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   API_PATHS,
+  healthLiveOutputSchema,
   healthOutputSchema,
+  healthReadyOutputSchema,
   looseEnvelopeSchema,
   TENANT_HEADER,
 } from '#core/contract/index.js';
@@ -66,6 +68,7 @@ const baseDeps = (): AppDeps => ({
   ids: { nextId: () => 'test-id' },
   clock: { nowIso: () => '2026-07-15T00:00:00.000Z' },
   baseDomain: 'localhost',
+  commitSha: 'test-sha',
 });
 
 const user: AuthenticatedUser = {
@@ -190,6 +193,51 @@ describe('buildApp routes', () => {
     if (body.ok) {
       const health = healthOutputSchema.parse(body.data);
       expect(health.database).toBe('down');
+      expect(health.sha).toBe('test-sha');
     }
+  });
+
+  it('liveness is 200 with attestation and never touches the database', async () => {
+    const deps = baseDeps();
+    deps.health = {
+      pingDatabase: async () => {
+        throw new Error('the DB must not be pinged for liveness');
+      },
+    };
+    const res = await buildApp(deps).request(API_PATHS.healthLive);
+
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(true);
+    if (body.ok) {
+      const live = healthLiveOutputSchema.parse(body.data);
+      expect(live.sha).toBe('test-sha');
+      expect(live.version).toBeTruthy();
+    }
+  });
+
+  it('readiness is 200 with database up when the ping succeeds', async () => {
+    const res = await buildApp(baseDeps()).request(API_PATHS.healthReady);
+
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(true);
+    if (body.ok) {
+      const ready = healthReadyOutputSchema.parse(body.data);
+      expect(ready.database).toBe('up');
+      expect(ready.sha).toBe('test-sha');
+    }
+  });
+
+  it('readiness is a 503 unavailable envelope when the database is down', async () => {
+    const deps = baseDeps();
+    deps.health = { pingDatabase: async () => false };
+    const res = await buildApp(deps).request(API_PATHS.healthReady);
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(false);
+    if (!body.ok) expect(body.error.code).toBe('unavailable');
   });
 });

@@ -7,6 +7,7 @@ import {
   membershipSchema,
   newCardSchema,
   newTodoSchema,
+  slugSchema,
   staffRoleSchema,
   tenantSchema,
   todoSchema,
@@ -19,9 +20,41 @@ import {
  * or response types anywhere else.
  */
 
-export const healthOutputSchema = z.object({
-  status: z.literal('ok'),
+/**
+ * Deploy attestation carried by every health response: the release version and
+ * the build's commit SHA. `smoke:remote` compares the SHA against the deploy
+ * event's SHA to prove it verified the deployment it thinks it did.
+ */
+export const attestationSchema = z.object({
   version: z.string(),
+  sha: z.string(),
+});
+
+/**
+ * Liveness (`/api/health/live`): the process is up and can serve. No database
+ * touch — always 200 as long as the process answers. Attestation only.
+ */
+export const healthLiveOutputSchema = attestationSchema.extend({
+  status: z.literal('ok'),
+});
+
+/**
+ * Readiness (`/api/health/ready`): the process AND its database are ready. A
+ * successful body always reports `database: 'up'`; a down database returns the
+ * `unavailable` error envelope (HTTP 503), never a 200.
+ */
+export const healthReadyOutputSchema = attestationSchema.extend({
+  status: z.literal('ok'),
+  database: z.literal('up'),
+});
+
+/**
+ * Compat `/api/health`: 200 with the database status inline (readiness info
+ * without the non-200 gate). New callers should use `/live` for liveness or
+ * `/ready` for a readiness gate that goes non-200 when the database is down.
+ */
+export const healthOutputSchema = attestationSchema.extend({
+  status: z.literal('ok'),
   database: z.enum(['up', 'down']),
 });
 
@@ -49,7 +82,7 @@ export const todoListOutputSchema = z.object({
 });
 
 export const tenantCreateInputSchema = z.object({
-  slug: z.string(),
+  slug: slugSchema,
   name: z.string(),
 });
 
@@ -95,6 +128,8 @@ export const cardMoveOutputSchema = z.object({
  */
 export const API_ROUTES = {
   health: { method: 'GET', path: '/api/health' },
+  healthLive: { method: 'GET', path: '/api/health/live' },
+  healthReady: { method: 'GET', path: '/api/health/ready' },
   me: { method: 'GET', path: '/api/me' },
   tenants: { method: 'GET', path: '/api/tenants' },
   tenantsCreate: { method: 'POST', path: '/api/tenants' },
@@ -111,6 +146,8 @@ export type WriteMethod = Exclude<HttpMethod, ReadMethod>;
 
 export const API_PATHS = {
   health: API_ROUTES.health.path,
+  healthLive: API_ROUTES.healthLive.path,
+  healthReady: API_ROUTES.healthReady.path,
   me: API_ROUTES.me.path,
   tenants: API_ROUTES.tenants.path,
   todos: API_ROUTES.todos.path,

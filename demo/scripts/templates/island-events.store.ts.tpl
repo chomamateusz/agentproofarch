@@ -22,8 +22,11 @@ export type __SINGULAR_PASCAL__Event =
   // call is uniform across rungs.
   | { type: 'refreshRequested' }
   // Example optimistic-list intents — replace with this island's real events.
-  // Each maps 1:1 to a handler in core/store.ts.
+  // Each maps 1:1 to a handler in core/store.ts. The overlay keeps NO item copy,
+  // so a move carries everything the store needs without reading a list: the
+  // origin index (`fromIndex`, for undo) and the destination size (`listSize`,
+  // for the clamp). The view derives both from the merged selector, never the store.
   | { type: 'itemAddRequested'; title: string }
-  | { type: 'itemMoveRequested'; itemId: string; toIndex: number }
+  | { type: 'itemMoveRequested'; itemId: string; fromIndex: number; toIndex: number; listSize: number }
   | { type: 'itemRemoveRequested'; itemId: string }
   | { type: 'undoRequested' };

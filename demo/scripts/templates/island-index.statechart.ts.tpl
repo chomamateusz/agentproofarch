@@ -9,7 +9,7 @@ export { evaluate__SINGULAR_PASCAL__Move } from './machine.js';
  * A view imports ONLY from this module — never a machine, a descriptor or api.ts
  * directly — so the machine behind the seam stays invisible and swappable.
  *
- * RUNG 3 (statechart). The domain rules live as DATA in core/rules.ts;
+ * RUNG 3 (statechart). The domain rules live as DATA in __RULES_PATH__;
  * core/machine.ts DERIVES an XState oracle from that table (hand-writing the
  * machine is forbidden), and `evaluate__SINGULAR_PASCAL__Move` is re-exported here
  * as the seam's oracle. `send` stays a typed stub until you add this island's own
@@ -26,7 +26,7 @@ export { evaluate__SINGULAR_PASCAL__Move } from './machine.js';
  *   moveAllowed: ({ context }, params: { move: __SINGULAR_PASCAL__Move }) =>
  *     evaluate__SINGULAR_PASCAL__Move(context.board, params.move, context.limits).allowed,
  *
- * The server derives its check from the SAME table (core/rules.ts), and
+ * __RULES_INDEX_SERVER_NOTE__
  * core/rules.drift.test.ts fails CI if the derived machine and the table ever
  * disagree on any (state, event) pair. UI states NEVER enter the domain machine.
  * See docs/architecture.md §Client application state (ADR-0005).

@@ -436,7 +436,10 @@ level in the same `npm run check` gate.
 
 Use-cases return `Result<T, AppError>` for domain errors; they do not catch
 infrastructure rejections (a thrown port promise) — those are normalized once at
-the composition edge (`app.onError`). `ErrorCode` is a closed union; the contract maps it exhaustively to HTTP
+the composition edge (`app.onError`). This split is the decided contract
+(owner ruling 2026-07-20, closing audit rider CP-4/F8): normalization stays at
+the single edge, and use-cases never grow per-call try/catch for infrastructure
+failures. `ErrorCode` is a closed union; the contract maps it exhaustively to HTTP
 statuses and the CLI maps it to exit codes (`validation`=2, `unauthorized`=3,
 `forbidden`=4, `not_found`=5, `conflict`=6, `tenant_not_found`=7,
 `internal`=10). HTTP envelope: `{ ok: true, data } | { ok: false, error }`.
@@ -570,7 +573,10 @@ is the tenant cascade above plus account anonymisation: erasing a global account
 removes credentials at the provider (foundation tables never FK provider tables),
 and any owned-email snapshot held in member rows is tombstoned in place, not left
 as PII. Until the trigger fires this is a documented use-case shape, not shipped
-code — the demo carries no real personal data.
+code — the demo carries no real personal data. The same trigger activates the
+preview/staging data doctrine in §Environments (Vercel target): erasure must
+account for Neon preview branches, so previews branch from a scrubbed/seed-only
+parent and non-production deployments sit behind access protection.
 
 **Retention** (NORMATIVE NOW) is a sink setting, not code: the application stores
 no logs or traces itself and configures no app-side retention — telemetry leaves
@@ -595,6 +601,110 @@ window, and shaped for debugging; an audit trail is durable, complete,
 tamper-evident and answers "who changed what, when" on demand. When a real audit
 need appears it is a new aggregate with its own retention, not a telemetry
 setting.
+
+## Data conventions
+
+Cross-cutting column and contract conventions, decided 2026-07-20 (owner,
+DECIDE C2) — settled *before* the next aggregate copies the current shape.
+Each rule carries the enforcement mini-matrix from §Client application state
+(**TYPE / LINT / TEST / REVIEW+AI**), because a convention without a matrix is
+prose, and prose decays. Existing tables are grandfathered where noted:
+documented legacy, never a template.
+
+**Money is integer minor units plus a currency code — never floats, never bare
+numbers** (NORMATIVE NOW, MANDATORY — applies to the first money-bearing
+aggregate and every one after). The canonical shape is
+`{ amountMinor, currency }`: `amountMinor` an integer count of the currency's
+minor unit (cents/grosze), `currency` a closed ISO-4217 union — defined once as
+a zod schema in `core/domain` when the first money aggregate lands, stored as
+`integer`/`bigint` plus a currency column. Why integer minor units rather than
+Postgres `numeric`/`decimal`: an amount crosses four decimal-hostile layers —
+JSON, JS `number`, zod, TS arithmetic — and `numeric` survives none of them
+(drivers surface it as a string; the first careless numeric coercion
+reintroduces binary floats; JSON has no decimal type), while integer minor
+units are exact in every layer, sum and compare with plain integer arithmetic,
+and are the payment provider's native vocabulary (Stripe amounts *are* minor
+units). A domain needing sub-cent precision (per-unit pricing, interest
+accrual) scales the minor unit (micro-units) rather than switching to
+decimals; formatting for humans is a view concern (`Intl.NumberFormat`), never
+stored.
+— **TYPE**: amounts enter the domain only through the shared money schema —
+`z.number().int()` refuses fractional values at every boundary parse, and the
+closed currency union refuses unknown codes at compile time · **LINT**: n/a
+(no syntactic marker distinguishes a money float from any other number; the
+boundary parse owns this) · **TEST**: unit tests on the money schema (rejects
+`10.5`, rejects unknown currency) plus repository round-trip tests, landing
+with the schema · **REVIEW+AI**: flag float arithmetic on amounts, any
+`numeric`/`real`/`double` money column in a migration, and any aggregate
+carrying amounts outside the shared schema.
+
+**Timestamps are `timestamptz` for every NEW table** (NORMATIVE NOW). New
+tables declare `timestamp('…', { withTimezone: true })`; the domain and
+contract keep speaking ISO-8601 strings (driver-agnostic, as today) with the
+mapping at the adapter's schema column. Existing tables are grandfathered:
+the app tables' `created_at` columns (`tenants`, `members`, `todos`, `cards`
+in `adapters/db/app-schema.ts`) are text ISO-8601, and the generated Better
+Auth tables use naive `timestamp` — documented legacy, deliberately **not
+migrated now** (nothing ranges or sorts across zones on them; converting is a
+routine expand→contract package the day a query needs index-backed time
+semantics).
+— **TYPE**: n/a (the column type is a schema-file choice; TS sees a string
+either way) · **LINT**: n/a today (a schema-file rule against text timestamp
+columns becomes worth its fixture cost when tables multiply) · **TEST**: n/a
+(nothing mechanical to assert until a range query exists) · **REVIEW+AI**: a
+migration adding a text or naive-`timestamp` time column to a NEW table is
+rejected; the grandfather list above is closed.
+
+**IDs are native `uuid` for every NEW table** (NORMATIVE NOW). New tables
+declare `uuid('id')` primary keys — application-minted as today (the domain
+already generates ids) — and an FK column always matches the type of the key
+it references, so references into legacy text PKs stay text. Native `uuid` is
+16 bytes instead of 36, indexes tighter, and the storage layer rejects
+malformed ids for free. Existing tables are grandfathered: all current app
+tables and the Better Auth tables (whose generated ids are not UUIDs at all)
+use text ids — documented legacy, **not migrated now**.
+— **TYPE**: n/a (both spellings surface as `string` in TS) · **LINT**: n/a
+(same fixture-cost judgment as timestamps) · **TEST**: n/a · **REVIEW+AI**: a
+migration adding a text PK to a NEW table is rejected unless it FK-chains to a
+legacy text key; the grandfather list above is closed.
+
+**List-endpoint pagination is cursor-based** (NORMATIVE NOW — the contract
+grammar for every FUTURE list endpoint). Request: `?cursor=<opaque>&limit=<n>`
+with a server-side cap on `limit`; the cursor is an opaque token encoding the
+sort key plus an id tiebreak — never a raw offset. Response (inside the
+standard `{ ok: true, data }` envelope): `{ items, nextCursor }`, where
+`nextCursor` is a string to pass back or `null` on the last page. Why not
+offset/limit: offsets skew under concurrent writes (rows shift between pages)
+and cost the database the full skipped prefix, while a keyed cursor is stable
+and index-backed. Existing list endpoints (todos, cards) return the full
+tenant-scoped array — **exempt** as small bounded lists; if one ever needs
+paging it adopts this grammar additively (add `cursor`/`limit`/`nextCursor`,
+keep the full read until consumers move), per §API versioning.
+— **TYPE**: the envelope is one shared generic zod schema in `core/contract`
+(landing with the first paginated endpoint), so later endpoints cannot invent
+a rival shape without a visible new schema · **LINT**: n/a · **TEST**:
+contract tests on the shared schema (cursor round-trip, `null` termination) ·
+**REVIEW+AI**: flag any new list endpoint shipping offset/limit or an ad-hoc
+pagination shape, and any cursor that leaks raw sort values instead of an
+opaque token.
+
+**Concurrency is last-write-wins, documented per aggregate** (NORMATIVE NOW).
+Every current aggregate resolves concurrent writes by LWW — the later write
+wins, unconditionally — and that is the *documented contract*, not an
+accident: todos and cards are short-lived, per-tenant rows where a lost
+update costs a re-drag, not data. The named upgrade is a `version` column
+with optimistic concurrency (`WHERE version = $expected`, miss → the existing
+`conflict` error code, exit 6), adopted **per aggregate** when its trigger
+fires: the first aggregate where two writers plausibly edit the same
+long-lived row and a silent lost update has real cost (collaborative
+documents, billing settings). Blanket version columns on every table are
+refused for the same reason blanket soft-delete is (§Data lifecycle): a
+mechanism nobody exercises is a lie waiting to be believed.
+— **TYPE**: n/a (LWW is the absence of a mechanism) · **LINT**: n/a ·
+**TEST**: an aggregate that adopts versioning gets a conflict test (stale
+version → `conflict`) with the column · **REVIEW+AI**: a new aggregate's PR
+must state its concurrency stance (LWW, or version column plus the trigger
+that fired); flag long-lived multi-writer aggregates claiming LWW.
 
 ## Public surface
 
@@ -667,7 +777,8 @@ code.
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
   access reads).
-- `HealthPort`: database ping for the health route.
+- `HealthPort`: database ping for the readiness route (`/api/health/ready` and
+  the compat `/api/health`); liveness never calls it.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
   keep use-cases pure and deterministic in tests.
 
@@ -751,7 +862,10 @@ The Vercel column is live today. The **Docker self-host column is designed but
 its packaging is intentionally not built yet** — there is no `Dockerfile`,
 production `docker-compose.yml` or `Caddyfile` in the tree (US-020…023 in the
 PRD). The same commit is written to run on a Node container; the artifacts that
-would boot it there simply do not exist yet.
+would boot it there simply do not exist yet. Direction note: building that
+packaging — including a CI job that boots the compose stack and runs smoke —
+was **accepted 2026-07-20** (owner, DECIDE A2) as its own package on the board;
+until it lands, this column stays designed-not-built.
 
 | | Vercel | Docker self-host (packaging not built yet) |
 |---|---|---|
@@ -797,6 +911,31 @@ Rules:
   deployed environment (`npm run smoke:remote` = the same CLI suite against a
   deployment URL).
 
+**Preview/staging data doctrine** (NORMATIVE WHEN TRIGGERED — trigger: the
+first real user personal data in production; today every environment holds
+only the demo seed, so per-PR branches of production are harmless). The moment
+production data is real, three rules activate together:
+
+- **Previews branch from a scrubbed or seed-only parent, never from live
+  production.** The per-PR Neon branch's parent becomes a dedicated
+  seed-only branch (or a scrubbed copy refreshed by a sanctioned job) — opening
+  a PR must not, by itself, copy live PII into an ephemeral environment.
+- **Preview deployments get access protection.** Per-PR URLs are shareable and
+  guessable; Vercel deployment protection (or an equivalent auth wall) fronts
+  every non-production deployment.
+- **Preview branches are named in the erasure story.** The right-to-erasure
+  procedure in §Data lifecycle (GDPR mechanics — same trigger) must enumerate
+  live Neon branches: a seed-only parent keeps previews out of scope by
+  construction, and any branch ever taken from pre-scrub production is deleted
+  or re-parented as part of fulfilling an erasure request.
+
+— **TYPE**: n/a (environment topology is not code) · **LINT**: n/a · **TEST**:
+once triggered, a CI assertion that the preview integration's parent branch is
+the seed-only branch (Neon API branch metadata), same spirit as the smoke
+header assertions · **REVIEW+AI**: flag any change pointing preview
+provisioning at the production branch, and any erasure-related change that
+ignores branches.
+
 **Production smoke-account doctrine.** `smoke:remote` runs against **live
 production** on every successful deploy ([ADR-0004](decisions/0004-no-exceptions-enforcement.md)),
 so it must be safe to run repeatedly and forever without corrupting the tenant it
@@ -822,6 +961,45 @@ touches:
   CI, not the repo. The script's baked-in defaults are the local canary only; a
   fork pointing at its own deployment **must** supply its own values, and the
   `deployment_status` job is already fenced to the canonical repo.
+
+## Health & deploy attestation
+
+Health is split by the two questions an operator actually asks, and every health
+response carries a build attestation (release `version` + commit `sha`) so a
+smoke run can prove *which* deploy it verified. The `sha` is a vendor-neutral
+`APP_COMMIT_SHA`; the platform entry (`api/index.ts`) maps Vercel's
+`VERCEL_GIT_COMMIT_SHA` into it, so the vendor name stays contained to the one
+platform boundary (§Layers). Unset (local dev) it reports `unknown`.
+
+- **`/api/health/live` (liveness).** Always `200` as long as the process
+  answers; **never touches the database**. Body: `{ status, version, sha }`. This
+  is what a platform restarts a wedged container on — a DB blip must not kill a
+  live process.
+- **`/api/health/ready` (readiness).** Pings the database. Up → `200` with
+  `{ status, version, sha, database: 'up' }`; down → the `unavailable` error
+  envelope at **HTTP 503** (`exit 8`), never a `200`. This is what a load
+  balancer drains traffic on.
+- **`/api/health` (compat).** Kept for existing callers: `200` with
+  `{ status, version, sha, database: 'up' | 'down' }` — the readiness *information*
+  inline without the non-200 gate. New callers use `/live` or `/ready`; this
+  endpoint reports readiness semantics but does not gate on them.
+
+**Attestation gate.** `smoke:remote` reads `EXPECTED_SHA` (the deployment
+event's SHA, passed by `post-deploy-smoke.yml`) and asserts `health.sha ===
+EXPECTED_SHA`, closing the "smoke verified the wrong deployment" class (a stale
+alias, a promotion that didn't land). Local `smoke` omits it (`unknown`).
+
+Enforcement — **TYPE**: the three response shapes are zod schemas in
+`core/contract` (`healthLive`/`healthReady`/`healthOutputSchema`), and `core/client`
+brands its call surface from them, so no client hand-writes a health payload ·
+**LINT**: n/a (route wiring is hand-registered against `API_PATHS`, like every
+route) · **TEST**: `app.test.ts` asserts liveness is 200 without a DB touch,
+readiness is 200/up and 503/`unavailable` when the ping fails, and the compat
+route stays 200 with `sha`; `e2e` hits `/live` and `/ready` on the real stack;
+`smoke:remote` runs the `EXPECTED_SHA` equality · **REVIEW+AI**: flag a health
+route that pings the DB on the liveness path, a readiness path that returns 200
+while degraded, or a new deploy target that surfaces the raw vendor SHA var
+instead of mapping it into `APP_COMMIT_SHA`.
 
 ## Security baseline
 
@@ -895,6 +1073,23 @@ live smoke assertion.
   prefix means public (today's only one, `VITE_SENTRY_DSN`, is a public DSN).
   `BETTER_AUTH_SECRET` is server-only and its `dev-only-secret…` default must be
   overridden with strong entropy outside local.
+- **Production env hardening** (NORMATIVE NOW). The env schema (`env.ts`) does
+  not merely *document* the prod requirements above — it **refuses to boot** on
+  dev-only config once the process is deployed. "Deployed" is a heuristic that
+  needs no new flag: `VERCEL` is set (Vercel injects it), **or** `SECURE_COOKIES`
+  is on (a self-host prod turns it on). When deployed the schema rejects the
+  `dev-only-secret…` `BETTER_AUTH_SECRET` sentinel and rejects
+  `SECURE_COOKIES=false`; independently, `VERCEL` set forces
+  `DB_DRIVER=neon-http` (the wrong driver on Vercel is a boot-time refusal, not a
+  runtime surprise). Local dev and the `smoke`/`e2e` harnesses set neither
+  signal, so they are never subject to these rules.
+  — **TYPE**: n/a (the values are strings; the constraint is cross-field) ·
+  **LINT**: n/a · **TEST**: `env.test.ts` unit-tests each refinement both ways —
+  the sentinel and `SECURE_COOKIES=false` pass in local dev and fail when
+  deployed, and `DB_DRIVER` passes as `neon-http` / fails as `node-postgres`
+  under `VERCEL` · **REVIEW+AI**: flag any new deploy-only requirement added as
+  prose-only instead of a schema refinement, and any widening of the "deployed"
+  heuristic that would catch local dev.
 - **Dependency hygiene.** `package-lock.json` is committed and validated by
   lock-lint in `check`. `npm audit --omit=dev --audit-level=high` runs in CI as an
   **advisory** (reported, non-blocking — audit's false-positive rate makes a hard

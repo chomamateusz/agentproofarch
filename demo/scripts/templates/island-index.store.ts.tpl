@@ -2,9 +2,17 @@ import { __SINGULAR_CAMEL__Gateway } from '../../../api.js';
 
 import { type __SINGULAR_PASCAL__Event } from './events.js';
 import { __SINGULAR_CAMEL__Selectors as __SINGULAR_CAMEL__ServerSelectors } from './selectors.js';
-import { create__SINGULAR_PASCAL__Store } from './store.js';
+import {
+  canUndoOf,
+  create__SINGULAR_PASCAL__Store,
+  __SINGULAR_CAMEL__ItemsOf,
+  type MergedItem,
+  type ServerItem,
+  type __SINGULAR_PASCAL__OverlayState,
+} from './store.js';
 
 export type { __SINGULAR_PASCAL__Event } from './events.js';
+export type { MergedItem, ServerItem } from './store.js';
 
 /**
  * Public seam of the __SINGULAR_KEBAB__ island core: `send` in, selectors out.
@@ -12,9 +20,11 @@ export type { __SINGULAR_PASCAL__Event } from './events.js';
  * directly — so the machine behind the seam stays invisible and swappable.
  *
  * RUNG 2 (island store). `send` forwards every event to the @xstate/store store
- * (core/store.ts); its selectors expose the store's client state ALONGSIDE the
- * server read (`list`). The view's calls — `send({ type: '…Requested' })` and
- * `useQuery(__SINGULAR_CAMEL__Selectors.list)` — never change.
+ * (core/store.ts). The server read (`list`) stays the cache truth; `items` merges
+ * it with the store's optimistic overlay (the store keeps NO item copy); the view
+ * subscribes with `useSyncExternalStore(subscribe, snapshot)` and invalidates the
+ * cache once `snapshot().committedRev` advances. The view's calls never change
+ * across rungs. This mirrors the living personal board core.
  *
  * <<EXTENSION POINT — gateway>>
  * The store is optimistic: it needs a gateway that persists each edit (see
@@ -32,11 +42,17 @@ export const send = (event: __SINGULAR_PASCAL__Event): void => {
   store.send(event);
 };
 
+export const subscribe = (listener: () => void): (() => void) => store.subscribe(listener);
+
 export const __SINGULAR_CAMEL__Selectors = {
   // Server read (rung-1 seam, unchanged): the fresh list via TanStack Query.
   ...__SINGULAR_CAMEL__ServerSelectors,
-  // Client state derived from the store — plain values, no React, so views never
-  // change when the machine behind the seam does.
-  items: () => store.selectors.items(),
-  canUndo: () => store.selectors.canUndo(),
+  // The overlay snapshot (subscribe with useSyncExternalStore); its `committedRev`
+  // tells the view when to invalidate the cache once.
+  snapshot: (): __SINGULAR_PASCAL__OverlayState => store.getState(),
+  // The MERGE: the server list with the optimistic overlay laid on top. Plain
+  // values, no React, so views never change when the machine behind the seam does.
+  items: (serverItems: readonly ServerItem[]): readonly MergedItem[] =>
+    __SINGULAR_CAMEL__ItemsOf(store.getState(), serverItems),
+  canUndo: (): boolean => canUndoOf(store.getState()),
 };

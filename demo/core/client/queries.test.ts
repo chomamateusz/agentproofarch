@@ -47,7 +47,9 @@ const card = {
 const tenant = { id: 't-acme', slug: 'acme', name: 'Acme Inc' };
 
 const happyApi: ApiClient = {
-  health: async () => ok({ status: 'ok', version: '0.1.0', database: 'up' }),
+  health: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
+  healthLive: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha' }),
+  healthReady: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
   me: async () => ok({ userId: 'u1', email: 'demo@example.com', name: 'Demo', tenant: null }),
   listTenants: async () => ok({ tenants: [{ tenant, staffRole: 'owner' }] }),
   createTenant: async (input) => ok({ tenant: { id: 't-new', slug: input.slug, name: input.name } }),
@@ -60,6 +62,8 @@ const happyApi: ApiClient = {
 
 const sadApi: ApiClient = {
   health: async () => err(internal('boom')),
+  healthLive: async () => err(internal('boom')),
+  healthReady: async () => err({ code: 'unavailable', message: 'db down' }),
   me: async () => err({ code: 'unauthorized', message: 'Login required' }),
   listTenants: async () => err(internal('boom')),
   createTenant: async () => err({ code: 'conflict', message: 'Already exists' }),

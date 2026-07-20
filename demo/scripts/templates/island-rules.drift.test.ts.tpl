@@ -9,11 +9,11 @@ import {
   type __SINGULAR_PASCAL__Move,
   type __SINGULAR_PASCAL__State,
   type __SINGULAR_PASCAL__Verdict,
-} from './rules.js';
+} from '__RULES_MODULE__';
 
 /**
  * Drift proof (property test): the DERIVED machine oracle (core/machine.ts) and
- * the direct table walk (core/rules.ts) both derive from the SAME transition
+ * the direct table walk (__RULES_PATH__) both derive from the SAME transition
  * table, so they must agree on EVERY (state, event) pair. This test fails CI the
  * moment the derivation generator diverges from the table — the isomorphic-rules
  * guarantee. It enumerates the full product, INCLUDING the WIP=1 edge.

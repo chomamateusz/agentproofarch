@@ -4,6 +4,8 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
+import { observabilityEnvSchema } from '#core/server/config.js';
+
 import { APP_VERSION } from './version.js';
 
 /**
@@ -18,13 +20,14 @@ import { APP_VERSION } from './version.js';
  * the function freezes, without tearing the provider down between invocations.
  */
 export const startServerObservability = (): (() => Promise<void>) | undefined => {
-  if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT && !process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
+  const env = observabilityEnvSchema.parse(process.env);
+  if (!env.OTEL_EXPORTER_OTLP_ENDPOINT && !env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT) {
     return undefined;
   }
 
   const provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME ?? 'agentproofarch-server',
+      [ATTR_SERVICE_NAME]: env.OTEL_SERVICE_NAME,
       [ATTR_SERVICE_VERSION]: APP_VERSION,
     }),
     spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())],

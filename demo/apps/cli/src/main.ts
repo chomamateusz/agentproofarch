@@ -11,7 +11,17 @@ import {
   tenantCreateInputSchema,
   todoCreateInputSchema,
 } from '#core/contract/index.js';
-import { boardIdSchema, err, internal, notFound, ok, validation, type BoardId } from '#core/domain/index.js';
+import {
+  boardIdSchema,
+  canonicalSlugSchema,
+  err,
+  internal,
+  normalizeSlug,
+  notFound,
+  ok,
+  validation,
+  type BoardId,
+} from '#core/domain/index.js';
 
 import { loadConfig, saveConfig, type CliConfig } from './config.js';
 import { emit } from './output.js';
@@ -39,13 +49,6 @@ interface CliCtx {
   json: boolean;
 }
 
-const slugFromName = (name: string): string =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
 // Auth args have no shared contract schema (the auth flow goes through Better
 // Auth, not the API routes), so the CLI carries its own boundary schemas.
 // Format/policy stays the server's job; the CLI only refuses empty input.
@@ -58,7 +61,7 @@ const loginArgsSchema = z.object({
   email: z.string().trim().min(1),
   password: z.string().min(1),
 });
-const tenantSwitchArgsSchema = z.object({ slug: z.string().trim().min(1) });
+const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
 
 // Merged global options (Commander parses them onto the root program). They flow
 // straight into transport, so they are zod-parsed like every other boundary:
@@ -66,10 +69,7 @@ const tenantSwitchArgsSchema = z.object({ slug: z.string().trim().min(1) });
 const globalOptionsSchema = z.object({
   json: z.boolean(),
   apiUrl: z.string().url('--api-url must be a valid URL').optional(),
-  tenant: z
-    .string()
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, '--tenant must be a slug (lowercase letters, digits, dashes)')
-    .optional(),
+  tenant: canonicalSlugSchema.optional(),
 });
 
 /**
@@ -117,7 +117,11 @@ const cliCtx = (): CliCtx => {
 
 program.command('health').description('API and database status').action(async () => {
   const ctx = cliCtx();
-  emit(await ctx.api.health(), ctx.json, (h) => `status=${h.status} db=${h.database} v${h.version}`);
+  emit(
+    await ctx.api.health(),
+    ctx.json,
+    (h) => `status=${h.status} db=${h.database} v${h.version} sha=${h.sha}`,
+  );
 });
 
 program
@@ -195,7 +199,7 @@ tenant
   .action(async (nameWords: string[], options: { slug?: string }) => {
     const ctx = cliCtx();
     const name = nameWords.join(' ');
-    const slug = options.slug ?? slugFromName(name);
+    const slug = options.slug ?? normalizeSlug(name);
     const input = parseArgs(tenantCreateInputSchema, { slug, name }, ctx.json);
     if (input === undefined) return;
     emit(await ctx.api.createTenant(input), ctx.json, (data) =>

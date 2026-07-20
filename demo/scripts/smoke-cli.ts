@@ -50,7 +50,12 @@ const errEnvelope = z.object({
 });
 const envelope = z.discriminatedUnion('ok', [okEnvelope, errEnvelope]);
 
-const healthSchema = z.object({ status: z.string(), database: z.string(), version: z.string() });
+const healthSchema = z.object({
+  status: z.string(),
+  database: z.string(),
+  version: z.string(),
+  sha: z.string(),
+});
 const todoItemSchema = z.object({ id: z.string(), title: z.string() });
 const todosSchema = z.object({ todos: z.array(todoItemSchema) });
 const addSchema = z.object({ todo: todoItemSchema });
@@ -108,6 +113,8 @@ export interface SmokeTarget {
   email: string;
   password: string;
   tenant: string;
+  /** Deploy attestation: when set, health.sha must equal it (right deploy verified). */
+  expectedSha?: string;
 }
 
 /**
@@ -226,6 +233,14 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     health.status === 'ok' && health.database === 'up',
     `health degraded: status=${health.status} database=${health.database}`,
   );
+  // Deploy attestation: prove this smoke ran against the exact commit the deploy
+  // event carried, closing the "smoke verified the wrong deployment" class.
+  if (target.expectedSha !== undefined) {
+    assert(
+      health.sha === target.expectedSha,
+      `health SHA mismatch: expected ${target.expectedSha}, deployment reports ${health.sha}`,
+    );
+  }
 
   expectOk(
     await cli(

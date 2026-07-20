@@ -6,7 +6,9 @@ import {
   cardMoveOutputSchema,
   cardsListOutputSchema,
   looseEnvelopeSchema,
+  healthLiveOutputSchema,
   healthOutputSchema,
+  healthReadyOutputSchema,
   meOutputSchema,
   tenantCreateOutputSchema,
   tenantListOutputSchema,
@@ -107,6 +109,10 @@ const request = async <S extends z.ZodTypeAny, M extends HttpMethod>(
 export const createApiClient = (options: ApiClientOptions) => ({
   health: (signal?: AbortSignal) =>
     request(options, API_ROUTES.health.method, API_ROUTES.health.path, healthOutputSchema, undefined, signal),
+  healthLive: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.healthLive.method, API_ROUTES.healthLive.path, healthLiveOutputSchema, undefined, signal),
+  healthReady: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.healthReady.method, API_ROUTES.healthReady.path, healthReadyOutputSchema, undefined, signal),
   me: (signal?: AbortSignal) =>
     request(options, API_ROUTES.me.method, API_ROUTES.me.path, meOutputSchema, undefined, signal),
   listTenants: (signal?: AbortSignal) =>

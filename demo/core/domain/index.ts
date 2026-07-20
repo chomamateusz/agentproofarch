@@ -1,6 +1,7 @@
 export * from './result.js';
 export * from './errors.js';
 export * from './identity.js';
+export * from './slug.js';
 export * from './todo.js';
 export * from './card.js';
 export * from './team-board.js';

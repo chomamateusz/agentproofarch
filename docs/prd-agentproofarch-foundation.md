@@ -1,11 +1,16 @@
 # PRD: Agentproofarch — Agent-First Full-Stack Foundation
 
+> **Status (owner decision, 2026-07-20, DECIDE A1):** the **full PRD scope is
+> ACCEPTED for build** — nothing here is demoted to roadmap. The not-yet-built
+> stories land as a multi-PR program; the sub-packages and their order are
+> tracked on the board, not in this document.
+
 ## 0. Errata (mechanical corrections, 2026-07-20)
 
 This PRD is the original accepted source; some of its concrete mechanics drifted
 from what the demo actually shipped. The corrections below supersede the cited
-passages **on mechanics only** — they do not re-adjudicate scope (which parts of
-the PRD are built vs roadmap is a separate open question). Where this block and
+passages **on mechanics only** — they do not re-adjudicate scope (settled by the
+Status note above: full scope accepted for build). Where this block and
 the body disagree, this block wins.
 
 - **Platform entry file (§2 Goals, §3.1 `apps/server`, §3.2, US-023).** There is
