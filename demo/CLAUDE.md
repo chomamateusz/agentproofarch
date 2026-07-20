@@ -25,6 +25,11 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.
 
+The toolchain is pinned to the CI runner: `.nvmrc` (Node 22), `engines.npm`
+(`>=10 <11`) and `packageManager` (`npm@10.9.2`) keep every install on npm 10
+semantics, so the npm-10-vs-11 lock drift that broke CI twice cannot recur —
+use `nvm use` (or Corepack) before `npm ci`, never a bare npm 11 `npm install`.
+
 **Flake doctrine (owner ruling 2026-07-20, DECIDE F3): the gates are
 deterministic; a flake is a P1 bug, never rerun-to-green.** A red gate means
 the commit is wrong or the gate is wrong — one of them gets fixed; rerunning a
