@@ -16,6 +16,17 @@ const identity = (tenantId: string | null): Identity => ({
   memberId: null,
 });
 
+const memberIdentity: Identity = {
+  userId: 'u2',
+  email: 'member@example.com',
+  name: 'Member',
+  tenantId: 't-acme',
+  tenantSlug: 'acme',
+  tenantName: 'Acme Inc',
+  staffRole: null,
+  memberId: 'm-1',
+};
+
 const card = (
   id: string,
   tenantId: string,
@@ -108,22 +119,39 @@ describe('cards use-cases — listing + adding', () => {
     expect(result.ok && result.value.map((row) => row.id)).toEqual(['p']);
   });
 
-  it('refuses to operate without a tenant', async () => {
+  it('denies a tenant-less caller with forbidden on every card use-case', async () => {
     const { repo } = fakeRepo();
     expect(await listCards({ identity: identity(null) }, { board: 'personal' }, deps(repo))).toMatchObject({
       ok: false,
-      error: { code: 'tenant_not_found' },
+      error: { code: 'forbidden' },
     });
     expect(
       await addCard({ identity: identity(null) }, { title: 'x', column: 'todo' }, deps(repo)),
-    ).toMatchObject({ ok: false, error: { code: 'tenant_not_found' } });
+    ).toMatchObject({ ok: false, error: { code: 'forbidden' } });
     expect(
       await moveCard(
         { identity: identity(null) },
         { cardId: 'a', toColumn: 'todo', toIndex: 0 },
         deps(repo),
       ),
-    ).toMatchObject({ ok: false, error: { code: 'tenant_not_found' } });
+    ).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+  });
+
+  it('allows a tenant member to list, add and move cards (collaborative boards)', async () => {
+    const { repo } = fakeRepo([card('a', 't-acme', 'todo', 0), card('b', 't-acme', 'todo', 1)]);
+    expect(await listCards({ identity: memberIdentity }, { board: 'personal' }, deps(repo))).toMatchObject({
+      ok: true,
+    });
+    expect(
+      await addCard({ identity: memberIdentity }, { title: 'member card', column: 'todo' }, deps(repo)),
+    ).toMatchObject({ ok: true, value: { tenantId: 't-acme', title: 'member card' } });
+    expect(
+      await moveCard(
+        { identity: memberIdentity },
+        { cardId: 'a', toColumn: 'doing', toIndex: 0 },
+        deps(repo),
+      ),
+    ).toMatchObject({ ok: true, value: { id: 'a', column: 'doing' } });
   });
 
   it('validates input and stamps tenant on create', async () => {

@@ -529,6 +529,55 @@ and every tenant-scoped repository call requires `tenantId`. Sessions span
 `APP_BASE_DOMAIN` subdomains; each custom domain is its own cookie world
 (sign-in per domain — deliberate isolation).
 
+**Authorization is default-deny at every use-case entry** (NORMATIVE NOW). Tenant
+resolution answers *which* tenant and *whether* the caller belongs to it;
+authorization answers *what* they may do there, and the two are separate steps.
+The capability model lives in `core/domain/authorization.ts`: a closed
+`Capability` union (one entry per aggregate action — `todo:read`, `todo:write`,
+`card:read`, `card:write`, `tenant:create`) and a pure
+`decide(identity, capability)` predicate over three principals derived from the
+identity — **staff** (owner|admin grant), **member** (an end-customer membership,
+no staff grant) and **visitor** (neither — the tenant-less identity). The policy
+is a `Record<Capability, Principal[]>` grant table: a capability names exactly the
+principals that hold it and **nothing is granted by wildcard** — a principal
+absent from a capability's list is denied. The demo policy:
+
+| capability      | staff (owner\|admin) | member | visitor (tenant-less) |
+| --------------- | -------------------- | ------ | --------------------- |
+| `todo:read`     | allow                | allow  | deny                  |
+| `todo:write`    | allow                | allow  | deny                  |
+| `card:read`     | allow                | allow  | deny                  |
+| `card:write`    | allow                | allow  | deny                  |
+| `tenant:create` | allow                | deny   | allow                 |
+
+Members are full collaborators on the tenant's boards (todos and cards are
+collaborative aggregates) but may not administer tenants; `tenant:create` is
+tenant-less self-service (the caller becomes owner), so a visitor holds it while
+a member of one tenant may not provision others. A capability is modelled only
+where authorization is a real decision: `listMyTenants` enumerates the caller's
+*own* staff memberships, so it is gated by authentication and carries no
+capability — a self-scoped read is not an access decision. Every tenant-scoped
+use-case
+runs the predicate — via the `authorize` / `authorizeTenant` helpers in
+`core/server` — **before any repository access**, returning `forbidden` (exit 4)
+on deny; the tenant-scoped helper also hands back the resolved `tenantId`, so a
+tenant-less caller is denied there rather than reaching a repository.
+
+— **TYPE**: `Capability` is a closed union and the helpers take it as a required
+argument, so a use-case cannot name a capability the union does not declare;
+`Record<Capability, Principal[]>` is exhaustive, so adding a capability without
+deciding its grants fails to compile. NOT type-forced (honest limit): a use-case
+that never calls the predicate still compiles — the compiler forces the
+capability *name*, not the *call* · **LINT**: n/a (the predicate is a call-site
+discipline, not a syntactic shape a rule can match) · **TEST**: the `decide` unit
+suite asserts every capability × principal cell (an exhaustive
+`Record<Capability, Record<Principal, boolean>>`); each tenant-scoped use-case
+test asserts staff-allowed, member allowed/denied per policy and tenant-less
+denied; `new:resource` scaffolds the tenant-less-`forbidden` test plus a
+staff/member `it.todo` for every new aggregate · **REVIEW+AI**: flag a
+tenant-scoped use-case that touches a repository before the predicate, and any
+grant that widens a capability to a principal the table above does not name.
+
 **Tenant, not instance**: one instance (one DB) hosts many tenants over one
 shared account pool — a creator's unrelated brands should be tenants, not new
 deployments. Cross-instance/cross-app SSO is an evolution path (central OIDC

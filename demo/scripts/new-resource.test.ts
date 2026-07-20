@@ -110,6 +110,9 @@ describe('generateResource', () => {
 
     expect(result.files[0]?.contents).toContain('export const blogPostSchema');
     expect(result.files[1]?.contents).toContain('export const listBlogPosts');
+    // The use-case names its capability — type-forced against the closed union.
+    expect(result.files[1]?.contents).toContain("authorizeTenant(ctx, 'blog-post:read')");
+    expect(result.files[1]?.contents).toContain("authorizeTenant(ctx, 'blog-post:write')");
     expect(result.files[3]?.contents).toContain('createBlogPostRepository');
 
     // ADR-0005 no-opt-outs reconciliation: the generated page is honest about
@@ -142,7 +145,10 @@ describe('generateResource', () => {
     });
     const usecaseTest = files.find((file) => file.path.endsWith('memos.test.ts'))?.contents ?? '';
     expect(usecaseTest).toContain('it.todo(');
-    expect(usecaseTest).toContain("without a tenant (error code 'tenant_not_found')");
+    // The default-deny predicate: a tenant-less caller is denied (real test), and
+    // the staff-vs-member grant is a decision the scaffold flags as an it.todo.
+    expect(usecaseTest).toContain('denies a tenant-less caller with forbidden');
+    expect(usecaseTest).toContain('decide the member policy');
     expect(usecaseTest).toContain("rejects blank/oversized input with 'validation'");
     expect(usecaseTest).toContain("never returns another tenant's rows");
     expect(usecaseTest).not.toMatch(/^\s*\/\/ TODO:/m);
@@ -171,6 +177,10 @@ describe('generateResource', () => {
     expect(checklist).toContain('write core tests before wiring the UI');
     expect(checklist).toContain('npm run check && npm run smoke');
     expect(checklist).toContain("path: '/api/gadgets'");
+    // The authorization step is part of the type-forced RED chain.
+    expect(checklist).toContain('AUTHORIZATION');
+    expect(checklist).toContain("'gadget:read'");
+    expect(checklist).toContain("'gadget:write'");
   });
 
   it('does not write files in dry-run mode', () => {
