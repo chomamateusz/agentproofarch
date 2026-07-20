@@ -72,9 +72,18 @@ describe('__PLURAL_KEBAB__ use-cases', () => {
     expect(store).toHaveLength(0);
   });
 
-  it.todo(
-    "decide the member policy: assert `member` (see the fixture above) is allowed if you granted '__SINGULAR_KEBAB__:read'/'__SINGULAR_KEBAB__:write' in authorization.ts, or denied with 'forbidden' if this aggregate is staff-only",
-  );
+  it('allows a tenant member to read and write (baseline collaborative policy — flip both expectations to a forbidden denial if you made this aggregate staff-only in authorization.ts)', async () => {
+    const { repo, store } = fakeRepo([
+      { id: '1', tenantId: 't-acme', title: 'seed', createdBy: 'u1', createdAt: 'x' },
+    ]);
+    const listed = await list__PLURAL_PASCAL__({ identity: member }, deps(repo));
+    expect(listed.ok && listed.value.map((row) => row.id)).toEqual(['1']);
+
+    const added = await add__SINGULAR_PASCAL__({ identity: member }, { title: 'from member' }, deps(repo));
+    expect(added).toMatchObject({ ok: true, value: { tenantId: 't-acme', title: 'from member' } });
+    expect(store).toHaveLength(2);
+  });
+
   it.todo("add__SINGULAR_PASCAL__ rejects blank/oversized input with 'validation'");
   it.todo("list__PLURAL_PASCAL__ never returns another tenant's rows");
 });

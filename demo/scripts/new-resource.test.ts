@@ -136,7 +136,7 @@ describe('generateResource', () => {
     expect(checklist).toContain('actions.diaryEntries');
   });
 
-  it('ships the use-case test skeleton as visible it.todo entries, not comment-only TODOs', () => {
+  it('ships the three authorization outcomes as REAL tests and the rest as visible it.todo entries', () => {
     const { files } = generateResource({
       name: 'memo',
       outDir: sandbox,
@@ -144,11 +144,14 @@ describe('generateResource', () => {
       dryRun: true,
     });
     const usecaseTest = files.find((file) => file.path.endsWith('memos.test.ts'))?.contents ?? '';
-    expect(usecaseTest).toContain('it.todo(');
-    // The default-deny predicate: a tenant-less caller is denied (real test), and
-    // the staff-vs-member grant is a decision the scaffold flags as an it.todo.
+    // The three default-deny outcomes ship as REAL tests (staff allowed, member
+    // per policy, tenant-less denied), never as it.todo stubs.
+    expect(usecaseTest).toContain('scopes listing to the tenant');
     expect(usecaseTest).toContain('denies a tenant-less caller with forbidden');
-    expect(usecaseTest).toContain('decide the member policy');
+    expect(usecaseTest).toContain('allows a tenant member to read and write');
+    expect(usecaseTest).toContain('member }, deps(repo)');
+    expect(usecaseTest).not.toContain('decide the member policy');
+    expect(usecaseTest).toContain('it.todo(');
     expect(usecaseTest).toContain("rejects blank/oversized input with 'validation'");
     expect(usecaseTest).toContain("never returns another tenant's rows");
     expect(usecaseTest).not.toMatch(/^\s*\/\/ TODO:/m);

@@ -248,10 +248,11 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
                 '${n.singularKebab}:write': ['staff', 'member'],
        Baseline above = collaborative (staff + member read+write), matching the
        generated tests. For a staff-only aggregate, grant only ['staff'] and flip
-       the member it.todo in the generated test to assert a 'forbidden' denial.
-   (The use-case + its test skeleton are already generated. Turn the generated
-    it.todo(...) cases in core/server/usecases/${n.pluralKebab}.test.ts into real
-    tests before wiring the UI.)
+       the member test in the generated test file to assert a 'forbidden' denial.
+   (The use-case + its test skeleton are already generated. The three authorization
+    outcomes — staff allowed, member per policy, tenant-less denied — ship as REAL
+    tests (RED until wired); turn the remaining it.todo(...) cases in
+    core/server/usecases/${n.pluralKebab}.test.ts into real tests before wiring the UI.)
 
 5. ADAPTER SCHEMA — adapters/db/app-schema.ts
    anchor:  export const todos = pgTable(
