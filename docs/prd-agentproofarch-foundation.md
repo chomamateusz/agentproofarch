@@ -53,6 +53,13 @@ the body disagree, this block wins.
   `/api/me`, not through the client port. The further methods §3.5 lists (magic
   link, social sign-in, passkeys, 2FA) remain product-required roadmap —
   normative when triggered, not part of the built port.
+- **`Identity` shape includes `tenantSlug`/`tenantName` (§3.4, ~line 167).** The
+  declared shape lists six fields and omits the tenant display fields the shipped
+  type carries. `core/domain/identity.ts` (and the `/api/me` response) is
+  `Identity = { userId, email, name, tenantId: string | null,
+  tenantSlug: string | null, tenantName: string | null,
+  staffRole: 'owner' | 'admin' | null, memberId: string | null }` — read the §3.4
+  shape with `tenantSlug` and `tenantName` (both nullable) added.
 
 ## 1. Introduction / Overview
 

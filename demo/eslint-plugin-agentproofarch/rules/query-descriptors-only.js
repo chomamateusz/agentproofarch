@@ -1,26 +1,36 @@
+import path from 'node:path';
+
 const QUERY_HOOKS = new Set(['useQuery', 'useQueries', 'useMutation']);
 
 /**
- * Canonical descriptor sources. A hook argument is only accepted when it
- * originates from one of these modules — not from *any* import. Matching is
- * exact-or-suffix so relative specifiers at any nesting depth resolve:
- *   - `#core/client/*`     — the descriptor factories themselves
- *   - `.../api.js`         — the web binding site (bound `actions`)
- *   - `.../core/index.js`  — an island core's public seam (re-exported descriptors)
- * Importing a look-alike descriptor from any other module (a local `./q.js`, a
- * re-export module) no longer passes.
+ * Canonical descriptor sources, matched by the specifier's RESOLVED
+ * repo-relative path — never by filename suffix. A hook argument is accepted
+ * only when it originates from one of:
+ *   - `#core/client/*`                                 — the descriptor factories
+ *   - `apps/web/src/api.ts`                            — the web binding site (`actions`)
+ *   - `apps/web/src/features/<island>/core/index.ts`   — an island core's public seam
+ * A relative specifier is resolved against the importing file, so a look-alike
+ * local module that merely ends in `/api.js` (e.g. `./helpers/api.js`) does not
+ * pass; only the one true `api.ts` and island `core/index.ts` do.
  */
-const DEFAULT_DESCRIPTOR_MODULES = [
-  '#core/client/index.js',
-  '#core/client/queries.js',
-  '/api.js',
-  '/api.ts',
-  '/core/index.js',
-  '/core/index.ts',
-];
+const CORE_CLIENT_PREFIX = '#core/client/';
+const WEB_API_BINDING = 'apps/web/src/api';
+const ISLAND_CORE_INDEX = /^apps\/web\/src\/features\/[^/]+\/core\/index$/;
 
-const isDescriptorModule = (source, allowed) =>
-  typeof source === 'string' && allowed.some((spec) => source === spec || source.endsWith(spec));
+const stripExt = (repoRel) => repoRel.replace(/\.[cm]?[jt]sx?$/, '');
+
+const resolveDescriptorSource = (specifier, importerFile, cwd) => {
+  if (typeof specifier !== 'string') return null;
+  if (specifier.startsWith(CORE_CLIENT_PREFIX)) return CORE_CLIENT_PREFIX;
+  if (!specifier.startsWith('.')) return null;
+  const absolute = path.resolve(path.dirname(importerFile), specifier);
+  const repoRel = stripExt(path.relative(cwd, absolute).split(path.sep).join('/'));
+  if (repoRel === WEB_API_BINDING || ISLAND_CORE_INDEX.test(repoRel)) return repoRel;
+  return null;
+};
+
+const isDescriptorModule = (specifier, importerFile, cwd) =>
+  resolveDescriptorSource(specifier, importerFile, cwd) !== null;
 
 const keyName = (key) => {
   if (key.type === 'Identifier') return key.name;
@@ -62,15 +72,7 @@ export default {
       description:
         'useQuery/useQueries/useMutation arguments must originate from an imported action descriptor, never an inline object literal.',
     },
-    schema: [
-      {
-        type: 'object',
-        properties: {
-          descriptorModules: { type: 'array', items: { type: 'string' } },
-        },
-        additionalProperties: false,
-      },
-    ],
+    schema: [],
     messages: {
       inlineObject:
         'The {{hook}} argument must originate from an imported action descriptor (e.g. actions.todos or actions.todos(...)), never an inline object literal. Spread a descriptor to add callbacks: {{hook}}({ ...actions.foo, onSuccess }).',
@@ -82,7 +84,8 @@ export default {
   },
   create(context) {
     const sourceCode = context.sourceCode;
-    const allowed = context.options[0]?.descriptorModules ?? DEFAULT_DESCRIPTOR_MODULES;
+    const importerFile = context.filename;
+    const cwd = context.cwd;
     const descriptorNames = new Set();
 
     const importSourceOf = (identifierNode) => {
@@ -106,7 +109,8 @@ export default {
         if (def.type === 'ImportBinding') {
           const decl = def.parent;
           return (
-            decl?.type === 'ImportDeclaration' && isDescriptorModule(decl.source.value, allowed)
+            decl?.type === 'ImportDeclaration' &&
+            isDescriptorModule(decl.source.value, importerFile, cwd)
           );
         }
         if (
@@ -159,7 +163,7 @@ export default {
 
     return {
       ImportDeclaration(node) {
-        if (!isDescriptorModule(node.source.value, allowed)) return;
+        if (!isDescriptorModule(node.source.value, importerFile, cwd)) return;
         for (const specifier of node.specifiers) descriptorNames.add(specifier.local.name);
       },
       CallExpression(node) {

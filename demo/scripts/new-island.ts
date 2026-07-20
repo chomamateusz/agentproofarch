@@ -24,9 +24,10 @@ import type { GeneratedFile, ResourceNames } from './new-resource.js';
  *
  * Every mode carries marked `<<EXTENSION POINT>>`s where the seam grows. Like
  * new-resource, it does NOT edit shared files: the generated code imports symbols
- * that do not exist yet (a bound descriptor, a gateway, a registered route), so
- * `npm run check` stays RED until every checklist step is wired — the type system,
- * not the generator, enforces completion.
+ * that do not exist yet (a bound descriptor, a gateway), so `npm run check` stays
+ * RED through the type-forced steps. The web-route registration in main.tsx is
+ * NOT type-forced — it typechecks while unwired — so the printed checklist, not
+ * the compiler, is what guarantees the route is registered.
  */
 
 /** The client-state machine each mode wires behind the island seam. */
@@ -145,11 +146,12 @@ Scaffolded island "${n.singularKebab}" (feature = island). Generated files (owne
 by this island):
 ${generated}
 
-These GENERATED files import symbols that do not exist yet — a bound descriptor
-and a registered route — so \`npm run check\` will stay RED until every step below
-is wired. The island core is RUNG 1: server-state descriptors behind the seam
-and a stubbed \`send\`; the client machine is deliberately absent (see the machine
-note at the end). Work top to bottom:
+These GENERATED files import a bound descriptor that does not exist yet, so
+\`npm run check\` will stay RED through the type-forced steps below. The web-route
+registration (step 2) is NOT type-forced — it typechecks while unwired — so the
+checklist, not the compiler, guarantees it. The island core is RUNG 1: server-state
+descriptors behind the seam and a stubbed \`send\`; the client machine is
+deliberately absent (see the machine note at the end). Work top to bottom:
 
 1. READ DESCRIPTOR — bind the island's server-state read.
    The view reads through \`${n.singularCamel}Selectors.list\`, which re-exports
@@ -284,10 +286,10 @@ files (owned by this island):
 ${generated}
 
 These GENERATED files import symbols that do not exist yet — a bound descriptor${
-    machine === 'store' ? ', a gateway' : ''
-  }
-and a registered route — so \`npm run check\` will stay RED until every step below
-is wired. Work top to bottom:
+    machine === 'store' ? ' and a gateway' : ''
+  } — so \`npm run check\` will stay RED through the type-forced steps below. The
+web-route registration (step 2) is NOT type-forced — it typechecks while unwired
+— so the checklist, not the compiler, guarantees it. Work top to bottom:
 ${sharedWiringSteps(n)}
 ${machine === 'store' ? storeSection : statechartSection}
 

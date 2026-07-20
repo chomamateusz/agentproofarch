@@ -90,9 +90,10 @@ Dependency rules (enforced):
 Dependency-free is not the goal; replaceability is. Core bans *infrastructure*
 (frameworks, servers, drivers — anything with a plausible second implementation
 or platform difference), which lives behind ports. *Vocabulary* libraries
-(zod, `@tanstack/query-core`) are ordinary imports on the per-layer allowlist
-above — they are practically language extensions, and swapping one would be a
-rewrite regardless of any abstraction. Never wrap a vocabulary library in a
+(zod, `@tanstack/query-core`, and the `@opentelemetry/api` no-op facade —
+sanctioned for core business annotations, see §Observability) are ordinary
+imports on the per-layer allowlist above — they are practically language
+extensions, and swapping one would be a rewrite regardless of any abstraction. Never wrap a vocabulary library in a
 port — an interface with exactly one implementation forever is **port
 theater**: it re-states the library's API without buying replaceability (a
 `QueryPort` over TanStack Query would re-type `status`/`fetchStatus`,
@@ -433,8 +434,9 @@ level in the same `npm run check` gate.
 
 ## Errors
 
-Use-cases return `Result<T, AppError>`; nothing throws across a boundary.
-`ErrorCode` is a closed union; the contract maps it exhaustively to HTTP
+Use-cases return `Result<T, AppError>` for domain errors; they do not catch
+infrastructure rejections (a thrown port promise) — those are normalized once at
+the composition edge (`app.onError`). `ErrorCode` is a closed union; the contract maps it exhaustively to HTTP
 statuses and the CLI maps it to exit codes (`validation`=2, `unauthorized`=3,
 `forbidden`=4, `not_found`=5, `conflict`=6, `tenant_not_found`=7,
 `internal`=10). HTTP envelope: `{ ok: true, data } | { ok: false, error }`.

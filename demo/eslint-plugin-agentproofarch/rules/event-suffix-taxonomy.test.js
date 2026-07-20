@@ -23,13 +23,20 @@ it('event-suffix-taxonomy', () => {
         "type CardRemovedEvent = { type: 'cardRemoved' };",
         'export type BoardEvent = CardMovedEvent | CardRemovedEvent;',
       ].join('\n'),
-      // Non-event exported unions and helper aliases are not the event contract.
-      "export type Status = 'active' | 'archived';",
+      // Every exported union is inspected regardless of its alias name — a
+      // non-`*Event` name with well-formed intent members still passes.
+      "export type BoardEvents = { type: 'cardMoved' } | { type: 'cardRemoved' };",
+      // Helper aliases with no statically determinable discriminant are skipped.
       "type CardId = string; export type Card = { id: CardId };",
-      // Undeterminable discriminants are skipped, not falsely flagged.
       'export type DynamicEvent = { type: string };',
     ],
     invalid: [
+      {
+        // CP-2: renaming the alias (`*Events`, not `*Event`) no longer disables
+        // the taxonomy — the imperative member still fires.
+        code: "export type FooEvents = { type: 'deleteCard' } | { type: 'cardMoved' };",
+        errors: [{ messageId: 'badSuffix' }],
+      },
       {
         code: "export type BoardEvent = { type: 'deleteCard' } | { type: 'cardMoved' };",
         errors: [{ messageId: 'badSuffix' }],

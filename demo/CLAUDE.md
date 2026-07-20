@@ -54,7 +54,9 @@ must actually run. Do not weaken lint rules to make either green.
 - `@vercel/*` / `@neondatabase/*` only inside `adapters/` (and the platform
   entry `api/index.ts`).
 - No `any`. No `as` (except `as const`). Parse with zod at every boundary.
-- Use-cases return `Result<T, AppError>`; never throw across a boundary.
+- Use-cases return `Result<T, AppError>` for domain errors; they do not catch
+  infrastructure rejections (a thrown port promise) — those are normalized once
+  at the composition edge (`app.onError`).
   New error kinds go into `ERROR_CODES` in `core/domain/errors.ts` and get an
   HTTP status + exit code mapping in `core/contract/http-status.ts` (exhaustive).
 - Every tenant-scoped use-case takes `ctx: { identity }` first; every
