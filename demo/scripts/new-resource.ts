@@ -8,9 +8,10 @@ import { fileURLToPath } from 'node:url';
  * prints an ordered checklist for the shared files that must be EDITED by hand,
  * each with its anchor line and a ready-to-paste snippet. Generated edits to
  * shared files rot; the type system is left to enforce completion instead, so
- * `npm run check` stays RED through the type-forced steps. Two steps are not
- * type-forced (CLI command, web-route registration) — the printed checklist,
- * not the compiler, guarantees those.
+ * `npm run check` stays RED through the type-forced steps. Three steps are not
+ * type-forced (server-route registration against API_PATHS, CLI command,
+ * web-route registration) — the printed checklist, not the compiler,
+ * guarantees those.
  */
 
 export interface ResourceNames {
@@ -192,9 +193,10 @@ ${generated}
 
 These GENERATED files already participate in typecheck and import symbols that do
 not exist yet, so \`npm run check\` will stay RED through the type-forced steps
-below. Two steps are NOT type-forced — the CLI command (10) and the web route
-registration (12) both typecheck while unwired — so finish the whole list; the
-checklist, not the compiler, guarantees those two.
+below. Three steps are NOT type-forced — the server route registration (7,
+wired by hand against API_PATHS with no parity check), the CLI command (10)
+and the web route registration (12) all typecheck while unwired — so finish
+the whole list; the checklist, not the compiler, guarantees those three.
 Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
 
 1. DOMAIN — core/domain/index.ts
