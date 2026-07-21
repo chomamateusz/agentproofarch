@@ -63,6 +63,9 @@ describe('authorization structural guard', () => {
       'moveCard',
       'createTenant',
       'listMyTenants',
+      'listStaff',
+      'grantAdmin',
+      'revokeAdmin',
     ]) {
       expect(names.has(known)).toBe(true);
     }

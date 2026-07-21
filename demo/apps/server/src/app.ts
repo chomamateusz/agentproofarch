@@ -13,6 +13,8 @@ import {
   memberExportQuerySchema,
   memberRemoveInputSchema,
   memberUpdateInputSchema,
+  staffGrantInputSchema,
+  staffRevokeInputSchema,
   tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
@@ -35,13 +37,16 @@ import {
   createTenant,
   ensureMember,
   exportMember,
+  grantAdmin,
   listCards,
   listMembers,
   listMyTenants,
+  listStaff,
   listTodos,
   moveCard,
   removeMember,
   resolveIdentity,
+  revokeAdmin,
   updateMember,
   type AuthenticatedUser,
 } from '#core/server/index.js';
@@ -296,6 +301,31 @@ export const buildApp = (deps: AppDeps) => {
       return respond(err(validation('Invalid member reference', parsed.error.flatten())));
     }
     const result = await exportMember({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.get(API_PATHS.staff, async (c) => {
+    const result = await listStaff({ identity: c.get('identity') }, deps);
+    return respond(result.ok ? ok({ staff: result.value }) : result);
+  });
+
+  app.post(API_PATHS.staff, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = staffGrantInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid admin grant payload', parsed.error.flatten())));
+    }
+    const result = await grantAdmin({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.post(API_PATHS.staffRevoke, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = staffRevokeInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid staff reference', parsed.error.flatten())));
+    }
+    const result = await revokeAdmin({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 

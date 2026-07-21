@@ -11,6 +11,8 @@ import {
   memberEnsureInputSchema,
   memberRemoveInputSchema,
   memberUpdateInputSchema,
+  staffGrantInputSchema,
+  staffRevokeInputSchema,
   tenantCreateInputSchema,
   todoCreateInputSchema,
 } from '#core/contract/index.js';
@@ -433,6 +435,56 @@ member
     if (input === undefined) return;
     emit(await ctx.api.exportMember(input.id), ctx.json, (data) =>
       `exported ${data.member.email} at ${data.exportedAt}`,
+    );
+  });
+
+const staff = program
+  .command('staff')
+  .description(
+    'Tenant staff (owner/admin) in the active tenant — FR-8. Listing is staff-readable; ' +
+      'granting and revoking admin access is owner-only. No invitations: the target user must ' +
+      'already have an account (grant returns not_found otherwise).',
+  );
+
+staff.command('list').description('List the tenant staff (owner/admin)').action(async () => {
+  const ctx = cliCtx();
+  emit(await ctx.api.listStaff(), ctx.json, (data) =>
+    data.staff.length === 0
+      ? 'no staff'
+      : data.staff.map((s) => `- ${s.email}\t${s.name}  (${s.role})`).join('\n'),
+  );
+});
+
+staff
+  .command('grant <email>')
+  .description('Grant flat admin access to an existing account by email (owner-only)')
+  .action(async (email: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(staffGrantInputSchema, { email }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.grantStaff(input), ctx.json, (data) =>
+      `${data.granted ? 'granted' : 'already staff'}: ${data.staff.email} (${data.staff.role})`,
+    );
+  });
+
+staff
+  .command('revoke')
+  .description('Revoke a staff grant by --email or --user-id (owner-only; cannot revoke the last owner)')
+  .option('--email <email>', 'target account email')
+  .option('--user-id <userId>', 'target account id')
+  .action(async (options: { email?: string; userId?: string }) => {
+    const ctx = cliCtx();
+    const input = parseArgs(
+      staffRevokeInputSchema,
+      {
+        ...(options.email === undefined ? {} : { email: options.email }),
+        ...(options.userId === undefined ? {} : { userId: options.userId }),
+      },
+      ctx.json,
+    );
+    if (input === undefined) return;
+    emit(await ctx.api.revokeStaff(input), ctx.json, (data) =>
+      `revoked: ${data.userId} (grants removed: ${data.revoked})`,
     );
   });
 

@@ -80,6 +80,9 @@ const happyApi: ApiClient = {
   updateMember: async (input) => ok({ member: { ...member, id: input.id } }),
   removeMember: async (input) => ok({ memberId: input.id, deleted: { members: 1 } }),
   exportMember: async (id) => ok({ exportedAt: '2026-07-10T00:00:00.000Z', tenantId: 't-acme', member: { ...member, id } }),
+  listStaff: async () => ok({ staff: [{ id: 'g-1', userId: 'u1', email: 'demo@example.com', name: 'Demo', role: 'owner' }] }),
+  grantStaff: async (input) => ok({ staff: { id: 'g-new', userId: 'u-new', email: input.email, name: 'New', role: 'admin' }, granted: true }),
+  revokeStaff: async (input) => ok({ userId: input.userId ?? 'u-x', revoked: 1 }),
 };
 
 const sadApi: ApiClient = {
@@ -99,6 +102,9 @@ const sadApi: ApiClient = {
   updateMember: async () => err(internal('boom')),
   removeMember: async () => err(internal('boom')),
   exportMember: async () => err(internal('boom')),
+  listStaff: async () => err(internal('boom')),
+  grantStaff: async () => err(internal('boom')),
+  revokeStaff: async () => err(internal('boom')),
 };
 
 const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -12,7 +12,10 @@ import {
   newCardSchema,
   newMemberSchema,
   newTodoSchema,
+  grantAdminInputSchema,
+  revokeAdminInputSchema,
   slugSchema,
+  staffMemberSchema,
   staffRoleSchema,
   tenantSchema,
   todoSchema,
@@ -161,6 +164,28 @@ export const memberExportQuerySchema = memberRefSchema;
 
 export const memberExportOutputSchema = memberExportSchema;
 
+export const staffListOutputSchema = z.object({
+  staff: z.array(staffMemberSchema),
+});
+
+export const staffGrantInputSchema = grantAdminInputSchema;
+
+export type StaffGrantInput = z.input<typeof staffGrantInputSchema>;
+
+export const staffGrantOutputSchema = z.object({
+  staff: staffMemberSchema,
+  granted: z.boolean(),
+});
+
+export const staffRevokeInputSchema = revokeAdminInputSchema;
+
+export type StaffRevokeInput = z.input<typeof staffRevokeInputSchema>;
+
+export const staffRevokeOutputSchema = z.object({
+  userId: z.string(),
+  revoked: z.number().int(),
+});
+
 /**
  * Every route carries its HTTP method so clients can discriminate reads from
  * writes at the type level (CQRS partition). Safe GETs are queries; unsafe
@@ -183,6 +208,9 @@ export const API_ROUTES = {
   membersUpdate: { method: 'POST', path: '/api/members/update' },
   membersRemove: { method: 'POST', path: '/api/members/remove' },
   membersExport: { method: 'GET', path: '/api/members/export' },
+  staff: { method: 'GET', path: '/api/staff' },
+  staffGrant: { method: 'POST', path: '/api/staff' },
+  staffRevoke: { method: 'POST', path: '/api/staff/revoke' },
 } as const;
 
 export type HttpMethod = (typeof API_ROUTES)[keyof typeof API_ROUTES]['method'];
@@ -202,6 +230,8 @@ export const API_PATHS = {
   membersUpdate: API_ROUTES.membersUpdate.path,
   membersRemove: API_ROUTES.membersRemove.path,
   membersExport: API_ROUTES.membersExport.path,
+  staff: API_ROUTES.staff.path,
+  staffRevoke: API_ROUTES.staffRevoke.path,
 } as const;
 
 /** Header used by non-browser clients (CLI, tests) to select the tenant. */

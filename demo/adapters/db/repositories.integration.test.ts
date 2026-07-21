@@ -26,7 +26,8 @@ import {
   createTenantRepository,
   createTodoRepository,
 } from './repositories.js';
-import { cards, members, tenantAdmins, tenantDomains, tenants, todos } from './schema.js';
+import { createStaffRepository, createUserDirectory } from './staff-repository.js';
+import { cards, members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 import * as schema from './schema.js';
 
 const ITEST_DB = 'agentproofarch_itest';
@@ -115,9 +116,21 @@ const runMigrations = async (): Promise<void> => {
   }
 };
 
+const grantable = { id: 'itest-grantable', name: 'Grantable User', email: 'grantable@example.com' };
+
 const seed = async (): Promise<void> => {
   await tenantRepo().createTenant(tenantA);
   await tenantRepo().createTenant(tenantB);
+
+  // Global accounts (the auth `user` table) the staff roster join and the FR-8
+  // directory lookup read. `grantable` holds no grant — the account that a grant
+  // test promotes and revokes.
+  await db.insert(user).values([
+    { id: staffA, name: 'Staff A', email: 'staff-a@example.com' },
+    { id: staffB, name: 'Staff B', email: 'staff-b@example.com' },
+    { id: adminB, name: 'Admin B', email: 'admin-b@example.com' },
+    grantable,
+  ]);
 
   await tenantRepo().createOwnerGrant({
     id: 'itest-grant-a',
@@ -586,6 +599,57 @@ describe('MemberRepository + member use-cases', () => {
     const bAfter = await memberRepo().findByEmail(tenantB.id, sharedEmail);
     expect(bAfter?.id).toBe(bId);
     expect(bAfter?.tags).toEqual(['beta-basic']);
+  });
+});
+
+// The staff roster + directory through the real repository (FR-8). Every mutation
+// targets `grantable` (a user with no seeded grant), so the seeded tenant-A grants
+// the offboarding cascade counts stay intact.
+describe('StaffRepository + UserDirectory', () => {
+  const staffRepo = () => createStaffRepository(db);
+  const userDir = () => createUserDirectory(db);
+
+  it('listByTenant joins the account for email/name and is tenant-scoped', async () => {
+    const roster = await staffRepo().listByTenant(tenantB.id);
+    expect(roster).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: staffB, email: 'staff-b@example.com', role: 'owner' }),
+        expect.objectContaining({ userId: adminB, email: 'admin-b@example.com', role: 'admin' }),
+      ]),
+    );
+    // A's staff never leaks into B's roster.
+    expect(roster.map((row) => row.userId)).not.toContain(staffA);
+  });
+
+  it('findGrant and countOwners read the tenant grant graph', async () => {
+    expect(await staffRepo().findGrant(tenantA.id, staffA)).toMatchObject({ userId: staffA, role: 'owner' });
+    expect(await staffRepo().countOwners(tenantA.id)).toBe(1);
+    // adminB is B's admin — invisible from A, and not an owner of B.
+    expect(await staffRepo().findGrant(tenantA.id, adminB)).toBeNull();
+    expect(await staffRepo().findGrant(tenantB.id, adminB)).toMatchObject({ role: 'admin' });
+  });
+
+  it('findByEmail resolves an account case-insensitively and returns null for unknowns', async () => {
+    expect(await userDir().findByEmail('grantable@example.com')).toEqual({
+      userId: grantable.id,
+      email: grantable.email,
+      name: grantable.name,
+    });
+    expect(await userDir().findByEmail('GRANTABLE@example.com')).toMatchObject({ userId: grantable.id });
+    expect(await userDir().findByEmail('nobody@example.com')).toBeNull();
+  });
+
+  it('grant then revoke round-trips a grant, tenant-scoped (cross-tenant revoke is a no-op)', async () => {
+    await staffRepo().grant({ id: 'itest-grant-grantable-b', tenantId: tenantB.id, userId: grantable.id, role: 'admin' });
+    expect(await staffRepo().findGrant(tenantB.id, grantable.id)).toMatchObject({ role: 'admin' });
+    // Cross-tenant isolation: the grant lives only in B.
+    expect(await staffRepo().findGrant(tenantA.id, grantable.id)).toBeNull();
+    expect((await staffRepo().listByTenant(tenantA.id)).map((row) => row.userId)).not.toContain(grantable.id);
+
+    // A tenant-A revoke cannot remove a tenant-B grant.
+    expect(await staffRepo().revoke(tenantA.id, grantable.id)).toBe(0);
+    expect(await staffRepo().revoke(tenantB.id, grantable.id)).toBe(1);
+    expect(await staffRepo().findGrant(tenantB.id, grantable.id)).toBeNull();
   });
 });
 

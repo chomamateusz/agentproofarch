@@ -579,24 +579,39 @@ answers *which* tenant and *whether* the caller belongs to it
 *what* they may do there, and the two are separate steps. The capability model
 lives in `core/domain/authorization.ts`: a closed `Capability` union (one entry
 per aggregate action — `todo:read`, `todo:write`, `card:read`, `card:write`,
-`tenant:create`) and a pure `decide(identity, capability)` predicate over three
-principals derived from the identity — **staff** (owner|admin grant), **member**
-(an end-customer membership, no staff grant) and **visitor** (neither — the
-tenant-less identity). The policy is a `Record<Capability, Principal[]>` grant
-table: a capability names exactly the principals that hold it and **nothing is
-granted by wildcard** — a principal absent from a capability's list is denied.
-The demo policy:
+`member:read`, `staff:read`, `staff:grant`, `staff:revoke`, `tenant:create`, …)
+and a pure `decide(identity, capability)` predicate over four principals derived
+from the identity — **owner** and **admin** (the two staff grants, now DISTINCT
+principals), **member** (an end-customer membership, no staff grant) and
+**visitor** (neither — the tenant-less identity). Owner and admin were a single
+`staff` principal until FR-8; the staff-grant surface is the first capability
+where they diverge, so the split is honest rather than cosmetic. The policy is a
+`Record<Capability, Principal[]>` grant table: a capability names exactly the
+principals that hold it and **nothing is granted by wildcard** — a principal
+absent from a capability's list is denied. The demo policy (staff-shared rows
+collapsed to one `owner+admin` column; only `staff:grant`/`staff:revoke` split
+them):
 
-| capability      | staff (owner\|admin) | member | visitor (tenant-less) |
-| --------------- | -------------------- | ------ | --------------------- |
-| `todo:read`     | allow                | allow  | deny                  |
-| `todo:write`    | allow                | allow  | deny                  |
-| `card:read`     | allow                | allow  | deny                  |
-| `card:write`    | allow                | allow  | deny                  |
-| `tenant:create` | allow                | deny   | allow                 |
+| capability       | owner | admin | member | visitor (tenant-less) |
+| ---------------- | ----- | ----- | ------ | --------------------- |
+| `todo:read`      | allow | allow | allow  | deny                  |
+| `todo:write`     | allow | allow | allow  | deny                  |
+| `card:read`      | allow | allow | allow  | deny                  |
+| `card:write`     | allow | allow | allow  | deny                  |
+| `member:*`       | allow | allow | deny   | deny                  |
+| `staff:read`     | allow | allow | deny   | deny                  |
+| `staff:grant`    | allow | deny  | deny   | deny                  |
+| `staff:revoke`   | allow | deny  | deny   | deny                  |
+| `tenant:create`  | allow | allow | deny   | allow                 |
 
 Members are full collaborators on the tenant's boards (todos and cards are
-collaborative aggregates) but may not administer tenants; `tenant:create` is
+collaborative aggregates) but may not administer tenants; owners and admins share
+every collaborative and customer-management capability, and **only an owner may
+grant or revoke admin access** (FR-8) — an admin runs the tenant but cannot mint
+or remove staff, and the last owner cannot be revoked (lockout guard, a
+`validation` error in `revokeAdmin`). Granting admin is to an EXISTING account by
+email — there are no invitations (post-MVP), so `grantAdmin` returns `not_found`
+when the email has no account. `tenant:create` is
 tenant-less self-service (the caller becomes owner), so a visitor holds it while
 a member of one tenant may not provision others. The member-deny cell is
 **use-case-layer only**: over HTTP the create route deliberately sits above

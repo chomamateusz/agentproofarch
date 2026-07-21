@@ -9,7 +9,12 @@ import type {
   QueryKey,
 } from '@tanstack/query-core';
 
-import type { MemberEnsureInput, TenantCreateInput } from '#core/contract/index.js';
+import type {
+  MemberEnsureInput,
+  StaffGrantInput,
+  StaffRevokeInput,
+  TenantCreateInput,
+} from '#core/contract/index.js';
 import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
@@ -97,6 +102,11 @@ export const membersScopes = {
   lists: () => ['members', 'list'] as const,
 };
 
+export const staffScopes = {
+  all: () => ['staff'] as const,
+  lists: () => ['staff', 'list'] as const,
+};
+
 export const authScopes = {
   all: () => ['auth'] as const,
 };
@@ -169,6 +179,27 @@ export const ensureMemberMutation = (api: ApiClient) =>
 
 /** The invalidation filter `ensureMemberMutation` applies after it settles. */
 export const ensureMemberInvalidates = () => ({ queryKey: membersScopes.lists() });
+
+export const staffQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: staffScopes.lists(),
+    call: ({ signal }) => api.listStaff(signal),
+  });
+
+export const grantStaffMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...staffScopes.all(), 'grant'],
+    call: (input: StaffGrantInput) => api.grantStaff(input),
+  });
+
+export const revokeStaffMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...staffScopes.all(), 'revoke'],
+    call: (input: StaffRevokeInput) => api.revokeStaff(input),
+  });
+
+/** Both staff writes change the roster, so both invalidate the staff list scope. */
+export const staffInvalidates = () => ({ queryKey: staffScopes.lists() });
 
 /**
  * Auth side effects are mutation descriptors over `AuthClientPort` like any

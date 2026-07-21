@@ -1,4 +1,4 @@
-import type { BoardId, Card, Member, Membership, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
+import type { BoardId, Card, Member, Membership, StaffMember, StaffRole, Tenant, TenantDomain, Todo } from '#core/domain/index.js';
 
 /**
  * Ports: interfaces the core depends on, implemented in `adapters/`.
@@ -73,6 +73,46 @@ export interface TenantAccessReader {
   listTenantsForStaff(userId: string): Promise<Membership[]>;
   findStaffGrant(userId: string, lookup: TenantLookup): Promise<Membership | null>;
   findMember(userId: string, tenantId: string): Promise<Member | null>;
+}
+
+/** One raw `tenant_admins` grant, before the account join that yields email/name. */
+export interface StaffGrant {
+  id: string;
+  userId: string;
+  role: StaffRole;
+}
+
+/**
+ * The tenant-staff roster aggregate (FR-8). Every method is tenant-scoped on
+ * `tenant_admins` so a grant can never be read, minted or revoked across tenants.
+ * `listByTenant` joins the global account for the human-readable email/name;
+ * `countOwners` backs the last-owner lockout guard; `grant` is insert-only
+ * (idempotency is decided in the use-case, which checks `findGrant` first).
+ */
+export interface StaffRepository {
+  listByTenant(tenantId: string): Promise<StaffMember[]>;
+  findGrant(tenantId: string, userId: string): Promise<StaffGrant | null>;
+  countOwners(tenantId: string): Promise<number>;
+  grant(input: { id: string; tenantId: string; userId: string; role: StaffRole }): Promise<void>;
+  revoke(tenantId: string, userId: string): Promise<number>;
+}
+
+/** One global account, resolved from the auth `user` table for an FR-8 grant. */
+export interface DirectoryUser {
+  userId: string;
+  email: string;
+  name: string;
+}
+
+/**
+ * Read-only lookup into the global account directory (the auth `user` table). FR-8
+ * grants admin access to a user who must ALREADY have an account — there are no
+ * invitations (post-MVP) — so `grantAdmin` resolves the email here and returns
+ * `not_found` when it has no account. Distinct from `AuthPort` (session → identity):
+ * this is an unauthenticated-by-session, email → account directory read.
+ */
+export interface UserDirectory {
+  findByEmail(email: string): Promise<DirectoryUser | null>;
 }
 
 /** Established authenticated session, before tenant resolution. */

@@ -102,7 +102,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->62<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->63<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -110,7 +110,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `check` green AND `smoke` green.** Static-green is not done.
 
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
-<!--count:integration-tests-->33<!--/count--> integration tests against a real
+<!--count:integration-tests-->37<!--/count--> integration tests against a real
 Postgres and <!--count:e2e-tests-->9<!--/count--> Playwright tests across
 <!--count:e2e-specs-->3<!--/count--> spec files:
 

@@ -86,6 +86,17 @@ const memberExportSchema = z.object({
 });
 const memberRemoveSchema = z.object({ memberId: z.string(), deleted: z.object({ members: z.number() }) });
 
+const staffItemSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  email: z.string(),
+  name: z.string(),
+  role: z.string(),
+});
+const staffListSchema = z.object({ staff: z.array(staffItemSchema) });
+const staffGrantSchema = z.object({ staff: staffItemSchema, granted: z.boolean() });
+const staffRevokeSchema = z.object({ userId: z.string(), revoked: z.number() });
+
 const readEnvelope = (result: Run, label: string): unknown => {
   try {
     return JSON.parse(result.stdout);
@@ -222,8 +233,11 @@ const assertSessionCookieHardening = async (target: SmokeTarget): Promise<void> 
  * exit 2 → the full legal chain todo→in-dev→review→done at exit 0 → list
  * surfaces board + visited) → members (ensure → idempotent re-ensure → list →
  * export → remove, each run creating and removing its own uniquely-emailed
- * member) → unauthorized (exit 3), plus the security/caching response headers
- * and the session-cookie hardening assertion.
+ * member) → staff (FR-8: register a second account → owner grants it admin →
+ * idempotent re-grant → the granted user lists todos as admin → admin-cannot-grant
+ * (exit 4) → last-owner-revoke blocked (exit 2) → revoke → the revoked user loses
+ * tenant access (exit 7), self-cleaning) → unauthorized (exit 3), plus the
+ * security/caching response headers and the session-cookie hardening assertion.
  *
  * Non-self-poisoning property (architecture §Environments, smoke-account
  * doctrine): every card this run creates is parked in an **unbounded** column
@@ -531,6 +545,95 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   assert(
     !afterRemove.members.some((m) => m.id === ensured.member.id),
     'the removed member is still present in the roster',
+  );
+
+  // --- staff (FR-8): owner grants a second REGISTERED user admin, then revokes ---
+  // Self-cleaning: the grant is revoked before the run ends, so tenant_admins is
+  // left as found. The second account is registered under a unique email (FR-8
+  // grants an account that must ALREADY exist — no invitations) and is the only
+  // residue; it holds no access after the revoke.
+  const adminHome = mkdtempSync(join(tmpdir(), 'smoke-admin-'));
+  homes.push(adminHome);
+  const adminEmail = `smoke-admin-${randomUUID()}@example.com`;
+  const staffArgs = (...args: string[]): string[] => [
+    '--json',
+    '--api-url',
+    baseUrl,
+    '--tenant',
+    target.tenant,
+    'staff',
+    ...args,
+  ];
+
+  expectOk(
+    await cli(
+      ['--json', '--api-url', baseUrl, 'register', '--name', 'Smoke Admin', '--email', adminEmail, '--password', 'smoke-admin-1234'],
+      adminHome,
+    ),
+    'register second user',
+  );
+
+  // Granting an email with no account is refused (no invitations, exit 5).
+  expectError(
+    await cli(staffArgs('grant', `nobody-${randomUUID()}@example.com`), authedHome),
+    'staff grant unknown email',
+    EXIT_CODE_BY_ERROR_CODE.not_found,
+    'not_found',
+  );
+
+  const granted = staffGrantSchema.parse(expectOk(await cli(staffArgs('grant', adminEmail), authedHome), 'staff grant'));
+  assert(
+    granted.granted && granted.staff.role === 'admin' && granted.staff.email === adminEmail,
+    `staff grant did not create the admin: ${JSON.stringify(granted)}`,
+  );
+
+  const reGranted = staffGrantSchema.parse(
+    expectOk(await cli(staffArgs('grant', adminEmail), authedHome), 'staff grant (idempotent)'),
+  );
+  assert(!reGranted.granted, `staff grant was not idempotent on re-grant: ${JSON.stringify(reGranted)}`);
+
+  const roster = staffListSchema.parse(expectOk(await cli(staffArgs('list'), authedHome), 'staff list'));
+  assert(
+    roster.staff.some((s) => s.email === adminEmail && s.role === 'admin') &&
+      roster.staff.some((s) => s.role === 'owner'),
+    `staff list did not surface the owner + new admin: ${JSON.stringify(roster.staff)}`,
+  );
+
+  // The granted user can now act as admin: list todos in the tenant.
+  expectOk(
+    await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'todo', 'list'], adminHome),
+    'granted admin lists todos',
+  );
+
+  // Granting is owner-only: the admin is forbidden (exit 4).
+  expectError(
+    await cli(staffArgs('grant', adminEmail), adminHome),
+    'admin cannot grant (owner-only)',
+    EXIT_CODE_BY_ERROR_CODE.forbidden,
+    'forbidden',
+  );
+
+  // Lockout guard: the sole owner cannot revoke themselves (validation, exit 2).
+  expectError(
+    await cli(staffArgs('revoke', '--email', target.email), authedHome),
+    'last-owner revoke blocked',
+    EXIT_CODE_BY_ERROR_CODE.validation,
+    'validation',
+  );
+
+  const revoked = staffRevokeSchema.parse(
+    expectOk(await cli(staffArgs('revoke', '--email', adminEmail), authedHome), 'staff revoke'),
+  );
+  assert(revoked.revoked === 1, `staff revoke did not remove exactly one grant: ${JSON.stringify(revoked)}`);
+
+  // After revocation the user is neither staff nor a member, so tenant resolution
+  // denies the request before any use-case runs (tenant_not_found, exit 7) — the
+  // membership check is upstream of authorization.
+  expectError(
+    await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'todo', 'list'], adminHome),
+    'revoked admin loses tenant access',
+    EXIT_CODE_BY_ERROR_CODE.tenant_not_found,
+    'tenant_not_found',
   );
 
   expectError(

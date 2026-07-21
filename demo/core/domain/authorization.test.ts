@@ -45,7 +45,8 @@ const asVisitor: Identity = {
 };
 
 const identityFor: Record<Principal, Identity> = {
-  staff: asStaff('owner'),
+  owner: asStaff('owner'),
+  admin: asStaff('admin'),
   member: asMember,
   visitor: asVisitor,
 };
@@ -53,22 +54,30 @@ const identityFor: Record<Principal, Identity> = {
 // The policy table restated independently of the implementation's GRANTS map —
 // Record<Capability, Record<Principal, boolean>> is exhaustive by construction,
 // so a new capability or principal fails to compile until this table decides it.
+// owner and admin are now DISTINCT principals: the staff:* rows are where they
+// diverge (grant/revoke are owner-only), and are the reason the split exists.
 const EXPECTED: Record<Capability, Record<Principal, boolean>> = {
-  'todo:read': { staff: true, member: true, visitor: false },
-  'todo:write': { staff: true, member: true, visitor: false },
-  'card:read': { staff: true, member: true, visitor: false },
-  'card:write': { staff: true, member: true, visitor: false },
-  'member:read': { staff: true, member: false, visitor: false },
-  'member:write': { staff: true, member: false, visitor: false },
-  'member:remove': { staff: true, member: false, visitor: false },
-  'member:export': { staff: true, member: false, visitor: false },
-  'tenant:create': { staff: true, member: false, visitor: true },
+  'todo:read': { owner: true, admin: true, member: true, visitor: false },
+  'todo:write': { owner: true, admin: true, member: true, visitor: false },
+  'card:read': { owner: true, admin: true, member: true, visitor: false },
+  'card:write': { owner: true, admin: true, member: true, visitor: false },
+  'member:read': { owner: true, admin: true, member: false, visitor: false },
+  'member:write': { owner: true, admin: true, member: false, visitor: false },
+  'member:remove': { owner: true, admin: true, member: false, visitor: false },
+  'member:export': { owner: true, admin: true, member: false, visitor: false },
+  'staff:read': { owner: true, admin: true, member: false, visitor: false },
+  'staff:grant': { owner: true, admin: false, member: false, visitor: false },
+  'staff:revoke': { owner: true, admin: false, member: false, visitor: false },
+  'tenant:create': { owner: true, admin: true, member: false, visitor: true },
 };
 
 describe('principalOf', () => {
-  it('reads owner and admin as staff', () => {
-    expect(principalOf(asStaff('owner'))).toBe('staff');
-    expect(principalOf(asStaff('admin'))).toBe('staff');
+  it('reads an owner grant as the owner principal', () => {
+    expect(principalOf(asStaff('owner'))).toBe('owner');
+  });
+
+  it('reads an admin grant as the admin principal (distinct from owner)', () => {
+    expect(principalOf(asStaff('admin'))).toBe('admin');
   });
 
   it('reads a membership without a staff grant as member', () => {
@@ -96,9 +105,22 @@ describe('decide — exhaustive capability × principal matrix', () => {
     expect(decide(asStaff('admin'), 'card:write')).toEqual({ allowed: true });
   });
 
-  it('grants staff every capability (staff is the superset principal)', () => {
+  it('grants an owner every capability (owner is the superset principal)', () => {
     for (const capability of CAPABILITIES) {
       expect(decide(asStaff('owner'), capability).allowed).toBe(true);
     }
+  });
+
+  it('denies an admin exactly the owner-only staff-grant capabilities (FR-8 split)', () => {
+    expect(decide(asStaff('admin'), 'staff:grant')).toEqual({
+      allowed: false,
+      reason: 'staff:grant is not permitted for admin',
+    });
+    expect(decide(asStaff('admin'), 'staff:revoke')).toEqual({
+      allowed: false,
+      reason: 'staff:revoke is not permitted for admin',
+    });
+    // Everything else an admin shares with an owner, including reading the roster.
+    expect(decide(asStaff('admin'), 'staff:read').allowed).toBe(true);
   });
 });

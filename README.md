@@ -123,15 +123,15 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **<!--count:test-files-->62<!--/count--> test files.**
+  `doc-lint` + vitest with coverage. **<!--count:test-files-->63<!--/count--> test files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (<!--count:test-files-->62<!--/count--> files,
-  in `check`) · **integration** (<!--count:integration-tests-->33<!--/count-->,
+- **Four test levels** — **unit** (<!--count:test-files-->63<!--/count--> files,
+  in `check`) · **integration** (<!--count:integration-tests-->37<!--/count-->,
   real Postgres, run in the `smoke` CI job) · **e2e**
   (<!--count:e2e-tests-->9<!--/count--> tests across
   <!--count:e2e-specs-->3<!--/count--> Playwright spec files, a real Chromium

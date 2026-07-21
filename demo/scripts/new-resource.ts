@@ -243,12 +243,14 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
        anchor:  'todo:read',                 (the CAPABILITIES array)
        add:     '${n.singularKebab}:read',
                 '${n.singularKebab}:write',
-       anchor:  'todo:read': ['staff', 'member'],   (the GRANTS table)
-       add:     '${n.singularKebab}:read': ['staff', 'member'],
-                '${n.singularKebab}:write': ['staff', 'member'],
-       Baseline above = collaborative (staff + member read+write), matching the
-       generated tests. For a staff-only aggregate, grant only ['staff'] and flip
-       the member test in the generated test file to assert a 'forbidden' denial.
+       anchor:  'todo:read': ['owner', 'admin', 'member'],   (the GRANTS table)
+       add:     '${n.singularKebab}:read': ['owner', 'admin', 'member'],
+                '${n.singularKebab}:write': ['owner', 'admin', 'member'],
+       Baseline above = collaborative (staff owner+admin + member read+write),
+       matching the generated tests. For a staff-only aggregate, grant only
+       ['owner', 'admin'] and flip the member test in the generated test file to
+       assert a 'forbidden' denial. (owner and admin are distinct principals since
+       FR-8; an owner-only aggregate would grant just ['owner'].)
    (The use-case + its test skeleton are already generated. The three authorization
     outcomes — staff allowed, member per policy, tenant-less denied — ship as REAL
     tests (RED until wired); turn the remaining it.todo(...) cases in
