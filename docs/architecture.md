@@ -885,7 +885,7 @@ widgets, the headless SDK.
 
 ## HTTP caching
 
-Cache policy is set at one seam — `respond()` in `apps/server/src/app.ts`, where
+Cache policy is set at one seam — `respond()` in `apps/server/src/respond.ts`, where
 every success and error envelope is built — so the default is impossible to
 forget and any opt-in is a visible, local exception.
 
