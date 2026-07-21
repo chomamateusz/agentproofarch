@@ -49,16 +49,21 @@ export interface AppDeps {
  * Composition root — the ONLY place where env decides which adapters run.
  * Platform names (vercel, neon) may appear here and in adapters, never in core.
  */
+// Exported for unit tests: selecting the adapter must be testable without
+// constructing the full graph — a real Better Auth instance eagerly queries
+// tenant_domains for trustedOrigins, which has no database on the check runner.
+export const selectDomainPort = (env: Env): DomainPort =>
+  env.DOMAIN_PROVISIONER === 'caddy'
+    ? createCaddyDomainPort({
+        targetCname: env.SELF_HOST_TARGET_CNAME,
+        targetIp: env.SELF_HOST_TARGET_IP,
+      })
+    : createNoopDomainPort();
+
 export const createDeps = (env: Env): AppDeps => {
   const db = createDb(env.DB_DRIVER, env.DATABASE_URL);
   const tenantDomains = createTenantDomainRepository(db);
-  const domainPort =
-    env.DOMAIN_PROVISIONER === 'caddy'
-      ? createCaddyDomainPort({
-          targetCname: env.SELF_HOST_TARGET_CNAME,
-          targetIp: env.SELF_HOST_TARGET_IP,
-        })
-      : createNoopDomainPort();
+  const domainPort = selectDomainPort(env);
 
   const baseTrustedOrigins = [
     env.APP_BASE_URL,
