@@ -197,6 +197,10 @@ beforeAll(async () => {
   await createIsolatedDatabase();
   await runMigrations();
   appPool = new pg.Pool({ connectionString: itestUrl });
+  // afterAll's FORCE drop can race the pool's graceful socket teardown: a
+  // client terminated server-side (57P01) emits 'error' with no listener and
+  // crashes the whole run despite every test passing (CI 2026-07-21).
+  appPool.on('error', () => {});
   db = drizzleNodePg(appPool, { schema });
   await seed();
 }, 60_000);
