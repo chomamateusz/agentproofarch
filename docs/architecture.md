@@ -1311,26 +1311,90 @@ slice; it is a Vercel-target concern and does not affect self-host.
 ## Environments (Vercel target)
 
 Four environments, mapped onto Vercel's native model
-([ADR-0003](decisions/0003-vercel-environments.md)). The operating hygiene for
-running these safely under agents — secrets only in the platform store, no
-production access on agent machines, the human-only production-branch promotion
+([ADR-0003](decisions/0003-vercel-environments.md)), under one hard security
+boundary: **no GitHub event can reach production.** Agents are given *maximum*
+GitHub freedom by design — full `gh` access as the repo owner, no machine
+account, merge and workflow-dispatch rights — precisely because the wall that
+matters sits elsewhere: the path from any push, merge, workflow run or bot action
+to a production deployment simply does not exist. CI/CD is fully automatic up to
+and including staging; production is promoted by hand, by the owner, inside the
+platform. This refines ADR-0003's "Production = `main`" mechanic — the
+environment model is unchanged; only the trigger for the production environment
+moves from a Git push to a human dashboard action.
+
+The operating hygiene for running this safely under agents — secrets only in the
+platform store, no production access on agent machines, the human-only promotion
 gate, fail-closed review, and SHA attestation — is in the README's *Operating
 hygiene for agent-driven repos* section (recommendations for the platform owner;
-the enforced rules below are this section's):
+the enforced rules below are this section's). The click-by-click runbook for the
+one-time topology flip and the promotion ritual is
+[deploy-promotion.md](deploy-promotion.md).
 
-| Env | Git | Database | Host |
+| Env | Git → deploy | Database | Host |
 |---|---|---|---|
-| Production | `main` | Neon branch `production` | project domain (custom + wildcard when added) |
-| Staging | branch `staging` | Neon branch `staging` | staging branch alias URL |
-| Preview | every PR | **ephemeral Neon branch per PR** (marketplace integration) | per-PR URL |
+| Production | **none** — manual promotion only (Production Branch set to an unused ref, e.g. `production-manual`) | Neon branch `production` | project custom domain (+ wildcard when added) |
+| Staging | `main` → auto Preview deployment on a stable staging alias | Neon branch `staging` | staging alias URL |
+| Preview | every PR → auto Preview deployment | **ephemeral Neon branch per PR** (marketplace integration) | per-PR URL |
 | Development | local | Docker Postgres (or a Neon `dev` branch) | `*.localhost` |
 
-Rules:
+**Preview + staging ARE the development environment** — there is no separate
+deployed dev environment. Per-PR previews are where a change is exercised in a
+real deployment; `main`'s auto-published staging deployment is the shared
+integration surface. Both are fully automatic and fully agent-reachable. Local
+(`*.localhost`) is the machine loop; every *deployed* non-production environment
+is a preview or the staging alias.
 
+**Tenant addressing per environment.** Tenants live on subdomains of the app's
+base domain — but what "base domain" means differs per environment, and the code
+handles each honestly:
+
+- **Local dev**: full subdomain tenancy on `*.localhost`
+  (`acme.localhost:47100`). One caveat browsers impose: `Domain=.localhost`
+  cookies are rejected, so a session does NOT span sibling subdomains in dev —
+  login is per-subdomain. This is a browser rule, not a bug; the e2e harness
+  works within it.
+- **Vercel's shared apex (`<project>.vercel.app`)**: tenant subdomains are
+  **impossible by construction** — `acme.<project>.vercel.app` is not a
+  subdomain of your project; sibling names under `vercel.app` belong to OTHER
+  Vercel projects. `tenantUrl()` therefore returns `null` on this apex and the
+  web app runs single-tenant per deployment URL (tenant switching via the CLI's
+  `--tenant`); linking "sibling subdomains" here would send users to strangers'
+  deployments.
+- **A real base domain with a wildcard** (`*.example.com` attached to the
+  project): full subdomain tenancy returns, and one session spans sibling
+  subdomains (the cookie domain is the real base). This is the production
+  shape; ADR-0003 and the domains feature (tenant_domains + provisioner ports)
+  are built for it.
+- **Self-host**: Caddy's on-demand TLS serves any custom tenant domain that
+  passes the internal domain check (§Docker self-host) — subdomain and
+  custom-domain tenancy both work.
+
+Rules (RECOMMENDED topology — the normative path for apps built on this
+foundation):
+
+- **No Git-integration path to production** (control 1 of 5). The Vercel
+  project's Production Branch points at an unused ref (`production-manual`, never
+  pushed), so a push or merge to `main` produces a *Preview* deployment, never a
+  production one. Nothing an agent can do on GitHub — merge, force-push, dispatch
+  a workflow, retrigger a deploy hook — reaches production, because production has
+  no automatic trigger to reach.
+- **Production promotion is 100% manual, owner-only, inside Vercel.** The owner
+  picks a green staging/preview deployment and clicks **Promote to Production** in
+  the dashboard (works from a phone), or runs `vercel promote` from a human-only
+  device. Never from GitHub, never by an agent. Promotion re-points the production
+  alias at an *existing, already-gated* build — it does not rebuild, so the
+  promoted artifact is byte-identical to the one that passed `check`/`smoke`.
+- **Two teams, one login** (paid-app topology). The commercial app's production
+  lives on its own **Pro** team; the **Hobby** team hosts non-commercial work. One
+  login spans both, but a pause, suspension or plan-limit hit on one team does not
+  take the other down — separate blast radius per plan, by construction.
 - **Secrets live only in Vercel's env store**, scoped per environment (staging
-  = branch-scoped Preview vars on Hobby); local dev pulls them with
-  `vercel env pull`. Nothing secret in the repo — `.env.example` documents
-  names only.
+  = branch-scoped Preview vars on Hobby). Local dev never pulls them: agent
+  machines hold no platform-CLI sessions (control 2 of 5 — `vercel env pull` is
+  both logged out and hook-blocked), and local development runs entirely on
+  non-secret local values (`.env.example` documents every name; the dev
+  database is local Docker). Nothing secret in the repo. **All production env
+  vars are marked Sensitive** (write-only in the dashboard/CLI; control 3 of 5).
 - **Migrations run at build time** against that environment's own database
   (previews migrate their ephemeral branch — always safe; staging/prod are
   forward-only: destructive changes ship as two deploys, expand → contract). The
@@ -1338,14 +1402,51 @@ Rules:
   runs `lintMigrations`, which fails the build on a duplicate, gapped or
   non-`<NNNN>` prefix or a `meta/_journal.json` that does not match the `.sql`
   files on disk — a config-regression probe plants a duplicate to prove the gate
-  still fires.
-- **Promotion is the PR flow**: feature branch → preview → `staging` →
-  `main`. Same commit, only env vars differ.
+  still fires. A migration in the promoted diff takes a Neon snapshot/PITR point
+  first (§Constraint-adding migrations; runbook step in
+  [deploy-promotion.md](deploy-promotion.md)).
 - **Tenant subdomains need the custom wildcard domain**; until one is
   attached, web runs single-tenant on `*.vercel.app` while the API and CLI
   stay fully multi-tenant via `X-Tenant` — which is also how `smoke` drives a
   deployed environment (`npm run smoke:remote` = the same CLI suite against a
   deployment URL).
+
+**The five standing controls** (WHY and the click-by-click checklist in
+[deploy-promotion.md](deploy-promotion.md) §c): (1) **no Git-integration path to
+prod** — Production Branch is an unused ref; (2) **zero platform-CLI sessions on
+agent machines** — no `vercel`/`neonctl` login persists where an agent runs, and
+the agent harness's Bash hook bans launching them; (3) **all production env vars
+marked Sensitive** (write-only); (4) **passkey/2FA on the Vercel login**, sessions
+only on owner devices; (5) **platform-independent DR** — a cold standby on the
+owner's VPS via the Docker deploy target, an hourly `pg_dump` cron on the VPS, and
+Neon PITR, so a total-platform loss is recoverable off Vercel/Neon entirely.
+
+**The irreducible residue, stated honestly.** These controls stop a GitHub event
+or a compromised agent from *triggering* a production deploy; they do not change
+the fact that **promoted code runs with production secrets at runtime.** An agent
+that lands malicious code in a deployment the owner then promotes has reached
+production secrets — the only defense at that seam is **the owner's diff review at
+promotion time** (review the diff since the last promoted SHA before clicking
+Promote). If production ever moves to self-host, an **egress allowlist** on the
+production host is the next control to add (bounding where exfiltrated secrets
+could be sent); on Vercel's managed functions that control is not available.
+
+**Demo — current state (honest).** The demo project **still auto-deploys
+production from `main`** (the ADR-0003 topology); it has **not** yet been flipped
+to the manual-promotion topology above. Flipping it is a dashboard action, not a
+code change — the one-time procedure is [deploy-promotion.md](deploy-promotion.md)
+§a. One caveat is explicitly **unverified**: after the flip, the post-deploy
+**production** smoke trigger must be re-checked, because a manual "Promote to
+Production" may emit *different* GitHub deployment events than a `main` push does
+— possibly no `deployment_status` at all — and `post-deploy-smoke.yml` fires on
+`deployment_status`. Verify on the first promoted deploy and adjust the workflow
+trigger if promotion emits no usable event (tracked in [backlog.md](backlog.md)
+§Verification residuals).
+
+**Per-app deployment specifics live with the app.** This section is the
+foundation's recommended topology; an individual application's concrete
+deployment details (its teams, domains, promotion cadence, app-specific env) are
+owned by that app's own docs, not here.
 
 **Preview/staging data doctrine** (NORMATIVE WHEN TRIGGERED — trigger: the
 first real user personal data in production; today every environment holds
