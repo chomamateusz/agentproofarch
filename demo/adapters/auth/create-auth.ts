@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
 import { magicLink } from 'better-auth/plugins/magic-link';
 import { twoFactor } from 'better-auth/plugins/two-factor';
+import { passkey } from '@better-auth/passkey';
 
 import type { AuthPort, EmailPort } from '#core/server/index.js';
 import type { Db } from '#adapters/db/client.js';
@@ -58,6 +59,10 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
         },
       }),
       twoFactor(),
+      // rpID is the registrable domain the credential is scoped to; keying it on
+      // the base domain lets one passkey work across every tenant subdomain
+      // (browsers scope WebAuthn to the registrable suffix, not the full origin).
+      passkey({ rpID: settings.baseDomain, rpName: 'Agentproofarch' }),
     ],
     advanced: {
       useSecureCookies: settings.secureCookies,

@@ -61,9 +61,11 @@ the body disagree, this block wins.
   `disableTwoFactor`). `EmailPort` (deferred in §3.5) is built alongside as the
   magic-link transport (SMTP default / dev-capture; see
   [ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)). Passkeys
-  are the one method still deferred — `@better-auth/passkey` pins a `better-call`
-  whose optional `zod@^4` peer conflicts with the tree's pinned `zod@^3`, so it
-  needs a zod-4 migration first (seam documented, not faked).
+  (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`) are now
+  **built too**: `@better-auth/passkey` pinned a `better-call` whose optional
+  `zod@^4` peer conflicted with the tree's former `zod@^3`, so the tree was
+  migrated to `zod@^4` first (gates green) and the plugin then wired — no faked
+  seam.
 - **`Identity` shape includes `tenantSlug`/`tenantName` (§3.4, ~line 167).** The
   declared shape lists six fields and omits the tenant display fields the shipped
   type carries. `core/domain/identity.ts` (and the `/api/me` response) is

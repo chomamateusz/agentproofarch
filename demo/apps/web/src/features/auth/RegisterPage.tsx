@@ -23,7 +23,7 @@ import { Eyebrow, Wordmark } from '../../theme.js';
 
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'Enter your name'),
-  email: z.string().trim().email('Enter a valid email'),
+  email: z.string().trim().pipe(z.email('Enter a valid email')),
   password: z.string().min(8, 'Use at least 8 characters'),
 });
 
@@ -40,7 +40,7 @@ const NO_FIELD_ERRORS: FieldErrors = { name: undefined, email: undefined, passwo
 const serverFieldErrors = (error: unknown): FieldErrors => {
   if (!(error instanceof ApiError)) return NO_FIELD_ERRORS;
   const parsed = z
-    .object({ fieldErrors: z.record(z.array(z.string())) })
+    .object({ fieldErrors: z.record(z.string(), z.array(z.string())) })
     .safeParse(error.appError.details);
   if (!parsed.success) return NO_FIELD_ERRORS;
   const pick = (key: Field): string | undefined => parsed.data.fieldErrors[key]?.[0];

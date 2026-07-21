@@ -36,6 +36,14 @@ export const LoginPage = () => {
 
   const magicLink = useMutation(actions.requestMagicLink);
 
+  const passkey = useMutation({
+    ...actions.signInPasskey,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries();
+      await navigate({ to: '/app' });
+    },
+  });
+
   const google = useMutation({
     ...actions.signInSocial,
     onSuccess: (result) => {
@@ -110,6 +118,15 @@ export const LoginPage = () => {
           >
             {magicLink.isPending ? 'sending link…' : 'email me a sign-in link'}
           </Button>
+          <Button
+            type="button"
+            variant="outlined"
+            fullWidth
+            disabled={passkey.isPending}
+            onClick={() => passkey.mutate()}
+          >
+            {passkey.isPending ? 'waiting for passkey…' : 'continue with a passkey'}
+          </Button>
           {config.data?.googleEnabled ? (
             <Button
               type="button"
@@ -130,6 +147,11 @@ export const LoginPage = () => {
         {signIn.isError ? (
           <Alert sx={{ mt: '0.6rem' }}>
             {signIn.error instanceof ApiError ? signIn.error.appError.message : signIn.error.message}
+          </Alert>
+        ) : null}
+        {passkey.isError ? (
+          <Alert sx={{ mt: '0.6rem' }}>
+            {passkey.error instanceof ApiError ? passkey.error.appError.message : passkey.error.message}
           </Alert>
         ) : null}
         <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />

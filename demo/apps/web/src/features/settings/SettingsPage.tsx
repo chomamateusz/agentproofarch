@@ -4,6 +4,7 @@ import { Link as RouterLink } from '@tanstack/react-router';
 
 import { actions } from '../../api.js';
 import { CreateTenantForm } from './CreateTenantForm.js';
+import { PasskeySection } from './PasskeySection.js';
 import { TwoFactorSection } from './TwoFactorSection.js';
 import { tenantUrl } from '../../lib/tenant.js';
 
@@ -84,6 +85,7 @@ export const SettingsPage = () => {
       </Paper>
 
       <TwoFactorSection />
+      <PasskeySection />
     </Container>
   );
 };

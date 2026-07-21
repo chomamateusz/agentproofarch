@@ -47,7 +47,7 @@ export const serverEnvSchema = z.object({
   DATABASE_URL: databaseUrlField,
   DB_DRIVER: dbDriverField,
   APP_BASE_DOMAIN: z.string().default('localhost'),
-  APP_BASE_URL: z.string().url().optional(),
+  APP_BASE_URL: z.url().optional(),
   // Set by Vercel on every deployment (`VERCEL=1`). Presence is the "we are
   // deployed on Vercel" signal the hardening refinements key off.
   VERCEL: z.string().optional(),

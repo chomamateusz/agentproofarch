@@ -57,6 +57,13 @@
       "when": 1784648451105,
       "tag": "0007_c4_backfill_checkpoints",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784665771502,
+      "tag": "0008_passkey",
+      "breakpoints": true
     }
   ]
 }

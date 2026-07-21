@@ -1,4 +1,4 @@
-import type { WriteResult } from './http.js';
+import type { ReadResult, WriteResult } from './http.js';
 
 export interface AuthSessionResult {
   token: string | null;
@@ -30,6 +30,16 @@ export interface TwoFactorEnableResult {
   backupCodes: string[];
 }
 
+/** A registered passkey as the management UI lists it (US-028a). */
+export interface PasskeyInfo {
+  /** Stable id used as the remove handle. */
+  id: string;
+  /** User-chosen label; empty when the browser supplied no name. */
+  name: string;
+  /** ISO 8601 creation timestamp for display. */
+  createdAt: string;
+}
+
 /**
  * Client-side auth port. Web (and future mobile/Electron/CLI) programs against
  * this interface; the Better Auth client adapter implements it. It is the
@@ -52,4 +62,16 @@ export interface AuthClientPort {
   verifyTotp(input: { code: string }): Promise<WriteResult<void>>;
   /** US-028a: turn off TOTP 2FA (re-auth with the account password). */
   disableTwoFactor(input: { password: string }): Promise<WriteResult<void>>;
+  /** US-028a: register a new passkey (WebAuthn ceremony) under a display name. */
+  registerPasskey(input: { name: string }): Promise<WriteResult<void>>;
+  /**
+   * US-028a: the caller's registered passkeys for the management UI. A read, not
+   * a command — the one AuthClientPort method carrying a read tag, since this
+   * roster lives on the provider's surface, not the contract API like `/api/me`.
+   */
+  listPasskeys(): Promise<ReadResult<PasskeyInfo[]>>;
+  /** US-028a: remove a registered passkey by id. */
+  removePasskey(input: { id: string }): Promise<WriteResult<void>>;
+  /** US-028a: sign in with a registered passkey (WebAuthn assertion). */
+  signInPasskey(input?: { callbackURL?: string }): Promise<WriteResult<AuthSessionResult>>;
 }

@@ -31,7 +31,7 @@ export const cardSchema = z.object({
   column: z.string(),
   position: z.number().int().nonnegative(),
   visited: z.array(z.string()),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 export type Card = z.infer<typeof cardSchema>;
