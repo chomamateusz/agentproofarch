@@ -26,27 +26,44 @@ Two forces reshaped that sketch:
    and generic. The magic link is ONE consumer of `sendMail`, not the port's
    shape — the magic-link email is composed in `create-auth.ts` and passes the
    raw URL as the optional `link` field. `link` is a general transactional-mail
-   concept (a primary call-to-action URL), not a dev hack: the smtp transport
-   embeds it in the body and ignores the field; the dev transport captures it.
-   No `tenantId` — one verified sender domain (`EMAIL_FROM`).
+   concept (a primary call-to-action URL), not a dev hack: a transport embeds it
+   in the body and otherwise ignores the field. No `tenantId` — one verified
+   sender domain (`EMAIL_FROM`).
 
 2. **Two adapters in `adapters/email/`, selected by `EMAIL_TRANSPORT`** in the
    composition root, exactly like `DOMAIN_PROVISIONER`:
-   - `smtp` — nodemailer over any RFC SMTP relay. Amazon SES SMTP creds work
-     unchanged (`SMTP_HOST=email-smtp.<region>.amazonaws.com`, the SES SMTP
+   - `smtp` (default) — nodemailer over any RFC SMTP relay. Amazon SES SMTP creds
+     work unchanged (`SMTP_HOST=email-smtp.<region>.amazonaws.com`, the SES SMTP
      user/pass, port 587, STARTTLS). Swap the relay behind the port for any other
-     provider; the app never learns which.
-   - `dev` (default) — no delivery. Logs the message and keeps the last action
-     `link` per recipient in memory (`DevMailbox`).
+     provider; the app never learns which. SMTP auth is optional, so an open local
+     relay needs no user/pass.
+   - `ses` — Amazon SES **direct** over the SESv2 HTTP API
+     (`@aws-sdk/client-sesv2`, `SendEmail`), selected with the standard AWS
+     credential env names (`AWS_REGION`, `AWS_ACCESS_KEY_ID`,
+     `AWS_SECRET_ACCESS_KEY`). The owner's ruling: SMTP is the one default, but
+     SES should also be reachable directly by key ("SMTP to jeden ale od razu
+     powinniśmy umożliwiać też SES bezpośrednio przez klucz") — for teams that
+     cannot or will not open an outbound SMTP port. Same `EmailPort` shape; the
+     `link` already lives in `text`, so the SES `Simple` body carries it unchanged.
    nodemailer was chosen over a hand-rolled SMTP client: it is well-maintained,
    handles STARTTLS/auth/encoding, and SES-SMTP compatibility is a first-class
-   use case. It is contained to `adapters/email` by a depcruise rule.
+   use case. Every email-vendor SDK (nodemailer and `@aws-sdk/*`) is contained to
+   `adapters/email` by the one depcruise rule. Selecting `ses` without its
+   credential block is a composition error (fail fast, not silent no-delivery).
 
-3. **Dev link retrieval via a mounted-only-in-dev route.** When (and only when)
-   the composition selects the dev transport, the server mounts
-   `GET /api/dev/magic-link?email=…`, backed by the `DevMailbox`. It cannot exist
-   on a deploy that configured a real relay. This is the surface the CLI
-   (`login-link --follow`), the smoke gate, and the e2e spec consume.
+3. **No dev transport — a real send to a local Mailpit (owner ruling).** "Nie chcę
+   trzeciego osobnego na dev — lokalny SMTP który przechwytuje naprawdę wysłane
+   maile jak SaaSowy MailTrap; MailPit jest rewelacyjnym rozwiązaniem." Dev, e2e
+   and CI run the **real** `smtp` adapter pointed at a local **Mailpit**
+   (docker-compose.dev.yml; the smoke/e2e CI jobs add it as a service). Mailpit
+   captures every send instead of delivering and exposes an HTTP API on
+   `:47980`. The magic-link smoke/e2e phases request a link, read the captured
+   message back over that API (`/api/v1/messages`, `/api/v1/message/{id}`), extract
+   the verify URL and follow it — the same round-trip a human makes from the
+   Mailpit inbox. The CLI `login-link` requests a link and, given `--link <url>`
+   (copied from Mailpit/an inbox), follows it. There is **no `/api/dev/magic-link`
+   route and no `DevMailbox`**: nothing dev-only ships in the app, so nothing has
+   to be kept off production.
 
 4. **Member↔user binding on first sign-in (US-026).** A member provisioned by
    `ensureMember` has a null `userId` until they first authenticate. Binding

@@ -11,10 +11,9 @@ const tenants = (findBySlug: TenantRepository['findBySlug']): { tenants: TenantR
   tenants: {
     findBySlug,
     findById: async () => null,
-    createTenant: async () => {
+    createTenantWithOwner: async () => {
       throw new Error('unused');
     },
-    createOwnerGrant: async () => {},
     deleteTenant: async () => {},
   },
 });

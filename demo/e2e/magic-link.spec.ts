@@ -1,28 +1,25 @@
 import { expect, test } from '@playwright/test';
 
+import { fetchMagicLink } from '../scripts/mailpit.js';
+
 // US-026 end to end over the real stack: a provisioned member (seeded
 // `mag@example.com`, null userId in the acme tenant) requests a passwordless
-// magic link from the login page. The dev email transport does not deliver — it
-// captures the link, exposed on `/api/dev/magic-link` (dev/CI only) — so the
-// test retrieves it, follows it, and lands authenticated with the member bound.
+// magic link from the login page. The real smtp transport delivers to the dev/CI
+// Mailpit (no dev route); the test reads the captured message back over Mailpit's
+// HTTP API, follows the link, and lands authenticated with the member bound.
 const PROVISIONED_MEMBER = 'mag@example.com';
+const MAILPIT_API_URL = 'http://localhost:47980';
 
 test('magic link signs in a provisioned member and binds them to the tenant', async ({ page }) => {
   await page.goto('/login');
   await page.locator('#login-email').fill(PROVISIONED_MEMBER);
   await page.getByRole('button', { name: /email me a sign-in link/i }).click();
 
-  // Dev transport confirms the request without delivering.
+  // The request is confirmed on the page without exposing the link.
   await expect(page.getByText(/no email is sent/i)).toBeVisible();
 
-  // Retrieve the captured link (dev-only surface) and follow it to sign in.
-  const captured = await page.request.get(
-    `/api/dev/magic-link?email=${encodeURIComponent(PROVISIONED_MEMBER)}`,
-  );
-  expect(captured.ok()).toBe(true);
-  const body = await captured.json();
-  expect(body.ok).toBe(true);
-  const link: string = body.data.link;
+  // Recover the captured link from Mailpit (as a human would from the inbox).
+  const link = await fetchMagicLink(MAILPIT_API_URL, PROVISIONED_MEMBER);
   expect(link).toContain('magic-link/verify');
 
   await page.goto(link);

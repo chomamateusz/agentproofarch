@@ -50,12 +50,14 @@ import {
   removeMember,
   resolveIdentity,
   revokeAdmin,
+  runBackfillBatch,
   updateMember,
   type AuthenticatedUser,
 } from '#core/server/index.js';
 import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
+import { parseLimit } from './internal-app.js';
 import { captureServerException } from './observability.js';
 import { registerPublicRoutes } from './public-app.js';
 import { respond } from './respond.js';
@@ -157,16 +159,22 @@ export const buildApp = (deps: AppDeps) => {
   // above the `/api/*` tenant middleware so it answers without a session.
   app.get(API_PATHS.config, () => respond(ok({ googleEnabled: deps.googleEnabled })));
 
-  // Dev/CI ONLY (US-026 AC: no real delivery — the link is surfaced instead).
-  // Mounted exclusively when the dev mailbox is present, so this retrieval route
-  // cannot exist on a deploy that configured a real SMTP relay.
-  if (deps.devMailbox) {
-    const mailbox = deps.devMailbox;
-    app.get('/api/dev/magic-link', (c) => {
-      const email = c.req.query('email');
-      if (!email) return respond(err(validation('email query parameter is required')));
-      const link = mailbox.lastLinkFor(email);
-      return respond(link ? ok({ link }) : err(notFound(`No captured magic link for ${email}`)));
+  // C4 backfill batch endpoint for the Vercel target (§Backfills). Vercel has no
+  // private INTERNAL_PORT, so the same executor runs on the public app behind a
+  // strong shared-secret header. Mounted ONLY when the secret is configured, so a
+  // deploy without one cannot expose it; self-host runs the identical executor on
+  // the network-isolated internal app instead. Tradeoff: the self-host surface is
+  // unreachable by construction (private network), while the Vercel surface is
+  // reachable but authenticated — a cron carries the secret, an attacker does not.
+  // Placed above the `/api/*` tenant middleware: it is a system op, not tenant-scoped.
+  if (deps.backfillSecret) {
+    const secret = deps.backfillSecret;
+    app.post('/api/internal/backfills/:name', async (c) => {
+      if (c.req.header('x-internal-secret') !== secret) return respond(err(unauthorized()));
+      const result = await runBackfillBatch(c.req.param('name'), parseLimit(c.req.query('limit')), {
+        backfills: deps.backfills,
+      });
+      return respond(result.ok ? ok(result.value) : result);
     });
   }
 

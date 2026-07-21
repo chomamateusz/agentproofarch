@@ -76,13 +76,17 @@ export type TenantLookup = { tenantId: string } | { tenantSlug: string };
 export interface TenantRepository {
   findById(tenantId: string): Promise<Tenant | null>;
   findBySlug(slug: string): Promise<Tenant | null>;
-  createTenant(input: { id: string; slug: string; name: string; createdAt: string }): Promise<Tenant>;
-  createOwnerGrant(input: {
-    id: string;
-    tenantId: string;
-    userId: string;
-    staffRole: Extract<StaffRole, 'owner'>;
-  }): Promise<void>;
+  /**
+   * MUST-ATOMIC (§Transactions): the tenant row and its founding owner grant are
+   * created in ONE database round-trip (a single-statement CTE on both drivers),
+   * so a tenant can never exist without an owner. Merging the two former inserts
+   * into one port method makes the atomicity compiler-enforced — a use-case can
+   * no longer half-do it by calling the tenant insert and skipping the grant.
+   */
+  createTenantWithOwner(input: {
+    tenant: { id: string; slug: string; name: string; createdAt: string };
+    ownerGrant: { id: string; userId: string };
+  }): Promise<Tenant>;
   /** Offboarding: deletes the tenant row; every tenant-owned aggregate cascades. */
   deleteTenant(tenantId: string): Promise<void>;
 }
@@ -104,15 +108,23 @@ export interface StaffGrant {
  * The tenant-staff roster aggregate (FR-8). Every method is tenant-scoped on
  * `tenant_admins` so a grant can never be read, minted or revoked across tenants.
  * `listByTenant` joins the global account for the human-readable email/name;
- * `countOwners` backs the last-owner lockout guard; `grant` is insert-only
- * (idempotency is decided in the use-case, which checks `findGrant` first).
+ * `grant` is insert-only (idempotency is decided in the use-case, which checks
+ * `findGrant` first).
  */
 export interface StaffRepository {
   listByTenant(tenantId: string): Promise<StaffMember[]>;
   findGrant(tenantId: string, userId: string): Promise<StaffGrant | null>;
-  countOwners(tenantId: string): Promise<number>;
   grant(input: { id: string; tenantId: string; userId: string; role: StaffRole }): Promise<void>;
-  revoke(tenantId: string, userId: string): Promise<number>;
+  /**
+   * MUST-ATOMIC (§Transactions): the last-owner lockout check and the delete as
+   * ONE conditional statement. Deletes the grant UNLESS it is the tenant's last
+   * owner; the owner count is taken under a row lock so two concurrent revokes of
+   * different owners serialize and can never both pass, so the tenant can never
+   * reach zero owners. Returns the grants removed (1 = revoked, 0 = refused as the
+   * last owner, or no such grant). The count-based guard is the authoritative
+   * enforcement; a use-case `findGrant` read only shapes the error taxonomy.
+   */
+  revokeLastOwnerSafe(tenantId: string, userId: string): Promise<number>;
 }
 
 /** One global account, resolved from the auth `user` table for an FR-8 grant. */
@@ -172,9 +184,8 @@ export interface DomainPort {
 
 /**
  * One outbound email. `link` is the optional primary-action URL a transactional
- * mail carries (a magic link, a verification link); the smtp transport embeds it
- * in `text`/`html` and ignores the field, while the dev transport captures it so
- * a link can be surfaced without real delivery. Keeping the port at `sendMail`
+ * mail carries (a magic link, a verification link); a transport embeds it in
+ * `text`/`html` and otherwise ignores the field. Keeping the port at `sendMail`
  * makes the magic link ONE consumer of the seam, not the port's shape.
  */
 export interface EmailMessage {
@@ -189,21 +200,46 @@ export interface EmailPort {
   sendMail(message: EmailMessage): Promise<void>;
 }
 
-/**
- * The dev/CI email transport's capture side (US-026 AC: no real delivery — the
- * link is surfaced instead). Present in the composition ONLY when
- * `EMAIL_TRANSPORT=dev`, so the dev-only magic-link retrieval route is mounted
- * exclusively off this handle and never exists on a real deploy.
- */
-export interface DevMailbox {
-  /** The most recent captured action link for an address, or null if none. */
-  lastLinkFor(email: string): string | null;
-}
-
 export interface IdGenerator {
   nextId(): string;
 }
 
 export interface Clock {
   nowIso(): string;
+}
+
+/**
+ * One backfill's durable progress (§Backfills). `cursor` is the opaque resume
+ * token the backfill advances each batch; `processed` is the running total;
+ * `done` latches true once every row has been handled, so a re-invocation
+ * short-circuits. Persisted in `backfill_checkpoints`, one row per registry name.
+ */
+export interface BackfillCheckpoint {
+  readonly name: string;
+  readonly cursor: string | null;
+  readonly processed: number;
+  readonly done: boolean;
+}
+
+/** One batch's outcome: how many rows it handled and where the next batch resumes. */
+export interface BatchOutcome {
+  readonly processed: number;
+  readonly nextCursor: string | null;
+  readonly done: boolean;
+}
+
+/**
+ * The backfill executor's substrate (§Backfills, DECIDE C4): checkpoint
+ * persistence plus the data operations the registered backfills perform. Each
+ * data op processes AT MOST `limit` rows from `cursor` and is idempotent, so a
+ * cron-driven run can be replayed or resumed with no double effect.
+ */
+export interface BackfillPort {
+  loadCheckpoint(name: string): Promise<BackfillCheckpoint | null>;
+  saveCheckpoint(checkpoint: BackfillCheckpoint): Promise<void>;
+  /**
+   * Demo backfill: idempotently lowercases member emails one page at a time,
+   * ordered by id. Re-running over already-normalised rows is a no-op re-stamp.
+   */
+  normalizeMemberEmails(cursor: string | null, limit: number): Promise<BatchOutcome>;
 }

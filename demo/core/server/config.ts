@@ -69,26 +69,44 @@ export const serverEnvSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((value) => value === 'on'),
-  // Email transport selector (composition root), like DOMAIN_PROVISIONER. `dev`
-  // (default): no real delivery — the magic link is logged and captured for
-  // retrieval (US-026 AC). `smtp`: any RFC SMTP relay (Amazon SES SMTP creds
-  // included) via the SMTP_* block, required only when selected.
-  EMAIL_TRANSPORT: z.enum(['dev', 'smtp']).default('dev'),
+  // Email transport selector (composition root), like DOMAIN_PROVISIONER. `smtp`
+  // (default): any RFC SMTP relay via the SMTP_* block — Amazon SES SMTP creds
+  // included, and in dev/CI a local Mailpit that captures real sends instead of
+  // delivering (no separate dev transport). `ses`: Amazon SES directly over the
+  // SESv2 HTTP API via the AWS_* block. The block for the selected transport is
+  // required only when that transport is selected (fail-fast in composition);
+  // SMTP auth is optional so an open local Mailpit needs no user/pass.
+  EMAIL_TRANSPORT: z.enum(['smtp', 'ses']).default('smtp'),
   EMAIL_FROM: z.string().default('Agentproofarch <no-reply@localhost>'),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  // Defaults point at the dev Mailpit (docker-compose.dev.yml, SMTP on 47925), so
+  // a plain local boot captures magic links with no extra config; a real deploy
+  // overrides host/port/creds explicitly.
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().int().positive().default(47925),
   SMTP_SECURE: z
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  // Amazon SES direct (EMAIL_TRANSPORT=ses) — standard AWS credential env names,
+  // read only by the SES email adapter's composition. Required only when `ses`
+  // is selected; the AWS SDK vendor is contained to adapters/email by depcruise.
+  AWS_REGION: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
   // Google social sign-in (FR-26), wired only when BOTH are present — the same
   // present-both-or-dormant gating as SENTRY_DSN. Absent = the provider is off
   // and the web login page hides its button.
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   WEB_DIST_DIR: z.string().default('dist/web'),
+  // C4 backfill executor (§Backfills). On self-host the batch endpoint lives on
+  // the network-isolated INTERNAL_PORT app; on Vercel (no private port) the same
+  // batch runs behind an authenticated route on the public app, gated by this
+  // strong shared secret. Unset → the public backfill route does not mount, so a
+  // deploy without a secret cannot expose it. Min length keeps it un-guessable.
+  INTERNAL_BACKFILL_SECRET: z.string().min(24).optional(),
 });
 
 export type ServerEnvParsed = z.output<typeof serverEnvSchema>;

@@ -56,12 +56,16 @@ const fakes = (grants: GrantRow[] = [], directory: DirectoryUser[] = []) => {
       const row = store.find((entry) => entry.tenantId === tenantId && entry.userId === userId);
       return row ? { id: row.id, userId: row.userId, role: row.role } : null;
     },
-    countOwners: async (tenantId) =>
-      store.filter((row) => row.tenantId === tenantId && row.role === 'owner').length,
     grant: async (input) => {
       store.push(input);
     },
-    revoke: async (tenantId, userId) => {
+    revokeLastOwnerSafe: async (tenantId, userId) => {
+      const target = store.find((row) => row.tenantId === tenantId && row.userId === userId);
+      if (!target) return 0;
+      const owners = store.filter((row) => row.tenantId === tenantId && row.role === 'owner').length;
+      // Mirror the atomic conditional delete: an owner is refused when it is the
+      // last one; any non-owner grant is always removable.
+      if (target.role === 'owner' && owners <= 1) return 0;
       const before = store.length;
       store = store.filter((row) => !(row.tenantId === tenantId && row.userId === userId));
       return before - store.length;

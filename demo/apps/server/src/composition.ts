@@ -11,16 +11,17 @@ import {
   createTenantRepository,
   createTodoRepository,
 } from '#adapters/db/repositories.js';
+import { createBackfillRepository } from '#adapters/db/backfill-repository.js';
 import { createAuth, createAuthPort, type Auth, type GoogleSettings } from '#adapters/auth/create-auth.js';
-import { createDevEmailPort } from '#adapters/email/dev.js';
+import { createSesEmailPort } from '#adapters/email/ses.js';
 import { createSmtpEmailPort } from '#adapters/email/smtp.js';
 import { createCaddyDomainPort } from '#adapters/domain-provisioning/caddy.js';
 import { createNoopDomainPort } from '#adapters/domain-provisioning/noop.js';
 import type {
   AuthPort,
+  BackfillPort,
   CardRepository,
   Clock,
-  DevMailbox,
   DomainPort,
   EmailPort,
   HealthPort,
@@ -47,14 +48,12 @@ export interface AppDeps {
   tenantDomains: TenantDomainRepository;
   /** Domain provisioning/verification: caddy on self-host, noop elsewhere. */
   domainPort: DomainPort;
-  /** Outbound email: smtp on a configured relay, dev (capture-only) elsewhere. */
-  email: EmailPort;
   /**
-   * The dev transport's capture side (US-026): present ONLY under
-   * `EMAIL_TRANSPORT=dev`, so the dev magic-link retrieval route exists only in
-   * dev/CI and never on a real deploy. null when a real relay is configured.
+   * Outbound email: the real `smtp` relay (dev/CI point it at a local Mailpit
+   * that captures sends) or Amazon SES direct (`ses`). There is no dev transport;
+   * dev magic links are read from Mailpit's UI/API, not an in-app route.
    */
-  devMailbox: DevMailbox | null;
+  email: EmailPort;
   /** Whether Google social sign-in is wired (FR-26); surfaced to the login page. */
   googleEnabled: boolean;
   /** The public CNAME/IP a tenant points a custom domain at, surfaced by US-019. */
@@ -62,6 +61,14 @@ export interface AppDeps {
   tenants: TenantRepository;
   tenantAccess: TenantAccessReader;
   health: HealthPort;
+  /** C4 batch backfill executor substrate (§Backfills). */
+  backfills: BackfillPort;
+  /**
+   * The shared secret gating the public backfill route on Vercel (no private
+   * INTERNAL_PORT there); null → the public route does not mount. Self-host runs
+   * the same executor on the network-isolated internal app instead.
+   */
+  backfillSecret: string | null;
   ids: IdGenerator;
   clock: Clock;
   baseDomain: string;
@@ -85,26 +92,33 @@ export const selectDomainPort = (env: Env): DomainPort =>
     : createNoopDomainPort();
 
 /**
- * The SMTP relay is only fully configured when a host is set; selecting `smtp`
- * without one is a composition error (fail fast, not a silent no-delivery).
+ * Selects the outbound-email transport (composition root). `ses` (Amazon SES
+ * direct) fails fast when its AWS credential block is absent — selecting it
+ * without keys is a composition error, not a silent no-delivery. `smtp` (the
+ * default) needs only a host, which is defaulted to the dev/CI Mailpit; an open
+ * relay authenticates no one, so SMTP user/pass are optional.
  */
-export const selectEmailPort = (env: Env): EmailPort & { devMailbox: DevMailbox | null } => {
-  if (env.EMAIL_TRANSPORT === 'smtp') {
-    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
-      throw new Error('EMAIL_TRANSPORT=smtp requires SMTP_HOST, SMTP_USER and SMTP_PASS');
+export const selectEmailPort = (env: Env): EmailPort => {
+  if (env.EMAIL_TRANSPORT === 'ses') {
+    if (!env.AWS_REGION || !env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+      throw new Error('EMAIL_TRANSPORT=ses requires AWS_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY');
     }
-    const port = createSmtpEmailPort({
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
+    return createSesEmailPort({
+      region: env.AWS_REGION,
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
       from: env.EMAIL_FROM,
     });
-    return { ...port, devMailbox: null };
   }
-  const dev = createDevEmailPort();
-  return { ...dev, devMailbox: dev };
+  if (!env.SMTP_HOST) throw new Error('EMAIL_TRANSPORT=smtp requires SMTP_HOST');
+  return createSmtpEmailPort({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    ...(env.SMTP_USER === undefined ? {} : { user: env.SMTP_USER }),
+    ...(env.SMTP_PASS === undefined ? {} : { pass: env.SMTP_PASS }),
+    from: env.EMAIL_FROM,
+  });
 };
 
 /** Google is wired only when BOTH keys are present (FR-26), else it stays dormant. */
@@ -117,7 +131,7 @@ export const createDeps = (env: Env): AppDeps => {
   const db = createDb(env.DB_DRIVER, env.DATABASE_URL);
   const tenantDomains = createTenantDomainRepository(db);
   const domainPort = selectDomainPort(env);
-  const { devMailbox, ...email } = selectEmailPort(env);
+  const email = selectEmailPort(env);
   const google = selectGoogleSettings(env);
 
   const baseTrustedOrigins = [
@@ -162,7 +176,6 @@ export const createDeps = (env: Env): AppDeps => {
     tenantDomains,
     domainPort,
     email,
-    devMailbox,
     googleEnabled: google !== undefined,
     domainTarget: {
       cname: env.SELF_HOST_TARGET_CNAME ?? null,
@@ -171,6 +184,8 @@ export const createDeps = (env: Env): AppDeps => {
     tenants: createTenantRepository(db),
     tenantAccess: createTenantAccessReader(db),
     health: createHealthPort(db),
+    backfills: createBackfillRepository(db),
+    backfillSecret: env.INTERNAL_BACKFILL_SECRET ?? null,
     ids: { nextId: () => randomUUID() },
     clock: { nowIso: () => new Date().toISOString() },
     baseDomain: env.APP_BASE_DOMAIN,

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
-import { createDevEmailPort } from '#adapters/email/dev.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   looseEnvelopeSchema,
@@ -24,7 +23,7 @@ const auth = createAuth(
     rateLimitEnabled: false,
     trustedOrigins: [],
     secureCookies: false,
-    email: createDevEmailPort(),
+    email: { sendMail: async () => {} },
   },
 );
 
@@ -34,8 +33,7 @@ const acmeVersion = tenantContentVersion(acme);
 const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   auth,
   authPort: { getAuthenticatedUser: async () => null },
-  email: createDevEmailPort(),
-  devMailbox: null,
+  email: { sendMail: async () => {} },
   googleEnabled: false,
   todos: { listByTenant: async () => [], create: async () => {} },
   cards: { listByTenant: async () => [], create: async () => {}, updatePositions: async () => {} },
@@ -50,9 +48,8 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   staff: {
     listByTenant: async () => [],
     findGrant: async () => null,
-    countOwners: async () => 1,
     grant: async () => {},
-    revoke: async () => 0,
+    revokeLastOwnerSafe: async () => 0,
   },
   users: { findByEmail: async () => null },
   tenantDomains: {
@@ -74,10 +71,9 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   tenants: {
     findById: async () => null,
     findBySlug,
-    createTenant: async () => {
+    createTenantWithOwner: async () => {
       throw new Error('not implemented in fake');
     },
-    createOwnerGrant: async () => {},
     deleteTenant: async () => {},
   },
   tenantAccess: {
@@ -86,6 +82,12 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
     findMember: async () => null,
   },
   health: { pingDatabase: async () => true },
+  backfills: {
+    loadCheckpoint: async () => null,
+    saveCheckpoint: async () => {},
+    normalizeMemberEmails: async () => ({ processed: 0, nextCursor: null, done: true }),
+  },
+  backfillSecret: null,
   ids: { nextId: () => 'test-id' },
   clock: { nowIso: () => '2026-07-15T00:00:00.000Z' },
   baseDomain: 'localhost',

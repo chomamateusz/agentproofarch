@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
-import { createDevEmailPort } from '#adapters/email/dev.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   API_PATHS,
@@ -31,15 +30,14 @@ const auth = createAuth(
     rateLimitEnabled: false,
     trustedOrigins: [],
     secureCookies: false,
-    email: createDevEmailPort(),
+    email: { sendMail: async () => {} },
   },
 );
 
 const baseDeps = (): AppDeps => ({
   auth,
   authPort: { getAuthenticatedUser: async () => null },
-  email: createDevEmailPort(),
-  devMailbox: null,
+  email: { sendMail: async () => {} },
   googleEnabled: false,
   todos: {
     listByTenant: async () => [],
@@ -61,9 +59,8 @@ const baseDeps = (): AppDeps => ({
   staff: {
     listByTenant: async () => [],
     findGrant: async () => null,
-    countOwners: async () => 1,
     grant: async () => {},
-    revoke: async () => 0,
+    revokeLastOwnerSafe: async () => 0,
   },
   users: {
     findByEmail: async () => null,
@@ -87,10 +84,7 @@ const baseDeps = (): AppDeps => ({
   tenants: {
     findById: async () => null,
     findBySlug: async () => null,
-    createTenant: async () => {
-      throw new Error('not implemented in fake');
-    },
-    createOwnerGrant: async () => {
+    createTenantWithOwner: async () => {
       throw new Error('not implemented in fake');
     },
     deleteTenant: async () => {
@@ -103,6 +97,12 @@ const baseDeps = (): AppDeps => ({
     findMember: async () => null,
   },
   health: { pingDatabase: async () => true },
+  backfills: {
+    loadCheckpoint: async () => null,
+    saveCheckpoint: async () => {},
+    normalizeMemberEmails: async () => ({ processed: 0, nextCursor: null, done: true }),
+  },
+  backfillSecret: null,
   ids: { nextId: () => 'test-id' },
   clock: { nowIso: () => '2026-07-15T00:00:00.000Z' },
   baseDomain: 'localhost',
@@ -217,26 +217,44 @@ describe('buildApp routes', () => {
     expect(body).toMatchObject({ ok: true, data: { googleEnabled: true } });
   });
 
-  it('mounts the dev magic-link retrieval route only when the dev mailbox is present', async () => {
-    // With no dev mailbox the route is never registered, so the request falls
-    // through to the authenticated /api/* middleware (401), not the dev handler.
-    const withoutMailbox = baseDeps();
-    expect((await buildApp(withoutMailbox).request('/api/dev/magic-link?email=x@example.com')).status).toBe(401);
+  it('mounts the Vercel backfill route only with a secret and gates it on that secret', async () => {
+    // No secret → the route is never registered, so the request falls through to
+    // the authenticated /api/* middleware (401), not the backfill handler.
+    const withoutSecret = baseDeps();
+    const unmounted = await buildApp(withoutSecret).request(
+      '/api/internal/backfills/members-email-normalize',
+      { method: 'POST' },
+    );
+    expect(unmounted.status).toBe(401);
 
+    const secret = 'a-strong-shared-secret-value-1234';
     const deps = baseDeps();
-    deps.devMailbox = { lastLinkFor: (email) => (email === 'has@example.com' ? 'https://app/verify?token=1' : null) };
+    deps.backfillSecret = secret;
     const app = buildApp(deps);
 
-    const missing = await app.request('/api/dev/magic-link');
-    expect(missing.status).toBe(400);
+    // Missing/wrong secret header → unauthorized.
+    const forbidden = await app.request('/api/internal/backfills/members-email-normalize', {
+      method: 'POST',
+    });
+    expect(forbidden.status).toBe(401);
 
-    const notCaptured = await app.request('/api/dev/magic-link?email=none@example.com');
-    expect(notCaptured.status).toBe(404);
+    // Correct secret + a registered backfill → 200 with the batch progress.
+    const okRes = await app.request('/api/internal/backfills/members-email-normalize', {
+      method: 'POST',
+      headers: { 'x-internal-secret': secret },
+    });
+    expect(okRes.status).toBe(200);
+    const okBody = looseEnvelopeSchema.parse(await okRes.json());
+    expect(okBody.ok).toBe(true);
 
-    const found = await app.request('/api/dev/magic-link?email=has@example.com');
-    expect(found.status).toBe(200);
-    const body = looseEnvelopeSchema.parse(await found.json());
-    expect(body).toMatchObject({ ok: true, data: { link: 'https://app/verify?token=1' } });
+    // Correct secret + an unknown backfill → not_found envelope.
+    const unknown = await app.request('/api/internal/backfills/no-such-backfill', {
+      method: 'POST',
+      headers: { 'x-internal-secret': secret },
+    });
+    expect(unknown.status).toBe(404);
+    const unknownBody = looseEnvelopeSchema.parse(await unknown.json());
+    if (!unknownBody.ok) expect(unknownBody.error.code).toBe('not_found');
   });
 
   it('answers a wrong method on a known route (POST /api/me) with a not_found envelope', async () => {
@@ -457,7 +475,7 @@ describe('buildApp routes', () => {
     deps.staff = {
       ...deps.staff,
       findGrant: async () => ({ id: 'g-owner', userId: 'user-1', role: 'owner' }),
-      countOwners: async () => 1,
+      revokeLastOwnerSafe: async () => 0,
     };
     const res = await buildApp(deps).request(API_PATHS.staffRevoke, {
       method: 'POST',

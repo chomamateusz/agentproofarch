@@ -88,17 +88,21 @@ export const createTenantRepository = (db: Db): TenantRepository => ({
     const rows = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
     return rows[0] ?? null;
   },
-  createTenant: async (input) => {
-    await db.insert(tenants).values(input);
-    return { id: input.id, slug: input.slug, name: input.name };
-  },
-  createOwnerGrant: async (input) => {
-    await db.insert(tenantAdmins).values({
-      id: input.id,
-      tenantId: input.tenantId,
-      userId: input.userId,
-      role: input.staffRole,
-    });
+  // MUST-ATOMIC (§Transactions): one single-statement CTE inserts the tenant and
+  // its founding owner grant in a single database round-trip, identical on
+  // node-postgres and neon-http (no multi-statement transaction needed). A tenant
+  // therefore never exists without an owner, even under a mid-operation failure.
+  createTenantWithOwner: async (input) => {
+    await db.execute(sql`
+      WITH new_tenant AS (
+        INSERT INTO tenants (id, slug, name, created_at)
+        VALUES (${input.tenant.id}, ${input.tenant.slug}, ${input.tenant.name}, ${input.tenant.createdAt})
+        RETURNING id
+      )
+      INSERT INTO tenant_admins (id, tenant_id, user_id, role)
+      SELECT ${input.ownerGrant.id}, id, ${input.ownerGrant.userId}, 'owner' FROM new_tenant
+    `);
+    return { id: input.tenant.id, slug: input.tenant.slug, name: input.tenant.name };
   },
   // Tenant-scoped delete; admins/members/todos/cards/domains cascade via their
   // ON DELETE CASCADE tenant FKs, so no explicit child deletes are needed.

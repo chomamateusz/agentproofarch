@@ -5,7 +5,12 @@ import type { Identity, Tenant } from '#core/domain/index.js';
 import type { TenantRepository } from '../ports.js';
 import { createTenant } from './create-tenant.js';
 
-type OwnerGrant = Parameters<TenantRepository['createOwnerGrant']>[0];
+interface OwnerGrantRecord {
+  id: string;
+  tenantId: string;
+  userId: string;
+  staffRole: 'owner';
+}
 
 const identity: Identity = {
   userId: 'u1',
@@ -31,18 +36,21 @@ const memberIdentity: Identity = {
 
 const fakeTenants = (initialTenants: Tenant[] = []) => {
   const tenants = [...initialTenants];
-  const ownerGrants: OwnerGrant[] = [];
+  const ownerGrants: OwnerGrantRecord[] = [];
 
   const repo: TenantRepository = {
     findById: async (tenantId) => tenants.find((tenant) => tenant.id === tenantId) ?? null,
     findBySlug: async (slug) => tenants.find((tenant) => tenant.slug === slug) ?? null,
-    createTenant: async (input) => {
-      const tenant = { id: input.id, slug: input.slug, name: input.name };
+    createTenantWithOwner: async (input) => {
+      const tenant = { id: input.tenant.id, slug: input.tenant.slug, name: input.tenant.name };
       tenants.push(tenant);
+      ownerGrants.push({
+        id: input.ownerGrant.id,
+        tenantId: tenant.id,
+        userId: input.ownerGrant.userId,
+        staffRole: 'owner',
+      });
       return tenant;
-    },
-    createOwnerGrant: async (input) => {
-      ownerGrants.push(input);
     },
     deleteTenant: async (tenantId) => {
       const index = tenants.findIndex((tenant) => tenant.id === tenantId);

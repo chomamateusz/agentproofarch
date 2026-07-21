@@ -891,6 +891,98 @@ version → `conflict`) with the column · **REVIEW+AI**: a new aggregate's PR
 must state its concurrency stance (LWW, or version column plus the trigger
 that fired); flag long-lived multi-writer aggregates claiming LWW.
 
+**Invariant placement matrix** (DECIDE C3, owner: "nie akceptujemy żadnych
+ryzyk"). Every data invariant is placed deliberately — at the database, at the
+database *and* the app boundary, or app-only with a stated reason why the DB
+cannot express it — and each placement carries its test. The default is **push it
+to the DB**: a column constraint the database enforces cannot be bypassed by a
+raw insert, a forgotten code path, or a future adapter.
+
+| invariant | enforced where | why / test |
+|---|---|---|
+| `tenant_admins.role ∈ {owner, admin}` | **DB + app** | closed set → DB `CHECK` (`tenant_admins_role_check`, migration `0006`); the adapter also zod-parses on read (`staffMemberSchema`). Test: integration inserts a bad role via raw SQL → the DB rejects it. |
+| `tenant_domains.kind ∈ {subdomain, custom}` | **DB** | closed set → DB `CHECK` (`tenant_domains_kind_check`). Test: raw-SQL bad kind → rejected. |
+| `cards.board ∈ {personal, team}` | **DB + app** | closed set → DB `CHECK` (`cards_board_check`); the use-cases validate at their boundary. Test: raw-SQL bad board → rejected. |
+| `cards.column` legal for its `board` | **DB + app** | per-board closed set → compound DB `CHECK` (`cards_column_check`, `(board,column)` pairs); each board also validates its column at the use-case. Test: raw-SQL `personal`/`in-dev` → rejected. |
+| `members.marketing_consents[].channel ∈ MarketingChannel` | **app-only (zod at the read boundary)** | the payload is jsonb — a per-element closed set a column `CHECK` cannot express — so the guard is `memberSchema.parse` at the repository boundary, which rejects LOUDLY (throws) rather than leaking an untyped channel into core. Test: raw-SQL garbage channel → `findMember` throws. |
+| `cards` row shape (int position ≥ 0, board enum, string[] visited) | **app-only (zod at the read boundary)** | structural shape the CHECKs don't fully cover → `cardSchema.parse` on read throws on a corrupted row. Test: raw-SQL negative position → `listByTenant` throws. |
+| tenant always has ≥ 1 owner | **app (one atomic conditional statement)** | a cross-row cardinality invariant Postgres cannot express as a column constraint → the atomic last-owner-safe revoke (§Transactions, `revokeLastOwnerSafe`); the owner count is taken under a row lock so concurrent revokes serialize. Test: an integration test fires two concurrent revokes and asserts the tenant never reaches zero owners. |
+| every tenant-scoped row cascades from `tenants(id)` | **DB (FK `ON DELETE CASCADE`)** | see §Data lifecycle (tenant offboarding is a schema invariant). Test: the offboarding-cascade integration test. |
+
+— **TYPE**: closed unions surface in the domain zod schemas; the DB `CHECK`s are
+the substrate mirror · **LINT**: n/a · **TEST**: as tabulated — a raw-SQL
+corrupted-row probe per invariant, asserting the DB or the zod boundary rejects it
+· **REVIEW+AI**: a new closed-set column ships with its `CHECK` in the same
+migration (grandfather nothing silently — a plain, immediately-validated `CHECK`
+proves existing rows conform or the migration fails); an app-only invariant states
+why the DB cannot hold it.
+
+**Constraint-adding migrations on production are preceded by a Neon snapshot**
+(NORMATIVE NOW). A migration that adds a `CHECK`, `NOT NULL`, unique or FK
+constraint validates every existing row at `ALTER` time and **fails the deploy if
+any row violates** — that is the guarantee ("grandfather nothing silently"), but on
+production it means the deploy can abort mid-migration. Before shipping such a
+migration to staging/production, take a Neon branch-from-timestamp restore point
+(the same instant-restore mechanism as preview branching, §Data lifecycle
+Backups), so a violating row that only surfaces against real data is a one-command
+rollback, not an incident. Previews (ephemeral branches) and self-host (own backup
+cadence) need no extra step. — **REVIEW+AI**: a constraint-adding migration's PR
+notes the snapshot/PITR point taken before promotion.
+
+## Transactions
+
+Owner ruling (DECIDE C1, 2026-07-20): a multi-row write that must not be
+observable half-done is **100% unacceptable in a transient state** — "musimy się
+zastanowić jak to wymusić". This section is how it is enforced, not merely
+advised.
+
+**Per-target guarantee matrix.** The two drivers (§Layers, `DB_DRIVER`) do not
+offer the same transaction primitive, so an idiom that is atomic on one and torn
+on the other is a trap:
+
+| idiom | `node-postgres` (self-host/dev) | `neon-http` (Vercel) |
+|---|---|---|
+| single-statement CTE / one `execute` | atomic (one statement is always its own transaction) | **atomic** (one HTTP request = one implicit transaction) |
+| `db.batch([...])` (array of statements) | atomic (wrapped in one `BEGIN/COMMIT`) | **atomic** (Neon runs the array in one HTTP request/transaction) |
+| interactive `db.transaction(async tx => …)` | atomic (real `BEGIN/COMMIT` on one pooled connection) | **NOT atomic** — the HTTP driver is stateless; each `tx` query is a separate request with no shared transaction, so a mid-sequence failure leaves earlier writes committed |
+
+**Sanctioned idioms (both drivers).** A MUST-ATOMIC operation uses one of:
+
+1. a **single-statement CTE** (`WITH … INSERT … ; INSERT … SELECT FROM …`) issued
+   as one `db.execute` — the universal idiom, atomic everywhere, no driver branch.
+   This is how `createTenantWithOwner` inserts the tenant and its founding owner
+   grant in one round-trip.
+2. **`db.batch([...])`** when the writes cannot be expressed as one statement — one
+   HTTP request/transaction on `neon-http`, one `BEGIN/COMMIT` on `node-postgres`.
+
+Interactive `db.transaction()` is **forbidden for any MUST-ATOMIC operation**
+because it silently degrades to non-atomic on `neon-http`. It may be used only for
+self-host-only maintenance paths that never run on Vercel, and such a path must
+say so.
+
+**MUST-ATOMIC list.** These operations must never be observable half-done and are
+therefore each implemented as ONE port method (so the compiler, not review,
+prevents a caller from half-doing it) backed by a sanctioned idiom:
+
+<!-- MUST-ATOMIC:begin -->
+- `TenantRepository.createTenantWithOwner` — the tenant row and its founding
+  owner grant; a tenant with no owner is unadministrable. Single-statement CTE.
+- `StaffRepository.revokeLastOwnerSafe` — the last-owner lockout check and the
+  grant delete, as one conditional `DELETE … WHERE … AND (owner count > 1)`, so
+  two concurrent revokes can never both pass the count and drop the tenant to
+  zero owners (§Data conventions, invariant matrix). Single conditional statement.
+<!-- MUST-ATOMIC:end -->
+
+— **TYPE**: each MUST-ATOMIC operation is a single port method whose signature
+takes the whole unit of work, so a use-case cannot call one half and skip the
+other · **LINT**: n/a · **TEST**: an adapter test counts driver round-trips
+(exactly one `execute`) for the CTE operations, and an integration test fires two
+concurrent writers at the race-prone ones and asserts the invariant holds ·
+**REVIEW+AI**: reject a MUST-ATOMIC operation split across two port calls, and
+reject `db.transaction()` on any code path that can run on `neon-http`. A
+config-regression probe parses this list and asserts every entry names a single
+port method.
+
 ## Public surface
 
 Products on this foundation ship no public marketing pages — creators bring
@@ -1002,14 +1094,16 @@ code.
   depcruise `auth-provider-sdk-only-in-adapters-auth`).
 - `EmailPort` (server): `sendMail({ to, subject, text, html?, link? })` — the one
   outbound-mail seam (US-026). `link` is the optional primary-action URL a
-  transactional mail carries; the smtp transport embeds it, the dev transport
-  captures it. Two adapters in `adapters/email/`, selected by `EMAIL_TRANSPORT`
-  like `DOMAIN_PROVISIONER`: `smtp` (any RFC relay, Amazon SES SMTP creds
-  included) and `dev` (default: no delivery — logs + captures the link for the
-  CLI/tests). `DevMailbox` is the dev transport's capture side; the dev-only
-  `/api/dev/magic-link` retrieval route mounts exclusively when it is present.
-  The magic-link sender in `create-auth.ts` is one consumer of `sendMail`, not
-  the port's shape.
+  transactional mail carries; a transport embeds it in the body and otherwise
+  ignores the field. Two adapters in `adapters/email/`, selected by
+  `EMAIL_TRANSPORT` like `DOMAIN_PROVISIONER`: `smtp` (default — any RFC relay,
+  Amazon SES SMTP creds included) and `ses` (Amazon SES direct over the SESv2 HTTP
+  API, standard AWS_* credentials). There is **no dev transport**: dev/e2e/CI run
+  the real `smtp` adapter pointed at a local **Mailpit** (docker-compose.dev.yml)
+  that captures real sends instead of delivering — the magic-link smoke/e2e phases
+  read the message back over Mailpit's HTTP API to recover the link, so there is
+  no in-app dev route to keep off production. The magic-link sender in
+  `create-auth.ts` is one consumer of `sendMail`, not the port's shape.
 - `TodoRepository`, `CardRepository`, `TenantDomainRepository`,
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
@@ -1110,12 +1204,22 @@ decision).
   link is the only sender and its handler is idempotent (each token mints one
   session).
 - Adapters as built (`adapters/email/`, selected by `EMAIL_TRANSPORT` in the
-  composition root, the `DOMAIN_PROVISIONER` pattern): `smtp` — any RFC SMTP relay
-  via nodemailer, **Amazon SES SMTP creds work unchanged** (owner default: "niech
-  sobie ktoś to podmieni" — swap the relay behind the port); `dev` (default) — no
-  delivery, logs + captures the link (its `DevMailbox` side backs the dev-only
-  `/api/dev/magic-link` route and the tests). The originally-sketched Resend/
-  `console` split was superseded by SMTP-as-universal-default
+  composition root, the `DOMAIN_PROVISIONER` pattern): `smtp` (default) — any RFC
+  SMTP relay via nodemailer, **Amazon SES SMTP creds work unchanged** (owner
+  default: "niech sobie ktoś to podmieni" — swap the relay behind the port); `ses`
+  — Amazon SES **direct** over the SESv2 HTTP API (`@aws-sdk/client-sesv2`,
+  standard `AWS_REGION`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`), for teams
+  that would rather hand SES an access key than open an SMTP port. **There is no
+  dev transport.** Dev/e2e/CI run the real `smtp` adapter against a local
+  **Mailpit** (docker-compose.dev.yml + the smoke/e2e CI services) that captures
+  real sends like a self-hosted MailTrap; the magic-link smoke/e2e phases recover
+  the link over Mailpit's HTTP API (`/api/v1/messages`, `/api/v1/message/{id}`) and
+  follow it, so no in-app retrieval route ships. Composition **fails fast** when
+  `ses` is selected without its AWS block (an open local Mailpit needs no SMTP
+  auth, so `smtp` requires only a host). Every email-vendor SDK (nodemailer and
+  `@aws-sdk/*`) is contained to `adapters/email` by depcruise
+  (`smtp-sdk-only-in-adapters-email`). The originally-sketched Resend/`console`
+  split was superseded by SMTP-as-universal-default
   ([ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)).
 - **Trigger** (already fired): US-026 magic link. The auth adapter's magic-link
   sender delegates to `EmailPort` so there is one transport and one from-address
@@ -1207,7 +1311,12 @@ slice; it is a Vercel-target concern and does not affect self-host.
 ## Environments (Vercel target)
 
 Four environments, mapped onto Vercel's native model
-([ADR-0003](decisions/0003-vercel-environments.md)):
+([ADR-0003](decisions/0003-vercel-environments.md)). The operating hygiene for
+running these safely under agents — secrets only in the platform store, no
+production access on agent machines, the human-only production-branch promotion
+gate, fail-closed review, and SHA attestation — is in the README's *Operating
+hygiene for agent-driven repos* section (recommendations for the platform owner;
+the enforced rules below are this section's):
 
 | Env | Git | Database | Host |
 |---|---|---|---|
@@ -1224,7 +1333,12 @@ Rules:
   names only.
 - **Migrations run at build time** against that environment's own database
   (previews migrate their ephemeral branch — always safe; staging/prod are
-  forward-only: destructive changes ship as two deploys, expand → contract).
+  forward-only: destructive changes ship as two deploys, expand → contract). The
+  drizzle migration sequence is mechanically gated (DECIDE F2): `npm run doc-lint`
+  runs `lintMigrations`, which fails the build on a duplicate, gapped or
+  non-`<NNNN>` prefix or a `meta/_journal.json` that does not match the `.sql`
+  files on disk — a config-regression probe plants a duplicate to prove the gate
+  still fires.
 - **Promotion is the PR flow**: feature branch → preview → `staging` →
   `main`. Same commit, only env vars differ.
 - **Tenant subdomains need the custom wildcard domain**; until one is
@@ -1453,16 +1567,24 @@ own delivery model is the reliability backbone (verified 2026-07, see
 backoff for up to 3 days in live mode, duplicates/concurrent/out-of-order
 delivery expected by contract. The handler pattern is therefore: verify
 signature → insert into a processed-events table (unique on event id; dedupe
-also on object id + event type) → do the work transactionally → 2xx only on
-success, so a failure re-arms Stripe's retry. Fulfillment is webhook-driven,
+also on object id + event type) → do the work atomically with that insert via a
+sanctioned §Transactions idiom (single-statement/batch, not an interactive
+transaction on `neon-http`) → 2xx only on success, so a failure re-arms Stripe's
+retry. Fulfillment is webhook-driven,
 never success-page-driven (Stripe mandates this). At low volume this
 synchronous pattern needs **no queue at all**.
 
 Deferred work (email sequences, aggregations) is a first-class module whose
 invariants hold on both targets:
 
-- **State**: a queue/outbox table in the Postgres we already have — enqueue is
-  transactional with the domain write. No new stateful infrastructure.
+- **State**: a queue/outbox table in the Postgres we already have. Enqueue is
+  atomic with the domain write **via a sanctioned §Transactions idiom** — the
+  domain row and the outbox row are written in one single-statement CTE (or one
+  `db.batch`), never an interactive `db.transaction()`, which is non-atomic on
+  `neon-http`. That is the implementable form of "transactional enqueue" on both
+  targets; if a write genuinely cannot be expressed as one statement or batch, it
+  is a self-host-only executor path (`node-postgres`) and says so. No new stateful
+  infrastructure.
 - **API**: `JobsPort` (enqueue/schedule) in `core/server`; job handlers are
   ordinary core use-cases, tested like any other.
 - **Executor** is the only per-target difference (same pattern as

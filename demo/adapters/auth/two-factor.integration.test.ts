@@ -6,7 +6,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { createAuth, type Auth } from '#adapters/auth/create-auth.js';
-import { createDevEmailPort } from '#adapters/email/dev.js';
 import * as schema from '#adapters/db/schema.js';
 
 const ITEST_DB = 'agentproofarch_twofactor_itest';
@@ -73,7 +72,7 @@ beforeAll(async () => {
     trustedOrigins: [BASE_URL],
     secureCookies: false,
     rateLimitEnabled: false,
-    email: createDevEmailPort(() => {}),
+    email: { sendMail: async () => {} },
   });
 });
 
