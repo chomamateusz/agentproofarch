@@ -47,6 +47,10 @@ beforeAll(async () => {
   }
 
   appPool = new pg.Pool({ connectionString: itestUrl });
+  // Same hazard as repositories.integration.test.ts: afterAll's FORCE drop can
+  // race the pool's socket teardown and a 57P01-terminated client would crash
+  // the run via an unhandled 'error' event.
+  appPool.on('error', () => {});
   const db = drizzleNodePg(appPool, { schema });
   await db
     .insert(tenants)
