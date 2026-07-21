@@ -73,9 +73,14 @@ export const seedEnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().default(DEV_ONLY_SECRET),
 });
 
-/** Observability subset: OTLP endpoints (presence gates the tracer) + service name. */
+/**
+ * Observability subset. All optional — absent = no-op (dev/CI untouched):
+ * an OTLP endpoint gates the tracer provider; `SENTRY_DSN` gates the Sentry
+ * error sink. Each vendor is wired only when its key is present.
+ */
 export const observabilityEnvSchema = z.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().optional(),
   OTEL_SERVICE_NAME: z.string().default('agentproofarch-server'),
+  SENTRY_DSN: z.string().optional(),
 });

@@ -1285,16 +1285,25 @@ composition root). The practice is **wide events**: one context-rich event per
 request per service hop — annotate the active span as context accrues, emit
 once; never step-log. The design is one W3C trace id spanning SPA → API → DB:
 the seam for it lives in `core/client`'s `request()` and Hono middleware
-continues an incoming one. What is wired today is narrower — the web app
-installs only the Sentry browser SDK, no OTel browser provider, so
-`request()`'s `traceparent` injection reads the no-op facade and the SPA does
-not yet originate a trace id; there is no DB-hop instrumentation; and the
-tail-sampling policy is documented, not implemented (the actual wiring choice is
-DECIDE, see observability.md). Sentry is the default sink (errors + traces);
-columnar stores (Axiom / self-hosted ClickHouse) are the named upgrade for
-event analytics. The intended tail sampling keeps all errors and slow requests
-and samples the happy path. Full policy:
-[observability.md](observability.md).
+continues an incoming one. What is wired today is narrower. **Errors** flow to
+Sentry on both targets through single seams: the server installs the **Sentry
+Node SDK** in `apps/server/src/observability.ts` (env-gated on `SENTRY_DSN`;
+absent = a clean no-op, dev/CI untouched) as a **pure error sink** — captured at
+exactly one place, `captureServerException` at `app.onError`, with no global
+process hooks and no auto-instrumentation (`skipOpenTelemetrySetup`, tracing
+stays OTel's) — and the web app installs the Sentry browser SDK. Like `@vercel`
+and `@neondatabase`, the Sentry SDK is **contained**: `@sentry/node` lives only
+in the server's composition-root sink module, `@sentry/react` only in the web's,
+never in `core/**` or features (an error sink is config, not a port — port
+theater). **Tracing** is narrower still: server OTLP export is optional and
+env-gated; there is no OTel browser provider, so `request()`'s `traceparent`
+injection reads the no-op facade and the SPA does not yet originate a trace id;
+there is no DB-hop instrumentation; and the tail-sampling policy is documented,
+not implemented (the actual wiring choice is DECIDE, see observability.md).
+Sentry is the default sink (errors now; traces via OTLP); columnar stores
+(Axiom / self-hosted ClickHouse) are the named upgrade for event analytics. The
+intended tail sampling keeps all errors and slow requests and samples the happy
+path. Full policy: [observability.md](observability.md).
 
 ## Foundation evolution (consuming the foundation)
 
