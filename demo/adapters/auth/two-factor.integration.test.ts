@@ -121,6 +121,10 @@ describe('TOTP 2FA against the real Better Auth stack (US-028a)', () => {
       [email],
     );
     expect(String(secretRow.rows[0]?.secret ?? '').length).toBeGreaterThan(0);
+
+    const gated = await call('/api/auth/sign-in/email', { email, password });
+    expect(gated.status).toBe(200);
+    expect(gated.json).toMatchObject({ twoFactorRedirect: true });
   });
 
   it('rejects a wrong TOTP code', async () => {
