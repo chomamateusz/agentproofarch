@@ -67,6 +67,7 @@ const happyApi: ApiClient = {
   health: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
   healthLive: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha' }),
   healthReady: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
+  config: async () => ok({ googleEnabled: false }),
   me: async () => ok({ userId: 'u1', email: 'demo@example.com', name: 'Demo', tenant: null }),
   listTenants: async () => ok({ tenants: [{ tenant, staffRole: 'owner' }] }),
   createTenant: async (input) => ok({ tenant: { id: 't-new', slug: input.slug, name: input.name } }),
@@ -107,6 +108,7 @@ const sadApi: ApiClient = {
   me: async () => err({ code: 'unauthorized', message: 'Login required' }),
   listTenants: async () => err(internal('boom')),
   createTenant: async () => err({ code: 'conflict', message: 'Already exists' }),
+  config: async () => err(internal('boom')),
   listTodos: async () => err(internal('boom')),
   addTodo: async () => err(internal('boom')),
   listCards: async () => err(internal('boom')),
@@ -221,6 +223,11 @@ const fakeAuth = (): AuthClientPort => ({
   signUp: async () => ok({ token: 'signed-up' }),
   signIn: async () => ok({ token: 'signed-in' }),
   signOut: async () => ok(undefined),
+  requestMagicLink: async () => ok(undefined),
+  signInSocial: async () => ok({ url: 'https://accounts.google.example/authorize' }),
+  enableTwoFactor: async () => ok({ totpURI: 'otpauth://totp/demo', backupCodes: ['aaaa-bbbb'] }),
+  verifyTotp: async () => ok(undefined),
+  disableTwoFactor: async () => ok(undefined),
 });
 
 describe('auth mutation descriptors', () => {

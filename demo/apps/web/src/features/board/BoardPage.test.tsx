@@ -96,6 +96,36 @@ describe('BoardPage', () => {
     const doing = screen.getByRole('region', { name: 'doing' });
     expect(await within(doing).findByText('Alpha')).toBeInTheDocument();
   });
+
+  it('refuses to move a card while its create is still in flight, then allows it', async () => {
+    let releaseCreate: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const cards: ServerCard[] = [];
+    server.use(
+      http.get('/api/cards', () => HttpResponse.json({ ok: true, data: { cards } })),
+      http.post('/api/cards', async ({ request }) => {
+        const body = addBodySchema.parse(await request.json());
+        await gate;
+        const created = makeCard('s-slow', body.title, body.column, 0);
+        cards.push(created);
+        return HttpResponse.json({ ok: true, data: { card: created } });
+      }),
+    );
+
+    await renderBoard();
+
+    const todo = await screen.findByRole('region', { name: 'todo' });
+    await userEvent.type(within(todo).getByLabelText('New card in todo'), 'Fresh');
+    await userEvent.click(within(todo).getByRole('button', { name: 'add' }));
+
+    const saving = await screen.findByRole('button', { name: 'Move Fresh right (saving)' });
+    expect(saving).toBeDisabled();
+
+    releaseCreate();
+    expect(await screen.findByRole('button', { name: 'Move Fresh right' })).toBeEnabled();
+  });
 });
 
 const errorBackend = (code: string, status: number) =>

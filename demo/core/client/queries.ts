@@ -20,7 +20,7 @@ import type {
 } from '#core/contract/index.js';
 import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
-import type { AuthClientPort } from './auth-port.js';
+import type { AuthClientPort, MagicLinkRequest, SocialSignInInput } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
 
 /**
@@ -122,6 +122,16 @@ export const domainsScopes = {
 export const authScopes = {
   all: () => ['auth'] as const,
 };
+
+export const configScopes = {
+  all: () => ['config'] as const,
+};
+
+export const configQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: configScopes.all(),
+    call: ({ signal }) => api.config(signal),
+  });
 
 export const meQuery = (api: ApiClient) =>
   defineQuery({
@@ -260,4 +270,34 @@ export const signOutMutation = (auth: AuthClientPort): MutationDescriptor<void, 
   defineMutation({
     mutationKey: [...authScopes.all(), 'sign-out'],
     call: () => auth.signOut(),
+  });
+
+export const requestMagicLinkMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'magic-link'],
+    call: (input: MagicLinkRequest) => auth.requestMagicLink(input),
+  });
+
+export const signInSocialMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'social'],
+    call: (input: SocialSignInInput) => auth.signInSocial(input),
+  });
+
+export const enableTwoFactorMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'two-factor', 'enable'],
+    call: (input: { password: string }) => auth.enableTwoFactor(input),
+  });
+
+export const verifyTotpMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'two-factor', 'verify'],
+    call: (input: { code: string }) => auth.verifyTotp(input),
+  });
+
+export const disableTwoFactorMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'two-factor', 'disable'],
+    call: (input: { password: string }) => auth.disableTwoFactor(input),
   });

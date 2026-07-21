@@ -62,6 +62,21 @@ module.exports = {
       to: { path: 'node_modules/(hono|react|react-dom|drizzle-orm|better-auth|pg|commander)(/|$)' },
     },
     {
+      name: 'auth-provider-sdk-only-in-adapters-auth',
+      severity: 'error',
+      comment:
+        'US-028a grep-proof: the auth provider SDK — better-auth, its plugins (magic-link, two-factor), the client plugins, and any @better-auth/* package — is imported ONLY in adapters/auth, so no provider name leaks into core, apps or other adapters.',
+      from: { pathNot: '^adapters/auth' },
+      to: { path: 'node_modules/(better-auth|@better-auth)(/|$)' },
+    },
+    {
+      name: 'smtp-sdk-only-in-adapters-email',
+      severity: 'error',
+      comment: 'The SMTP client (nodemailer) lives only behind the EmailPort in adapters/email.',
+      from: { pathNot: '^adapters/email' },
+      to: { path: 'node_modules/nodemailer(/|$)' },
+    },
+    {
       name: 'core-domain-only-zod',
       severity: 'error',
       comment:

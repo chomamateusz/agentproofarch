@@ -86,6 +86,12 @@ const memberExportSchema = z.object({
 });
 const memberRemoveSchema = z.object({ memberId: z.string(), deleted: z.object({ members: z.number() }) });
 
+const meSchema = z.object({
+  email: z.string(),
+  tenant: z.object({ slug: z.string(), memberId: z.string().nullable() }).nullable(),
+});
+const magicLinkFollowSchema = z.object({ signedIn: z.literal(true), email: z.string() });
+
 const staffItemSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -677,6 +683,46 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     !afterRemove.members.some((m) => m.id === ensured.member.id),
     'the removed member is still present in the roster',
   );
+
+  // --- magic link + member binding (US-026): provision a member, sign them in
+  // via a passwordless magic link (dev transport captures it — no delivery), and
+  // prove the provisioned (null userId) member row is claimed on first sign-in.
+  // Self-cleaning: the provisioned member is removed before finishing; the magic
+  // sign-in creates one account (unique email) as the only residue.
+  const magicEmail = `smoke-magic-${randomUUID()}@example.com`;
+  const magicHome = mkdtempSync(join(tmpdir(), 'smoke-magic-'));
+  homes.push(magicHome);
+
+  const provisioned = memberEnsureSchema.parse(
+    expectOk(await cli(memberArgs('ensure', magicEmail, '--name', 'Magic Smoke'), authedHome), 'magic member ensure'),
+  );
+  assert(
+    provisioned.created && provisioned.member.email === magicEmail,
+    `magic member was not provisioned: ${JSON.stringify(provisioned)}`,
+  );
+
+  const followed = magicLinkFollowSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, 'login-link', '--email', magicEmail, '--follow'], magicHome),
+      'magic link request + follow',
+    ),
+  );
+  assert(followed.email === magicEmail, `magic link signed in the wrong email: ${followed.email}`);
+
+  const magicMe = meSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'whoami'], magicHome),
+      'magic whoami',
+    ),
+  );
+  assert(
+    magicMe.email === magicEmail &&
+      magicMe.tenant?.slug === target.tenant &&
+      magicMe.tenant?.memberId === provisioned.member.id,
+    `magic-link sign-in did not bind the provisioned member: ${JSON.stringify(magicMe)}`,
+  );
+
+  expectOk(await cli(memberArgs('remove', provisioned.member.id), authedHome), 'magic member cleanup');
 
   // --- staff (FR-8): owner grants a second REGISTERED user admin, then revokes ---
   // Self-cleaning: the grant is revoked before the run ends, so tenant_admins is

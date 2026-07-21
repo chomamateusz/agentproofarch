@@ -117,6 +117,39 @@ describe('TeamBoardPage', () => {
 
     expect(await within(todo).findByText('Fresh')).toBeInTheDocument();
   });
+
+  it('refuses to move a card while its create is still in flight, then allows it', async () => {
+    // The overlay card carries a client-generated id until the create settles;
+    // a move fired in that window 404s server-side and rolls back. The seam
+    // must hold the move closed for exactly that window.
+    let releaseCreate: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const cards: ServerCard[] = [];
+    server.use(
+      http.get('/api/cards', () => HttpResponse.json({ ok: true, data: { cards } })),
+      http.post('/api/cards', async ({ request }) => {
+        const body = addBodySchema.parse(await request.json());
+        await gate;
+        const created = makeCard('s-slow', body.title, body.column, [body.column]);
+        cards.push(created);
+        return HttpResponse.json({ ok: true, data: { card: created } });
+      }),
+    );
+
+    await renderBoard();
+
+    const todo = await screen.findByRole('region', { name: 'todo' });
+    await userEvent.type(within(todo).getByLabelText('New card in todo'), 'Fresh');
+    await userEvent.click(within(todo).getByRole('button', { name: 'add' }));
+
+    const saving = await screen.findByRole('button', { name: 'Move Fresh to in-dev (saving)' });
+    expect(saving).toBeDisabled();
+
+    releaseCreate();
+    expect(await screen.findByRole('button', { name: 'Move Fresh to in-dev' })).toBeEnabled();
+  });
 });
 
 const errorBackend = (code: string, status: number) =>

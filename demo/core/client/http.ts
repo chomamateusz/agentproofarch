@@ -2,6 +2,7 @@ import { type z } from 'zod';
 
 import {
   API_ROUTES,
+  authConfigOutputSchema,
   cardCreateOutputSchema,
   cardMoveOutputSchema,
   cardsListOutputSchema,
@@ -138,6 +139,8 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.healthLive.method, API_ROUTES.healthLive.path, healthLiveOutputSchema, undefined, signal),
   healthReady: (signal?: AbortSignal) =>
     request(options, API_ROUTES.healthReady.method, API_ROUTES.healthReady.path, healthReadyOutputSchema, undefined, signal),
+  config: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.config.method, API_ROUTES.config.path, authConfigOutputSchema, undefined, signal),
   me: (signal?: AbortSignal) =>
     request(options, API_ROUTES.me.method, API_ROUTES.me.path, meOutputSchema, undefined, signal),
   listTenants: (signal?: AbortSignal) =>

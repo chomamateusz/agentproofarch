@@ -314,6 +314,14 @@ store's persist middleware and `localStorage`/`sessionStorage` in islands
 ban · **REVIEW+AI**: detect a server response's *shape* copied into a store
 — semantics, beyond any regex.
 
+**Optimism holds one intent per entity.** An overlay card whose op has not
+settled carries an identity (client-generated id) and a position the server has
+not confirmed — a second intent fired in that window targets an id the server
+may not know (404) or a stale column (rule rejection), then rolls back. The
+seam therefore refuses further intents on a pending entity: its action buttons
+render disabled with `(saving)` in the accessible name until the op settles
+(both boards; behavioral tests in each page's test file pin the closed window).
+
 **Intent-named events.** Events name what the user did, never what should
 happen: `deleteConfirmed`, not `deleteOrder`. Each island's events are a
 closed union in one file, names ending in a fixed past-tense/intent suffix
@@ -986,7 +994,22 @@ client port in `core/client`). It is the *built* set — keep it in sync with th
 code.
 
 - `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
-- `AuthClientPort` (client): sign-up/in/out. Better Auth client.
+- `AuthClientPort` (client): sign-up/in/out **plus the provider auth methods**
+  (US-026/US-028a) — `requestMagicLink`, `signInSocial`, and TOTP 2FA
+  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`). Better Auth client
+  (magic-link + two-factor client plugins). Every method is the EXCLUSIVE
+  surface for its flow: no client names a provider route or SDK (grep-proof,
+  depcruise `auth-provider-sdk-only-in-adapters-auth`).
+- `EmailPort` (server): `sendMail({ to, subject, text, html?, link? })` — the one
+  outbound-mail seam (US-026). `link` is the optional primary-action URL a
+  transactional mail carries; the smtp transport embeds it, the dev transport
+  captures it. Two adapters in `adapters/email/`, selected by `EMAIL_TRANSPORT`
+  like `DOMAIN_PROVISIONER`: `smtp` (any RFC relay, Amazon SES SMTP creds
+  included) and `dev` (default: no delivery — logs + captures the link for the
+  CLI/tests). `DevMailbox` is the dev transport's capture side; the dev-only
+  `/api/dev/magic-link` retrieval route mounts exclusively when it is present.
+  The magic-link sender in `create-auth.ts` is one consumer of `sendMail`, not
+  the port's shape.
 - `TodoRepository`, `CardRepository`, `TenantDomainRepository`,
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
@@ -1020,22 +1043,28 @@ code.
   **deferred to the A1 custom-domains slice** — a Vercel-target concern; self-host
   needs no such adapter.
 
-**NORMATIVE WHEN TRIGGERED — not yet built** (US-014):
-
-- Magic-link sign-in: a Better Auth client capability `AuthClientPort` would
-  expose when a passwordless flow is pulled in. The shipped port has
-  sign-up/in/out only — no magic-link code exists in the tree yet.
+**BUILT** (US-026/US-028a, A1 sub-package 4): the provider auth methods that were
+"normative when triggered" are now wired — this package was the trigger.
+Magic-link sign-in (`AuthClientPort.requestMagicLink`, the Better Auth magic-link
+plugin behind `EmailPort`), social sign-in (Google via `signInSocial`, wired only
+when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are both present — the login page
+reads a public `/api/config` flag to show its button), and TOTP 2FA (the Better
+Auth two-factor plugin). Passkeys (`@better-auth/passkey`) are the one remaining
+US-028a method **deferred**: the package pins a `better-call` whose optional
+`zod@^4` peer conflicts with this tree's pinned `zod@^3`, so wiring it needs a
+zod-4 migration first (documented, not faked).
 
 Add a port only when a second implementation or a platform difference actually
 exists.
 
-## Storage and email ports (deferred)
+## Storage and email ports
 
 Two capabilities every product eventually needs — persisting binary objects and
-sending mail — that no current use-case requires. The foundation fixes the port
-shape, the per-target adapters and the tenant-scoping rules; the demo adds each
-port only when a feature pulls its trigger (the JobsPort precedent: pattern
-normative, demo implements on first need). Both live in `core/server`, are
+sending mail. `EmailPort` is now **built** (US-026 pulled its trigger — magic
+link); `StoragePort` stays **deferred** until a feature persists a caller-supplied
+binary. The foundation fixes the port shape, the per-target adapters and the
+tenant-scoping rules; the demo adds each port only when a feature pulls its
+trigger (the JobsPort precedent: pattern normative, demo implements on first need). Both live in `core/server`, are
 instantiated only in the composition root, and are called only from use-cases —
 never from routes, never from adapters. Ports return plain `Promise`; the
 use-case wraps the result in `Result<T, AppError>`, matching the existing
@@ -1062,29 +1091,36 @@ repository ports.
   binary — avatar, product/download asset, or a GDPR-export file that outlives one
   request. In-request bytes streamed straight to a response do not trigger it.
 
-**EmailPort** — transactional mail.
+**EmailPort** — transactional mail. **BUILT** (US-026, A1 sub-package 4; see
+[ADR-0007](decisions/0007-email-port-and-magic-link-transport.md) for the shape
+decision).
 
-- Shape: `send({ to, subject, html, text })`. No `tenantId`: the foundation sends
-  from one verified domain; per-tenant branded senders are a when-triggered
-  extension.
-- **Sent only from use-cases** (NORMATIVE, convention + review — no lint rule): a
-  route parses input and invokes a use-case; the use-case decides to mail, keeping
-  send decisions inside the `Result` discipline.
+- Shape as built: `sendMail({ to, subject, text, html?, link? })`. No `tenantId`:
+  the foundation sends from one verified domain (`EMAIL_FROM`); per-tenant branded
+  senders are a when-triggered extension. `link` is the optional primary-action
+  URL — a general transactional-mail concept — so the magic link is ONE consumer
+  of the seam, not the port's shape.
+- **Sent only from use-cases or the auth adapter's sender** (NORMATIVE): a route
+  parses input and invokes a use-case; the use-case (or, for auth mail, the
+  `create-auth.ts` magic-link callback) decides to mail. No route or non-auth
+  adapter calls it.
 - **Reliability via the outbox, not inline retries** (NORMATIVE once the outbox
   exists): when `JobsPort` lands (§Background jobs and webhooks) a use-case
-  enqueues the send transactionally with its domain write. Until then a use-case
-  may call `EmailPort.send` directly, but the handler must be safe to re-run — the
-  same idempotency contract as the webhook inbox.
-- Adapters: Resend on both targets (HTTP delivery suits serverless and self-host
-  equally; AWS SES is the named volume escape-hatch via `EMAIL_DRIVER`); a
-  `console` adapter in dev (magic links stay copy-pasteable) and a capturing
-  adapter in tests.
-- **Trigger** (WHEN TRIGGERED): the first **non-auth** transactional email from a
-  use-case (order receipt, member invite, export-ready notice). Better Auth's own
-  magic-link/verification mail is the auth adapter's concern, wired in
-  `create-auth.ts` (console in dev, Resend in prod), and does not by itself
-  introduce `EmailPort`; when `EmailPort` lands, the auth adapter's sender should
-  delegate to it so there is one transport and one from-address policy.
+  enqueues the send transactionally with its domain write. Until then the magic
+  link is the only sender and its handler is idempotent (each token mints one
+  session).
+- Adapters as built (`adapters/email/`, selected by `EMAIL_TRANSPORT` in the
+  composition root, the `DOMAIN_PROVISIONER` pattern): `smtp` — any RFC SMTP relay
+  via nodemailer, **Amazon SES SMTP creds work unchanged** (owner default: "niech
+  sobie ktoś to podmieni" — swap the relay behind the port); `dev` (default) — no
+  delivery, logs + captures the link (its `DevMailbox` side backs the dev-only
+  `/api/dev/magic-link` route and the tests). The originally-sketched Resend/
+  `console` split was superseded by SMTP-as-universal-default
+  ([ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)).
+- **Trigger** (already fired): US-026 magic link. The auth adapter's magic-link
+  sender delegates to `EmailPort` so there is one transport and one from-address
+  policy — exactly as the roadmap called for. Future non-auth transactional mail
+  (order receipt, export-ready notice) reuses the same port from a use-case.
 
 **OUT OF SCOPE:** email content/templates, sequences, marketing sends, per-tenant
 sender identity, image processing/thumbnailing, virus scanning, CDN cache policy —

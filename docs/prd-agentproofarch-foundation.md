@@ -53,11 +53,17 @@ the body disagree, this block wins.
   consensus of 2026-07-20 overturned that rejection and is the record; the
   round-1 rejection was factually wrong.)
 - **Built `AuthClientPort` surface — no `getSession` (§3.5, ~line 197).** The
-  shipped `AuthClientPort` has `signUp`/`signIn`/`signOut` only. It deliberately
-  has **no `getSession`**: current session state is read over HTTP via
-  `/api/me`, not through the client port. The further methods §3.5 lists (magic
-  link, social sign-in, passkeys, 2FA) remain product-required roadmap —
-  normative when triggered, not part of the built port.
+  shipped `AuthClientPort` deliberately has **no `getSession`**: current session
+  state is read over HTTP via `/api/me`, not through the client port. Its further
+  methods §3.5 lists are now **built** (US-026/US-028a, A1 sub-package 4 — this
+  package was the trigger): `requestMagicLink`, `signInSocial` (Google, gated on
+  `GOOGLE_CLIENT_*`), and TOTP 2FA (`enableTwoFactor`/`verifyTotp`/
+  `disableTwoFactor`). `EmailPort` (deferred in §3.5) is built alongside as the
+  magic-link transport (SMTP default / dev-capture; see
+  [ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)). Passkeys
+  are the one method still deferred — `@better-auth/passkey` pins a `better-call`
+  whose optional `zod@^4` peer conflicts with the tree's pinned `zod@^3`, so it
+  needs a zod-4 migration first (seam documented, not faked).
 - **`Identity` shape includes `tenantSlug`/`tenantName` (§3.4, ~line 167).** The
   declared shape lists six fields and omits the tenant display fields the shipped
   type carries. `core/domain/identity.ts` (and the `/api/me` response) is

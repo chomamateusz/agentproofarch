@@ -1,9 +1,16 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
+import { magicLink } from 'better-auth/plugins/magic-link';
+import { twoFactor } from 'better-auth/plugins/two-factor';
 
-import type { AuthPort } from '#core/server/index.js';
+import type { AuthPort, EmailPort } from '#core/server/index.js';
 import type { Db } from '#adapters/db/client.js';
+
+export interface GoogleSettings {
+  clientId: string;
+  clientSecret: string;
+}
 
 export interface AuthSettings {
   secret: string;
@@ -15,9 +22,15 @@ export interface AuthSettings {
   secureCookies: boolean;
   /** Off only in test harnesses (e2e drives many sign-ins from one bucket). */
   rateLimitEnabled: boolean;
+  /** Delivers the magic link; the dev transport captures it instead of sending. */
+  email: EmailPort;
+  /** Wired only when both env keys are present (FR-26), like SENTRY_DSN gating. */
+  google?: GoogleSettings;
 }
 
 export const BETTER_AUTH_API_PATH_PATTERN = '/api/auth/*';
+
+const magicLinkSubject = 'Your Agentproofarch sign-in link';
 
 export const createAuth = (db: Db, settings: AuthSettings) =>
   betterAuth({
@@ -26,10 +39,26 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     baseURL: settings.baseUrl,
     trustedOrigins: settings.trustedOrigins,
     emailAndPassword: { enabled: true },
+    ...(settings.google
+      ? { socialProviders: { google: { clientId: settings.google.clientId, clientSecret: settings.google.clientSecret } } }
+      : {}),
     // In-memory counters reset with every serverless isolate, so the limiter
     // stores its windows in the database we already have (no Redis needed).
     rateLimit: { enabled: settings.rateLimitEnabled, storage: 'database' },
-    plugins: [bearer()],
+    plugins: [
+      bearer(),
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          await settings.email.sendMail({
+            to: email,
+            subject: magicLinkSubject,
+            text: `Sign in to Agentproofarch:\n\n${url}\n\nThis link signs you in and expires shortly.`,
+            link: url,
+          });
+        },
+      }),
+      twoFactor(),
+    ],
     advanced: {
       useSecureCookies: settings.secureCookies,
       // Browsers reject Domain=.localhost cookies, so sessions are per-subdomain

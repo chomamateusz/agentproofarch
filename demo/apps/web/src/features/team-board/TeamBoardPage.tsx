@@ -154,14 +154,20 @@ const MoveButton = ({
   const verdict: MoveVerdict = teamBoardSelectors.verdict(board, card.id, toColumn);
   const blocked = !verdict.allowed;
   const reason = verdict.allowed ? undefined : verdict.rule;
+  // A pending card's id/column are not yet server-confirmed: a move fired now
+  // targets an id the server may not know (404) or a stale column (rule
+  // rejection), then rolls back. The seam refuses moves until the op settles.
+  const saving = !blocked && card.pending;
   const label = blocked
     ? `Move ${card.title} to ${toColumn} (blocked: ${reason})`
-    : `Move ${card.title} to ${toColumn}`;
+    : saving
+      ? `Move ${card.title} to ${toColumn} (saving)`
+      : `Move ${card.title} to ${toColumn}`;
   const button = (
     <Button
       size="small"
       aria-label={label}
-      disabled={blocked}
+      disabled={blocked || saving}
       onClick={() =>
         send({
           type: 'cardMoveRequested',
