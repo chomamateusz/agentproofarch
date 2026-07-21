@@ -20,7 +20,11 @@ import {
   meQuery,
   meScopes,
   moveCardMutation,
+  passkeysQuery,
+  registerPasskeyMutation,
+  removePasskeyMutation,
   signInMutation,
+  signInPasskeyMutation,
   signOutMutation,
   signUpMutation,
   tenantsQuery,
@@ -228,6 +232,10 @@ const fakeAuth = (): AuthClientPort => ({
   enableTwoFactor: async () => ok({ totpURI: 'otpauth://totp/demo', backupCodes: ['aaaa-bbbb'] }),
   verifyTotp: async () => ok(undefined),
   disableTwoFactor: async () => ok(undefined),
+  registerPasskey: async () => ok(undefined),
+  listPasskeys: async () => ok([{ id: 'pk-1', name: 'Laptop', createdAt: '2026-07-03T00:00:00.000Z' }]),
+  removePasskey: async () => ok(undefined),
+  signInPasskey: async () => ok({ token: null }),
 });
 
 describe('auth mutation descriptors', () => {
@@ -260,5 +268,35 @@ describe('auth mutation descriptors', () => {
     await expect(
       new MutationObserver(client, signInMutation(auth)).mutate({ email: 'demo@example.com', password: 'wrong' }),
     ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('passkey descriptors', () => {
+  it('read the roster through a query and wrap register/remove/sign-in as commands', async () => {
+    const client = newClient();
+    const auth = fakeAuth();
+
+    await expect(client.fetchQuery(passkeysQuery(auth))).resolves.toEqual([
+      { id: 'pk-1', name: 'Laptop', createdAt: '2026-07-03T00:00:00.000Z' },
+    ]);
+    await expect(
+      new MutationObserver(client, registerPasskeyMutation(auth)).mutate({ name: 'Laptop' }),
+    ).resolves.toBeUndefined();
+    await expect(
+      new MutationObserver(client, removePasskeyMutation(auth)).mutate({ id: 'pk-1' }),
+    ).resolves.toBeUndefined();
+    await expect(
+      new MutationObserver(client, signInPasskeyMutation(auth)).mutate(),
+    ).resolves.toEqual({ token: null });
+  });
+
+  it('propagate a passkey list failure as ApiError', async () => {
+    const client = newClient();
+    const auth: AuthClientPort = {
+      ...fakeAuth(),
+      listPasskeys: async () => err(internal('boom')),
+    };
+
+    await expect(client.fetchQuery(passkeysQuery(auth))).rejects.toBeInstanceOf(ApiError);
   });
 });

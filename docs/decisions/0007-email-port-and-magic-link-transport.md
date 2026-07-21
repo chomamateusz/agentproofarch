@@ -79,10 +79,14 @@ Two forces reshaped that sketch:
 - Better Auth's magic-link plugin's `sendMagicLink` callback delegates to
   `EmailPort.sendMail` — one transport, one from-address policy, as the roadmap
   called for. Social (Google) and TOTP 2FA plugins ride the same auth adapter.
-- Passkeys (`@better-auth/passkey`) are deferred: the package pins a
-  `better-call` whose optional `zod@^4` peer conflicts with this tree's pinned
-  `zod@^3`. Wiring passkeys requires a zod-4 migration first; the seam is not
-  faked.
+- Passkeys (`@better-auth/passkey`) are **built** (US-028a): the package pinned a
+  `better-call` whose optional `zod@^4` peer conflicted with this tree's former
+  `zod@^3`, so the migration to `zod@^4` was the named unblock — landed first with
+  all gates green, then the plugin was wired. The server plugin adds a `passkey`
+  table (migration `0008_passkey`) scoped by `rpID = APP_BASE_DOMAIN` (one
+  credential spans every tenant subdomain); the register/list/remove/sign-in
+  surface is exposed only through `AuthClientPort` (settings PasskeySection + a
+  login sign-in-with-passkey button), never a provider route in a client.
 - The originally-sketched Resend/`console` split is superseded. Future non-auth
   transactional mail (order receipt, export-ready notice) reuses `sendMail` from
   a use-case; per-tenant branded senders remain a when-triggered extension.

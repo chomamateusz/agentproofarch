@@ -46,6 +46,7 @@ enterprise customer questionnaire)
 - Product analytics + consent — trigger: first growth instrumentation ask.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
+- Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
 - Billing/entitlements; search; load testing; IaC — trigger: the respective
   product need.
 - Foundation upgrade contract (R2-29): release manifest, tagged revisions,

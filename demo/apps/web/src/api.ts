@@ -21,8 +21,13 @@ import {
   meInvalidates,
   membersQuery,
   meQuery,
+  passkeysInvalidates,
+  passkeysQuery,
+  registerPasskeyMutation,
   removeDomainMutation,
+  removePasskeyMutation,
   requestMagicLinkMutation,
+  signInPasskeyMutation,
   tenantsInvalidates,
   revokeStaffMutation,
   signInMutation,
@@ -90,6 +95,11 @@ export const actions = {
   enableTwoFactor: enableTwoFactorMutation(authClient),
   verifyTotp: verifyTotpMutation(authClient),
   disableTwoFactor: disableTwoFactorMutation(authClient),
+  passkeys: passkeysQuery(authClient),
+  passkeysInvalidates,
+  registerPasskey: registerPasskeyMutation(authClient),
+  removePasskey: removePasskeyMutation(authClient),
+  signInPasskey: signInPasskeyMutation(authClient),
 };
 
 /**
