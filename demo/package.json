@@ -68,7 +68,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "xstate": "^5.32.5",
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
