@@ -61,6 +61,43 @@ describe('createApiClient', () => {
     });
   });
 
+  it('ensureMember posts the input and parses the created flag', async () => {
+    const member = {
+      id: 'm1',
+      tenantId: 'acme',
+      userId: null,
+      email: 'a@b.com',
+      displayName: null,
+      tags: [],
+      marketingConsents: [],
+      externalCustomerIds: [],
+      createdAt: '2026-07-10T00:00:00.000Z',
+      lastSeenAt: null,
+    };
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(input).toBe('/api/members');
+      expect(init).toMatchObject({ method: 'POST' });
+      return jsonResponse({ ok: true, data: { member, created: true } });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+    await expect(client.ensureMember({ email: 'a@b.com' })).resolves.toEqual({
+      ok: true,
+      value: { member, created: true },
+    });
+  });
+
+  it('exportMember reads the member id from the query string', async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      expect(input).toBe('/api/members/export?id=m1');
+      return jsonResponse({ ok: false, error: { code: 'not_found', message: 'gone' } }, 404);
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+    await expect(client.exportMember('m1')).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'not_found' },
+    });
+  });
+
   it('maps a network failure to an internal error naming the path', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new TypeError('connection refused');

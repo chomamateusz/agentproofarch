@@ -5,10 +5,20 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Identity } from '#core/domain/index.js';
-import { addCard, listCards, moveCard } from '#core/server/index.js';
+import {
+  addCard,
+  ensureMember,
+  exportMember,
+  listCards,
+  listMembers,
+  moveCard,
+  removeMember,
+  updateMember,
+} from '#core/server/index.js';
 
 import type { Db } from './client.js';
 import { createCardRepository } from './cards-repository.js';
+import { createMemberRepository } from './members-repository.js';
 import {
   createHealthPort,
   createTenantAccessReader,
@@ -498,6 +508,84 @@ describe('team board rules against Postgres', () => {
     expect(personal.ok && personal.value.every((c) => c.board === 'personal')).toBe(true);
     const team = await listCards(ctx, { board: 'team' }, teamDeps());
     expect(team.ok && team.value.every((c) => c.board === 'team')).toBe(true);
+  });
+});
+
+// The members aggregate through the real repository + use-cases. Runs BEFORE the
+// offboarding cascade (which deletes tenant A) and only ever touches members it
+// creates itself, so the seeded rows the cascade suite counts stay intact.
+describe('MemberRepository + member use-cases', () => {
+  const memberRepo = () => createMemberRepository(db);
+  const staffCtx = (tenantId: string): { identity: Identity } => ({
+    identity: {
+      userId: `staff-of-${tenantId}`,
+      email: 'staff@example.com',
+      name: 'Staff',
+      tenantId,
+      tenantSlug: 'x',
+      tenantName: 'X',
+      staffRole: 'owner',
+      memberId: null,
+    },
+  });
+  const memberDeps = () => ({
+    members: memberRepo(),
+    ids: { nextId: () => `itest-member-${Math.random().toString(36).slice(2)}` },
+    clock: { nowIso: () => '2026-03-01T00:00:00.000Z' },
+  });
+
+  it('cross-tenant isolation: a tenant sees only its own members (F5)', async () => {
+    const deps = memberDeps();
+    const inB = await ensureMember(
+      staffCtx(tenantB.id),
+      { email: 'isolation@example.com', tags: ['beta-only'] },
+      deps,
+    );
+    expect(inB.ok).toBe(true);
+    const bMemberId = inB.ok ? inB.value.member.id : '';
+
+    const listedA = await listMembers(staffCtx(tenantA.id), deps);
+    expect(listedA.ok && listedA.value.some((m) => m.id === bMemberId)).toBe(false);
+
+    // A staff member of A cannot read (or export) B's member by id — tenant-scoped.
+    expect(await memberRepo().findByTenantAndId(tenantA.id, bMemberId)).toBeNull();
+    const exportAcrossTenant = await exportMember(staffCtx(tenantA.id), { id: bMemberId }, deps);
+    expect(exportAcrossTenant).toMatchObject({ ok: false, error: { code: 'not_found' } });
+  });
+
+  it('ensureMember is idempotent by (tenant, email)', async () => {
+    const deps = memberDeps();
+    const first = await ensureMember(staffCtx(tenantA.id), { email: 'idem@example.com' }, deps);
+    const second = await ensureMember(staffCtx(tenantA.id), { email: 'idem@example.com' }, deps);
+    expect(first.ok && first.value.created).toBe(true);
+    expect(second.ok && second.value.created).toBe(false);
+    expect(first.ok && second.ok && first.value.member.id === second.value.member.id).toBe(true);
+  });
+
+  it('same email in two tenants keeps independent profiles; removing one leaves the other + account (US-025)', async () => {
+    const deps = memberDeps();
+    const sharedEmail = 'dual@example.com';
+    const inA = await ensureMember(staffCtx(tenantA.id), { email: sharedEmail, tags: ['alpha-vip'] }, deps);
+    const inB = await ensureMember(staffCtx(tenantB.id), { email: sharedEmail, tags: ['beta-basic'] }, deps);
+    expect(inA.ok && inB.ok).toBe(true);
+    const aId = inA.ok ? inA.value.member.id : '';
+    const bId = inB.ok ? inB.value.member.id : '';
+    expect(aId).not.toBe(bId);
+
+    // Independent profiles: an update in A must not touch B's tags.
+    await updateMember(staffCtx(tenantA.id), { id: aId, tags: ['alpha-vip', 'renewed'] }, deps);
+    const bBefore = await memberRepo().findByEmail(tenantB.id, sharedEmail);
+    expect(bBefore?.tags).toEqual(['beta-basic']);
+
+    // Removing A's member deletes exactly A's row and reports the cascade count.
+    const removed = await removeMember(staffCtx(tenantA.id), { id: aId }, deps);
+    expect(removed).toMatchObject({ ok: true, value: { memberId: aId, deleted: { members: 1 } } });
+    expect(await memberRepo().findByTenantAndId(tenantA.id, aId)).toBeNull();
+
+    // B's member (its own row and the shared global account it points at) survives.
+    const bAfter = await memberRepo().findByEmail(tenantB.id, sharedEmail);
+    expect(bAfter?.id).toBe(bId);
+    expect(bAfter?.tags).toEqual(['beta-basic']);
   });
 });
 

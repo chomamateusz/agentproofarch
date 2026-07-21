@@ -8,6 +8,7 @@ import {
   healthOutputSchema,
   healthReadyOutputSchema,
   looseEnvelopeSchema,
+  memberListOutputSchema,
   TENANT_HEADER,
 } from '#core/contract/index.js';
 import type { AuthenticatedUser } from '#core/server/index.js';
@@ -41,6 +42,14 @@ const baseDeps = (): AppDeps => ({
     listByTenant: async () => [],
     create: async () => {},
     updatePositions: async () => {},
+  },
+  members: {
+    listByTenant: async () => [],
+    findByEmail: async () => null,
+    findByTenantAndId: async () => null,
+    create: async () => {},
+    update: async () => {},
+    deleteByTenantAndId: async () => 0,
   },
   tenantDomains: {
     findByDomain: async () => null,
@@ -244,5 +253,75 @@ describe('buildApp routes', () => {
     const body = looseEnvelopeSchema.parse(await res.json());
     expect(body.ok).toBe(false);
     if (!body.ok) expect(body.error.code).toBe('unavailable');
+  });
+
+  const acme = { id: 't-acme', slug: 'acme', name: 'Acme Inc' };
+  const asStaff = (): AppDeps => {
+    const deps = baseDeps();
+    deps.authPort = { getAuthenticatedUser: async () => user };
+    deps.tenants = { ...deps.tenants, findBySlug: async () => acme };
+    deps.tenantAccess = {
+      ...deps.tenantAccess,
+      findStaffGrant: async () => ({ tenant: acme, staffRole: 'owner' }),
+    };
+    return deps;
+  };
+
+  it('serves the members list to resolved staff (member:read)', async () => {
+    const deps = asStaff();
+    deps.members = {
+      ...deps.members,
+      listByTenant: async () => [
+        {
+          id: 'm-1',
+          tenantId: 't-acme',
+          userId: null,
+          email: 'alice@example.com',
+          displayName: 'Alice',
+          tags: [],
+          marketingConsents: [],
+          externalCustomerIds: [],
+          createdAt: '2026-07-10T00:00:00.000Z',
+          lastSeenAt: null,
+        },
+      ],
+    };
+    const res = await buildApp(deps).request(API_PATHS.members, {
+      headers: { [TENANT_HEADER]: 'acme' },
+    });
+
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(true);
+    if (body.ok) expect(memberListOutputSchema.parse(body.data).members).toHaveLength(1);
+  });
+
+  it('forbids an end-customer member from reading the roster (staff-only capability)', async () => {
+    const deps = baseDeps();
+    deps.authPort = { getAuthenticatedUser: async () => user };
+    deps.tenants = { ...deps.tenants, findBySlug: async () => acme };
+    deps.tenantAccess = {
+      ...deps.tenantAccess,
+      findMember: async () => ({
+        id: 'm-1',
+        tenantId: 't-acme',
+        userId: 'user-1',
+        email: 'demo@agentproofarch.dev',
+        displayName: null,
+        tags: [],
+        marketingConsents: [],
+        externalCustomerIds: [],
+        createdAt: '2026-07-10T00:00:00.000Z',
+        lastSeenAt: null,
+      }),
+    };
+    const res = await buildApp(deps).request(API_PATHS.members, {
+      headers: { [TENANT_HEADER]: 'acme' },
+    });
+
+    expect(res.status).toBe(403);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(false);
+    if (!body.ok) expect(body.error.code).toBe('forbidden');
   });
 });

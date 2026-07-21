@@ -235,6 +235,11 @@ const TenantLedger = ({
           <Link href="/team-board" variant="body2">
             team board →
           </Link>
+          {tenant.staffRole ? (
+            <Link href="/members" variant="body2">
+              members →
+            </Link>
+          ) : null}
         </LedgerNav>
 
         <Box component="section" sx={{ mt: '48px', animation: 'settle 0.5s 0.16s ease-out both' }}>

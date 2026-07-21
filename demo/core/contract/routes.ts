@@ -4,8 +4,13 @@ import {
   cardListQuerySchema,
   cardMoveSchema,
   cardSchema,
+  memberExportSchema,
+  memberRefSchema,
+  memberSchema,
+  memberUpdateSchema,
   membershipSchema,
   newCardSchema,
+  newMemberSchema,
   newTodoSchema,
   slugSchema,
   staffRoleSchema,
@@ -121,6 +126,41 @@ export const cardMoveOutputSchema = z.object({
   card: cardSchema,
 });
 
+export const memberListOutputSchema = z.object({
+  members: z.array(memberSchema),
+});
+
+export const memberEnsureInputSchema = newMemberSchema;
+
+export type MemberEnsureInput = z.input<typeof memberEnsureInputSchema>;
+
+export const memberEnsureOutputSchema = z.object({
+  member: memberSchema,
+  created: z.boolean(),
+});
+
+export const memberUpdateInputSchema = memberUpdateSchema;
+
+export type MemberUpdateInput = z.input<typeof memberUpdateInputSchema>;
+
+export const memberUpdateOutputSchema = z.object({
+  member: memberSchema,
+});
+
+export const memberRemoveInputSchema = memberRefSchema;
+
+export type MemberRemoveInput = z.input<typeof memberRemoveInputSchema>;
+
+export const memberRemoveOutputSchema = z.object({
+  memberId: z.string(),
+  deleted: z.object({ members: z.number().int() }),
+});
+
+/** The export id travels as a `?id=` query param (a read, so a GET, not a body). */
+export const memberExportQuerySchema = memberRefSchema;
+
+export const memberExportOutputSchema = memberExportSchema;
+
 /**
  * Every route carries its HTTP method so clients can discriminate reads from
  * writes at the type level (CQRS partition). Safe GETs are queries; unsafe
@@ -138,6 +178,11 @@ export const API_ROUTES = {
   cards: { method: 'GET', path: '/api/cards' },
   cardsCreate: { method: 'POST', path: '/api/cards' },
   cardsMove: { method: 'POST', path: '/api/cards/move' },
+  members: { method: 'GET', path: '/api/members' },
+  membersEnsure: { method: 'POST', path: '/api/members' },
+  membersUpdate: { method: 'POST', path: '/api/members/update' },
+  membersRemove: { method: 'POST', path: '/api/members/remove' },
+  membersExport: { method: 'GET', path: '/api/members/export' },
 } as const;
 
 export type HttpMethod = (typeof API_ROUTES)[keyof typeof API_ROUTES]['method'];
@@ -153,6 +198,10 @@ export const API_PATHS = {
   todos: API_ROUTES.todos.path,
   cards: API_ROUTES.cards.path,
   cardsMove: API_ROUTES.cardsMove.path,
+  members: API_ROUTES.members.path,
+  membersUpdate: API_ROUTES.membersUpdate.path,
+  membersRemove: API_ROUTES.membersRemove.path,
+  membersExport: API_ROUTES.membersExport.path,
 } as const;
 
 /** Header used by non-browser clients (CLI, tests) to select the tenant. */

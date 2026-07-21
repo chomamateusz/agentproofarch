@@ -30,6 +30,16 @@ export const tenantAdmins = pgTable(
   ],
 );
 
+// The end-customer aggregate. `members` predates the §Data conventions ruling
+// and is on its GRANDFATHER list (text id + text ISO `created_at`), so — unlike
+// a brand-new table — it stays text/text and is NOT migrated to uuid/timestamptz
+// (converting a grandfathered table is a separate expand→contract package "the
+// day a query needs index-backed time semantics"). The columns added for the
+// full aggregate join that same grandfathered convention on purpose: a single
+// table must not mix a text `created_at` with a timestamptz `last_seen_at`. New
+// SIBLING aggregates keyed by `member_id` (progress, orders) are the ones that
+// adopt uuid/timestamptz. `user_id` is nullable: `ensureMember` provisions a
+// member row before any auth account exists (the passwordless binding is US-026).
 export const members = pgTable(
   'members',
   {
@@ -37,15 +47,24 @@ export const members = pgTable(
     tenantId: text('tenant_id')
       .notNull()
       .references(() => tenants.id, { onDelete: 'cascade' }),
-    userId: text('user_id').notNull(),
+    userId: text('user_id'),
     email: text('email').notNull(),
     displayName: text('display_name'),
+    tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    marketingConsents: jsonb('marketing_consents')
+      .$type<{ channel: string; granted: boolean; updatedAt: string }[]>()
+      .notNull()
+      .default([]),
+    externalCustomerIds: jsonb('external_customer_ids').$type<string[]>().notNull().default([]),
     createdAt: text('created_at').notNull(),
+    lastSeenAt: text('last_seen_at'),
   },
   (table) => [
     index('members_tenantId_idx').on(table.tenantId),
     index('members_userId_idx').on(table.userId),
     uniqueIndex('members_tenant_user_uidx').on(table.tenantId, table.userId),
+    // The idempotency key for `ensureMember` (find-or-create by tenant+email).
+    uniqueIndex('members_tenant_email_uidx').on(table.tenantId, table.email),
   ],
 );
 

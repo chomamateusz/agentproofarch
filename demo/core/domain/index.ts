@@ -7,3 +7,4 @@ export * from './todo.js';
 export * from './card.js';
 export * from './team-board.js';
 export * from './tenant.js';
+export * from './member.js';

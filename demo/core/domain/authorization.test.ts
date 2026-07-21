@@ -58,6 +58,10 @@ const EXPECTED: Record<Capability, Record<Principal, boolean>> = {
   'todo:write': { staff: true, member: true, visitor: false },
   'card:read': { staff: true, member: true, visitor: false },
   'card:write': { staff: true, member: true, visitor: false },
+  'member:read': { staff: true, member: false, visitor: false },
+  'member:write': { staff: true, member: false, visitor: false },
+  'member:remove': { staff: true, member: false, visitor: false },
+  'member:export': { staff: true, member: false, visitor: false },
   'tenant:create': { staff: true, member: false, visitor: true },
 };
 
