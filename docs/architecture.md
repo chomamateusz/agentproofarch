@@ -1344,6 +1344,31 @@ integration surface. Both are fully automatic and fully agent-reachable. Local
 (`*.localhost`) is the machine loop; every *deployed* non-production environment
 is a preview or the staging alias.
 
+**Tenant addressing per environment.** Tenants live on subdomains of the app's
+base domain — but what "base domain" means differs per environment, and the code
+handles each honestly:
+
+- **Local dev**: full subdomain tenancy on `*.localhost`
+  (`acme.localhost:47100`). One caveat browsers impose: `Domain=.localhost`
+  cookies are rejected, so a session does NOT span sibling subdomains in dev —
+  login is per-subdomain. This is a browser rule, not a bug; the e2e harness
+  works within it.
+- **Vercel's shared apex (`<project>.vercel.app`)**: tenant subdomains are
+  **impossible by construction** — `acme.<project>.vercel.app` is not a
+  subdomain of your project; sibling names under `vercel.app` belong to OTHER
+  Vercel projects. `tenantUrl()` therefore returns `null` on this apex and the
+  web app runs single-tenant per deployment URL (tenant switching via the CLI's
+  `--tenant`); linking "sibling subdomains" here would send users to strangers'
+  deployments.
+- **A real base domain with a wildcard** (`*.example.com` attached to the
+  project): full subdomain tenancy returns, and one session spans sibling
+  subdomains (the cookie domain is the real base). This is the production
+  shape; ADR-0003 and the domains feature (tenant_domains + provisioner ports)
+  are built for it.
+- **Self-host**: Caddy's on-demand TLS serves any custom tenant domain that
+  passes the internal domain check (§Docker self-host) — subdomain and
+  custom-domain tenancy both work.
+
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):
 
@@ -1364,10 +1389,12 @@ foundation):
   login spans both, but a pause, suspension or plan-limit hit on one team does not
   take the other down — separate blast radius per plan, by construction.
 - **Secrets live only in Vercel's env store**, scoped per environment (staging
-  = branch-scoped Preview vars on Hobby); local dev pulls them with
-  `vercel env pull`. Nothing secret in the repo — `.env.example` documents
-  names only. **All production env vars are marked Sensitive** (write-only in the
-  dashboard/CLI; control 3 of 5).
+  = branch-scoped Preview vars on Hobby). Local dev never pulls them: agent
+  machines hold no platform-CLI sessions (control 2 of 5 — `vercel env pull` is
+  both logged out and hook-blocked), and local development runs entirely on
+  non-secret local values (`.env.example` documents every name; the dev
+  database is local Docker). Nothing secret in the repo. **All production env
+  vars are marked Sensitive** (write-only in the dashboard/CLI; control 3 of 5).
 - **Migrations run at build time** against that environment's own database
   (previews migrate their ephemeral branch — always safe; staging/prod are
   forward-only: destructive changes ship as two deploys, expand → contract). The
