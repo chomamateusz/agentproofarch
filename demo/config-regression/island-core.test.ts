@@ -82,6 +82,18 @@ const fixtures = {
     rel: join(coreDir, 'store-react-probe.ts'),
     content: "import { useSelector } from '@xstate/store/react';\nexport const probe = useSelector;\n",
   },
+  // Portability: an island core must not import api.ts (the web composition).
+  // `../../../api.js` from features/<token>/core/ resolves to apps/web/src/api.ts.
+  apiInCore: {
+    rel: join(coreDir, 'api-probe.ts'),
+    content: "import { actions } from '../../../api.js';\nexport const probe = actions;\n",
+  },
+  // Portability: an island core must not reach a SIBLING feature either. Any
+  // parent-relative escape from core/ is banned.
+  siblingInCore: {
+    rel: join(coreDir, 'sibling-probe.ts'),
+    content: "import { thing } from '../../board/core/index.js';\nexport const probe = thing;\n",
+  },
   // Positive probe: BOTH store libraries are importable INSIDE an island core.
   storeInCoreAllowed: {
     rel: join(coreDir, 'machine-probe.ts'),
@@ -191,6 +203,14 @@ describe('island-core lint gate rejects violations on future core files', () => 
     expect(has('storeReactBindingInCore', 'no-restricted-imports', '@xstate/store/react')).toBe(
       true,
     );
+  });
+
+  it('bans importing api.ts from an island core (portable, DOM-free by construction)', () => {
+    expect(has('apiInCore', 'no-restricted-imports', 'portable and DOM-free')).toBe(true);
+  });
+
+  it('bans a parent-relative escape to a sibling feature from an island core', () => {
+    expect(has('siblingInCore', 'no-restricted-imports', 'portable and DOM-free')).toBe(true);
   });
 
   it('permits @xstate/store and xstate inside an island core (the machine behind the seam)', () => {

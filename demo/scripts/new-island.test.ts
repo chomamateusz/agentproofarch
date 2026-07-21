@@ -45,6 +45,7 @@ describe('generateIsland', () => {
       'apps/web/src/features/personal-board/core/selectors.ts',
       'apps/web/src/features/personal-board/core/index.ts',
       'apps/web/src/features/personal-board/core/personal-board.test.ts',
+      'apps/web/src/features/personal-board/index.web.ts',
       'apps/web/src/features/personal-board/PersonalBoardPage.tsx',
       'apps/web/src/routes/personal-board.tsx',
     ]);
@@ -70,12 +71,23 @@ describe('generateIsland', () => {
 
     expect(contentsOf(files, 'core/events.ts')).toContain('export type TeamBoardEvent');
     expect(contentsOf(files, 'core/events.ts')).toContain("type: 'refreshRequested'");
-    expect(contentsOf(files, 'core/selectors.ts')).toContain('export const teamBoardSelectors');
-    expect(contentsOf(files, 'core/index.ts')).toContain('export const send');
+    // The core is a portable FACTORY — no api.ts — and selectors.ts is a pure
+    // descriptor builder injected by the web composition.
+    expect(contentsOf(files, 'core/selectors.ts')).toContain('export const teamBoardSelectorsOf');
+    expect(contentsOf(files, 'core/selectors.ts')).not.toContain('api.js');
+    expect(contentsOf(files, 'core/index.ts')).toContain('export const createTeamBoardCore');
     expect(contentsOf(files, 'core/index.ts')).toContain('teamBoardSelectors');
-    // The view talks only to the core seam, never api.ts directly.
+    expect(contentsOf(files, 'core/index.ts')).not.toContain('api.js');
+    // The web composition (index.web.ts) is the ONE site that binds the core to
+    // api.ts; it exposes the send/selectors seam the view consumes.
+    const webBinding = contentsOf(files, 'index.web.ts');
+    expect(webBinding).toContain("from '../../api.js'");
+    expect(webBinding).toContain('createTeamBoardCore');
+    expect(webBinding).toContain('export const send');
+    expect(webBinding).toContain('actions.teamBoard');
+    // The view talks only to the island seam (index.web.ts), never api.ts directly.
     const page = contentsOf(files, 'TeamBoardPage.tsx');
-    expect(page).toContain("from './core/index.js'");
+    expect(page).toContain("from './index.web.js'");
     expect(page).toContain("send({ type: 'refreshRequested' })");
     expect(page).not.toContain('api.js');
   });
@@ -90,6 +102,9 @@ describe('generateIsland', () => {
     expect(checklist).toContain('npm run check` will stay RED');
     expect(checklist).toContain('apps/web/src/api.ts');
     expect(checklist).toContain('apps/web/src/main.tsx');
+    // The generated web composition is named as the one binding site.
+    expect(checklist).toContain('index.web.ts');
+    expect(checklist).toContain('WEB COMPOSITION');
     expect(checklist).toContain('rung 2 = island store');
     expect(checklist).toContain('RESOLVED (ADR-0005)');
     expect(checklist).toContain('--machine=store');
@@ -111,6 +126,7 @@ describe('generateIsland', () => {
       'apps/web/src/features/kanban-board/core/store.ts',
       'apps/web/src/features/kanban-board/core/index.ts',
       'apps/web/src/features/kanban-board/core/kanban-board.test.ts',
+      'apps/web/src/features/kanban-board/index.web.ts',
       'apps/web/src/features/kanban-board/KanbanBoardPage.tsx',
       'apps/web/src/routes/kanban-board.tsx',
     ]);
@@ -148,13 +164,26 @@ describe('generateIsland', () => {
     // Events mirror the store handlers; the move carries what an overlay needs.
     expect(contentsOf(result.files, 'core/events.ts')).toContain("type: 'itemAddRequested'");
     expect(contentsOf(result.files, 'core/events.ts')).toContain('listSize: number');
-    // index forwards send to the store and merges its selectors over the cache.
+    // The core factory forwards send to the store and merges its selectors over
+    // the cache; it imports NO api.ts (portable).
     const index = contentsOf(result.files, 'core/index.ts');
     expect(index).toContain('createKanbanBoardStore');
     expect(index).toContain('store.send(event)');
     expect(index).toContain('kanbanBoardItemsOf');
-    expect(index).toContain('export const subscribe');
-    // The store test drives the store with a fake gateway and merges the overlay.
+    expect(index).toContain('export const createKanbanBoardCore');
+    expect(index).not.toContain('api.js');
+    // The web composition injects gateway + descriptor + id source and exposes the
+    // subscribe seam the view feeds to useSyncExternalStore.
+    const webBinding = contentsOf(result.files, 'index.web.ts');
+    expect(webBinding).toContain('createKanbanBoardCore');
+    expect(webBinding).toContain('kanbanBoardGateway');
+    expect(webBinding).toContain('export const subscribe');
+    expect(webBinding).toContain('crypto.randomUUID()');
+    // The store test drives BOTH the public factory and the store with a fake
+    // gateway and merges the overlay.
+    expect(contentsOf(result.files, 'core/kanban-board.test.ts')).toContain(
+      'createKanbanBoardCore',
+    );
     expect(contentsOf(result.files, 'core/kanban-board.test.ts')).toContain(
       'createKanbanBoardStore',
     );
@@ -182,6 +211,7 @@ describe('generateIsland', () => {
       'apps/web/src/features/release-flow/core/index.ts',
       'apps/web/src/features/release-flow/core/release-flow.test.ts',
       'apps/web/src/features/release-flow/core/rules.drift.test.ts',
+      'apps/web/src/features/release-flow/index.web.ts',
       'apps/web/src/features/release-flow/ReleaseFlowPage.tsx',
       'apps/web/src/routes/release-flow.tsx',
     ]);
@@ -251,6 +281,7 @@ describe('generateIsland', () => {
       'apps/web/src/features/draft-flow/core/index.ts',
       'apps/web/src/features/draft-flow/core/draft-flow.test.ts',
       'apps/web/src/features/draft-flow/core/rules.drift.test.ts',
+      'apps/web/src/features/draft-flow/index.web.ts',
       'apps/web/src/features/draft-flow/DraftFlowPage.tsx',
       'apps/web/src/routes/draft-flow.tsx',
     ]);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type Card } from '#core/domain/index.js';
 
+import { createBoardCore } from './index.js';
 import { boardOf, canUndoOf } from './selectors.js';
 import {
   createBoardStore,
@@ -147,6 +148,50 @@ describe('board store — undo', () => {
     await flush();
     expect(gateway.moveCalls).toContainEqual({ cardId: 'a', toColumn: 'todo', toIndex: 0 });
     expect(canUndoOf(store.getState())).toBe(false);
+  });
+});
+
+describe('board island core — the public seam runs in plain node', () => {
+  // The PUBLIC factory (features/board/index.web.ts binds this in the browser):
+  // fed a fake gateway and fake descriptors, the whole seam — send in,
+  // subscribe + selectors out — runs with no api.ts, no React and no DOM.
+  const descriptors = {
+    list: { queryKey: ['cards', 'list', 'personal'] },
+    invalidates: () => ({ queryKey: ['cards', 'list'] }),
+  };
+
+  it('passes the injected descriptors straight through the selectors', () => {
+    const core = createBoardCore({
+      gateway: spyGateway(true),
+      descriptors,
+      generateId: counter(),
+    });
+    expect(core.boardSelectors.list).toBe(descriptors.list);
+    expect(core.boardSelectors.invalidates).toBe(descriptors.invalidates);
+    expect(core.boardSelectors.columns).toEqual(['todo', 'doing', 'done']);
+  });
+
+  it('applies an event through send and reads it back through the selectors', () => {
+    const core = createBoardCore({
+      gateway: spyGateway(true),
+      descriptors,
+      generateId: counter(),
+    });
+
+    let notified = 0;
+    const unsubscribe = core.subscribe(() => {
+      notified += 1;
+    });
+
+    core.send({ type: 'cardAdded', title: 'Delta', column: 'doing' });
+
+    const board = core.boardSelectors.board(serverCards);
+    expect(board.doing.map((entry) => entry.title)).toEqual(['Gamma', 'Delta']);
+    expect(board.doing[1]?.pending).toBe(true);
+    expect(core.boardSelectors.canUndo()).toBe(false);
+    expect(notified).toBeGreaterThan(0);
+
+    unsubscribe();
   });
 });
 

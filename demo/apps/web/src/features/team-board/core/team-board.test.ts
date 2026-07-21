@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type Card } from '#core/domain/index.js';
 
+import { createTeamBoardCore } from './index.js';
 import {
   columnsOf,
   effectiveBoard,
@@ -151,6 +152,53 @@ describe('team board store — rollback', () => {
 
     expect(effectiveBoard(store.getState(), serverCards)).toEqual(before);
     expect(store.getState().pending).toEqual([]);
+  });
+});
+
+describe('team board island core — the public seam runs in plain node', () => {
+  // The PUBLIC factory (features/team-board/index.web.ts binds this in the
+  // browser): fed a fake gateway and fake descriptors, the whole seam — send in,
+  // subscribe + selectors + oracle verdict out — runs with no api.ts, no React
+  // and no DOM.
+  const descriptors = {
+    list: { queryKey: ['cards', 'list', 'team'] },
+    invalidates: () => ({ queryKey: ['cards', 'list'] }),
+  };
+
+  it('gates a move through the oracle and reads the board back through selectors', () => {
+    const gateway = spyGateway(true);
+    const core = createTeamBoardCore({ gateway, descriptors, generateId: counter() });
+
+    expect(core.teamBoardSelectors.list).toBe(descriptors.list);
+    expect(core.teamBoardSelectors.columns).toEqual(['todo', 'in-dev', 'review', 'done']);
+
+    // Beta (never visited in-dev) → review is blocked by the domain oracle; the
+    // move never reaches the gateway and surfaces as lastRejection.
+    core.send({
+      type: 'cardMoveRequested',
+      cardId: 'b',
+      fromColumn: 'todo',
+      toColumn: 'review',
+      board: serverCards,
+    });
+    expect(gateway.moveCalls).toEqual([]);
+    expect(core.teamBoardSelectors.lastRejection()).toEqual({
+      cardId: 'b',
+      toColumn: 'review',
+      rule: 'review-requires-in-dev',
+    });
+
+    // Alpha (has visited in-dev) → review is allowed and lands optimistically.
+    core.send({
+      type: 'cardMoveRequested',
+      cardId: 'a',
+      fromColumn: 'in-dev',
+      toColumn: 'review',
+      board: serverCards,
+    });
+    const grouped = core.teamBoardSelectors.grouped(core.teamBoardSelectors.board(serverCards));
+    expect(titles(grouped.review)).toEqual(['Alpha']);
+    expect(gateway.moveCalls).toEqual([{ cardId: 'a', toColumn: 'review', toIndex: 0 }]);
   });
 });
 

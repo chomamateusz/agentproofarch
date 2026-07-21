@@ -17,12 +17,13 @@ import { ApiError } from '#core/client/index.js';
 import { TEAM_BOARD_ENTRY_COLUMN } from '#core/domain/index.js';
 import type { Card, MoveVerdict, TeamColumn } from '#core/domain/index.js';
 
-import { send, subscribe, teamBoardSelectors, type TeamCard } from './core/index.js';
+import { send, subscribe, teamBoardSelectors, type TeamCard } from './index.web.js';
 
 /**
- * Team board view — talks ONLY to the island core: it reads through
- * `teamBoardSelectors` and emits intents through `send`, never importing api.ts,
- * a descriptor or the machine. This is the demo's whole point: the domain guards
+ * Team board view — talks ONLY to the island seam (the web composition
+ * index.web.ts): it reads through `teamBoardSelectors` and emits intents through
+ * `send`, never importing api.ts, the core factory, a descriptor or the machine.
+ * This is the demo's whole point: the domain guards
  * are VISIBLE. Each column-move button asks the oracle (`teamBoardSelectors.verdict`)
  * whether the move is legal; an illegal one renders DISABLED with the rejecting
  * rule as its accessible label, tooltip and a visible caption. WIP counters show

@@ -119,7 +119,7 @@ npm run test:integration   # repositories, against a real Postgres
 npm run e2e                # real Chromium over the real stack
 ```
 
-<!--count:config-regression-->32<!--/count--> config-regression probes guard the
+<!--count:config-regression-->34<!--/count--> config-regression probes guard the
 covered boundary and island-core rules — most feed a violating fixture and
 assert the gate still goes red, a few are structural rule-presence checks rather
 than fixture-feeding probes — so you can't silently delete one of those rules and

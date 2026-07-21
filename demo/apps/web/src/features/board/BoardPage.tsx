@@ -14,13 +14,14 @@ import { useNavigate } from '@tanstack/react-router';
 
 import { ApiError } from '#core/client/index.js';
 
-import { boardSelectors, send, subscribe, type BoardCard } from './core/index.js';
+import { boardSelectors, send, subscribe, type BoardCard } from './index.web.js';
 
 /**
- * Board view — talks ONLY to the island core: it reads through `boardSelectors`
- * and emits intents through `send`. It never imports api.ts, a descriptor or the
- * store, so the core can graduate rungs without touching this file. Card movement
- * is driven by accessible buttons (the primary, dependency-free mechanism).
+ * Board view — talks ONLY to the island seam (the web composition index.web.ts):
+ * it reads through `boardSelectors` and emits intents through `send`. It never
+ * imports api.ts, the core factory, a descriptor or the store, so the core can
+ * graduate rungs without touching this file. Card movement is driven by accessible
+ * buttons (the primary, dependency-free mechanism).
  */
 export const BoardPage = () => {
   const queryClient = useQueryClient();

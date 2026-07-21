@@ -9,13 +9,19 @@ const QUERY_HOOKS = new Set(['useQuery', 'useQueries', 'useMutation']);
  *   - `#core/client/*`                                 — the descriptor factories
  *   - `apps/web/src/api.ts`                            — the web binding site (`actions`)
  *   - `apps/web/src/features/<island>/core/index.ts`   — an island core's public seam
+ *   - `apps/web/src/features/<island>/index.web.ts`    — an island's web composition
  * A relative specifier is resolved against the importing file, so a look-alike
  * local module that merely ends in `/api.js` (e.g. `./helpers/api.js`) does not
- * pass; only the one true `api.ts` and island `core/index.ts` do.
+ * pass; only the one true `api.ts`, an island `core/index.ts` and an island
+ * `index.web.ts` do. The web composition (`index.web.ts`) is where a portable
+ * core is bound to its real gateway + descriptors, so the seam a view consumes
+ * (`useQuery(boardSelectors.list)`) resolves through it, not through `core/` —
+ * views never import `core/index.ts` directly.
  */
 const CORE_CLIENT_PREFIX = '#core/client/';
 const WEB_API_BINDING = 'apps/web/src/api';
 const ISLAND_CORE_INDEX = /^apps\/web\/src\/features\/[^/]+\/core\/index$/;
+const ISLAND_WEB_BINDING = /^apps\/web\/src\/features\/[^/]+\/index\.web$/;
 
 const stripExt = (repoRel) => repoRel.replace(/\.[cm]?[jt]sx?$/, '');
 
@@ -25,7 +31,13 @@ const resolveDescriptorSource = (specifier, importerFile, cwd) => {
   if (!specifier.startsWith('.')) return null;
   const absolute = path.resolve(path.dirname(importerFile), specifier);
   const repoRel = stripExt(path.relative(cwd, absolute).split(path.sep).join('/'));
-  if (repoRel === WEB_API_BINDING || ISLAND_CORE_INDEX.test(repoRel)) return repoRel;
+  if (
+    repoRel === WEB_API_BINDING ||
+    ISLAND_CORE_INDEX.test(repoRel) ||
+    ISLAND_WEB_BINDING.test(repoRel)
+  ) {
+    return repoRel;
+  }
   return null;
 };
 
@@ -79,7 +91,7 @@ export default {
       notImported:
         'The {{hook}} argument must originate from an imported action descriptor, not `{{name}}`.',
       foreignModule:
-        'The {{hook}} argument must come from a canonical descriptor module (#core/client, the web api.ts binding, or an island core/index.ts), not `{{name}}` imported from "{{module}}".',
+        'The {{hook}} argument must come from a canonical descriptor module (#core/client, the web api.ts binding, an island core/index.ts, or an island index.web.ts), not `{{name}}` imported from "{{module}}".',
     },
   },
   create(context) {

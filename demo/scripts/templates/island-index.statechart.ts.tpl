@@ -1,13 +1,22 @@
 import { type __SINGULAR_PASCAL__Event } from './events.js';
+import { __SINGULAR_CAMEL__SelectorsOf, type __SINGULAR_PASCAL__Descriptors } from './selectors.js';
 
 export type { __SINGULAR_PASCAL__Event } from './events.js';
-export { __SINGULAR_CAMEL__Selectors } from './selectors.js';
+export type { __SINGULAR_PASCAL__Descriptors } from './selectors.js';
 export { evaluate__SINGULAR_PASCAL__Move } from './machine.js';
 
 /**
  * Public seam of the __SINGULAR_KEBAB__ island core: `send` in, selectors out.
- * A view imports ONLY from this module — never a machine, a descriptor or api.ts
- * directly — so the machine behind the seam stays invisible and swappable.
+ * A view imports ONLY the composed seam (features/__SINGULAR_KEBAB__/index.web.ts)
+ * — never a machine, a descriptor or api.ts — so the machine behind the seam stays
+ * invisible and swappable.
+ *
+ * PORTABLE BY CONSTRUCTION. This module imports no api.ts and no DOM: it is a
+ * FACTORY over its dependencies. The web composition (index.web.ts) injects the
+ * bound server-read descriptor once; a TUI would inject its own. The core stays
+ * typecheckable without DOM (tsconfig.islands.json) and node-testable through this
+ * public factory. The domain oracle (`evaluate__SINGULAR_PASCAL__Move`) is pure
+ * table-derived data, so it stays part of the seam.
  *
  * RUNG 3 (statechart). The domain rules live as DATA in __RULES_PATH__;
  * core/machine.ts DERIVES an XState oracle from that table (hand-writing the
@@ -31,11 +40,25 @@ export { evaluate__SINGULAR_PASCAL__Move } from './machine.js';
  * disagree on any (state, event) pair. UI states NEVER enter the domain machine.
  * See docs/architecture.md §Client application state (ADR-0005).
  */
-export const send = (event: __SINGULAR_PASCAL__Event): void => {
-  switch (event.type) {
-    case 'refreshRequested':
-      // Rung-3 seam placeholder: no UI machine yet. Add a hand-written UI machine
-      // that consults the oracle above, then forward events here (`actor.send`).
-      break;
-  }
-};
+export interface __SINGULAR_PASCAL__CoreDeps<TList> {
+  readonly descriptors: __SINGULAR_PASCAL__Descriptors<TList>;
+}
+
+export interface __SINGULAR_PASCAL__Core<TList> {
+  send(event: __SINGULAR_PASCAL__Event): void;
+  readonly __SINGULAR_CAMEL__Selectors: { readonly list: TList };
+}
+
+export const create__SINGULAR_PASCAL__Core = <TList>(
+  deps: __SINGULAR_PASCAL__CoreDeps<TList>,
+): __SINGULAR_PASCAL__Core<TList> => ({
+  send: (event) => {
+    switch (event.type) {
+      case 'refreshRequested':
+        // Rung-3 seam placeholder: no UI machine yet. Add a hand-written UI machine
+        // that consults the oracle above, then forward events here (`actor.send`).
+        break;
+    }
+  },
+  __SINGULAR_CAMEL__Selectors: __SINGULAR_CAMEL__SelectorsOf(deps.descriptors),
+});
