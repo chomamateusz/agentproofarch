@@ -10,10 +10,13 @@ import {
   createTodoRepository,
 } from '#adapters/db/repositories.js';
 import { createAuth, createAuthPort, type Auth } from '#adapters/auth/create-auth.js';
+import { createCaddyDomainPort } from '#adapters/domain-provisioning/caddy.js';
+import { createNoopDomainPort } from '#adapters/domain-provisioning/noop.js';
 import type {
   AuthPort,
   CardRepository,
   Clock,
+  DomainPort,
   HealthPort,
   IdGenerator,
   TenantAccessReader,
@@ -30,6 +33,8 @@ export interface AppDeps {
   todos: TodoRepository;
   cards: CardRepository;
   tenantDomains: TenantDomainRepository;
+  /** Domain provisioning/verification: caddy on self-host, noop elsewhere. */
+  domainPort: DomainPort;
   tenants: TenantRepository;
   tenantAccess: TenantAccessReader;
   health: HealthPort;
@@ -44,9 +49,21 @@ export interface AppDeps {
  * Composition root — the ONLY place where env decides which adapters run.
  * Platform names (vercel, neon) may appear here and in adapters, never in core.
  */
+// Exported for unit tests: selecting the adapter must be testable without
+// constructing the full graph — a real Better Auth instance eagerly queries
+// tenant_domains for trustedOrigins, which has no database on the check runner.
+export const selectDomainPort = (env: Env): DomainPort =>
+  env.DOMAIN_PROVISIONER === 'caddy'
+    ? createCaddyDomainPort({
+        targetCname: env.SELF_HOST_TARGET_CNAME,
+        targetIp: env.SELF_HOST_TARGET_IP,
+      })
+    : createNoopDomainPort();
+
 export const createDeps = (env: Env): AppDeps => {
   const db = createDb(env.DB_DRIVER, env.DATABASE_URL);
   const tenantDomains = createTenantDomainRepository(db);
+  const domainPort = selectDomainPort(env);
 
   const baseTrustedOrigins = [
     env.APP_BASE_URL,
@@ -83,6 +100,7 @@ export const createDeps = (env: Env): AppDeps => {
     todos: createTodoRepository(db),
     cards: createCardRepository(db),
     tenantDomains,
+    domainPort,
     tenants: createTenantRepository(db),
     tenantAccess: createTenantAccessReader(db),
     health: createHealthPort(db),

@@ -75,6 +75,27 @@ export interface HealthPort {
   pingDatabase(): Promise<boolean>;
 }
 
+/** Whether a tenant domain points at the deploy's public target, with a human detail. */
+export interface DomainCheck {
+  readonly resolved: boolean;
+  readonly detail: string;
+}
+
+/**
+ * Provisioning + verification for tenant custom domains. Selected by
+ * `DOMAIN_PROVISIONER` in the composition root, per deploy target:
+ *   - `caddy` (self-host): `provision`/`remove` are no-ops — Caddy issues certs
+ *     on demand via the `ask` endpoint — and `check` is a DNS lookup that the
+ *     domain resolves to the configured target (`SELF_HOST_TARGET_CNAME`/`_IP`).
+ *   - `noop` (dev/default): every method resolves without side effects.
+ * A Vercel Domains API implementation is the deferred US-020 sibling.
+ */
+export interface DomainPort {
+  provision(domain: string): Promise<void>;
+  check(domain: string): Promise<DomainCheck>;
+  remove(domain: string): Promise<void>;
+}
+
 export interface IdGenerator {
   nextId(): string;
 }

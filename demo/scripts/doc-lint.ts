@@ -205,7 +205,9 @@ const defaultRunTestFiles = (): string[] =>
 
 const e2eSpecFiles = (): string[] => filesIn('e2e', '.spec.ts');
 const integrationFiles = (): string[] =>
-  walkTestFiles(join(demoRoot, 'adapters')).filter((file) => file.endsWith('.integration.test.ts'));
+  ['adapters', 'apps']
+    .flatMap((root) => (existsSync(join(demoRoot, root)) ? walkTestFiles(join(demoRoot, root)) : []))
+    .filter((file) => file.endsWith('.integration.test.ts'));
 const configRegressionFiles = (): string[] => filesIn('config-regression', '.test.ts');
 
 const COUNTERS: Record<string, () => number> = {

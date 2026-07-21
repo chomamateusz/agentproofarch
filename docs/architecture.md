@@ -43,11 +43,14 @@ does not belong in this document.
   CLI, asserting taxonomy exit codes. Static-green is not done; the app must
   actually run.
 - **Two first-class deploy targets** from the same commit: Vercel (serverless +
-  Neon) and Docker self-host (Node + Postgres + Caddy). Vercel is live today;
-  the Docker/Caddy packaging (Dockerfile, prod compose, Caddyfile) is designed
-  but **intentionally not built yet** (US-020…023 in the PRD) — the same commit
-  is written to run on both, the second target's artifacts just do not exist in
-  the tree yet. **Vendor packages are contained**: `@vercel/*` and
+  Neon) and Docker self-host (Node + Postgres + Caddy). **Both are built.** Vercel
+  is live today; the Docker/Caddy packaging (`Dockerfile`, `docker-compose.prod.yml`,
+  `Caddyfile`, `docker-entrypoint.sh`) now ships in the tree (US-022, DECIDE A2),
+  and Caddy on-demand TLS is wired to an internal domain-check endpoint proven by
+  unit + real-Postgres integration tests (US-021). The one self-host capability
+  still deferred is the **Vercel** Domains API adapter (US-020) — a Vercel-target
+  concern folded into the A1 custom-domains slice; self-host issues TLS via Caddy
+  and needs no such adapter. **Vendor packages are contained**: `@vercel/*` and
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
@@ -62,8 +65,8 @@ core/domain     entities, Result, error taxonomy, zod schemas   → zod only
 core/contract   API routes + I/O schemas + error envelope       → domain
 core/server     use-cases + ports (interfaces)                  → domain
 core/client     typed HTTP client + query definitions           → contract
-adapters/*      implement ports (db, auth; domain provisioning
-                when triggered — not yet built)               → core
+adapters/*      implement ports (db, auth, domain provisioning:
+                caddy + noop built; vercel deferred US-020)   → core
 apps/server     HTTP wiring + composition root                  → everything server-side
 apps/web        SPA (no SSR)                                    → core/client (+ auth client adapter)
 apps/cli        commands                                        → core/client
@@ -77,8 +80,9 @@ Dependency rules (enforced):
   import `core/server` or `adapters/db`.
 - Server adapters are instantiated exclusively in the composition root
   (`apps/server/src/composition.ts`), where env decides implementations
-  (`DB_DRIVER`; `DOMAIN_PROVISIONER` is reserved for when the domain-provisioning
-  adapter is built — US-009/014/019–021). The one deliberate exception is the
+  (`DB_DRIVER` selects the db driver; `DOMAIN_PROVISIONER` selects the
+  domain-provisioning adapter — `caddy` on self-host, `noop` by default). The
+  one deliberate exception is the
   auth *client* adapter, constructed in `apps/web/src/api.ts` (web) and the
   CLI's `cliCtx`; the operational entry `adapters/db/migrate.ts` also reads
   `DB_DRIVER`/`DATABASE_URL`/`VERCEL` itself as a sanctioned composition point
@@ -899,12 +903,26 @@ code.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
   keep use-cases pure and deterministic in tests.
 
-**NORMATIVE WHEN TRIGGERED — not yet built** (US-009/014/019–021):
+**BUILT** (US-021, DECIDE A2):
 
-- `DomainPort`: add/check/remove tenant domains. Designed implementations:
-  Vercel Domains API, Caddy on-demand TLS, noop (dev). No interface or adapter
-  exists in the tree yet; the `DOMAIN_PROVISIONER` env switch is reserved for
-  it.
+- `DomainPort` (`provision`/`check`/`remove` tenant domains) lives in
+  `core/server/ports.ts`. Two adapters ship in `adapters/domain-provisioning/`,
+  selected by `DOMAIN_PROVISIONER` in the composition root:
+
+  | provisioner | target | `provision`/`remove` | `check` |
+  |---|---|---|---|
+  | `caddy` | Docker self-host | no-op (Caddy issues on demand) | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME`/`_IP` |
+  | `noop` (default) | dev / Vercel | no-op | always accepts |
+
+  On self-host, TLS is issued with zero per-tenant config: Caddy's
+  `on_demand_tls { ask … }` calls an **internal-only** domain-check endpoint
+  (see §Self-host custom domains and TLS) before minting a certificate. The
+  Vercel Domains API adapter (**US-020**) is the one remaining implementation,
+  **deferred to the A1 custom-domains slice** — a Vercel-target concern; self-host
+  needs no such adapter.
+
+**NORMATIVE WHEN TRIGGERED — not yet built** (US-014):
+
 - Magic-link sign-in: a Better Auth client capability `AuthClientPort` would
   expose when a passwordless flow is pulled in. The shipped port has
   sign-up/in/out only — no magic-link code exists in the tree yet.
@@ -975,29 +993,81 @@ all app-domain, decided per product.
 
 ## Deployment matrix
 
-The Vercel column is live today. The **Docker self-host column is designed but
-its packaging is intentionally not built yet** — there is no `Dockerfile`,
-production `docker-compose.yml` or `Caddyfile` in the tree (US-020…023 in the
-PRD). The same commit is written to run on a Node container; the artifacts that
-would boot it there simply do not exist yet. Direction note: building that
-packaging — including a CI job that boots the compose stack and runs smoke —
-was **accepted 2026-07-20** (owner, DECIDE A2) as its own package on the board;
-until it lands, this column stays designed-not-built.
+Both columns are built (DECIDE A2, 2026-07-20). Vercel is live today; the Docker
+self-host packaging now ships in the tree — `Dockerfile` (multi-stage: SPA +
+tsc-compiled server, prod-only deps), `docker-compose.prod.yml` (`postgres:16` +
+app + an `edge`-profiled Caddy; migrations run on startup via
+`docker-entrypoint.sh`; healthchecks throughout) and `Caddyfile` (on-demand TLS).
+The same commit runs on either target, and a dedicated CI job (`selfhost.yml`)
+proves it: it builds the image, boots the compose stack, and drives the same
+smoke CLI suite the Vercel post-deploy gate runs — against the container. The only
+remaining follow-up is the Vercel Domains API adapter (US-020, deferred to the A1
+custom-domains slice).
 
-| | Vercel | Docker self-host (packaging not built yet) |
+| | Vercel | Docker self-host |
 |---|---|---|
 | API | Hono handler as a function | same Hono app in a Node container |
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static SPA build | served by the same Node process |
-| TLS for tenant domains | Vercel Domains API | Caddy `on_demand_tls` + domain-check endpoint |
+| Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
+| Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
+| TLS for tenant domains | Vercel Domains API (US-020, deferred) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
+| CI proof | `post-deploy-smoke.yml` (smoke the live deploy) | `selfhost.yml` (build image → boot compose → smoke the container) |
 
 Vercel is the default because it is the simplest for most applications — the
 same reasoning that makes TanStack Query the default over Effect. It is
 invocation-only: no resident process, so no queue workers, schedulers,
-websockets or long-running jobs. The Docker image is the designed full-runtime
-escape hatch from the same commit — meant to run anywhere (VPS, Railway,
-Fly.io, Kubernetes); anything that needs a resident process is designed to live
-on that target once the packaging lands.
+websockets or long-running jobs. The Docker image is the full-runtime escape
+hatch from the same commit — meant to run anywhere (VPS, Railway, Fly.io,
+Kubernetes); anything that needs a resident process lives on that target.
+
+## Self-host custom domains and TLS (US-021)
+
+On the Docker target a tenant custom domain gets a real certificate with **zero
+per-tenant config** through Caddy's on-demand TLS. The flow is a single question
+Caddy asks the app before it mints a cert:
+
+```
+TLS handshake for shop.acme.com
+        │
+        ▼
+Caddy  ── GET http://app:47101/internal/domain-check?domain=shop.acme.com ──▶  app (internal port)
+        ◀── 200 (verified tenant domain)  /  404 (unknown or unverified) ──
+        │
+   200 → issue + cache the cert, reverse_proxy → app:47100
+   4xx → refuse; no cert is minted
+```
+
+Two properties make this safe:
+
+- **The ask endpoint is unreachable from the public internet.** It is served by a
+  *separate* Hono app (`apps/server/src/internal-app.ts`), mounted only by the
+  self-host entry (`entry.node.ts`) on its own port (`INTERNAL_PORT`, 47101). In
+  `docker-compose.prod.yml` that port is bound only on the container network and
+  is **never published** — the public app on `:47100` does not serve `/internal/*`
+  at all. Network-internal isolation beats path-obscurity: even a public routing
+  mistake cannot expose it, because it does not run in the public app.
+- **It answers 200 only for a verified domain.** The handler returns 200 iff the
+  host exists and is `verified` in `tenant_domains`; every other case is 404, so
+  Caddy will not obtain certificates for domains no tenant has proven. Proven by
+  unit tests (`internal-app.test.ts`) and a real-Postgres integration test
+  (`internal-app.integration.test.ts`: positive + negative).
+
+| concern | mechanism | where |
+|---|---|---|
+| Cert issuance | Caddy `on_demand_tls { ask }` → app | `Caddyfile` |
+| Issue/refuse decision | `GET /internal/domain-check?domain=` → 200/404 | `apps/server/src/internal-app.ts` |
+| Endpoint isolation | separate app on `INTERNAL_PORT`, never published | `entry.node.ts`, `docker-compose.prod.yml` |
+| DNS precondition (verify UI) | `caddy` `DomainPort.check` resolves domain → `SELF_HOST_TARGET_CNAME`/`_IP` | `adapters/domain-provisioning/caddy.ts` |
+| Provisioner selection | `DOMAIN_PROVISIONER=caddy` (self-host) / `noop` (default) | `apps/server/src/composition.ts` |
+
+The `DomainPort.check` (DNS resolution) and the ask endpoint are complementary:
+the endpoint gates certificate issuance at handshake time on *verified* state;
+`check` is what a future domains-settings "Verify" action (US-019) calls to
+confirm the operator pointed DNS at the deploy before flipping `verified`. The
+Vercel Domains API `DomainPort` (US-020) is deferred to the A1 custom-domains
+slice; it is a Vercel-target concern and does not affect self-host.
 
 ## Environments (Vercel target)
 

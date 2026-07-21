@@ -9,10 +9,12 @@ and thin apps (HTTP server, web SPA, CLI). Every layer
 boundary is machine-enforced by lint, every capability is verifiable from the
 CLI with JSON output and deterministic exit codes — so AI agents can build,
 run and verify features in a closed loop, and the same commit deploys to
-Vercel today, with a self-hosted Docker stack as the designed — but
-intentionally not-yet-built — second target (US-020…023). A tenant
-domain-provisioning adapter (`DomainPort`) is likewise designed and normative
-when triggered (US-009/014/019–021), not yet built.
+Vercel today **and** to a built self-hosted Docker stack (Node + Postgres +
+Caddy) — `Dockerfile`, `docker-compose.prod.yml` and `Caddyfile` ship in `demo/`
+(US-021 + US-022, DECIDE A2). The tenant domain-provisioning adapter
+(`DomainPort`) is built for self-host — Caddy on-demand TLS gated by an internal
+domain-check endpoint (US-021); the Vercel Domains API adapter (US-020) is
+deferred to the A1 custom-domains slice.
 
 ## Live demo
 
@@ -121,15 +123,15 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **<!--count:test-files-->56<!--/count--> test files.**
+  `doc-lint` + vitest with coverage. **<!--count:test-files-->59<!--/count--> test files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (<!--count:test-files-->56<!--/count--> files,
-  in `check`) · **integration** (<!--count:integration-tests-->27<!--/count-->,
+- **Four test levels** — **unit** (<!--count:test-files-->59<!--/count--> files,
+  in `check`) · **integration** (<!--count:integration-tests-->30<!--/count-->,
   real Postgres, run in the `smoke` CI job) · **e2e**
   (<!--count:e2e-tests-->9<!--/count--> tests across
   <!--count:e2e-specs-->3<!--/count--> Playwright spec files, a real Chromium

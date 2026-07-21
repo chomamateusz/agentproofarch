@@ -102,7 +102,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->56<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->59<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -110,7 +110,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `check` green AND `smoke` green.** Static-green is not done.
 
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
-<!--count:integration-tests-->27<!--/count--> integration tests against a real
+<!--count:integration-tests-->30<!--/count--> integration tests against a real
 Postgres and <!--count:e2e-tests-->9<!--/count--> Playwright tests across
 <!--count:e2e-specs-->3<!--/count--> spec files:
 
@@ -175,5 +175,31 @@ Production = `main` → <https://agentproofarch.vercel.app>; staging is a
 long-lived branch; every PR gets a preview on an ephemeral Neon branch; each
 deploy is re-verified by `smoke:remote` in `post-deploy-smoke`. Web is
 single-tenant on `*.vercel.app` until a wildcard domain is attached (env, not
-code); API/CLI stay multi-tenant via `X-Tenant`. The full Docker/Caddy story
-is US-020…US-023 in the PRD and intentionally not built yet.
+code); API/CLI stay multi-tenant via `X-Tenant`.
+
+The Docker self-host target is **built** (US-021 + US-022, DECIDE A2): a
+multi-stage `Dockerfile` (SPA + tsc-compiled server, prod-only deps, non-root,
+`HEALTHCHECK`), `docker-compose.prod.yml` (`postgres:16` + app + an
+`edge`-profiled Caddy for on-demand TLS) and `docker-entrypoint.sh` (runs
+migrations on startup). A dedicated CI job (`selfhost.yml`) builds the image,
+boots the stack and runs the smoke CLI against the container on every push. The
+one piece still deferred is the **Vercel** Domains API adapter (US-020, folded
+into the A1 custom-domains slice) — self-host issues TLS via Caddy and needs no
+such adapter.
+
+### Self-host with Docker
+
+```bash
+cp .env.example .env     # set BETTER_AUTH_SECRET; for real TLS also set APP_BASE_URL
+                         # (https), APP_BASE_DOMAIN and SECURE_COOKIES=true
+docker compose -f docker-compose.prod.yml up -d --build
+#  -> postgres + app; the entrypoint migrates on startup, then serves API + SPA
+#     on http://localhost:47100. Add SEED_ON_START=true to .env for demo data.
+```
+
+Add the Caddy edge (on-demand TLS terminator, binds 80/443, needs `Caddyfile`)
+for a real domain:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile edge up -d --build
+```
