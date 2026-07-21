@@ -15,6 +15,9 @@ import {
   memberRemoveOutputSchema,
   memberUpdateOutputSchema,
   meOutputSchema,
+  staffGrantOutputSchema,
+  staffListOutputSchema,
+  staffRevokeOutputSchema,
   tenantCreateOutputSchema,
   tenantListOutputSchema,
   todoCreateOutputSchema,
@@ -24,6 +27,8 @@ import {
   type MemberRemoveInput,
   type MemberUpdateInput,
   type ReadMethod,
+  type StaffGrantInput,
+  type StaffRevokeInput,
   type TenantCreateInput,
   type WriteMethod,
 } from '#core/contract/index.js';
@@ -168,6 +173,12 @@ export const createApiClient = (options: ApiClientOptions) => ({
       undefined,
       signal,
     ),
+  listStaff: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.staff.method, API_ROUTES.staff.path, staffListOutputSchema, undefined, signal),
+  grantStaff: (input: StaffGrantInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.staffGrant.method, API_ROUTES.staffGrant.path, staffGrantOutputSchema, input, signal),
+  revokeStaff: (input: StaffRevokeInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.staffRevoke.method, API_ROUTES.staffRevoke.path, staffRevokeOutputSchema, input, signal),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;

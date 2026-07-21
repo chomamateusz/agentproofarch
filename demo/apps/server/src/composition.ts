@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createDb } from '#adapters/db/client.js';
 import { createCardRepository } from '#adapters/db/cards-repository.js';
 import { createMemberRepository } from '#adapters/db/members-repository.js';
+import { createStaffRepository, createUserDirectory } from '#adapters/db/staff-repository.js';
 import {
   createHealthPort,
   createTenantAccessReader,
@@ -21,10 +22,12 @@ import type {
   HealthPort,
   IdGenerator,
   MemberRepository,
+  StaffRepository,
   TenantAccessReader,
   TenantDomainRepository,
   TenantRepository,
   TodoRepository,
+  UserDirectory,
 } from '#core/server/index.js';
 
 import type { Env } from './env.js';
@@ -35,6 +38,8 @@ export interface AppDeps {
   todos: TodoRepository;
   cards: CardRepository;
   members: MemberRepository;
+  staff: StaffRepository;
+  users: UserDirectory;
   tenantDomains: TenantDomainRepository;
   /** Domain provisioning/verification: caddy on self-host, noop elsewhere. */
   domainPort: DomainPort;
@@ -103,6 +108,8 @@ export const createDeps = (env: Env): AppDeps => {
     todos: createTodoRepository(db),
     cards: createCardRepository(db),
     members: createMemberRepository(db),
+    staff: createStaffRepository(db),
+    users: createUserDirectory(db),
     tenantDomains,
     domainPort,
     tenants: createTenantRepository(db),

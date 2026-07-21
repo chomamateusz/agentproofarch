@@ -22,6 +22,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ApiError } from '#core/client/index.js';
 
 import { actions } from '../../api.js';
+import { StaffSection } from './StaffSection.js';
 import { tenantHue, tenantUrl } from '../../lib/tenant.js';
 import { useThemeMode } from '../../theme-mode.js';
 import {
@@ -300,6 +301,8 @@ const TenantLedger = ({
           </Paper>
           {addTodo.isError ? <Alert sx={{ mt: '0.6rem' }}>{addTodo.error.message}</Alert> : null}
         </Box>
+
+        {tenant.staffRole === 'owner' ? <StaffSection /> : null}
       </Container>
     </ThemeProvider>
   );

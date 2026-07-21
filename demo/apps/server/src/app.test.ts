@@ -9,6 +9,8 @@ import {
   healthReadyOutputSchema,
   looseEnvelopeSchema,
   memberListOutputSchema,
+  staffGrantOutputSchema,
+  staffListOutputSchema,
   TENANT_HEADER,
 } from '#core/contract/index.js';
 import type { AuthenticatedUser } from '#core/server/index.js';
@@ -50,6 +52,16 @@ const baseDeps = (): AppDeps => ({
     create: async () => {},
     update: async () => {},
     deleteByTenantAndId: async () => 0,
+  },
+  staff: {
+    listByTenant: async () => [],
+    findGrant: async () => null,
+    countOwners: async () => 1,
+    grant: async () => {},
+    revoke: async () => 0,
+  },
+  users: {
+    findByEmail: async () => null,
   },
   tenantDomains: {
     findByDomain: async () => null,
@@ -323,5 +335,95 @@ describe('buildApp routes', () => {
     const body = looseEnvelopeSchema.parse(await res.json());
     expect(body.ok).toBe(false);
     if (!body.ok) expect(body.error.code).toBe('forbidden');
+  });
+
+  const asAdmin = (): AppDeps => {
+    const deps = asStaff();
+    deps.tenantAccess = {
+      ...deps.tenantAccess,
+      findStaffGrant: async () => ({ tenant: acme, staffRole: 'admin' }),
+    };
+    return deps;
+  };
+
+  it('lets an owner grant admin access to an existing account (FR-8)', async () => {
+    const deps = asStaff();
+    deps.users = { findByEmail: async () => ({ userId: 'u-new', email: 'carlos@example.com', name: 'Carlos' }) };
+    const res = await buildApp(deps).request(API_PATHS.staff, {
+      method: 'POST',
+      headers: { [TENANT_HEADER]: 'acme', 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'carlos@example.com' }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body.ok).toBe(true);
+    if (body.ok) {
+      const parsed = staffGrantOutputSchema.parse(body.data);
+      expect(parsed).toMatchObject({ granted: true, staff: { role: 'admin', email: 'carlos@example.com' } });
+    }
+  });
+
+  it('returns not_found when granting to an email with no account (no invitations)', async () => {
+    const deps = asStaff();
+    deps.users = { findByEmail: async () => null };
+    const res = await buildApp(deps).request(API_PATHS.staff, {
+      method: 'POST',
+      headers: { [TENANT_HEADER]: 'acme', 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'ghost@example.com' }),
+    });
+
+    expect(res.status).toBe(404);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    if (!body.ok) expect(body.error.code).toBe('not_found');
+  });
+
+  it('forbids an admin from granting staff access (owner-only)', async () => {
+    const deps = asAdmin();
+    deps.users = { findByEmail: async () => ({ userId: 'u-new', email: 'carlos@example.com', name: 'Carlos' }) };
+    const res = await buildApp(deps).request(API_PATHS.staff, {
+      method: 'POST',
+      headers: { [TENANT_HEADER]: 'acme', 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'carlos@example.com' }),
+    });
+
+    expect(res.status).toBe(403);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    if (!body.ok) expect(body.error.code).toBe('forbidden');
+  });
+
+  it('serves the staff roster to a resolved admin (staff:read is shared)', async () => {
+    const deps = asAdmin();
+    deps.staff = {
+      ...deps.staff,
+      listByTenant: async () => [
+        { id: 'g-1', userId: 'user-1', email: 'demo@agentproofarch.dev', name: 'Demo', role: 'owner' },
+      ],
+    };
+    const res = await buildApp(deps).request(API_PATHS.staff, {
+      headers: { [TENANT_HEADER]: 'acme' },
+    });
+
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    if (body.ok) expect(staffListOutputSchema.parse(body.data).staff).toHaveLength(1);
+  });
+
+  it('blocks revoking the last owner with a validation envelope (lockout guard)', async () => {
+    const deps = asStaff();
+    deps.staff = {
+      ...deps.staff,
+      findGrant: async () => ({ id: 'g-owner', userId: 'user-1', role: 'owner' }),
+      countOwners: async () => 1,
+    };
+    const res = await buildApp(deps).request(API_PATHS.staffRevoke, {
+      method: 'POST',
+      headers: { [TENANT_HEADER]: 'acme', 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'user-1' }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    if (!body.ok) expect(body.error.code).toBe('validation');
   });
 });

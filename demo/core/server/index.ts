@@ -4,6 +4,7 @@ export * from './authorize.js';
 export * from './usecases/resolve-identity.js';
 export * from './usecases/todos.js';
 export * from './usecases/members.js';
+export * from './usecases/staff.js';
 export * from './usecases/cards.js';
 export * from './usecases/tenants.js';
 export * from './usecases/create-tenant.js';
