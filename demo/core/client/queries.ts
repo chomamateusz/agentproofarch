@@ -20,7 +20,7 @@ import type {
 } from '#core/contract/index.js';
 import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
-import type { AuthClientPort, MagicLinkRequest, SocialSignInInput } from './auth-port.js';
+import type { AuthClientPort, AuthSessionResult, MagicLinkRequest, SocialSignInInput } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
 
 /**
@@ -122,6 +122,13 @@ export const domainsScopes = {
 export const authScopes = {
   all: () => ['auth'] as const,
 };
+
+export const passkeysScopes = {
+  all: () => ['passkeys'] as const,
+};
+
+/** Register/remove change the roster, so both invalidate the passkey list scope. */
+export const passkeysInvalidates = () => ({ queryKey: passkeysScopes.all() });
 
 export const configScopes = {
   all: () => ['config'] as const,
@@ -300,4 +307,29 @@ export const disableTwoFactorMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'two-factor', 'disable'],
     call: (input: { password: string }) => auth.disableTwoFactor(input),
+  });
+
+/** US-028a passkeys: the roster is a read; register/remove/sign-in are commands. */
+export const passkeysQuery = (auth: AuthClientPort) =>
+  defineQuery({
+    queryKey: passkeysScopes.all(),
+    call: () => auth.listPasskeys(),
+  });
+
+export const registerPasskeyMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...passkeysScopes.all(), 'register'],
+    call: (input: { name: string }) => auth.registerPasskey(input),
+  });
+
+export const removePasskeyMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...passkeysScopes.all(), 'remove'],
+    call: (input: { id: string }) => auth.removePasskey(input),
+  });
+
+export const signInPasskeyMutation = (auth: AuthClientPort): MutationDescriptor<AuthSessionResult, void> =>
+  defineMutation({
+    mutationKey: [...passkeysScopes.all(), 'sign-in'],
+    call: () => auth.signInPasskey(),
   });

@@ -77,7 +77,7 @@ const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
 // --api-url must be a URL, --tenant a slug, before any client is constructed.
 const globalOptionsSchema = z.object({
   json: z.boolean(),
-  apiUrl: z.string().url('--api-url must be a valid URL').optional(),
+  apiUrl: z.url('--api-url must be a valid URL').optional(),
   tenant: canonicalSlugSchema.optional(),
 });
 

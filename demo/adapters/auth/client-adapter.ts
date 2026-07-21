@@ -1,8 +1,9 @@
 import { createAuthClient } from 'better-auth/client';
 import { magicLinkClient, twoFactorClient } from 'better-auth/client/plugins';
+import { passkeyClient } from '@better-auth/passkey/client';
 import { z } from 'zod';
 
-import type { AuthClientPort } from '#core/client/index.js';
+import type { AuthClientPort, PasskeyInfo } from '#core/client/index.js';
 import { appError, err, ok, type AppError, type Result } from '#core/domain/index.js';
 
 type SignInInput = Parameters<AuthClientPort['signIn']>[0];
@@ -134,7 +135,7 @@ const tokenSchema = z.object({ token: z.string().nullable() });
 export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort => {
   const client = createAuthClient({
     baseURL: baseUrl === '' ? undefined : baseUrl,
-    plugins: [magicLinkClient(), twoFactorClient()],
+    plugins: [magicLinkClient(), twoFactorClient(), passkeyClient()],
   });
 
   return {
@@ -168,6 +169,19 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
     },
     verifyTotp: async ({ code }) => toResult(undefined, (await client.twoFactor.verifyTotp({ code })).error),
     disableTwoFactor: async ({ password }) => toResult(undefined, (await client.twoFactor.disable({ password })).error),
+    registerPasskey: async ({ name }) => toResult(undefined, (await client.passkey.addPasskey({ name })).error),
+    listPasskeys: async () => {
+      const response = await client.passkey.listUserPasskeys();
+      if (response.error) return toResult<PasskeyInfo[]>([], response.error);
+      const list = (response.data ?? []).map((row) => ({
+        id: row.id,
+        name: row.name ?? '',
+        createdAt: new Date(row.createdAt).toISOString(),
+      }));
+      return ok(list);
+    },
+    removePasskey: async ({ id }) => toResult(undefined, (await client.passkey.deletePasskey({ id })).error),
+    signInPasskey: async () => toResult({ token: null }, (await client.signIn.passkey()).error),
   };
 };
 
@@ -252,5 +266,11 @@ export const createCliAuthAdapter = (
       const result = await postCliAuth(baseUrl, '/api/auth/two-factor/disable', { password }, token());
       return result.ok ? ok(undefined) : result;
     },
+    // Passkeys drive a WebAuthn ceremony that only a browser can perform; the CLI
+    // has no authenticator, so the passkey surface is unreachable here by design.
+    registerPasskey: async () => err(appError('validation', 'Passkeys require a browser; manage them from the web app.')),
+    listPasskeys: async () => err(appError('validation', 'Passkeys require a browser; manage them from the web app.')),
+    removePasskey: async () => err(appError('validation', 'Passkeys require a browser; manage them from the web app.')),
+    signInPasskey: async () => err(appError('validation', 'Passkeys require a browser; manage them from the web app.')),
   };
 };

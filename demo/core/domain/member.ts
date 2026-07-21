@@ -37,7 +37,7 @@ export const marketingConsentInputSchema = z.object({
 const marketingConsentInputsSchema = z.array(marketingConsentInputSchema).max(20);
 
 /** Normalized at the boundary so tenant+email idempotency is case-insensitive. */
-export const memberEmailSchema = z.string().trim().toLowerCase().pipe(z.string().email().max(320));
+export const memberEmailSchema = z.string().trim().toLowerCase().pipe(z.email().max(320));
 
 export const memberSchema = z.object({
   id: z.string(),

@@ -1087,9 +1087,12 @@ code.
 
 - `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
 - `AuthClientPort` (client): sign-up/in/out **plus the provider auth methods**
-  (US-026/US-028a) — `requestMagicLink`, `signInSocial`, and TOTP 2FA
-  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`). Better Auth client
-  (magic-link + two-factor client plugins). Every method is the EXCLUSIVE
+  (US-026/US-028a) — `requestMagicLink`, `signInSocial`, TOTP 2FA
+  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
+  (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
+  `listPasskeys` is the one read-tagged method, since the roster lives on the
+  provider surface, not the contract API). Better Auth client (magic-link +
+  two-factor + passkey client plugins). Every method is the EXCLUSIVE
   surface for its flow: no client names a provider route or SDK (grep-proof,
   depcruise `auth-provider-sdk-only-in-adapters-auth`).
 - `EmailPort` (server): `sendMail({ to, subject, text, html?, link? })` — the one
@@ -1143,10 +1146,15 @@ Magic-link sign-in (`AuthClientPort.requestMagicLink`, the Better Auth magic-lin
 plugin behind `EmailPort`), social sign-in (Google via `signInSocial`, wired only
 when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are both present — the login page
 reads a public `/api/config` flag to show its button), and TOTP 2FA (the Better
-Auth two-factor plugin). Passkeys (`@better-auth/passkey`) are the one remaining
-US-028a method **deferred**: the package pins a `better-call` whose optional
-`zod@^4` peer conflicts with this tree's pinned `zod@^3`, so wiring it needs a
-zod-4 migration first (documented, not faked).
+Auth two-factor plugin). Passkeys (`@better-auth/passkey`) are now **wired too**:
+the package pinned a `better-call` whose optional `zod@^4` peer conflicted with
+this tree's former `zod@^3`, so the migration to `zod@^4` was the named unblock —
+done first, gates green, before the plugin went in. The server plugin registers a
+`passkey` table (`0008_passkey`) scoped by `rpID = APP_BASE_DOMAIN` so one
+credential works across every tenant subdomain; the client surface
+(`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`) is exposed
+exclusively through `AuthClientPort`, driven from the settings PasskeySection and
+the login page's sign-in-with-passkey button.
 
 Add a port only when a second implementation or a platform difference actually
 exists.
