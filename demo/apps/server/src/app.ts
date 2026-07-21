@@ -39,6 +39,7 @@ import {
 import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
+import { captureServerException } from './observability.js';
 import { recordAppError, recordException, telemetryMiddleware } from './telemetry.js';
 import { APP_VERSION } from './version.js';
 
@@ -106,9 +107,15 @@ export const buildApp = (deps: AppDeps) => {
 
   app.use('*', telemetryMiddleware);
 
-  app.onError((error) => {
+  // The one server error seam: an unhandled throw (an infra rejection a
+  // use-case never catches) is normalized to `internal` exactly here. Both
+  // observers attach to that single error — the OTel span and the Sentry sink —
+  // so there is one capture path, never scattered `captureException` calls.
+  app.onError((error, c) => {
+    const appError = internal();
     recordException(error);
-    return respond(err(internal()));
+    captureServerException(error, { appError, identity: c.get('identity') });
+    return respond(err(appError));
   });
 
   // Health surface (public, before tenant resolution): liveness never touches
