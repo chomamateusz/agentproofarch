@@ -8,6 +8,9 @@ import {
   TENANT_HEADER,
   cardCreateInputSchema,
   cardMoveInputSchema,
+  memberEnsureInputSchema,
+  memberRemoveInputSchema,
+  memberUpdateInputSchema,
   tenantCreateInputSchema,
   todoCreateInputSchema,
 } from '#core/contract/index.js';
@@ -340,6 +343,96 @@ card
       await ctx.api.moveCard(input),
       ctx.json,
       (data) => `moved: ${data.card.title} -> [${data.card.column}#${data.card.position}] (${data.card.id.slice(0, 8)})`,
+    );
+  });
+
+const member = program
+  .command('member')
+  .description('End customers (members) in the active tenant — staff only (owner/admin)');
+
+member.command('list').description('List members').action(async () => {
+  const ctx = cliCtx();
+  emit(await ctx.api.listMembers(), ctx.json, (data) =>
+    data.members.length === 0
+      ? 'no members'
+      : data.members
+          .map((m) => {
+            const tags = m.tags.length > 0 ? `  [${m.tags.join(', ')}]` : '';
+            return `- ${m.email}\t${m.displayName ?? '—'}  (${m.id.slice(0, 8)})${tags}`;
+          })
+          .join('\n'),
+  );
+});
+
+member
+  .command('ensure <email>')
+  .description('Idempotently find-or-create a member by email (the FR-20 entry point)')
+  .option('--name <displayName>', 'display name')
+  .option('--tag <tag...>', 'tag (repeatable)')
+  .action(async (email: string, options: { name?: string; tag?: string[] }) => {
+    const ctx = cliCtx();
+    const input = parseArgs(
+      memberEnsureInputSchema,
+      {
+        email,
+        ...(options.name === undefined ? {} : { displayName: options.name }),
+        ...(options.tag === undefined ? {} : { tags: options.tag }),
+      },
+      ctx.json,
+    );
+    if (input === undefined) return;
+    emit(await ctx.api.ensureMember(input), ctx.json, (data) =>
+      `${data.created ? 'created' : 'exists'}: ${data.member.email} (${data.member.id.slice(0, 8)})`,
+    );
+  });
+
+member
+  .command('update <id>')
+  .description("Update a member's display name and tags")
+  .option('--name <displayName>', 'set the display name')
+  .option('--clear-name', 'clear the display name')
+  .option('--tag <tag...>', 'replace all tags (repeatable)')
+  .action(
+    async (id: string, options: { name?: string; clearName?: boolean; tag?: string[] }) => {
+      const ctx = cliCtx();
+      const displayName = options.clearName
+        ? { displayName: null }
+        : options.name === undefined
+          ? {}
+          : { displayName: options.name };
+      const input = parseArgs(
+        memberUpdateInputSchema,
+        { id, ...displayName, ...(options.tag === undefined ? {} : { tags: options.tag }) },
+        ctx.json,
+      );
+      if (input === undefined) return;
+      emit(await ctx.api.updateMember(input), ctx.json, (data) =>
+        `updated: ${data.member.email} (${data.member.id.slice(0, 8)})`,
+      );
+    },
+  );
+
+member
+  .command('remove <id>')
+  .description('Remove a member and their tenant-scoped data (the global account is untouched)')
+  .action(async (id: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(memberRemoveInputSchema, { id }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.removeMember(input), ctx.json, (data) =>
+      `removed: ${data.memberId} (members deleted: ${data.deleted.members})`,
+    );
+  });
+
+member
+  .command('export <id>')
+  .description('Export one member as a JSON dump (GDPR access/portability)')
+  .action(async (id: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(memberRemoveInputSchema, { id }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.exportMember(input.id), ctx.json, (data) =>
+      `exported ${data.member.email} at ${data.exportedAt}`,
     );
   });
 

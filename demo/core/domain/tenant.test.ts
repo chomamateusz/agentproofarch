@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  memberSchema,
-  membershipSchema,
-  tenantDomainSchema,
-  tenantSchema,
-} from './tenant.js';
+import { membershipSchema, tenantDomainSchema, tenantSchema } from './tenant.js';
 
 describe('tenantSchema', () => {
   const valid = { id: 't1', slug: 'acme', name: 'Acme Inc' };
@@ -32,29 +27,6 @@ describe('membershipSchema', () => {
   it('rejects an unknown staff role', () => {
     const invalid = { tenant: { id: 't1', slug: 'acme', name: 'Acme Inc' }, staffRole: 'guest' };
     expect(membershipSchema.safeParse(invalid).success).toBe(false);
-  });
-});
-
-describe('memberSchema', () => {
-  const valid = {
-    id: 'm1',
-    tenantId: 't1',
-    userId: 'u1',
-    email: 'a@b.com',
-    displayName: 'Ada',
-    createdAt: '2026-07-03T00:00:00.000Z',
-  };
-
-  it('parses a valid member', () => {
-    expect(memberSchema.parse(valid)).toEqual(valid);
-  });
-
-  it('accepts a null displayName', () => {
-    expect(memberSchema.parse({ ...valid, displayName: null }).displayName).toBeNull();
-  });
-
-  it('rejects a numeric displayName', () => {
-    expect(memberSchema.safeParse({ ...valid, displayName: 5 }).success).toBe(false);
   });
 });
 

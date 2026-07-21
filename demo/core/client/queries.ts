@@ -9,7 +9,7 @@ import type {
   QueryKey,
 } from '@tanstack/query-core';
 
-import type { TenantCreateInput } from '#core/contract/index.js';
+import type { MemberEnsureInput, TenantCreateInput } from '#core/contract/index.js';
 import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
 import type { AuthClientPort } from './auth-port.js';
@@ -92,6 +92,11 @@ export const cardsScopes = {
   list: (board: BoardId) => ['cards', 'list', board] as const,
 };
 
+export const membersScopes = {
+  all: () => ['members'] as const,
+  lists: () => ['members', 'list'] as const,
+};
+
 export const authScopes = {
   all: () => ['auth'] as const,
 };
@@ -149,6 +154,21 @@ export const moveCardMutation = (api: ApiClient) =>
 
 /** Both card writes reorder the board, so both invalidate the list scope. */
 export const cardsInvalidates = () => ({ queryKey: cardsScopes.lists() });
+
+export const membersQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: membersScopes.lists(),
+    call: ({ signal }) => api.listMembers(signal),
+  });
+
+export const ensureMemberMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...membersScopes.all(), 'ensure'],
+    call: (input: MemberEnsureInput) => api.ensureMember(input),
+  });
+
+/** The invalidation filter `ensureMemberMutation` applies after it settles. */
+export const ensureMemberInvalidates = () => ({ queryKey: membersScopes.lists() });
 
 /**
  * Auth side effects are mutation descriptors over `AuthClientPort` like any

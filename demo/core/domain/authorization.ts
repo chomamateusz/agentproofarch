@@ -11,6 +11,10 @@ export const CAPABILITIES = [
   'todo:write',
   'card:read',
   'card:write',
+  'member:read',
+  'member:write',
+  'member:remove',
+  'member:export',
   'tenant:create',
 ] as const;
 
@@ -46,12 +50,26 @@ export const principalOf = (identity: Identity): Principal => {
  * self-service (the caller becomes owner), so a visitor holds it; a member of one
  * tenant may not spin up others. (Listing one's own memberships is a self-scoped
  * read gated by authentication, not a capability — see §Authorization.)
+ *
+ * The `member:*` capabilities are STAFF-ONLY (owner|admin), deliberately not
+ * granted to the `member` principal: members are the END CUSTOMERS this
+ * aggregate is about, managed BY tenant staff, not editors of the customer roster
+ * (PRD §3.4, FR-22 — owners/admins export and remove members). Granting a member
+ * `member:read` would let one customer enumerate the tenant's customer list; the
+ * self-scoped read a customer legitimately gets (their own profile) rides
+ * `/api/me`, which carries no capability. `member:remove` is split from
+ * `member:write` so a future policy can let admins edit profiles while reserving
+ * destructive removal for owners without reopening the capability set.
  */
 const GRANTS: Record<Capability, readonly Principal[]> = {
   'todo:read': ['staff', 'member'],
   'todo:write': ['staff', 'member'],
   'card:read': ['staff', 'member'],
   'card:write': ['staff', 'member'],
+  'member:read': ['staff'],
+  'member:write': ['staff'],
+  'member:remove': ['staff'],
+  'member:export': ['staff'],
   'tenant:create': ['staff', 'visitor'],
 };
 

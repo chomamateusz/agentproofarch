@@ -63,7 +63,11 @@ await db.insert(members).values([
     userId: 'customer-alice-opaque',
     email: 'alice@example.com',
     displayName: 'Alice Example',
+    tags: ['vip', 'early-adopter'],
+    marketingConsents: [{ channel: 'email', granted: true, updatedAt: nowIso }],
+    externalCustomerIds: ['cus_acme_alice'],
     createdAt: nowIso,
+    lastSeenAt: nowIso,
   },
   {
     id: 'member-globex-bob',
@@ -71,7 +75,11 @@ await db.insert(members).values([
     userId: 'customer-bob-opaque',
     email: 'bob@example.com',
     displayName: 'Bob Example',
+    tags: [],
+    marketingConsents: [{ channel: 'email', granted: false, updatedAt: nowIso }],
+    externalCustomerIds: [],
     createdAt: nowIso,
+    lastSeenAt: null,
   },
 ]).onConflictDoNothing();
 

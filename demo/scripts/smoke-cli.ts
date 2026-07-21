@@ -71,6 +71,21 @@ const cardItemSchema = z.object({
 const cardsSchema = z.object({ cards: z.array(cardItemSchema) });
 const cardWriteSchema = z.object({ card: cardItemSchema });
 
+const memberItemSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  tags: z.array(z.string()),
+});
+const membersSchema = z.object({ members: z.array(memberItemSchema) });
+const memberEnsureSchema = z.object({ member: memberItemSchema, created: z.boolean() });
+const memberExportSchema = z.object({
+  exportedAt: z.string(),
+  tenantId: z.string(),
+  member: memberItemSchema,
+});
+const memberRemoveSchema = z.object({ memberId: z.string(), deleted: z.object({ members: z.number() }) });
+
 const readEnvelope = (result: Run, label: string): unknown => {
   try {
     return JSON.parse(result.stdout);
@@ -205,8 +220,10 @@ const assertSessionCookieHardening = async (target: SmokeTarget): Promise<void> 
  * (verifying the moved card persists at its new column and index) → the team
  * board (add lands in todo → illegal todo→done rejected with a named rule at
  * exit 2 → the full legal chain todo→in-dev→review→done at exit 0 → list
- * surfaces board + visited) → unauthorized (exit 3), plus the security/caching
- * response headers and the session-cookie hardening assertion.
+ * surfaces board + visited) → members (ensure → idempotent re-ensure → list →
+ * export → remove, each run creating and removing its own uniquely-emailed
+ * member) → unauthorized (exit 3), plus the security/caching response headers
+ * and the session-cookie hardening assertion.
  *
  * Non-self-poisoning property (architecture §Environments, smoke-account
  * doctrine): every card this run creates is parked in an **unbounded** column
@@ -448,6 +465,72 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
       teamPersisted.column === 'done' &&
       ['todo', 'in-dev', 'review'].every((column) => teamPersisted.visited.includes(column)),
     `team card list did not surface board/visited correctly: ${JSON.stringify(teamPersisted)}`,
+  );
+
+  // --- members: the staff-managed end-customer roster (ensure→list→export→remove) ---
+  // Self-contained and non-self-poisoning: each run ensures a uniquely-emailed
+  // member and removes it before finishing, so repeated production runs leave the
+  // roster exactly as they found it.
+  const memberArgs = (...args: string[]): string[] => [
+    '--json',
+    '--api-url',
+    baseUrl,
+    '--tenant',
+    target.tenant,
+    'member',
+    ...args,
+  ];
+  const memberEmail = `smoke-${randomUUID()}@example.com`;
+
+  const ensured = memberEnsureSchema.parse(
+    expectOk(
+      await cli(memberArgs('ensure', memberEmail, '--name', 'Smoke Member', '--tag', 'smoke'), authedHome),
+      'member ensure',
+    ),
+  );
+  assert(
+    ensured.created && ensured.member.email === memberEmail,
+    `member ensure did not create ${memberEmail}: ${JSON.stringify(ensured)}`,
+  );
+
+  const reEnsured = memberEnsureSchema.parse(
+    expectOk(await cli(memberArgs('ensure', memberEmail), authedHome), 'member ensure (idempotent)'),
+  );
+  assert(
+    !reEnsured.created && reEnsured.member.id === ensured.member.id,
+    `member ensure was not idempotent by (tenant, email): ${JSON.stringify(reEnsured)}`,
+  );
+
+  const memberList = membersSchema.parse(
+    expectOk(await cli(memberArgs('list'), authedHome), 'member list'),
+  );
+  assert(
+    memberList.members.some((m) => m.id === ensured.member.id),
+    'the ensured member did not appear in the member list',
+  );
+
+  const exported = memberExportSchema.parse(
+    expectOk(await cli(memberArgs('export', ensured.member.id), authedHome), 'member export'),
+  );
+  assert(
+    exported.member.email === memberEmail && exported.tenantId.length > 0,
+    `member export dumped the wrong member: ${JSON.stringify(exported)}`,
+  );
+
+  const removed = memberRemoveSchema.parse(
+    expectOk(await cli(memberArgs('remove', ensured.member.id), authedHome), 'member remove'),
+  );
+  assert(
+    removed.memberId === ensured.member.id && removed.deleted.members === 1,
+    `member remove did not report the cascade: ${JSON.stringify(removed)}`,
+  );
+
+  const afterRemove = membersSchema.parse(
+    expectOk(await cli(memberArgs('list'), authedHome), 'member list (after remove)'),
+  );
+  assert(
+    !afterRemove.members.some((m) => m.id === ensured.member.id),
+    'the removed member is still present in the roster',
   );
 
   expectError(

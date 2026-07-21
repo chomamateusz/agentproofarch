@@ -18,7 +18,11 @@ const member: Member = {
   userId: 'u1',
   email: 'demo@example.com',
   displayName: 'Demo',
+  tags: [],
+  marketingConsents: [],
+  externalCustomerIds: [],
   createdAt: '2026-07-11T00:00:00.000Z',
+  lastSeenAt: null,
 };
 
 const fakeTenantAccess = (memberships: Membership[], members: Member[] = []): TenantAccessReader => ({

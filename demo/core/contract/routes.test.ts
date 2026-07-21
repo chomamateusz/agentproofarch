@@ -6,6 +6,9 @@ import {
   healthLiveOutputSchema,
   healthOutputSchema,
   healthReadyOutputSchema,
+  memberEnsureOutputSchema,
+  memberListOutputSchema,
+  memberRemoveOutputSchema,
   meOutputSchema,
   TENANT_HEADER,
   tenantCreateInputSchema,
@@ -15,6 +18,19 @@ import {
   todoCreateOutputSchema,
   todoListOutputSchema,
 } from './routes.js';
+
+const exampleMember = {
+  id: 'm1',
+  tenantId: 'acme',
+  userId: null,
+  email: 'a@b.com',
+  displayName: 'Ada',
+  tags: ['vip'],
+  marketingConsents: [{ channel: 'email', granted: true, updatedAt: '2026-07-10T00:00:00.000Z' }],
+  externalCustomerIds: [],
+  createdAt: '2026-07-03T00:00:00.000Z',
+  lastSeenAt: null,
+};
 
 describe('API_ROUTES', () => {
   it('gives every route an HTTP method and an /api path', () => {
@@ -31,6 +47,11 @@ describe('API_ROUTES', () => {
     expect(API_ROUTES.tenantsCreate.method).toBe('POST');
     expect(API_ROUTES.todos.method).toBe('GET');
     expect(API_ROUTES.todosCreate.method).toBe('POST');
+    expect(API_ROUTES.members.method).toBe('GET');
+    expect(API_ROUTES.membersEnsure.method).toBe('POST');
+    expect(API_ROUTES.membersUpdate.method).toBe('POST');
+    expect(API_ROUTES.membersRemove.method).toBe('POST');
+    expect(API_ROUTES.membersExport.method).toBe('GET');
   });
 });
 
@@ -133,5 +154,21 @@ describe('route schemas parse their example payloads', () => {
       },
     };
     expect(todoCreateOutputSchema.parse(example)).toEqual(example);
+  });
+
+  it('memberListOutputSchema', () => {
+    const example = { members: [exampleMember] };
+    expect(memberListOutputSchema.parse(example)).toEqual(example);
+  });
+
+  it('memberEnsureOutputSchema carries the created flag', () => {
+    const example = { member: exampleMember, created: true };
+    expect(memberEnsureOutputSchema.parse(example)).toEqual(example);
+    expect(memberEnsureOutputSchema.safeParse({ member: exampleMember }).success).toBe(false);
+  });
+
+  it('memberRemoveOutputSchema reports the cascade counts', () => {
+    const example = { memberId: 'm1', deleted: { members: 1 } };
+    expect(memberRemoveOutputSchema.parse(example)).toEqual(example);
   });
 });

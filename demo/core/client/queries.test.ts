@@ -13,6 +13,10 @@ import {
   cardsQuery,
   cardsScopes,
   createTenantMutation,
+  ensureMemberInvalidates,
+  ensureMemberMutation,
+  membersQuery,
+  membersScopes,
   meQuery,
   meScopes,
   moveCardMutation,
@@ -46,6 +50,19 @@ const card = {
 
 const tenant = { id: 't-acme', slug: 'acme', name: 'Acme Inc' };
 
+const member = {
+  id: 'member-1',
+  tenantId: 't-acme',
+  userId: null,
+  email: 'alice@example.com',
+  displayName: 'Alice',
+  tags: ['vip'],
+  marketingConsents: [],
+  externalCustomerIds: [],
+  createdAt: '2026-07-03T00:00:00.000Z',
+  lastSeenAt: null,
+};
+
 const happyApi: ApiClient = {
   health: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
   healthLive: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha' }),
@@ -58,6 +75,11 @@ const happyApi: ApiClient = {
   listCards: async () => ok({ cards: [card] }),
   addCard: async (input) => ok({ card: { ...card, title: input.title, column: input.column } }),
   moveCard: async (input) => ok({ card: { ...card, column: input.toColumn, position: input.toIndex } }),
+  listMembers: async () => ok({ members: [member] }),
+  ensureMember: async (input) => ok({ member: { ...member, email: input.email }, created: true }),
+  updateMember: async (input) => ok({ member: { ...member, id: input.id } }),
+  removeMember: async (input) => ok({ memberId: input.id, deleted: { members: 1 } }),
+  exportMember: async (id) => ok({ exportedAt: '2026-07-10T00:00:00.000Z', tenantId: 't-acme', member: { ...member, id } }),
 };
 
 const sadApi: ApiClient = {
@@ -72,6 +94,11 @@ const sadApi: ApiClient = {
   listCards: async () => err(internal('boom')),
   addCard: async () => err(internal('boom')),
   moveCard: async () => err(internal('boom')),
+  listMembers: async () => err(internal('boom')),
+  ensureMember: async () => err(internal('boom')),
+  updateMember: async () => err(internal('boom')),
+  removeMember: async () => err(internal('boom')),
+  exportMember: async () => err(internal('boom')),
 };
 
 const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -82,6 +109,7 @@ describe('query descriptors', () => {
     expect(tenantsQuery(happyApi).queryKey).toEqual(tenantsScopes.all());
     expect(todosQuery(happyApi).queryKey).toEqual(todosScopes.lists());
     expect(cardsQuery(happyApi).queryKey).toEqual(cardsScopes.list('personal'));
+    expect(membersQuery(happyApi).queryKey).toEqual(membersScopes.lists());
   });
 
   it('unwrap the Result value through the queryFn on success', async () => {
@@ -98,6 +126,7 @@ describe('query descriptors', () => {
     });
     await expect(client.fetchQuery(todosQuery(happyApi))).resolves.toEqual({ todos: [todo] });
     await expect(client.fetchQuery(cardsQuery(happyApi))).resolves.toEqual({ cards: [card] });
+    await expect(client.fetchQuery(membersQuery(happyApi))).resolves.toEqual({ members: [member] });
   });
 
   it('throw an ApiError carrying the AppError when the call fails', async () => {
@@ -116,6 +145,8 @@ describe('mutation descriptors', () => {
     expect(addTodoMutation(happyApi).mutationKey).toEqual([...todosScopes.all(), 'create']);
     expect(addCardMutation(happyApi).mutationKey).toEqual([...cardsScopes.all(), 'create']);
     expect(moveCardMutation(happyApi).mutationKey).toEqual([...cardsScopes.all(), 'move']);
+    expect(ensureMemberMutation(happyApi).mutationKey).toEqual([...membersScopes.all(), 'ensure']);
+    expect(ensureMemberInvalidates()).toEqual({ queryKey: membersScopes.lists() });
   });
 
   it('unwrap the write Result through the mutationFn on success', async () => {
@@ -136,6 +167,10 @@ describe('mutation descriptors', () => {
     await expect(
       new MutationObserver(client, moveCardMutation(happyApi)).mutate({ cardId: 'card-1', toColumn: 'done', toIndex: 2 }),
     ).resolves.toEqual({ card: { ...card, column: 'done', position: 2 } });
+
+    await expect(
+      new MutationObserver(client, ensureMemberMutation(happyApi)).mutate({ email: 'bob@example.com' }),
+    ).resolves.toEqual({ member: { ...member, email: 'bob@example.com' }, created: true });
   });
 
   it('throw an ApiError from the mutationFn when the call fails', async () => {

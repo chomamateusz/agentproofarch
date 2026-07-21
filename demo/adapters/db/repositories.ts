@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { staffRoleSchema, type Membership, type StaffRole } from '#core/domain/index.js';
+import { memberSchema, staffRoleSchema, type Membership, type StaffRole } from '#core/domain/index.js';
 import type {
   HealthPort,
   TenantAccessReader,
@@ -113,7 +113,9 @@ export const createTenantAccessReader = (db: Db): TenantAccessReader => {
         .from(members)
         .where(and(eq(members.userId, userId), eq(members.tenantId, tenantId)))
         .limit(1);
-      return rows[0] ?? null;
+      // Parse at the boundary: the marketing_consents jsonb stores an untyped
+      // channel string that the domain schema narrows to MarketingChannel.
+      return rows[0] ? memberSchema.parse(rows[0]) : null;
     },
   };
 };

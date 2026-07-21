@@ -9,6 +9,10 @@ import {
   cardCreateInputSchema,
   cardMoveInputSchema,
   cardsListQuerySchema,
+  memberEnsureInputSchema,
+  memberExportQuerySchema,
+  memberRemoveInputSchema,
+  memberUpdateInputSchema,
   tenantCreateInputSchema,
   toEnvelope,
   todoCreateInputSchema,
@@ -29,11 +33,16 @@ import {
   addCard,
   addTodo,
   createTenant,
+  ensureMember,
+  exportMember,
   listCards,
+  listMembers,
   listMyTenants,
   listTodos,
   moveCard,
+  removeMember,
   resolveIdentity,
+  updateMember,
   type AuthenticatedUser,
 } from '#core/server/index.js';
 import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
@@ -244,6 +253,50 @@ export const buildApp = (deps: AppDeps) => {
     }
     const result = await moveCard({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok({ card: result.value }) : result);
+  });
+
+  app.get(API_PATHS.members, async (c) => {
+    const result = await listMembers({ identity: c.get('identity') }, deps);
+    return respond(result.ok ? ok({ members: result.value }) : result);
+  });
+
+  app.post(API_PATHS.members, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = memberEnsureInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid member payload', parsed.error.flatten())));
+    }
+    const result = await ensureMember({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.post(API_PATHS.membersUpdate, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = memberUpdateInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid member update payload', parsed.error.flatten())));
+    }
+    const result = await updateMember({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok({ member: result.value }) : result);
+  });
+
+  app.post(API_PATHS.membersRemove, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = memberRemoveInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid member reference', parsed.error.flatten())));
+    }
+    const result = await removeMember({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.get(API_PATHS.membersExport, async (c) => {
+    const parsed = memberExportQuerySchema.safeParse({ id: c.req.query('id') });
+    if (!parsed.success) {
+      return respond(err(validation('Invalid member reference', parsed.error.flatten())));
+    }
+    const result = await exportMember({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
   });
 
   // Total the API surface: any /api/* request that reached here matched no route

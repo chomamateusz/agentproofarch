@@ -9,12 +9,20 @@ import {
   healthLiveOutputSchema,
   healthOutputSchema,
   healthReadyOutputSchema,
+  memberEnsureOutputSchema,
+  memberExportOutputSchema,
+  memberListOutputSchema,
+  memberRemoveOutputSchema,
+  memberUpdateOutputSchema,
   meOutputSchema,
   tenantCreateOutputSchema,
   tenantListOutputSchema,
   todoCreateOutputSchema,
   todoListOutputSchema,
   type HttpMethod,
+  type MemberEnsureInput,
+  type MemberRemoveInput,
+  type MemberUpdateInput,
   type ReadMethod,
   type TenantCreateInput,
   type WriteMethod,
@@ -143,6 +151,23 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.cardsCreate.method, API_ROUTES.cardsCreate.path, cardCreateOutputSchema, input, signal),
   moveCard: (input: CardMove, signal?: AbortSignal) =>
     request(options, API_ROUTES.cardsMove.method, API_ROUTES.cardsMove.path, cardMoveOutputSchema, input, signal),
+  listMembers: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.members.method, API_ROUTES.members.path, memberListOutputSchema, undefined, signal),
+  ensureMember: (input: MemberEnsureInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.membersEnsure.method, API_ROUTES.membersEnsure.path, memberEnsureOutputSchema, input, signal),
+  updateMember: (input: MemberUpdateInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.membersUpdate.method, API_ROUTES.membersUpdate.path, memberUpdateOutputSchema, input, signal),
+  removeMember: (input: MemberRemoveInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.membersRemove.method, API_ROUTES.membersRemove.path, memberRemoveOutputSchema, input, signal),
+  exportMember: (id: string, signal?: AbortSignal) =>
+    request(
+      options,
+      API_ROUTES.membersExport.method,
+      `${API_ROUTES.membersExport.path}?id=${encodeURIComponent(id)}`,
+      memberExportOutputSchema,
+      undefined,
+      signal,
+    ),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;

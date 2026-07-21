@@ -60,6 +60,8 @@ rejected.)
 
 ## Layer rules (enforced, but know them anyway)
 
+Per-layer one-screen summaries live beside the code — [`core/CLAUDE.md`](core/CLAUDE.md), [`adapters/CLAUDE.md`](adapters/CLAUDE.md), [`apps/CLAUDE.md`](apps/CLAUDE.md) (each with `AGENTS.md` symlink) — read the one for the layer you are editing.
+
 - `core/**` is pure TypeScript: no hono, react, drizzle, better-auth, pg, commander.
 - `core/domain` depends on zod only. `core/server` = use-cases + ports.
   `core/contract` = the only bridge between server and clients.

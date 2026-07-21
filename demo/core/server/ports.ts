@@ -11,6 +11,22 @@ export interface TodoRepository {
 }
 
 /**
+ * The end-customer roster, tenant-scoped. Every method requires `tenantId` (the
+ * tenant-scoping rule), so a member id can never be read or mutated across
+ * tenants. `deleteByTenantAndId` returns the number of rows removed so the
+ * removal use-case can prove the cascade (and distinguish a real delete from a
+ * no-op when the id belongs to another tenant).
+ */
+export interface MemberRepository {
+  listByTenant(tenantId: string): Promise<Member[]>;
+  findByEmail(tenantId: string, email: string): Promise<Member | null>;
+  findByTenantAndId(tenantId: string, id: string): Promise<Member | null>;
+  create(member: Member): Promise<void>;
+  update(member: Member): Promise<void>;
+  deleteByTenantAndId(tenantId: string, id: string): Promise<number>;
+}
+
+/**
  * A single card's new column + 0-based position, applied tenant-scoped.
  * `visited` is set only for the moving card (the one whose column changed), so
  * the reorder pass leaves every other card's history untouched.
