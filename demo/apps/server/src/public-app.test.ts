@@ -50,7 +50,17 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
     revoke: async () => 0,
   },
   users: { findByEmail: async () => null },
-  tenantDomains: { findByDomain: async () => null, listVerifiedDomains: async () => [] },
+  tenantDomains: {
+    findByDomain: async () => null,
+    listVerifiedDomains: async () => [],
+    listByTenant: async () => [],
+    findAnyByDomain: async () => null,
+    findByTenantAndDomain: async () => null,
+    add: async (input) => input,
+    setVerified: async () => null,
+    removeByTenantAndDomain: async () => 0,
+  },
+  domainTarget: { cname: null, ip: null },
   domainPort: {
     provision: async () => {},
     remove: async () => {},

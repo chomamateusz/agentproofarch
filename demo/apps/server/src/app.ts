@@ -18,6 +18,9 @@ import {
   todoCreateInputSchema,
 } from '#core/contract/index.js';
 import {
+  domainAddInputSchema,
+  domainCheckInputSchema,
+  domainRemoveInputSchema,
   err,
   internal,
   notFound,
@@ -29,17 +32,21 @@ import {
 } from '#core/domain/index.js';
 import {
   addCard,
+  addDomain,
   addTodo,
+  checkDomain,
   createTenant,
   ensureMember,
   exportMember,
   grantAdmin,
   listCards,
+  listDomains,
   listMembers,
   listMyTenants,
   listStaff,
   listTodos,
   moveCard,
+  removeDomain,
   removeMember,
   resolveIdentity,
   revokeAdmin,
@@ -151,6 +158,19 @@ export const buildApp = (deps: AppDeps) => {
   // identity resolution or authorization. Open CORS is scoped to this group only.
   registerPublicRoutes(app, deps);
 
+  // Tenancy self-service sits ABOVE tenant resolution: listing and creating one's
+  // own tenants are self-scoped operations gated by authentication alone, not by
+  // the tenant the current host resolves to (§Authorization — `listMyTenants` is
+  // the reasoned no-capability read). Serving them here lets the switcher and the
+  // post-register onboarding work on ANY host, including a tenant domain the
+  // caller has no access to (where the `/api/*` middleware below would 403).
+  app.get(API_PATHS.tenants, async (c) => {
+    const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
+    if (!user) return respond(err(unauthorized()));
+    const result = await listMyTenants({ identity: tenantlessIdentity(user) }, deps);
+    return respond(result.ok ? ok({ tenants: result.value }) : result);
+  });
+
   app.post(API_PATHS.tenants, async (c) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
     if (!user) return respond(err(unauthorized()));
@@ -201,11 +221,6 @@ export const buildApp = (deps: AppDeps) => {
             : null,
       }),
     );
-  });
-
-  app.get(API_PATHS.tenants, async (c) => {
-    const result = await listMyTenants({ identity: c.get('identity') }, deps);
-    return respond(result.ok ? ok({ tenants: result.value }) : result);
   });
 
   app.get(API_PATHS.todos, async (c) => {
@@ -318,6 +333,41 @@ export const buildApp = (deps: AppDeps) => {
       return respond(err(validation('Invalid staff reference', parsed.error.flatten())));
     }
     const result = await revokeAdmin({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.get(API_PATHS.domains, async (c) => {
+    const result = await listDomains({ identity: c.get('identity') }, deps);
+    return respond(result.ok ? ok({ domains: result.value, target: deps.domainTarget }) : result);
+  });
+
+  app.post(API_PATHS.domains, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = domainAddInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
+    }
+    const result = await addDomain({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok({ domain: result.value }) : result);
+  });
+
+  app.post(API_PATHS.domainsCheck, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = domainCheckInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
+    }
+    const result = await checkDomain({ identity: c.get('identity') }, parsed.data, deps);
+    return respond(result.ok ? ok(result.value) : result);
+  });
+
+  app.post(API_PATHS.domainsRemove, async (c) => {
+    const body: unknown = await c.req.json().catch(() => null);
+    const parsed = domainRemoveInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
+    }
+    const result = await removeDomain({ identity: c.get('identity') }, parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 

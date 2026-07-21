@@ -38,6 +38,13 @@ const fakeTenantAccess = (memberships: Membership[], members: Member[] = []): Te
 const fakeDomains = (domains: TenantDomain[]): TenantDomainRepository => ({
   findByDomain: async (domain) => domains.find((d) => d.domain === domain) ?? null,
   listVerifiedDomains: async () => domains,
+  listByTenant: async (tenantId) => domains.filter((d) => d.tenantId === tenantId),
+  findAnyByDomain: async (domain) => domains.find((d) => d.domain === domain) ?? null,
+  findByTenantAndDomain: async (tenantId, domain) =>
+    domains.find((d) => d.tenantId === tenantId && d.domain === domain) ?? null,
+  add: async (input) => input,
+  setVerified: async () => null,
+  removeByTenantAndDomain: async () => 0,
 });
 
 const fakeTenants = (tenantList: Tenant[]): TenantRepository => ({

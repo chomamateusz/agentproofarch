@@ -36,6 +36,47 @@ export const createTenantDomainRepository = (db: Db): TenantDomainRepository => 
   },
   listVerifiedDomains: async () =>
     db.select().from(tenantDomains).where(eq(tenantDomains.verified, true)),
+  listByTenant: async (tenantId) =>
+    db
+      .select()
+      .from(tenantDomains)
+      .where(eq(tenantDomains.tenantId, tenantId))
+      .orderBy(asc(tenantDomains.domain)),
+  findAnyByDomain: async (domain) => {
+    const rows = await db
+      .select()
+      .from(tenantDomains)
+      .where(eq(tenantDomains.domain, domain))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+  findByTenantAndDomain: async (tenantId, domain) => {
+    const rows = await db
+      .select()
+      .from(tenantDomains)
+      .where(and(eq(tenantDomains.tenantId, tenantId), eq(tenantDomains.domain, domain)))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+  add: async (input) => {
+    await db.insert(tenantDomains).values(input);
+    return input;
+  },
+  setVerified: async (tenantId, domain, verified) => {
+    const rows = await db
+      .update(tenantDomains)
+      .set({ verified })
+      .where(and(eq(tenantDomains.tenantId, tenantId), eq(tenantDomains.domain, domain)))
+      .returning();
+    return rows[0] ?? null;
+  },
+  removeByTenantAndDomain: async (tenantId, domain) => {
+    const removed = await db
+      .delete(tenantDomains)
+      .where(and(eq(tenantDomains.tenantId, tenantId), eq(tenantDomains.domain, domain)))
+      .returning({ id: tenantDomains.id });
+    return removed.length;
+  },
 });
 
 export const createTenantRepository = (db: Db): TenantRepository => ({

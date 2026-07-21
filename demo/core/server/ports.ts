@@ -49,8 +49,26 @@ export interface CardRepository {
 }
 
 export interface TenantDomainRepository {
+  /** Verified-only lookup by host — tenant resolution and the on-demand-TLS ask. */
   findByDomain(domain: string): Promise<TenantDomain | null>;
   listVerifiedDomains(): Promise<TenantDomain[]>;
+  /** The tenant's attached domains (any verification state), for the settings roster. */
+  listByTenant(tenantId: string): Promise<TenantDomain[]>;
+  /** Global uniqueness check (a host attaches to at most one tenant), any state. */
+  findAnyByDomain(domain: string): Promise<TenantDomain | null>;
+  /** Tenant-scoped lookup (any verification state) for check/remove. */
+  findByTenantAndDomain(tenantId: string, domain: string): Promise<TenantDomain | null>;
+  add(input: {
+    id: string;
+    tenantId: string;
+    domain: string;
+    kind: TenantDomain['kind'];
+    verified: boolean;
+  }): Promise<TenantDomain>;
+  /** Flip the verified flag after a provisioner check; null when the row is gone. */
+  setVerified(tenantId: string, domain: string, verified: boolean): Promise<TenantDomain | null>;
+  /** Tenant-scoped delete; the row count is the proof (0 = not this tenant's domain). */
+  removeByTenantAndDomain(tenantId: string, domain: string): Promise<number>;
 }
 
 export type TenantLookup = { tenantId: string } | { tenantSlug: string };

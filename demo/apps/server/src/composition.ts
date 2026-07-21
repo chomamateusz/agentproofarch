@@ -43,6 +43,8 @@ export interface AppDeps {
   tenantDomains: TenantDomainRepository;
   /** Domain provisioning/verification: caddy on self-host, noop elsewhere. */
   domainPort: DomainPort;
+  /** The public CNAME/IP a tenant points a custom domain at, surfaced by US-019. */
+  domainTarget: { cname: string | null; ip: string | null };
   tenants: TenantRepository;
   tenantAccess: TenantAccessReader;
   health: HealthPort;
@@ -112,6 +114,10 @@ export const createDeps = (env: Env): AppDeps => {
     users: createUserDirectory(db),
     tenantDomains,
     domainPort,
+    domainTarget: {
+      cname: env.SELF_HOST_TARGET_CNAME ?? null,
+      ip: env.SELF_HOST_TARGET_IP ?? null,
+    },
     tenants: createTenantRepository(db),
     tenantAccess: createTenantAccessReader(db),
     health: createHealthPort(db),

@@ -107,7 +107,7 @@ export const MembersPage = () => {
       {ensure.isError ? <Alert sx={{ mt: '0.6rem' }}>{ensure.error.message}</Alert> : null}
 
       <Box sx={{ mt: '2rem' }}>
-        <Button component="a" href="/" variant="text">
+        <Button component="a" href="/app" variant="text">
           ← back to the ledger
         </Button>
       </Box>

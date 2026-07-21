@@ -8,7 +8,7 @@ const signIn = async (page: Page): Promise<void> => {
   await page.locator('#login-email').fill(DEMO_EMAIL);
   await page.locator('#login-password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page.getByRole('heading', { name: 'Acme Sp. z o.o.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Switch tenant' })).toContainText('Acme');
 };
 
 const column = (page: Page, name: string) => page.locator(`section[aria-label="${name}"]`);
@@ -35,7 +35,7 @@ test('board: add, reorder, persist across reload, move across columns, undo rest
   const mine = [cardA, cardB];
 
   await signIn(page);
-  await page.goto('/board');
+  await page.goto('/app/board');
   await expect(page.getByRole('heading', { name: 'Board' })).toBeVisible();
 
   // Add two cards to todo; wait until the optimistic rows reconcile.

@@ -4,6 +4,9 @@ import {
   cardListQuerySchema,
   cardMoveSchema,
   cardSchema,
+  type domainAddInputSchema,
+  type domainCheckInputSchema,
+  type domainRemoveInputSchema,
   memberExportSchema,
   memberRefSchema,
   memberSchema,
@@ -18,6 +21,7 @@ import {
   slugSchema,
   staffMemberSchema,
   staffRoleSchema,
+  tenantDomainSchema,
   tenantSchema,
   todoSchema,
 } from '#core/domain/index.js';
@@ -188,6 +192,40 @@ export const staffRevokeOutputSchema = z.object({
 });
 
 /**
+ * The public target a tenant points a custom domain at, surfaced with the domain
+ * list so the web add-flow can render the exact DNS record to create (US-019).
+ * Both nullable: the `noop` provisioner (dev/Vercel) configures neither, so the
+ * UI falls back to generic guidance; `caddy` self-host sets exactly one.
+ */
+export const domainTargetSchema = z.object({
+  cname: z.string().nullable(),
+  ip: z.string().nullable(),
+});
+
+export const domainListOutputSchema = z.object({
+  domains: z.array(tenantDomainSchema),
+  target: domainTargetSchema,
+});
+
+export type DomainAddInput = z.input<typeof domainAddInputSchema>;
+
+export const domainAddOutputSchema = z.object({ domain: tenantDomainSchema });
+
+export type DomainCheckInput = z.input<typeof domainCheckInputSchema>;
+
+export const domainCheckOutputSchema = z.object({
+  domain: tenantDomainSchema,
+  check: z.object({ resolved: z.boolean(), detail: z.string() }),
+});
+
+export type DomainRemoveInput = z.input<typeof domainRemoveInputSchema>;
+
+export const domainRemoveOutputSchema = z.object({
+  domain: z.string(),
+  removed: z.number().int(),
+});
+
+/**
  * The public, unauthenticated contract group (US-028, FR-23, §Public surface).
  * A STRUCTURALLY DISTINCT registry with its own `/api/public/...` prefix so a
  * probe can gate the whole group: these routes take no identity, carry open CORS
@@ -249,6 +287,10 @@ export const API_ROUTES = {
   staff: { method: 'GET', path: '/api/staff' },
   staffGrant: { method: 'POST', path: '/api/staff' },
   staffRevoke: { method: 'POST', path: '/api/staff/revoke' },
+  domains: { method: 'GET', path: '/api/domains' },
+  domainsAdd: { method: 'POST', path: '/api/domains' },
+  domainsCheck: { method: 'POST', path: '/api/domains/check' },
+  domainsRemove: { method: 'POST', path: '/api/domains/remove' },
 } as const;
 
 export type HttpMethod = (typeof API_ROUTES)[keyof typeof API_ROUTES]['method'];
@@ -270,6 +312,9 @@ export const API_PATHS = {
   membersExport: API_ROUTES.membersExport.path,
   staff: API_ROUTES.staff.path,
   staffRevoke: API_ROUTES.staffRevoke.path,
+  domains: API_ROUTES.domains.path,
+  domainsCheck: API_ROUTES.domainsCheck.path,
+  domainsRemove: API_ROUTES.domainsRemove.path,
 } as const;
 
 /** Header used by non-browser clients (CLI, tests) to select the tenant. */

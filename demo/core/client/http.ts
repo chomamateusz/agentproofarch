@@ -5,6 +5,10 @@ import {
   cardCreateOutputSchema,
   cardMoveOutputSchema,
   cardsListOutputSchema,
+  domainAddOutputSchema,
+  domainCheckOutputSchema,
+  domainListOutputSchema,
+  domainRemoveOutputSchema,
   looseEnvelopeSchema,
   healthLiveOutputSchema,
   healthOutputSchema,
@@ -27,6 +31,9 @@ import {
   tenantListOutputSchema,
   todoCreateOutputSchema,
   todoListOutputSchema,
+  type DomainAddInput,
+  type DomainCheckInput,
+  type DomainRemoveInput,
   type HttpMethod,
   type MemberEnsureInput,
   type MemberRemoveInput,
@@ -184,6 +191,14 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.staffGrant.method, API_ROUTES.staffGrant.path, staffGrantOutputSchema, input, signal),
   revokeStaff: (input: StaffRevokeInput, signal?: AbortSignal) =>
     request(options, API_ROUTES.staffRevoke.method, API_ROUTES.staffRevoke.path, staffRevokeOutputSchema, input, signal),
+  listDomains: (signal?: AbortSignal) =>
+    request(options, API_ROUTES.domains.method, API_ROUTES.domains.path, domainListOutputSchema, undefined, signal),
+  addDomain: (input: DomainAddInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.domainsAdd.method, API_ROUTES.domainsAdd.path, domainAddOutputSchema, input, signal),
+  checkDomain: (input: DomainCheckInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.domainsCheck.method, API_ROUTES.domainsCheck.path, domainCheckOutputSchema, input, signal),
+  removeDomain: (input: DomainRemoveInput, signal?: AbortSignal) =>
+    request(options, API_ROUTES.domainsRemove.method, API_ROUTES.domainsRemove.path, domainRemoveOutputSchema, input, signal),
   publicTenantDiscovery: (slug: string, signal?: AbortSignal) =>
     request(
       options,

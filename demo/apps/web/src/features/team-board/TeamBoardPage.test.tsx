@@ -127,7 +127,7 @@ const errorBackend = (code: string, status: number) =>
 const renderTeamBoardWithRoutes = async (initial: string) => {
   const rootRoute = createRootRoute({});
   const routes = [
-    createRoute({ getParentRoute: () => rootRoute, path: '/', component: () => <p>picker</p> }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/app', component: () => <p>picker</p> }),
     createRoute({ getParentRoute: () => rootRoute, path: '/login', component: () => <p>login</p> }),
     createRoute({ getParentRoute: () => rootRoute, path: '/team-board', component: TeamBoardPage }),
   ];

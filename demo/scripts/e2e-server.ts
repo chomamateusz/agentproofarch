@@ -87,6 +87,9 @@ const bootServer = (): void => {
       APP_BASE_URL: `http://localhost:${PORT}`,
       APP_BASE_DOMAIN: 'localhost',
       WEB_DIST_DIR,
+      // Surfaced by the domains settings page (US-019) as the DNS record tenants
+      // create; the noop provisioner still verifies every domain regardless.
+      SELF_HOST_TARGET_CNAME: 'apps.agentproofarch.test',
       // The suite fires many sign-ins from one shared bucket (no client IP
       // behind the harness) — production keeps the limiter on.
       AUTH_RATE_LIMIT: 'off',

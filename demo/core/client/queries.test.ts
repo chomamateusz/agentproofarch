@@ -83,6 +83,19 @@ const happyApi: ApiClient = {
   listStaff: async () => ok({ staff: [{ id: 'g-1', userId: 'u1', email: 'demo@example.com', name: 'Demo', role: 'owner' }] }),
   grantStaff: async (input) => ok({ staff: { id: 'g-new', userId: 'u-new', email: input.email, name: 'New', role: 'admin' }, granted: true }),
   revokeStaff: async (input) => ok({ userId: input.userId ?? 'u-x', revoked: 1 }),
+  listDomains: async () =>
+    ok({
+      domains: [{ id: 'd-1', tenantId: 't-acme', domain: 'shop.acme.com', kind: 'custom', verified: true }],
+      target: { cname: 'apps.example.com', ip: null },
+    }),
+  addDomain: async (input) =>
+    ok({ domain: { id: 'd-new', tenantId: 't-acme', domain: input.domain, kind: 'custom', verified: false } }),
+  checkDomain: async (input) =>
+    ok({
+      domain: { id: 'd-1', tenantId: 't-acme', domain: input.domain, kind: 'custom', verified: true },
+      check: { resolved: true, detail: 'ok' },
+    }),
+  removeDomain: async (input) => ok({ domain: input.domain, removed: 1 }),
   publicTenantDiscovery: async (slug) => ok({ slug, contentVersion: 'v1' }),
   publicTenantProfile: async (slug) => ok({ slug, displayName: 'Acme Inc', contentVersion: 'v1' }),
 };
@@ -107,6 +120,10 @@ const sadApi: ApiClient = {
   listStaff: async () => err(internal('boom')),
   grantStaff: async () => err(internal('boom')),
   revokeStaff: async () => err(internal('boom')),
+  listDomains: async () => err(internal('boom')),
+  addDomain: async () => err(internal('boom')),
+  checkDomain: async () => err(internal('boom')),
+  removeDomain: async () => err(internal('boom')),
   publicTenantDiscovery: async () => err(internal('boom')),
   publicTenantProfile: async () => err(internal('boom')),
 };
