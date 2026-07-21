@@ -314,6 +314,14 @@ store's persist middleware and `localStorage`/`sessionStorage` in islands
 ban · **REVIEW+AI**: detect a server response's *shape* copied into a store
 — semantics, beyond any regex.
 
+**Optimism holds one intent per entity.** An overlay card whose op has not
+settled carries an identity (client-generated id) and a position the server has
+not confirmed — a second intent fired in that window targets an id the server
+may not know (404) or a stale column (rule rejection), then rolls back. The
+seam therefore refuses further intents on a pending entity: its action buttons
+render disabled with `(saving)` in the accessible name until the op settles
+(both boards; behavioral tests in each page's test file pin the closed window).
+
 **Intent-named events.** Events name what the user did, never what should
 happen: `deleteConfirmed`, not `deleteOrder`. Each island's events are a
 closed union in one file, names ending in a fixed past-tense/intent suffix

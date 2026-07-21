@@ -133,7 +133,13 @@ const CardRow = ({
   rightColumn: string | undefined;
   leftColumnSize: number;
   rightColumnSize: number;
-}) => (
+}) => {
+  // A pending card's id is not yet server-confirmed: a move fired now targets
+  // an id the server may not know and rolls back. The seam refuses moves until
+  // the op settles (same rule as the team board).
+  const saving = card.pending;
+  const savingSuffix = saving ? ' (saving)' : '';
+  return (
   <Paper
     variant="outlined"
     elevation={0}
@@ -144,8 +150,8 @@ const CardRow = ({
     <Stack direction="row" useFlexGap sx={{ gap: '0.25rem' }}>
       <Button
         size="small"
-        aria-label={`Move ${card.title} left`}
-        disabled={leftColumn === undefined}
+        aria-label={`Move ${card.title} left${savingSuffix}`}
+        disabled={saving || leftColumn === undefined}
         onClick={() =>
           leftColumn === undefined
             ? undefined
@@ -164,8 +170,8 @@ const CardRow = ({
       </Button>
       <Button
         size="small"
-        aria-label={`Move ${card.title} up`}
-        disabled={cardIndex === 0}
+        aria-label={`Move ${card.title} up${savingSuffix}`}
+        disabled={saving || cardIndex === 0}
         onClick={() =>
           send({
             type: 'cardMoved',
@@ -182,8 +188,8 @@ const CardRow = ({
       </Button>
       <Button
         size="small"
-        aria-label={`Move ${card.title} down`}
-        disabled={cardIndex === columnCount - 1}
+        aria-label={`Move ${card.title} down${savingSuffix}`}
+        disabled={saving || cardIndex === columnCount - 1}
         onClick={() =>
           send({
             type: 'cardMoved',
@@ -200,8 +206,8 @@ const CardRow = ({
       </Button>
       <Button
         size="small"
-        aria-label={`Move ${card.title} right`}
-        disabled={rightColumn === undefined}
+        aria-label={`Move ${card.title} right${savingSuffix}`}
+        disabled={saving || rightColumn === undefined}
         onClick={() =>
           rightColumn === undefined
             ? undefined
@@ -220,7 +226,8 @@ const CardRow = ({
       </Button>
     </Stack>
   </Paper>
-);
+  );
+};
 
 const AddCardForm = ({ column }: { column: string }) => {
   const [title, setTitle] = useState('');
