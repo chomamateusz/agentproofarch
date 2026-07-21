@@ -48,8 +48,9 @@ Side by side (only the island-owned files; tests included):
 features/board/                      features/team-board/
   BoardPage.tsx                        TeamBoardPage.tsx
   BoardPage.test.tsx                   TeamBoardPage.test.tsx
+  index.web.ts  (web composition)      index.web.ts  (web composition)
   core/
-    index.ts      (the seam)           index.ts      (the seam)
+    index.ts      (the factory)        index.ts      (the factory)
     events.ts                          events.ts
     selectors.ts                       selectors.ts
     store.ts                           store.ts
@@ -61,18 +62,29 @@ features/board/                      features/team-board/
                                      core/server/usecases/cards.ts  (consults them)
 ```
 
+`index.web.ts` sits at the feature root, OUTSIDE `core/`: it is the ONE site that
+binds the portable core to api.ts (gateway + bound descriptors, injected into the
+factory) and re-exports the seam the view imports. The core itself imports no
+api.ts, so it typechecks under the DOM-free `tsconfig.islands.json`
+(`npm run typecheck:islands`) and is node-tested through its public factory — the
+same for both boards, one rung apart.
+
 ### What stayed identical
 
-**The seam.** Both `core/index.ts` files export the same three-part API —
-`send(event)`, `subscribe(listener)`, and a selectors object — and both
-views import only that module. The rung is a core-internal secret: a view
-cannot tell `features/board/core/index.ts` (rung 2) from
-`features/team-board/core/index.ts` (rung 3) by its shape.
+**The seam.** Both `core/index.ts` files export the same factory —
+`createBoardCore(deps)` / `createTeamBoardCore(deps)` — that returns the same
+three-part API: `send(event)`, `subscribe(listener)`, and a selectors object.
+Both `index.web.ts` files bind that factory to api.ts once (gateway + descriptors)
+and re-export the seam; both views import only the `index.web.ts` module. The rung
+is a core-internal secret: a view cannot tell the rung-2 board from the rung-3
+team board by its seam shape, and neither core imports api.ts — composition lives
+in `index.web.ts`, so the cores stay DOM-free and node-portable.
 
 **The view wiring.** Both pages open with the same three moves — cache
 read, overlay subscription, commit-driven invalidation. From
 `features/board/BoardPage.tsx` (and, with names swapped,
-`features/team-board/TeamBoardPage.tsx` verbatim):
+`features/team-board/TeamBoardPage.tsx` verbatim), reading the seam through
+`./index.web.js`:
 
 ```tsx
 const cards = useQuery(boardSelectors.list);
@@ -93,6 +105,17 @@ merges the TanStack cache with the overlay on read.
 
 **The taxonomy.** Both event unions are closed, intent-named, and pass the
 same `agentproofarch/event-suffix-taxonomy` lint rule.
+
+**Portability.** Neither core imports api.ts; both are factories bound in
+`index.web.ts`. The property holds identically at both rungs, and every part of
+it is mechanically enforced:
+
+| Property (both boards) | Enforcer |
+| --- | --- |
+| Core imports no api.ts / no web path outside its dir | `no-restricted-imports` parent-relative ban · depcruise `island-core-is-portable` · config-regression probe |
+| Core typechecks without DOM | `tsconfig.islands.json` (no DOM lib) → `npm run typecheck:islands` in `check` |
+| Public seam runs in plain node | `board.test.ts` / `team-board.test.ts` drive `createBoardCore`/`createTeamBoardCore` with a fake gateway (no jsdom) |
+| Composition is one lawful site | `features/<name>/index.web.ts`; api.ts stays feature-free (structural gateway) |
 
 ### What changed
 

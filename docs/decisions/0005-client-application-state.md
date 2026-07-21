@@ -111,17 +111,29 @@ anti-port-theater) and produced the decisions below.
    makes the imperative form unwritable and pushes vocabulary the right way;
    semantics is a review/AI-tier check.
 
-8. **Pure-TS cores.** An island core is a pure TypeScript module: no React,
-   no DOM, no `react-query`. Its seam is `send(event)` in,
+8. **Pure-TS cores — portable by construction.** An island core is a pure
+   TypeScript module: no React, no DOM, no `react-query`, and **no api.ts**. It
+   is a **factory over its dependencies** (`createBoardCore(deps)`): composition
+   moves OUT of the core into a single web binding, `features/<name>/index.web.ts`,
+   which injects the real gateway, the bound server-read descriptors and an id
+   source and re-exports the seam. The seam is `send(event)` in,
    `subscribe(listener)` for change notification, and a selectors object out
    (including `snapshot()` for the current overlay state); the web adapter
    feeds `subscribe` plus the `snapshot` selector into `useSyncExternalStore`
-   in one generated line, and a TUI consumes `subscribe(listener)` + the
-   selectors directly. Same cores, two
-   consumers — React in the browser is just one view adapter. This composes
-   with what already holds: `core/client` is typed against
-   `@tanstack/query-core`, and both candidate machines are
-   framework-agnostic.
+   in one line, and a TUI injects its own gateway/descriptors and consumes
+   `subscribe(listener)` + the selectors directly. Same cores, two consumers —
+   React in the browser is just one view adapter. The descriptors thread through
+   the factory generically, so the core needs no api or query types. Direction
+   stays lawful: a feature may import web-api (api.ts) but web-api never a
+   feature — the structural-gateway pattern in api.ts binds the transport
+   without api.ts reaching into the island. **Proven, not promised**: a
+   DOM-free `tsconfig.islands.json` typechecks `features/*/core/**` as its own
+   program (wired into `check` as `typecheck:islands`); a `no-restricted-imports`
+   parent-relative ban plus the depcruise `island-core-is-portable` rule forbid
+   a core reaching outside its own dir; and each island's public factory is
+   node-tested with a fake gateway (no jsdom). This composes with what already
+   holds: `core/client` is typed against `@tanstack/query-core`, and both
+   candidate machines are framework-agnostic.
 
 9. **Isomorphic domain rules for guarded transitions.** When transition
    legality is a *business* rule (WIP limits, an enforced status path), it is
@@ -233,6 +245,20 @@ repo; their conclusions and probe results are summarized in this ADR.
   > graduation trigger; the pre-existing features still carry no explicit
   > `core/` folder and gain one when first touched by real client state. New
   > islands start from `npm run new:island`, which scaffolds the rung-1 seam.
+  >
+  > **Portable by construction (landed 2026-07-21).** Both cores were made
+  > genuinely portable: `core/index.ts` no longer imports api.ts but exports a
+  > `createBoardCore`/`createTeamBoardCore` factory, bound once in the new
+  > `features/<name>/index.web.ts` web composition (gateway + descriptors
+  > injected there); views import the seam from that binding. Enforcement now
+  > matches the claim — `tsconfig.islands.json` (no DOM) runs as
+  > `typecheck:islands` in `check`, a `no-restricted-imports` parent-relative
+  > ban and the depcruise `island-core-is-portable` rule keep cores from
+  > importing api.ts or any web path outside their own dir (config-regression
+  > probe included), and each island's public factory is node-tested with a fake
+  > gateway. The TUI claim is now literal: **typechecked without DOM, public
+  > seam node-tested.** `new:island` scaffolds this shape (a per-rung
+  > `index.web.ts` + a factory core).
   >
   > **Two scaffolders, one story (reconciled 2026-07-20).** `new:resource`
   > owns the server/data slice and ships a rung-0 CRUD page that reads

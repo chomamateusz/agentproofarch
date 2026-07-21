@@ -303,16 +303,43 @@ form is unwritable ([frontend-lint-plan.md](frontend-lint-plan.md) Phase 5) ·
 "do these events report intent, or smuggle a decision?" — PR checklist +
 AI tier.
 
-**Pure-TS cores (TUI-portable).** An island core's seam is `send(event)` in,
-`subscribe(listener)` for change notification, and a selectors object out
-(including `snapshot()` for the current overlay state); the web adapter feeds
-`subscribe` plus the `snapshot` selector into `useSyncExternalStore` in one
-generated line, a TUI consumes `subscribe(listener)` + the selectors directly.
-React in the browser is one view adapter, not a dependency of the core.
-— **TYPE**: cores compile with no JSX and no DOM types · **LINT**: the same
-`features/*/core/**` react/framework ban as the seam rule · **TEST**: core
-unit tests run in plain node (no jsdom) — portability exercised on every
-`check` · **REVIEW+AI**: n/a (mechanically covered).
+**Pure-TS cores (TUI-portable) — portable by construction.** An island core is
+a **factory over its dependencies** (`createBoardCore(deps)`): it imports no
+api.ts and no DOM. Composition moves OUT of the core — the web binding
+`features/<name>/index.web.ts` is the ONE site that injects the real gateway,
+the bound server-read descriptors and an id source, then re-exports the seam the
+view consumes. The seam itself is `send(event)` in, `subscribe(listener)` for
+change notification, and a selectors object out (including `snapshot()` for the
+current overlay state); the web adapter feeds `subscribe` plus the `snapshot`
+selector into `useSyncExternalStore` in one line, a TUI injects its own gateway/
+descriptors and consumes `subscribe(listener)` + the selectors directly. The
+descriptors thread through the factory **generically** — the core passes them to
+`useQuery`/invalidation at the view but never looks inside them, so it needs no
+api or query types. Direction stays lawful: a feature may import web-api
+(api.ts), but web-api must not import a feature — the structural-gateway pattern
+in api.ts binds the transport without api.ts reaching into the island. React in
+the browser is one view adapter, not a dependency of the core.
+— **TYPE**: a dedicated program, `tsconfig.islands.json` (lib `ES2023`, **no
+DOM**), typechecks `features/*/core/**` and is wired into `check` as
+`typecheck:islands`; a core referencing `window`/`document`/react types fails it
+— DOM-free is proven by construction, not asserted in prose · **LINT**: the
+`features/*/core/**` react/framework ban PLUS a parent-relative import ban —
+a core cannot import api.ts, a sibling feature or any apps/web path outside its
+own core dir (`no-restricted-imports` patterns), mirrored by dependency-cruiser
+(`island-core-is-portable`) so the boundary holds in both enforcers · **TEST**:
+core unit tests run in plain node (no jsdom), and each island adds one that
+drives the **public factory** with a fake gateway — the whole seam is proven
+node-runnable on every `check`; a config-regression probe fails an api.ts import
+from a core · **REVIEW+AI**: n/a (mechanically covered).
+
+The enforcement matrix, by construct:
+
+| Portability property | How it is guaranteed |
+| --- | --- |
+| Core imports no api.ts / web composition | `no-restricted-imports` parent-relative ban + depcruise `island-core-is-portable` + config-regression probe |
+| Core typechecks without DOM | `tsconfig.islands.json` (no DOM lib) run as `typecheck:islands` in `check` |
+| Public seam runs in plain node | per-island node test over `createXCore(deps)` with a fake gateway (no jsdom) |
+| Composition is a single lawful site | `features/<name>/index.web.ts`; api.ts stays feature-free (structural gateway) |
 
 **Isomorphic domain rules for guarded transitions.** When transition
 legality is a business rule (WIP limits, an enforced status path), it is
@@ -399,7 +426,11 @@ exercises rung 3 — the table-derived statechart, consulted as an oracle by
 the island's store and view. Both satisfy the spike-learnings requirements
 recorded in ADR-0005: fail-loud transitions, `toIndex` clamped before the
 gateway, WIP=1 coverage in the drift test with a planted-mutant detection
-proof, and `as`-free event carriers. Side by side in the tree, the
+proof, and `as`-free event carriers. Both are also **portable by construction**:
+each `core/index.ts` is a `createBoardCore`/`createTeamBoardCore` factory that
+imports no api.ts, bound once in `features/<name>/index.web.ts` (gateway +
+descriptors injected there), typechecked without DOM by `typecheck:islands`, and
+node-tested through the public factory. Side by side in the tree, the
 pair is the "how an island core graduates" guide — readable from the current
 state of the repo, not from git archaeology; the guided reading of that
 diff (triggers, anatomy, derivation contract, costs) is
