@@ -247,6 +247,39 @@ const assertPublicSurface = async (baseUrl: string, tenant: string): Promise<voi
     assert(parsed.ok, `${label}: expected an ok envelope, got an error.`);
     return parsed.data;
   };
+  // The Vercel CDN consumes the shared-cache directives at the edge and strips
+  // them from the client-visible header, so behind Vercel the literal helper
+  // string can never be observed. The platform-appropriate attestation is
+  // stronger: the stripped remainder must survive AND a repeat request must be
+  // served from the edge cache (x-vercel-cache HIT/STALE) — proof the CDN
+  // actually consumed the helper's directives. Direct-to-origin (local smoke,
+  // docker-smoke) keeps the literal equality.
+  const assertPublicCache = async (
+    res: Response,
+    profile: Parameters<typeof publicCacheControl>[0],
+    refetch: () => Promise<Response>,
+    label: string,
+  ): Promise<void> => {
+    const got = res.headers.get('cache-control');
+    if (res.headers.get('x-vercel-id') === null) {
+      assert(
+        got === publicCacheControl(profile),
+        `${label} cache-control must be the ${profile} helper output, got "${got}"`,
+      );
+      return;
+    }
+    assert(
+      got === 'public, max-age=0',
+      `${label} behind the Vercel CDN must keep "public, max-age=0" after edge directives are consumed, got "${got}"`,
+    );
+    const repeat = await refetch();
+    await repeat.arrayBuffer();
+    const edge = repeat.headers.get('x-vercel-cache');
+    assert(
+      edge === 'HIT' || edge === 'STALE',
+      `${label} must be edge-cached behind Vercel; expected x-vercel-cache HIT/STALE on a repeat request, got "${edge}"`,
+    );
+  };
 
   const discoveryRes = await fetch(`${baseUrl}/api/public/tenants/${tenant}`, {
     headers: { origin: foreignOrigin },
@@ -256,9 +289,11 @@ const assertPublicSurface = async (baseUrl: string, tenant: string): Promise<voi
     discoveryRes.headers.get('access-control-allow-origin') === '*',
     `public discovery must open CORS, got "${discoveryRes.headers.get('access-control-allow-origin')}"`,
   );
-  assert(
-    discoveryRes.headers.get('cache-control') === publicCacheControl('discovery'),
-    `public discovery cache-control must be the discovery helper output, got "${discoveryRes.headers.get('cache-control')}"`,
+  await assertPublicCache(
+    discoveryRes,
+    'discovery',
+    () => fetch(`${baseUrl}/api/public/tenants/${tenant}`, { headers: { origin: foreignOrigin } }),
+    'public discovery',
   );
   const discovery = publicDiscoverySchema.parse(await readOk(discoveryRes, 'public discovery'));
   assert(discovery.slug === tenant, `public discovery echoed the wrong slug: ${discovery.slug}`);
@@ -272,9 +307,14 @@ const assertPublicSurface = async (baseUrl: string, tenant: string): Promise<voi
     profileRes.headers.get('access-control-allow-origin') === '*',
     `public profile must open CORS, got "${profileRes.headers.get('access-control-allow-origin')}"`,
   );
-  assert(
-    profileRes.headers.get('cache-control') === publicCacheControl('profile'),
-    `public profile cache-control must be the profile helper output, got "${profileRes.headers.get('cache-control')}"`,
+  await assertPublicCache(
+    profileRes,
+    'profile',
+    () =>
+      fetch(`${baseUrl}/api/public/tenants/${tenant}/v/${discovery.contentVersion}`, {
+        headers: { origin: foreignOrigin },
+      }),
+    'public profile',
   );
   const profile = publicProfileSchema.parse(await readOk(profileRes, 'public profile'));
   assert(
