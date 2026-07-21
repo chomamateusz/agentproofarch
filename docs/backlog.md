@@ -84,6 +84,12 @@ enterprise customer questionnaire)
 - Cross-subdomain session on a real base domain (switcher keeps the session in
   prod) is documented but not locally testable (S6). Trigger: first custom
   base-domain deployment — verify live, then delete this row.
+- Post-deploy production smoke trigger under manual promotion — verify on the
+  first promoted deploy, adjust the workflow trigger if promotion emits no
+  `deployment_status` (`post-deploy-smoke.yml` fires on `deployment_status`; a
+  dashboard "Promote to Production" may emit different GitHub deployment events
+  than a `main` push, unverified). Trigger: the demo flip to the manual-promotion
+  topology ([deploy-promotion.md](deploy-promotion.md) §a).
 
 ## Open owner decisions (not deferred — awaiting answers)
 
