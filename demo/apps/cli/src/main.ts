@@ -48,6 +48,8 @@ program.exitOverride().configureOutput({ writeErr: () => {} });
 interface CliCtx {
   config: CliConfig;
   api: ApiClient;
+  /** A no-session client for the public surface: carries neither token nor tenant. */
+  publicApi: ApiClient;
   auth: AuthClientPort;
   apiUrl: string;
   tenant: string | null;
@@ -117,7 +119,8 @@ const cliCtx = (): CliCtx => {
     },
     () => config.token,
   );
-  return { config, api, auth, apiUrl, tenant, json: globals.json };
+  const publicApi = createApiClient({ baseUrl: apiUrl, headers: () => ({}) });
+  return { config, api, publicApi, auth, apiUrl, tenant, json: globals.json };
 };
 
 program.command('health').description('API and database status').action(async () => {
@@ -485,6 +488,31 @@ staff
     if (input === undefined) return;
     emit(await ctx.api.revokeStaff(input), ctx.json, (data) =>
       `revoked: ${data.userId} (grants removed: ${data.revoked})`,
+    );
+  });
+
+const publicCmd = program
+  .command('public')
+  .description('Public, unauthenticated read-only surface (US-028) — hit with NO session');
+
+publicCmd
+  .command('profile <tenant>')
+  .description('Fetch a tenant public profile with no session (content-version keyed)')
+  .action(async (tenantArg: string) => {
+    const ctx = cliCtx();
+    const slug = parseArgs(canonicalSlugSchema, tenantArg, ctx.json);
+    if (slug === undefined) return;
+    // Two-step, exercising the content-version flow: discover the current
+    // version, then fetch the long-cached profile keyed on it.
+    const discovery = await ctx.publicApi.publicTenantDiscovery(slug);
+    if (!discovery.ok) {
+      emit(discovery, ctx.json, () => '');
+      return;
+    }
+    emit(
+      await ctx.publicApi.publicTenantProfile(slug, discovery.value.contentVersion),
+      ctx.json,
+      (profile) => `${profile.slug}\t${profile.displayName}\t(v${profile.contentVersion})`,
     );
   });
 

@@ -4,7 +4,6 @@ import { secureHeaders } from 'hono/secure-headers';
 
 import {
   API_PATHS,
-  HTTP_STATUS_BY_ERROR_CODE,
   TENANT_HEADER,
   cardCreateInputSchema,
   cardMoveInputSchema,
@@ -16,7 +15,6 @@ import {
   staffGrantInputSchema,
   staffRevokeInputSchema,
   tenantCreateInputSchema,
-  toEnvelope,
   todoCreateInputSchema,
 } from '#core/contract/index.js';
 import {
@@ -27,9 +25,7 @@ import {
   unauthorized,
   unavailable,
   validation,
-  type AppError,
   type Identity,
-  type Result,
 } from '#core/domain/index.js';
 import {
   addCard,
@@ -54,7 +50,9 @@ import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
 import type { AppDeps } from './composition.js';
 import { captureServerException } from './observability.js';
-import { recordAppError, recordException, telemetryMiddleware } from './telemetry.js';
+import { registerPublicRoutes } from './public-app.js';
+import { respond } from './respond.js';
+import { recordException, telemetryMiddleware } from './telemetry.js';
 import { APP_VERSION } from './version.js';
 
 type Vars = { Variables: { identity: Identity } };
@@ -62,18 +60,6 @@ type Vars = { Variables: { identity: Identity } };
 // The Better Auth namespace prefix, derived from the one sanctioned pattern so no
 // route string is spelled by hand (lint bans literal auth routes outside adapters).
 const BETTER_AUTH_PATH_PREFIX = BETTER_AUTH_API_PATH_PATTERN.slice(0, -1);
-
-const respond = <T>(result: Result<T, AppError>): Response => {
-  const envelope = toEnvelope(result);
-  if (!envelope.ok) recordAppError(envelope.error);
-  const status = envelope.ok ? 200 : HTTP_STATUS_BY_ERROR_CODE[envelope.error.code];
-  return new Response(JSON.stringify(envelope), {
-    status,
-    // no-store at the one seam every envelope passes through: tenant-scoped
-    // JSON must never be stored by any cache (see architecture §HTTP caching).
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-  });
-};
 
 const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
   userId: user.userId,
@@ -158,6 +144,12 @@ export const buildApp = (deps: AppDeps) => {
   );
 
   app.on(['GET', 'POST'], BETTER_AUTH_API_PATH_PATTERN, (c) => deps.auth.handler(c.req.raw));
+
+  // The public, unauthenticated contract group (US-028, §Public surface). Mounted
+  // HERE — before the `/api/*` tenant-resolution middleware below — so a request
+  // to `/api/public/*` is answered by a terminal handler and never reaches
+  // identity resolution or authorization. Open CORS is scoped to this group only.
+  registerPublicRoutes(app, deps);
 
   app.post(API_PATHS.tenants, async (c) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);

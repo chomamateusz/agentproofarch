@@ -208,6 +208,34 @@ describe('createApiClient', () => {
 
     expect(seen?.has('traceparent')).toBe(false);
   });
+
+  it('reads the public tenant discovery route by slug', async () => {
+    const fetchImpl: typeof fetch = async (input, init) => {
+      expect(input).toBe('/api/public/tenants/acme');
+      expect(init).toMatchObject({ method: 'GET' });
+      return jsonResponse({ ok: true, data: { slug: 'acme', contentVersion: 'abc123' } });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+    await expect(client.publicTenantDiscovery('acme')).resolves.toEqual({
+      ok: true,
+      value: { slug: 'acme', contentVersion: 'abc123' },
+    });
+  });
+
+  it('keys the public profile URL on slug and version', async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      expect(input).toBe('/api/public/tenants/acme/v/abc123');
+      return jsonResponse({
+        ok: true,
+        data: { slug: 'acme', displayName: 'Acme Inc', contentVersion: 'abc123' },
+      });
+    };
+    const client = createApiClient({ baseUrl: '', fetchImpl });
+    await expect(client.publicTenantProfile('acme', 'abc123')).resolves.toEqual({
+      ok: true,
+      value: { slug: 'acme', displayName: 'Acme Inc', contentVersion: 'abc123' },
+    });
+  });
 });
 
 describe('unwrap', () => {

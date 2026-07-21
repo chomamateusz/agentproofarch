@@ -13,6 +13,7 @@ import {
   newMemberSchema,
   newTodoSchema,
   grantAdminInputSchema,
+  publicTenantProfileSchema,
   revokeAdminInputSchema,
   slugSchema,
   staffMemberSchema,
@@ -185,6 +186,43 @@ export const staffRevokeOutputSchema = z.object({
   userId: z.string(),
   revoked: z.number().int(),
 });
+
+/**
+ * The public, unauthenticated contract group (US-028, FR-23, §Public surface).
+ * A STRUCTURALLY DISTINCT registry with its own `/api/public/...` prefix so a
+ * probe can gate the whole group: these routes take no identity, carry open CORS
+ * and cacheable responses, and — unlike everything in `API_ROUTES` — never reach
+ * a tenant-scoped use-case. `discovery` returns the current content version;
+ * `profile` is the version-keyed, long-cached payload (busting is by the version
+ * in the URL, per architecture §HTTP caching).
+ */
+export const PUBLIC_API_PREFIX = '/api/public';
+
+export const PUBLIC_API_ROUTES = {
+  tenantDiscovery: { method: 'GET', path: `${PUBLIC_API_PREFIX}/tenants/:slug` },
+  tenantProfile: { method: 'GET', path: `${PUBLIC_API_PREFIX}/tenants/:slug/v/:version` },
+} as const;
+
+/** The cache-key token derived by `tenantContentVersion` — base36, URL-safe. */
+export const publicVersionSchema = z
+  .string()
+  .regex(/^[a-z0-9]+$/, 'A content version is a base36 token');
+
+export const publicTenantDiscoveryOutputSchema = z.object({
+  slug: z.string(),
+  contentVersion: z.string(),
+});
+
+export const publicTenantProfileOutputSchema = publicTenantProfileSchema;
+
+const fillPath = (template: string, params: Record<string, string>): string =>
+  template.replace(/:([a-z]+)/gi, (_, key: string) => encodeURIComponent(params[key] ?? ''));
+
+export const publicTenantDiscoveryPath = (slug: string): string =>
+  fillPath(PUBLIC_API_ROUTES.tenantDiscovery.path, { slug });
+
+export const publicTenantProfilePath = (slug: string, version: string): string =>
+  fillPath(PUBLIC_API_ROUTES.tenantProfile.path, { slug, version });
 
 /**
  * Every route carries its HTTP method so clients can discriminate reads from

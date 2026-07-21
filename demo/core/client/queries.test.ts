@@ -83,6 +83,8 @@ const happyApi: ApiClient = {
   listStaff: async () => ok({ staff: [{ id: 'g-1', userId: 'u1', email: 'demo@example.com', name: 'Demo', role: 'owner' }] }),
   grantStaff: async (input) => ok({ staff: { id: 'g-new', userId: 'u-new', email: input.email, name: 'New', role: 'admin' }, granted: true }),
   revokeStaff: async (input) => ok({ userId: input.userId ?? 'u-x', revoked: 1 }),
+  publicTenantDiscovery: async (slug) => ok({ slug, contentVersion: 'v1' }),
+  publicTenantProfile: async (slug) => ok({ slug, displayName: 'Acme Inc', contentVersion: 'v1' }),
 };
 
 const sadApi: ApiClient = {
@@ -105,6 +107,8 @@ const sadApi: ApiClient = {
   listStaff: async () => err(internal('boom')),
   grantStaff: async () => err(internal('boom')),
   revokeStaff: async () => err(internal('boom')),
+  publicTenantDiscovery: async () => err(internal('boom')),
+  publicTenantProfile: async () => err(internal('boom')),
 };
 
 const newClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -640,6 +640,22 @@ capability is modelled only where authorization is a real decision: `listMyTenan
 enumerates the caller's *own* staff memberships, so it is gated by authentication
 and carries no capability — a self-scoped read is not an access decision.
 
+**Public routes sit BEFORE identity resolution and never authorize** (US-028,
+[ADR-0006](decisions/0006-public-read-only-surface.md)). The public contract group
+(`/api/public/*`, §Public surface) is unauthenticated: there is no identity, so
+expressing its reads as a `visitor` capability would be dishonest — `visitor` is
+an *authenticated* tenant-less principal, and a public reader is not authenticated
+at all. Instead the public handlers are registered ahead of the `/api/*`
+tenant-resolution middleware and call only use-cases that take **no** `ctx:
+{ identity }` (e.g. `getPublicTenantProfile`), so a public handler *structurally
+cannot* reach a tenant-scoped, identity-bearing use-case (the US-028 acceptance
+criterion). This is enforced by a config-regression probe
+(`config-regression/public-surface.test.ts`): it scans the public app for any
+identity-bearing use-case name or `authorize`/`resolveIdentity` reference and
+asserts the public use-case's first parameter is not `ctx: Ctx`. The default-deny
+capability model is therefore untouched — public reads live *outside* it by
+construction, not as a new grant row.
+
 — **TYPE**: `Capability` is a closed union and the helpers take it as a required
 argument, so a use-case cannot name a capability the union does not declare;
 `Record<Capability, Principal[]>` is exhaustive, so adding a capability without
@@ -854,6 +870,19 @@ creator-hosted page), post-MVP iframe embed widgets (`/embed/*`, Hono +
 (pending confirmation) headless React SDK reusing `core/contract` types. The
 authenticated app remains a static SPA.
 
+**Built (US-028, FR-23/FR-24, [ADR-0006](decisions/0006-public-read-only-surface.md)):**
+the public read-only contract routes are live as the `PUBLIC_API_ROUTES` group in
+`core/contract` — a structurally distinct registry under `/api/public/*`,
+unauthenticated `GET` only. The demo route is the **public tenant profile**
+(`slug`, `displayName`, `contentVersion` — never emails, members, staff or todos),
+served by `getPublicTenantProfile`, a use-case that takes **no identity** and runs
+no `authorize`. It is registered on the main app before the `/api/*`
+tenant-resolution middleware, so a public request never reaches identity
+resolution (§Authorization). The route is slug-addressed, so the same URL is
+shareable on the apex or any tenant domain (FR-24). Caching, CORS and versioning
+are described in §HTTP caching. Not yet built: shareable checkout flows, embed
+widgets, the headless SDK.
+
 ## HTTP caching
 
 Cache policy is set at one seam — `respond()` in `apps/server/src/app.ts`, where
@@ -882,18 +911,36 @@ forget and any opt-in is a visible, local exception.
   `staleTime`/`gcTime` (see [server-state.md](server-state.md)) — so the two
   layers never cache the same bytes and there is nothing to invalidate twice.
 
-**NORMATIVE WHEN TRIGGERED** — trigger: the first unauthenticated `GET` in the
-public contract group (offers/prices, §Public surface). Until one exists the
-`no-store` default is the whole policy. Public routes then opt in through one
-shared helper emitting
+**NORMATIVE NOW** (triggered — the public tenant-profile group is built, US-028,
+[ADR-0006](decisions/0006-public-read-only-surface.md)). The public contract group
+(`/api/public/*`) opts into caching through ONE shared helper — `publicCacheControl`
+in `core/contract/cache.ts` — emitting
 `Cache-Control: public, max-age=0, s-maxage=<n>, stale-while-revalidate=<n>` (the
 browser always revalidates, Vercel's Edge Network caches for `s-maxage` and serves
-stale-while-revalidate) — no hand-written `Cache-Control` strings at call sites.
-Busting is by **content-version in the URL/key**, not an edge purge: a content
-change is a new key, which is exactly the "cache keyed to tenant content version"
-that §Public surface and
-[ADR-0001](decisions/0001-public-surface-embeds-over-pages.md) already name. Open
-`GET` CORS is set on this group only, never on the authenticated `/api/*` surface.
+stale-while-revalidate). No call site hand-writes a `Cache-Control` string; a
+config-regression probe (`config-regression/public-surface.test.ts`) asserts the
+`s-maxage`/`stale-while-revalidate` tokens appear in that one helper alone. The
+helper is applied at the same `respond()` seam as the `no-store` default, which
+pins **errors to `no-store` regardless of the argument**, so a transient public
+failure can never be cached at the edge.
+
+Busting is by **content-version in the URL**, not an edge purge: a content change
+is a new key, which is exactly the "cache keyed to tenant content version" that
+§Public surface and [ADR-0001](decisions/0001-public-surface-embeds-over-pages.md)
+name. The version is `tenantContentVersion` — a pure FNV-1a derivation over the
+tenant's visible public fields (`slug`, `name`), NOT a stored column, so a future
+tenant-rename use-case busts the cache for free with no write-path plumbing
+([ADR-0006](decisions/0006-public-read-only-surface.md) records the tradeoff). The
+built shape is a tiny short-cached **discovery** route (`GET /api/public/tenants/:slug`
+→ `{ slug, contentVersion }`, `s-maxage=30`) that hands a consumer the current
+version, and the long-cached **profile** route
+(`GET /api/public/tenants/:slug/v/:version` → the safe profile, `s-maxage=300`)
+keyed on it; the path version is a cache key, not a content selector (the server
+returns current content and echoes the current version, so a stale request sees
+the bust in the body). Open `GET` CORS (plus its `OPTIONS` preflight) is set on
+this group only via `hono/cors`, never on the authenticated `/api/*` surface — a
+probe asserts the authenticated app imports no CORS middleware, and `smoke` proves
+the separation from a foreign `Origin`.
 
 **OUT OF SCOPE:** per-user `private` response caching (`no-store` is the
 authenticated default), service-worker/offline HTTP-cache persistence (a product
