@@ -8,6 +8,7 @@
 import { eq } from 'drizzle-orm';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
+import { createDevEmailPort } from '#adapters/email/dev.js';
 import { seedEnvSchema } from '#core/server/config.js';
 
 import { createDb } from './client.js';
@@ -24,6 +25,7 @@ const auth = createAuth(db, {
   trustedOrigins: () => ['http://localhost:47100'],
   secureCookies: false,
   rateLimitEnabled: false,
+  email: createDevEmailPort(),
 });
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
@@ -68,6 +70,20 @@ await db.insert(members).values([
     externalCustomerIds: ['cus_acme_alice'],
     createdAt: nowIso,
     lastSeenAt: nowIso,
+  },
+  {
+    // US-026: a passwordless provisioned member (no account yet). Its userId
+    // binds on first magic-link sign-in into acme.localhost.
+    id: 'member-acme-mag',
+    tenantId: 'tenant-acme',
+    userId: null,
+    email: 'mag@example.com',
+    displayName: 'Magic Link Member',
+    tags: ['provisioned'],
+    marketingConsents: [],
+    externalCustomerIds: [],
+    createdAt: nowIso,
+    lastSeenAt: null,
   },
   {
     id: 'member-globex-bob',

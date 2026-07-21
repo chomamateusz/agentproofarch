@@ -71,6 +71,16 @@ export const healthOutputSchema = attestationSchema.extend({
   database: z.enum(['up', 'down']),
 });
 
+/**
+ * The unauthenticated client config read: which optional auth methods the server
+ * has wired, so the login/register pages render the Google button only when the
+ * provider is actually configured (FR-26 present-both-or-dormant gating). It
+ * exposes flags only — never a secret.
+ */
+export const authConfigOutputSchema = z.object({
+  googleEnabled: z.boolean(),
+});
+
 export const meOutputSchema = z.object({
   userId: z.string(),
   email: z.string(),
@@ -271,6 +281,7 @@ export const API_ROUTES = {
   health: { method: 'GET', path: '/api/health' },
   healthLive: { method: 'GET', path: '/api/health/live' },
   healthReady: { method: 'GET', path: '/api/health/ready' },
+  config: { method: 'GET', path: '/api/config' },
   me: { method: 'GET', path: '/api/me' },
   tenants: { method: 'GET', path: '/api/tenants' },
   tenantsCreate: { method: 'POST', path: '/api/tenants' },
@@ -301,6 +312,7 @@ export const API_PATHS = {
   health: API_ROUTES.health.path,
   healthLive: API_ROUTES.healthLive.path,
   healthReady: API_ROUTES.healthReady.path,
+  config: API_ROUTES.config.path,
   me: API_ROUTES.me.path,
   tenants: API_ROUTES.tenants.path,
   todos: API_ROUTES.todos.path,

@@ -1,7 +1,7 @@
 import { Command, CommanderError } from 'commander';
 import { z } from 'zod';
 
-import { createCliAuthAdapter } from '#adapters/auth/client-adapter.js';
+import { createCliAuthAdapter, followMagicLink } from '#adapters/auth/client-adapter.js';
 import type { AuthClientPort } from '#core/client/index.js';
 import { createApiClient, type ApiClient } from '#core/client/index.js';
 import {
@@ -69,6 +69,11 @@ const loginArgsSchema = z.object({
   email: z.string().trim().min(1),
   password: z.string().min(1),
 });
+const magicLinkArgsSchema = z.object({ email: z.string().trim().min(1) });
+const devLinkEnvelopeSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), data: z.object({ link: z.string() }) }),
+  z.object({ ok: z.literal(false), error: z.object({ code: z.string(), message: z.string() }) }),
+]);
 const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
 
 // Merged global options (Commander parses them onto the root program). They flow
@@ -168,6 +173,55 @@ program
       saveConfig({ ...ctx.config, apiUrl: ctx.apiUrl, token: result.value.token });
     }
     emit(result, ctx.json, () => `signed in as ${input.email}`);
+  });
+
+program
+  .command('login-link')
+  .description(
+    'Passwordless magic-link sign-in (US-026). Requests a link; in dev the link is ' +
+      'not delivered but captured, so --follow retrieves it and establishes the session.',
+  )
+  .requiredOption('--email <email>')
+  .option('--follow', 'in dev: retrieve the captured link and sign in with it', false)
+  .action(async (options: { email: string; follow: boolean }) => {
+    const ctx = cliCtx();
+    const input = parseArgs(magicLinkArgsSchema, { email: options.email }, ctx.json);
+    if (input === undefined) return;
+    const requested = await ctx.auth.requestMagicLink({ email: input.email, callbackURL: ctx.apiUrl });
+    if (!requested.ok) {
+      emit(requested, ctx.json, () => '');
+      return;
+    }
+    if (!options.follow) {
+      emit(ok({ requested: true, email: input.email }), ctx.json, () => `magic link requested for ${input.email}`);
+      return;
+    }
+    // The retrieval route exists only under the dev email transport (no delivery).
+    let linkResponse: Response;
+    try {
+      linkResponse = await fetch(
+        new URL(`/api/dev/magic-link?email=${encodeURIComponent(input.email)}`, ctx.apiUrl),
+      );
+    } catch (cause) {
+      emit(err(internal(`Could not reach the dev magic-link capture: ${String(cause)}`)), ctx.json, () => '');
+      return;
+    }
+    const parsed = devLinkEnvelopeSchema.safeParse(await linkResponse.json().catch(() => null));
+    if (!parsed.success || !parsed.data.ok) {
+      emit(err(notFound(`No captured magic link for ${input.email} (dev transport only)`)), ctx.json, () => '');
+      return;
+    }
+    const followed = await followMagicLink(parsed.data.data.link);
+    if (!followed.ok) {
+      emit(followed, ctx.json, () => '');
+      return;
+    }
+    if (!followed.value.token) {
+      emit(err(internal('Magic link did not yield a session token')), ctx.json, () => '');
+      return;
+    }
+    saveConfig({ ...ctx.config, apiUrl: ctx.apiUrl, token: followed.value.token });
+    emit(ok({ signedIn: true, email: input.email }), ctx.json, () => `signed in as ${input.email} via magic link`);
   });
 
 program.command('logout').description('Drop the stored session token').action(async () => {

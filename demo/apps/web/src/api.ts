@@ -8,10 +8,13 @@ import {
   cardsInvalidates,
   cardsQuery,
   checkDomainMutation,
+  configQuery,
   createApiClient,
   createTenantMutation,
+  disableTwoFactorMutation,
   domainsInvalidates,
   domainsQuery,
+  enableTwoFactorMutation,
   ensureMemberInvalidates,
   ensureMemberMutation,
   grantStaffMutation,
@@ -19,15 +22,18 @@ import {
   membersQuery,
   meQuery,
   removeDomainMutation,
+  requestMagicLinkMutation,
   tenantsInvalidates,
   revokeStaffMutation,
   signInMutation,
+  signInSocialMutation,
   signOutMutation,
   signUpMutation,
   staffInvalidates,
   staffQuery,
   tenantsQuery,
   todosQuery,
+  verifyTotpMutation,
 } from '#core/client/index.js';
 
 /**
@@ -52,6 +58,7 @@ const authClient = createBetterAuthClientAdapter('');
  * these ready actions and never see a client, a port or an adapter.
  */
 export const actions = {
+  config: configQuery(apiClient),
   me: meQuery(apiClient),
   meInvalidates,
   tenants: tenantsQuery(apiClient),
@@ -78,6 +85,11 @@ export const actions = {
   signUp: signUpMutation(authClient),
   signIn: signInMutation(authClient),
   signOut: signOutMutation(authClient),
+  requestMagicLink: requestMagicLinkMutation(authClient),
+  signInSocial: signInSocialMutation(authClient),
+  enableTwoFactor: enableTwoFactorMutation(authClient),
+  verifyTotp: verifyTotpMutation(authClient),
+  disableTwoFactor: disableTwoFactorMutation(authClient),
 };
 
 /**

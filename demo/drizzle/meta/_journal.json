@@ -36,6 +36,13 @@
       "when": 1784599500950,
       "tag": "0004_cheerful_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784640965090,
+      "tag": "0005_two_factor",
+      "breakpoints": true
     }
   ]
 }

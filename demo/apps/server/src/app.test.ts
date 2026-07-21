@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
+import { createDevEmailPort } from '#adapters/email/dev.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   API_PATHS,
@@ -30,12 +31,16 @@ const auth = createAuth(
     rateLimitEnabled: false,
     trustedOrigins: [],
     secureCookies: false,
+    email: createDevEmailPort(),
   },
 );
 
 const baseDeps = (): AppDeps => ({
   auth,
   authPort: { getAuthenticatedUser: async () => null },
+  email: createDevEmailPort(),
+  devMailbox: null,
+  googleEnabled: false,
   todos: {
     listByTenant: async () => [],
     create: async () => {},
@@ -201,6 +206,37 @@ describe('buildApp routes', () => {
     const body = looseEnvelopeSchema.parse(await res.json());
     expect(body.ok).toBe(false);
     if (!body.ok) expect(body.error.code).toBe('not_found');
+  });
+
+  it('exposes the unauthenticated config flags (googleEnabled) without a session', async () => {
+    const deps = baseDeps();
+    deps.googleEnabled = true;
+    const res = await buildApp(deps).request(API_PATHS.config);
+    expect(res.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await res.json());
+    expect(body).toMatchObject({ ok: true, data: { googleEnabled: true } });
+  });
+
+  it('mounts the dev magic-link retrieval route only when the dev mailbox is present', async () => {
+    // With no dev mailbox the route is never registered, so the request falls
+    // through to the authenticated /api/* middleware (401), not the dev handler.
+    const withoutMailbox = baseDeps();
+    expect((await buildApp(withoutMailbox).request('/api/dev/magic-link?email=x@example.com')).status).toBe(401);
+
+    const deps = baseDeps();
+    deps.devMailbox = { lastLinkFor: (email) => (email === 'has@example.com' ? 'https://app/verify?token=1' : null) };
+    const app = buildApp(deps);
+
+    const missing = await app.request('/api/dev/magic-link');
+    expect(missing.status).toBe(400);
+
+    const notCaptured = await app.request('/api/dev/magic-link?email=none@example.com');
+    expect(notCaptured.status).toBe(404);
+
+    const found = await app.request('/api/dev/magic-link?email=has@example.com');
+    expect(found.status).toBe(200);
+    const body = looseEnvelopeSchema.parse(await found.json());
+    expect(body).toMatchObject({ ok: true, data: { link: 'https://app/verify?token=1' } });
   });
 
   it('answers a wrong method on a known route (POST /api/me) with a not_found envelope', async () => {

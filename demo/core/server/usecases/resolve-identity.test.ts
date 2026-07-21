@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Member, Membership, Tenant, TenantDomain } from '#core/domain/index.js';
 
-import type { TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
+import type { MemberRepository, TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
 import { resolveIdentity } from './resolve-identity.js';
 
 const user = { userId: 'u1', email: 'demo@example.com', name: 'Demo' };
@@ -31,8 +31,8 @@ const fakeTenantAccess = (memberships: Membership[], members: Member[] = []): Te
     memberships.find((m) =>
       'tenantId' in lookup ? m.tenant.id === lookup.tenantId : m.tenant.slug === lookup.tenantSlug,
     ) ?? null,
-  findMember: async (_userId, tenantId) =>
-    members.find((candidate) => candidate.tenantId === tenantId) ?? null,
+  findMember: async (userId, tenantId) =>
+    members.find((candidate) => candidate.tenantId === tenantId && candidate.userId === userId) ?? null,
 });
 
 const fakeDomains = (domains: TenantDomain[]): TenantDomainRepository => ({
@@ -45,6 +45,22 @@ const fakeDomains = (domains: TenantDomain[]): TenantDomainRepository => ({
   add: async (input) => input,
   setVerified: async () => null,
   removeByTenantAndDomain: async () => 0,
+});
+
+const fakeMembers = (rows: Member[]): MemberRepository => ({
+  listByTenant: async (tenantId) => rows.filter((r) => r.tenantId === tenantId),
+  findByEmail: async (tenantId, email) =>
+    rows.find((r) => r.tenantId === tenantId && r.email === email) ?? null,
+  findByTenantAndId: async (tenantId, id) =>
+    rows.find((r) => r.tenantId === tenantId && r.id === id) ?? null,
+  create: async (member) => {
+    rows.push(member);
+  },
+  update: async (member) => {
+    const index = rows.findIndex((r) => r.id === member.id);
+    if (index >= 0) rows[index] = member;
+  },
+  deleteByTenantAndId: async () => 0,
 });
 
 const fakeTenants = (tenantList: Tenant[]): TenantRepository => ({
@@ -64,6 +80,8 @@ const deps = (
   tenantAccess: fakeTenantAccess(memberships, memberRows),
   tenants: fakeTenants(tenantRows),
   tenantDomains: fakeDomains(domains),
+  members: fakeMembers(memberRows),
+  clock: { nowIso: () => '2026-07-11T00:00:00.000Z' },
   baseDomain: 'localhost',
 });
 
@@ -123,6 +141,26 @@ describe('resolveIdentity', () => {
     expect(result).toMatchObject({
       ok: true,
       value: { tenantId: 't-acme', staffRole: null, memberId: 'member-acme' },
+    });
+  });
+
+  it('binds a provisioned (null userId) member on first sign-in and surfaces its memberId (US-026)', async () => {
+    const provisioned: Member = {
+      ...member,
+      id: 'member-provisioned',
+      userId: null,
+      email: 'demo@example.com',
+    };
+    // findMember (by userId) returns null for the unbound row; the members repo
+    // still holds it by email, so resolveIdentity binds it and grants access.
+    const result = await resolveIdentity(
+      user,
+      { host: 'acme.localhost:4711', tenantHeader: null },
+      deps([], [], [provisioned]),
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      value: { tenantId: 't-acme', staffRole: null, memberId: 'member-provisioned' },
     });
   });
 

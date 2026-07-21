@@ -170,6 +170,36 @@ export interface DomainPort {
   remove(domain: string): Promise<void>;
 }
 
+/**
+ * One outbound email. `link` is the optional primary-action URL a transactional
+ * mail carries (a magic link, a verification link); the smtp transport embeds it
+ * in `text`/`html` and ignores the field, while the dev transport captures it so
+ * a link can be surfaced without real delivery. Keeping the port at `sendMail`
+ * makes the magic link ONE consumer of the seam, not the port's shape.
+ */
+export interface EmailMessage {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  link?: string;
+}
+
+export interface EmailPort {
+  sendMail(message: EmailMessage): Promise<void>;
+}
+
+/**
+ * The dev/CI email transport's capture side (US-026 AC: no real delivery — the
+ * link is surfaced instead). Present in the composition ONLY when
+ * `EMAIL_TRANSPORT=dev`, so the dev-only magic-link retrieval route is mounted
+ * exclusively off this handle and never exists on a real deploy.
+ */
+export interface DevMailbox {
+  /** The most recent captured action link for an address, or null if none. */
+  lastLinkFor(email: string): string | null;
+}
+
 export interface IdGenerator {
   nextId(): string;
 }

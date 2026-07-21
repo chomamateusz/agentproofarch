@@ -152,6 +152,24 @@ export const buildApp = (deps: AppDeps) => {
 
   app.on(['GET', 'POST'], BETTER_AUTH_API_PATH_PATTERN, (c) => deps.auth.handler(c.req.raw));
 
+  // Unauthenticated client config (which optional auth methods are wired), read
+  // by the pre-auth login/register pages. Flags only, never a secret. Mounted
+  // above the `/api/*` tenant middleware so it answers without a session.
+  app.get(API_PATHS.config, () => respond(ok({ googleEnabled: deps.googleEnabled })));
+
+  // Dev/CI ONLY (US-026 AC: no real delivery — the link is surfaced instead).
+  // Mounted exclusively when the dev mailbox is present, so this retrieval route
+  // cannot exist on a deploy that configured a real SMTP relay.
+  if (deps.devMailbox) {
+    const mailbox = deps.devMailbox;
+    app.get('/api/dev/magic-link', (c) => {
+      const email = c.req.query('email');
+      if (!email) return respond(err(validation('email query parameter is required')));
+      const link = mailbox.lastLinkFor(email);
+      return respond(link ? ok({ link }) : err(notFound(`No captured magic link for ${email}`)));
+    });
+  }
+
   // The public, unauthenticated contract group (US-028, §Public surface). Mounted
   // HERE — before the `/api/*` tenant-resolution middleware below — so a request
   // to `/api/public/*` is answered by a terminal handler and never reaches

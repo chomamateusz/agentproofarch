@@ -69,6 +69,25 @@ export const serverEnvSchema = z.object({
     .enum(['on', 'off'])
     .default('on')
     .transform((value) => value === 'on'),
+  // Email transport selector (composition root), like DOMAIN_PROVISIONER. `dev`
+  // (default): no real delivery — the magic link is logged and captured for
+  // retrieval (US-026 AC). `smtp`: any RFC SMTP relay (Amazon SES SMTP creds
+  // included) via the SMTP_* block, required only when selected.
+  EMAIL_TRANSPORT: z.enum(['dev', 'smtp']).default('dev'),
+  EMAIL_FROM: z.string().default('Agentproofarch <no-reply@localhost>'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  // Google social sign-in (FR-26), wired only when BOTH are present — the same
+  // present-both-or-dormant gating as SENTRY_DSN. Absent = the provider is off
+  // and the web login page hides its button.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   WEB_DIST_DIR: z.string().default('dist/web'),
 });
 

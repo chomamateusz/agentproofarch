@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Identity } from '#core/domain/index.js';
 import {
   addCard,
+  bindMemberOnSignIn,
   ensureMember,
   exportMember,
   listCards,
@@ -568,6 +569,33 @@ describe('MemberRepository + member use-cases', () => {
     expect(await memberRepo().findByTenantAndId(tenantA.id, bMemberId)).toBeNull();
     const exportAcrossTenant = await exportMember(staffCtx(tenantA.id), { id: bMemberId }, deps);
     expect(exportAcrossTenant).toMatchObject({ ok: false, error: { code: 'not_found' } });
+  });
+
+  it('bindMemberOnSignIn claims a provisioned member against Postgres (US-026)', async () => {
+    const deps = memberDeps();
+    const provisioned = await ensureMember(staffCtx(tenantA.id), { email: 'bind@example.com' }, deps);
+    expect(provisioned.ok && provisioned.value.member.userId).toBeNull();
+    const memberId = provisioned.ok ? provisioned.value.member.id : '';
+
+    const bound = await bindMemberOnSignIn(
+      { tenantId: tenantA.id, userId: 'itest-bound-user', email: 'bind@example.com' },
+      { members: memberRepo(), clock: { nowIso: () => '2026-03-02T00:00:00.000Z' } },
+    );
+    expect(bound?.id).toBe(memberId);
+    expect(bound?.userId).toBe('itest-bound-user');
+
+    // The claim persisted: the row now carries the account id and lastSeenAt.
+    const persisted = await memberRepo().findByTenantAndId(tenantA.id, memberId);
+    expect(persisted?.userId).toBe('itest-bound-user');
+    expect(persisted?.lastSeenAt).toBe('2026-03-02T00:00:00.000Z');
+
+    // Idempotent: a second, different account does NOT steal the bound member.
+    const second = await bindMemberOnSignIn(
+      { tenantId: tenantA.id, userId: 'itest-other-user', email: 'bind@example.com' },
+      { members: memberRepo(), clock: { nowIso: () => '2026-03-03T00:00:00.000Z' } },
+    );
+    expect(second).toBeNull();
+    expect((await memberRepo().findByTenantAndId(tenantA.id, memberId))?.userId).toBe('itest-bound-user');
   });
 
   it('ensureMember is idempotent by (tenant, email)', async () => {

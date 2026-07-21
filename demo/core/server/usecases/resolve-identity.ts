@@ -10,7 +10,15 @@ import {
   type Tenant,
 } from '#core/domain/index.js';
 
-import type { AuthenticatedUser, TenantAccessReader, TenantDomainRepository, TenantRepository } from '../ports.js';
+import type {
+  AuthenticatedUser,
+  Clock,
+  MemberRepository,
+  TenantAccessReader,
+  TenantDomainRepository,
+  TenantRepository,
+} from '../ports.js';
+import { bindMemberOnSignIn } from './bind-member.js';
 
 export interface TenantRequestInfo {
   /** Host header, may include a port. */
@@ -23,6 +31,8 @@ export interface ResolveIdentityDeps {
   tenantDomains: TenantDomainRepository;
   tenantAccess: TenantAccessReader;
   tenants: TenantRepository;
+  members: MemberRepository;
+  clock: Clock;
   /** e.g. "localhost" in dev, "agentproofarch.com" in prod. */
   baseDomain: string;
 }
@@ -62,7 +72,15 @@ export const resolveIdentity = async (
   if (!tenant.value) return ok(base);
 
   const staffGrant = await deps.tenantAccess.findStaffGrant(user.userId, { tenantId: tenant.value.tenant.id });
-  const member = await deps.tenantAccess.findMember(user.userId, tenant.value.tenant.id);
+  // US-026: a member provisioned with a null userId is claimed on this first
+  // authenticated resolution (magic link, social, any method), so an
+  // already-bound account short-circuits before the bind read.
+  const member =
+    (await deps.tenantAccess.findMember(user.userId, tenant.value.tenant.id)) ??
+    (await bindMemberOnSignIn(
+      { tenantId: tenant.value.tenant.id, userId: user.userId, email: user.email },
+      deps,
+    ));
 
   if (!staffGrant && !member) {
     return tenant.value.source === 'custom-domain'

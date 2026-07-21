@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
+import { createDevEmailPort } from '#adapters/email/dev.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   looseEnvelopeSchema,
@@ -23,6 +24,7 @@ const auth = createAuth(
     rateLimitEnabled: false,
     trustedOrigins: [],
     secureCookies: false,
+    email: createDevEmailPort(),
   },
 );
 
@@ -32,6 +34,9 @@ const acmeVersion = tenantContentVersion(acme);
 const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   auth,
   authPort: { getAuthenticatedUser: async () => null },
+  email: createDevEmailPort(),
+  devMailbox: null,
+  googleEnabled: false,
   todos: { listByTenant: async () => [], create: async () => {} },
   cards: { listByTenant: async () => [], create: async () => {}, updatePositions: async () => {} },
   members: {
