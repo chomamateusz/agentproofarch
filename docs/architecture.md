@@ -24,7 +24,9 @@ work:
    the rest is driven end-to-end by the gates — static, runtime, browser.
 
 Every rule below serves one of these four. A rule that serves none of them
-does not belong in this document.
+does not belong in this document. Accepted-but-deliberately-unbuilt work lives
+in the [deferred-work register](backlog.md) with named triggers — this document
+never carries silent gaps.
 
 ## Principles
 
