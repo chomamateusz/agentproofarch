@@ -31,6 +31,19 @@ const dbDriverField = dbDriverSchema.default(
 /** Runtime server env — the full set the Hono process boots on. */
 export const serverEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(47100),
+  // Self-host only: the private port the internal control-plane app binds
+  // (Caddy's on-demand-TLS `ask` endpoint). Set exclusively in the compose
+  // stack, where it is reachable only on the container network and never
+  // published; unset elsewhere, so the internal app does not start (dev, smoke,
+  // e2e and Vercel never expose the domain-check surface).
+  INTERNAL_PORT: z.coerce.number().int().positive().optional(),
+  // Domain-provisioning adapter selector (composition root). `caddy` on the
+  // self-host target (on-demand TLS + DNS check), `noop` everywhere else.
+  DOMAIN_PROVISIONER: z.enum(['caddy', 'noop']).default('noop'),
+  // The public target self-host tenants must point a custom domain at; the caddy
+  // DomainPort's `check` verifies DNS resolves here. Set one, not both.
+  SELF_HOST_TARGET_CNAME: z.string().optional(),
+  SELF_HOST_TARGET_IP: z.string().optional(),
   DATABASE_URL: databaseUrlField,
   DB_DRIVER: dbDriverField,
   APP_BASE_DOMAIN: z.string().default('localhost'),

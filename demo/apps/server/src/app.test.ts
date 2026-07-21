@@ -46,6 +46,11 @@ const baseDeps = (): AppDeps => ({
     findByDomain: async () => null,
     listVerifiedDomains: async () => [],
   },
+  domainPort: {
+    provision: async () => {},
+    remove: async () => {},
+    check: async () => ({ resolved: true, detail: 'noop' }),
+  },
   tenants: {
     findById: async () => null,
     findBySlug: async () => null,
