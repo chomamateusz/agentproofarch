@@ -1,4 +1,16 @@
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { BOARD_IDS } from '#core/domain/index.js';
 
@@ -27,6 +39,8 @@ export const tenantAdmins = pgTable(
     index('tenant_admins_tenantId_idx').on(table.tenantId),
     index('tenant_admins_userId_idx').on(table.userId),
     uniqueIndex('tenant_admins_tenant_user_uidx').on(table.tenantId, table.userId),
+    // C3 invariant: role is a closed set enforced at the DB (not only the TS enum).
+    check('tenant_admins_role_check', sql`${table.role} IN ('owner', 'admin')`),
   ],
 );
 
@@ -113,6 +127,13 @@ export const cards = pgTable(
       table.column,
       table.position,
     ),
+    // C3 invariant: board is a closed set, and a card's column must be legal for
+    // its board — enforced at the DB, defence-in-depth behind the use-case guard.
+    check('cards_board_check', sql`${table.board} IN ('personal', 'team')`),
+    check(
+      'cards_column_check',
+      sql`(${table.board} = 'personal' AND ${table.column} IN ('todo', 'doing', 'done')) OR (${table.board} = 'team' AND ${table.column} IN ('todo', 'in-dev', 'review', 'done'))`,
+    ),
   ],
 );
 
@@ -127,5 +148,23 @@ export const tenantDomains = pgTable(
     kind: text('kind', { enum: ['subdomain', 'custom'] }).notNull(),
     verified: boolean('verified').notNull().default(false),
   },
-  (table) => [uniqueIndex('tenant_domains_domain_uidx').on(table.domain)],
+  (table) => [
+    uniqueIndex('tenant_domains_domain_uidx').on(table.domain),
+    // C3 invariant: kind is a closed set enforced at the DB (not only the TS enum).
+    check('tenant_domains_kind_check', sql`${table.kind} IN ('subdomain', 'custom')`),
+  ],
 );
+
+// C4 backfill executor (§Backfills): one durable checkpoint row per registered
+// backfill, so a cron-driven batch run resumes exactly where the last invocation
+// stopped. NEW table → §Data conventions shape: uuid PK + timestamptz. `name` is
+// the registry key (unique); `cursor` is the opaque resume token the backfill
+// advances; `done` latches when the backfill has processed every row.
+export const backfillCheckpoints = pgTable('backfill_checkpoints', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  cursor: text('cursor'),
+  processed: integer('processed').notNull().default(0),
+  done: boolean('done').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

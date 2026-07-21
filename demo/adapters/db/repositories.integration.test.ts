@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import { migrate as migrateNodePg } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
@@ -120,8 +120,14 @@ const runMigrations = async (): Promise<void> => {
 const grantable = { id: 'itest-grantable', name: 'Grantable User', email: 'grantable@example.com' };
 
 const seed = async (): Promise<void> => {
-  await tenantRepo().createTenant(tenantA);
-  await tenantRepo().createTenant(tenantB);
+  await tenantRepo().createTenantWithOwner({
+    tenant: tenantA,
+    ownerGrant: { id: 'itest-grant-a', userId: staffA },
+  });
+  await tenantRepo().createTenantWithOwner({
+    tenant: tenantB,
+    ownerGrant: { id: 'itest-grant-b', userId: staffB },
+  });
 
   // Global accounts (the auth `user` table) the staff roster join and the FR-8
   // directory lookup read. `grantable` holds no grant — the account that a grant
@@ -132,19 +138,6 @@ const seed = async (): Promise<void> => {
     { id: adminB, name: 'Admin B', email: 'admin-b@example.com' },
     grantable,
   ]);
-
-  await tenantRepo().createOwnerGrant({
-    id: 'itest-grant-a',
-    tenantId: tenantA.id,
-    userId: staffA,
-    staffRole: 'owner',
-  });
-  await tenantRepo().createOwnerGrant({
-    id: 'itest-grant-b',
-    tenantId: tenantB.id,
-    userId: staffB,
-    staffRole: 'owner',
-  });
   // An 'admin' grant on B — proves the non-owner role round-trips and stays scoped.
   await db.insert(tenantAdmins).values({
     id: 'itest-grant-b-admin',
@@ -231,14 +224,17 @@ describe('HealthPort', () => {
 });
 
 describe('TenantRepository', () => {
-  it('createTenant returns the created tenant and is read back by id and slug', async () => {
+  it('createTenantWithOwner returns the created tenant and is read back by id and slug', async () => {
     const fresh = {
       id: 'itest-tenant-c',
       slug: 'gamma',
       name: 'Gamma GmbH',
       createdAt: '2026-02-01T00:00:00.000Z',
     };
-    const created = await tenantRepo().createTenant(fresh);
+    const created = await tenantRepo().createTenantWithOwner({
+      tenant: fresh,
+      ownerGrant: { id: 'itest-grant-c', userId: 'itest-staff-c' },
+    });
     expect(created).toEqual({ id: fresh.id, slug: fresh.slug, name: fresh.name });
 
     expect(await tenantRepo().findById(fresh.id)).toMatchObject({
@@ -254,20 +250,17 @@ describe('TenantRepository', () => {
     expect(await tenantRepo().findBySlug('missing-slug')).toBeNull();
   });
 
-  it('createOwnerGrant makes the tenant readable as an owner grant', async () => {
+  it('createTenantWithOwner writes the founding owner grant in the same operation', async () => {
     const fresh = {
       id: 'itest-tenant-d',
       slug: 'delta',
       name: 'Delta Co',
       createdAt: '2026-02-02T00:00:00.000Z',
     };
-    await tenantRepo().createTenant(fresh);
     const userD = 'itest-staff-d';
-    await tenantRepo().createOwnerGrant({
-      id: 'itest-grant-d',
-      tenantId: fresh.id,
-      userId: userD,
-      staffRole: 'owner',
+    await tenantRepo().createTenantWithOwner({
+      tenant: fresh,
+      ownerGrant: { id: 'itest-grant-d', userId: userD },
     });
     expect(await accessReader().findStaffGrant(userD, { tenantId: fresh.id })).toEqual({
       tenant: { id: fresh.id, slug: fresh.slug, name: fresh.name },
@@ -653,9 +646,8 @@ describe('StaffRepository + UserDirectory', () => {
     expect(roster.map((row) => row.userId)).not.toContain(staffA);
   });
 
-  it('findGrant and countOwners read the tenant grant graph', async () => {
+  it('findGrant reads the tenant grant graph, tenant-scoped', async () => {
     expect(await staffRepo().findGrant(tenantA.id, staffA)).toMatchObject({ userId: staffA, role: 'owner' });
-    expect(await staffRepo().countOwners(tenantA.id)).toBe(1);
     // adminB is B's admin — invisible from A, and not an owner of B.
     expect(await staffRepo().findGrant(tenantA.id, adminB)).toBeNull();
     expect(await staffRepo().findGrant(tenantB.id, adminB)).toMatchObject({ role: 'admin' });
@@ -678,10 +670,119 @@ describe('StaffRepository + UserDirectory', () => {
     expect(await staffRepo().findGrant(tenantA.id, grantable.id)).toBeNull();
     expect((await staffRepo().listByTenant(tenantA.id)).map((row) => row.userId)).not.toContain(grantable.id);
 
-    // A tenant-A revoke cannot remove a tenant-B grant.
-    expect(await staffRepo().revoke(tenantA.id, grantable.id)).toBe(0);
-    expect(await staffRepo().revoke(tenantB.id, grantable.id)).toBe(1);
+    // A tenant-A revoke cannot remove a tenant-B grant (an admin is always
+    // removable — the last-owner guard only protects owners).
+    expect(await staffRepo().revokeLastOwnerSafe(tenantA.id, grantable.id)).toBe(0);
+    expect(await staffRepo().revokeLastOwnerSafe(tenantB.id, grantable.id)).toBe(1);
     expect(await staffRepo().findGrant(tenantB.id, grantable.id)).toBeNull();
+  });
+
+  // C3 last-owner race (§Data conventions invariant matrix): two concurrent
+  // revokes of the two distinct owners must not both succeed. The FOR UPDATE
+  // owner-count guard serializes them, so exactly one is removed and the tenant
+  // keeps an owner. Proven against real Postgres — the guarantee is the
+  // statement's, not the app's.
+  it('never lets two concurrent revokes drop a tenant below one owner', async () => {
+    const raceTenant = {
+      id: 'itest-tenant-race',
+      slug: 'race',
+      name: 'Race Co',
+      createdAt: '2026-03-01T00:00:00.000Z',
+    };
+    await tenantRepo().createTenantWithOwner({
+      tenant: raceTenant,
+      ownerGrant: { id: 'itest-grant-race-1', userId: 'race-owner-1' },
+    });
+    await staffRepo().grant({
+      id: 'itest-grant-race-2',
+      tenantId: raceTenant.id,
+      userId: 'race-owner-2',
+      role: 'owner',
+    });
+
+    const [first, second] = await Promise.all([
+      staffRepo().revokeLastOwnerSafe(raceTenant.id, 'race-owner-1'),
+      staffRepo().revokeLastOwnerSafe(raceTenant.id, 'race-owner-2'),
+    ]);
+
+    // Exactly one revoke wins; the tenant keeps an owner (counted straight off
+    // tenant_admins — the roster join to `user` would drop these account-less
+    // seed grants).
+    expect(first + second).toBe(1);
+    const owners = await db
+      .select({ c: count() })
+      .from(tenantAdmins)
+      .where(and(eq(tenantAdmins.tenantId, raceTenant.id), eq(tenantAdmins.role, 'owner')));
+    expect(owners[0]?.c).toBe(1);
+  });
+});
+
+// C3 invariant placement (§Data conventions matrix): closed-set columns are
+// guarded at the DB by CHECK constraints, and app-only invariants (the member
+// marketing-consent channel union, held in jsonb) are guarded by the adapter's
+// zod boundary. These probes write garbage the app layer would never emit —
+// straight past the use-cases via raw SQL — and assert the guard fires.
+describe('C3 invariant enforcement', () => {
+  const accessReaderC3 = () => createTenantAccessReader(db);
+
+  // The driver wraps the pg error, so the constraint name lives on `.cause`.
+  const expectCheckViolation = async (statement: ReturnType<typeof sql>, constraint: string): Promise<void> => {
+    try {
+      await db.execute(statement);
+    } catch (error) {
+      const text = error instanceof Error ? `${error.message} ${String(error.cause ?? '')}` : String(error);
+      expect(text).toMatch(new RegExp(`${constraint}|violates check constraint`, 'i'));
+      return;
+    }
+    throw new Error(`expected the insert to be rejected by ${constraint}`);
+  };
+
+  it('DB rejects a tenant_admins.role outside the closed set', async () => {
+    await expectCheckViolation(
+      sql`INSERT INTO tenant_admins (id, tenant_id, user_id, role) VALUES ('itest-bad-role', ${tenantB.id}, 'ghost', 'superuser')`,
+      'tenant_admins_role_check',
+    );
+  });
+
+  it('DB rejects a tenant_domains.kind outside the closed set', async () => {
+    await expectCheckViolation(
+      sql`INSERT INTO tenant_domains (id, tenant_id, domain, kind, verified) VALUES ('itest-bad-kind', ${tenantB.id}, 'bad.example.com', 'wildcard', false)`,
+      'tenant_domains_kind_check',
+    );
+  });
+
+  it('DB rejects a cards.board outside the closed set', async () => {
+    await expectCheckViolation(
+      sql`INSERT INTO cards (id, tenant_id, title, board, "column", position, created_at) VALUES ('itest-bad-board', ${tenantB.id}, 'x', 'archive', 'todo', 0, '2026-01-01T00:00:00.000Z')`,
+      'cards_board_check',
+    );
+  });
+
+  it('DB rejects a cards.column that is not legal for its board', async () => {
+    await expectCheckViolation(
+      sql`INSERT INTO cards (id, tenant_id, title, board, "column", position, created_at) VALUES ('itest-bad-col', ${tenantB.id}, 'x', 'personal', 'in-dev', 0, '2026-01-01T00:00:00.000Z')`,
+      'cards_column_check',
+    );
+  });
+
+  it('the adapter zod boundary rejects a corrupted member marketing-consent channel', async () => {
+    // marketing_consents is jsonb (no closed-set CHECK possible); the app-only
+    // invariant lives at the read boundary. Plant a garbage channel via raw SQL.
+    await db.execute(
+      sql`INSERT INTO members (id, tenant_id, user_id, email, tags, marketing_consents, external_customer_ids, created_at)
+          VALUES ('itest-corrupt-member', ${tenantB.id}, 'corrupt-user', 'corrupt@example.com', '[]'::jsonb,
+                  '[{"channel":"carrier-pigeon","granted":true,"updatedAt":"2026-01-01T00:00:00.000Z"}]'::jsonb,
+                  '[]'::jsonb, '2026-01-01T00:00:00.000Z')`,
+    );
+    await expect(accessReaderC3().findMember('corrupt-user', tenantB.id)).rejects.toThrow();
+  });
+
+  it('the adapter zod boundary rejects a corrupted card row (negative position)', async () => {
+    await db.execute(
+      sql`INSERT INTO cards (id, tenant_id, title, board, "column", position, visited, created_at)
+          VALUES ('itest-corrupt-card', ${tenantB.id}, 'corrupt', 'personal', 'todo', -1, '[]'::jsonb, '2026-01-01T00:00:00.000Z')`,
+    );
+    await expect(cardRepo().listByTenant(tenantB.id, 'personal')).rejects.toThrow();
   });
 });
 

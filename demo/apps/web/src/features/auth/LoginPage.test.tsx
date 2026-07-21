@@ -68,7 +68,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('email'), 'mag@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'email me a sign-in link' }));
 
-    expect(await screen.findByText(/no email is sent/i)).toBeInTheDocument();
+    expect(await screen.findByText(/captured by mailpit/i)).toBeInTheDocument();
   });
 
   it('hides the Google button when the provider is not configured', async () => {

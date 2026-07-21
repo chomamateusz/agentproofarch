@@ -102,7 +102,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->78<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->82<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -110,7 +110,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   `check` green AND `smoke` green.** Static-green is not done.
 
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
-<!--count:integration-tests-->40<!--/count--> integration tests against a real
+<!--count:integration-tests-->48<!--/count--> integration tests against a real
 Postgres and <!--count:e2e-tests-->14<!--/count--> Playwright tests across
 <!--count:e2e-specs-->5<!--/count--> spec files:
 
@@ -119,7 +119,7 @@ npm run test:integration   # repositories, against a real Postgres
 npm run e2e                # real Chromium over the real stack
 ```
 
-<!--count:config-regression-->40<!--/count--> config-regression probes guard the
+<!--count:config-regression-->47<!--/count--> config-regression probes guard the
 covered boundary and island-core rules — most feed a violating fixture and
 assert the gate still goes red, a few are structural rule-presence checks rather
 than fixture-feeding probes — so you can't silently delete one of those rules and
@@ -203,3 +203,40 @@ for a real domain:
 ```bash
 docker compose -f docker-compose.prod.yml --profile edge up -d --build
 ```
+
+## Operating hygiene for agent-driven repos
+
+When agents (and humans) share this repo, safety is an operating property of the
+environment, not a policy list in an agent file — a rule an agent is asked to
+"remember" is not an enforcement (DECIDE B5). These are recommendations for the
+humans who own the platform; the architecture (`../docs/architecture.md`
+§Environments) is where the enforced version lives.
+
+- **Production secrets live only in the platform env store, set by humans.** Real
+  `BETTER_AUTH_SECRET`, database URLs and provider keys are entered in Vercel's
+  environment UI, scoped per environment, by a person — never committed, never
+  pasted into an agent session. `.env.example` documents *names* only. An agent
+  works against local dev or a preview, whose secrets are disposable.
+- **Agents never hold production access.** No platform CLI (`vercel`, `neonctl`,
+  cloud provider CLIs) stays logged in on a machine an agent drives, and no
+  production database URL is reachable from an agent's shell. "Deweloper ani agent
+  nigdy nie działa bezpośrednio na produkcji" — production is reached only through
+  the promotion gate below, never a direct connection.
+- **Block the dangerous edges at the tool boundary.** Configure the agent
+  harness's hook/sandbox layer to deny what an agent should never do — writes
+  outside the worktree, network to production hosts, `rsync`/`rm -rf` on shared
+  mounts, and launching platform CLIs. A blocked command is enforcement; a
+  documented "please don't" is not.
+- **The Production Branch is a human-only promotion gate.** Vercel's Production
+  Branch (`main`) is protected so an agent's merges land on **preview/staging**
+  only; promotion to production is a human action (a reviewed merge to `main`).
+  The same commit flows feature branch → preview → `staging` → `main`; only env
+  vars differ, and only a human crosses the last edge.
+- **The AI-review gate fails closed.** A review check that cannot run — limits
+  hit, tool unavailable, timeout — is a **red** check, never a skipped/green one.
+  "Could not verify" and "verified safe" must never collapse to the same colour;
+  an inability to run blocks the merge exactly like a found defect.
+- **Post-deploy SHA attestation is the trust anchor.** Every deploy exposes its
+  build commit SHA on `/api/health*`, and `smoke:remote` asserts the live SHA
+  equals the SHA that was reviewed and promoted. That attestation — not a claim in
+  a log — is what proves the running code is the code that passed the gates.

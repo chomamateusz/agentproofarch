@@ -6,12 +6,17 @@ import pg from 'pg';
 import { distFreshnessWarning } from '../apps/server/src/dist-freshness.js';
 
 import { assert, delay, fail, rootDir, run, SmokeFailure, tsxBin } from './smoke-cli.js';
+import { clearMailpit, waitForMailpit } from './mailpit.js';
 
 // A fixed high port keeps the Playwright baseURL static (single-tenant page,
 // like production). The e2e stack is torn down and rebuilt every run.
 const PORT = 47990;
 const E2E_DB = 'agentproofarch_e2e';
 const WEB_DIST_DIR = join(rootDir, 'dist/web');
+// The dev/CI Mailpit (docker-compose.dev.yml): the real smtp adapter delivers
+// the US-026 magic link here; the magic-link spec reads it back over its HTTP API.
+const MAILPIT_SMTP_PORT = 47925;
+const MAILPIT_API_URL = 'http://localhost:47980';
 
 const baseDatabaseUrl =
   process.env['DATABASE_URL'] ??
@@ -87,6 +92,11 @@ const bootServer = (): void => {
       APP_BASE_URL: `http://localhost:${PORT}`,
       APP_BASE_DOMAIN: 'localhost',
       WEB_DIST_DIR,
+      // Real smtp transport → the dev/CI Mailpit captures the magic-link send.
+      EMAIL_TRANSPORT: 'smtp',
+      SMTP_HOST: 'localhost',
+      SMTP_PORT: String(MAILPIT_SMTP_PORT),
+      SMTP_SECURE: 'false',
       // Surfaced by the domains settings page (US-019) as the DNS record tenants
       // create; the noop provisioner still verifies every domain regardless.
       SELF_HOST_TARGET_CNAME: 'apps.agentproofarch.test',
@@ -123,6 +133,11 @@ try {
   await setupDatabase(baseDatabaseUrl);
   await migrateAndSeed(e2eDatabaseUrl);
   await registerLocalhostTenant(e2eDatabaseUrl);
+  console.log('e2e: waiting for Mailpit...');
+  await waitForMailpit(MAILPIT_API_URL).catch((cause: unknown) => {
+    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (npm run db:up)?\n${String(cause)}`);
+  });
+  await clearMailpit(MAILPIT_API_URL);
   await buildWebIfStale();
   console.log(`e2e: booting server on port ${PORT}...`);
   bootServer();

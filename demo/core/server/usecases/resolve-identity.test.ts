@@ -66,8 +66,11 @@ const fakeMembers = (rows: Member[]): MemberRepository => ({
 const fakeTenants = (tenantList: Tenant[]): TenantRepository => ({
   findById: async (tenantId) => tenantList.find((tenant) => tenant.id === tenantId) ?? null,
   findBySlug: async (slug) => tenantList.find((tenant) => tenant.slug === slug) ?? null,
-  createTenant: async (input) => ({ id: input.id, slug: input.slug, name: input.name }),
-  createOwnerGrant: async () => undefined,
+  createTenantWithOwner: async (input) => ({
+    id: input.tenant.id,
+    slug: input.tenant.slug,
+    name: input.tenant.name,
+  }),
   deleteTenant: async () => undefined,
 });
 

@@ -46,6 +46,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # Local SMTP sink for the US-026 magic-link phase: the real smtp adapter
+      # delivers here; smoke/e2e read the message back over its HTTP API.
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports:
+          - 47925:1025
+          - 47980:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+          MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
     env:
       DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
     steps:
@@ -82,6 +92,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # Local SMTP sink for the US-026 magic-link phase: the real smtp adapter
+      # delivers here; smoke/e2e read the message back over its HTTP API.
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports:
+          - 47925:1025
+          - 47980:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+          MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
     env:
       DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
     steps:

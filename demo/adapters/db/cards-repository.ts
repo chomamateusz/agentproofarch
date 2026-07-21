@@ -1,17 +1,23 @@
 import { and, asc, eq } from 'drizzle-orm';
 
+import { cardSchema } from '#core/domain/index.js';
 import type { CardRepository } from '#core/server/index.js';
 
 import type { Db } from './client.js';
 import { cards } from './schema.js';
 
 export const createCardRepository = (db: Db): CardRepository => ({
-  listByTenant: async (tenantId, board) =>
-    db
+  // Parse at the boundary (C3 invariant matrix): a corrupted card row (an
+  // out-of-range position, a non-board value the DB check somehow missed) is
+  // rejected LOUDLY here rather than flowing untyped into the use-cases.
+  listByTenant: async (tenantId, board) => {
+    const rows = await db
       .select()
       .from(cards)
       .where(and(eq(cards.tenantId, tenantId), eq(cards.board, board)))
-      .orderBy(asc(cards.column), asc(cards.position)),
+      .orderBy(asc(cards.column), asc(cards.position));
+    return rows.map((row) => cardSchema.parse(row));
+  },
   create: async (card) => {
     await db.insert(cards).values(card);
   },

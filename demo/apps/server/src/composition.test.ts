@@ -31,20 +31,32 @@ describe('selectDomainPort', () => {
 });
 
 describe('selectEmailPort', () => {
-  it('wires the dev transport (with a capture mailbox) by default', () => {
+  it('wires the smtp transport by default (dev/CI point it at Mailpit, no auth required)', () => {
     const port = selectEmailPort(env({}));
-    expect(port.devMailbox).not.toBeNull();
+    expect(typeof port.sendMail).toBe('function');
   });
 
-  it('wires the smtp transport (no dev mailbox) when configured', () => {
+  it('wires the smtp transport against an authenticated relay when creds are set', () => {
     const port = selectEmailPort(
       env({ EMAIL_TRANSPORT: 'smtp', SMTP_HOST: 'smtp.example.com', SMTP_USER: 'u', SMTP_PASS: 'p' }),
     );
-    expect(port.devMailbox).toBeNull();
+    expect(typeof port.sendMail).toBe('function');
   });
 
-  it('fails fast when EMAIL_TRANSPORT=smtp is missing its credentials', () => {
-    expect(() => selectEmailPort(env({ EMAIL_TRANSPORT: 'smtp' }))).toThrow(/SMTP_HOST/);
+  it('wires the ses transport when the AWS block is set', () => {
+    const port = selectEmailPort(
+      env({
+        EMAIL_TRANSPORT: 'ses',
+        AWS_REGION: 'eu-central-1',
+        AWS_ACCESS_KEY_ID: 'AKIA-test',
+        AWS_SECRET_ACCESS_KEY: 'secret',
+      }),
+    );
+    expect(typeof port.sendMail).toBe('function');
+  });
+
+  it('fails fast when EMAIL_TRANSPORT=ses is missing its AWS credentials', () => {
+    expect(() => selectEmailPort(env({ EMAIL_TRANSPORT: 'ses' }))).toThrow(/AWS_REGION/);
   });
 });
 

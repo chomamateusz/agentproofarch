@@ -124,7 +124,7 @@ export const LoginPage = () => {
         </Stack>
         {magicLink.isSuccess ? (
           <Alert severity="success" sx={{ mt: '0.6rem' }}>
-            Check your email for a sign-in link. In dev no email is sent — the link is logged by the server.
+            Check your email for a sign-in link. In dev the send is captured by Mailpit — open its inbox to follow the link.
           </Alert>
         ) : null}
         {signIn.isError ? (

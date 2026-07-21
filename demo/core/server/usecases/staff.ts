@@ -114,11 +114,15 @@ export const revokeAdmin = async (
   const existing = await deps.staff.findGrant(tenantId, userId);
   if (!existing) return err(notFound('No staff grant for that user in this tenant'));
 
-  if (existing.role === 'owner' && (await deps.staff.countOwners(tenantId)) <= 1) {
+  // The atomic conditional delete is the authoritative last-owner guard: it
+  // removes the grant unless it is the tenant's final owner. A present grant that
+  // is not removed can only be that refusal, so map 0 rows → validation (never a
+  // silent no-op). The former read-then-check is gone — it could not close the
+  // two-concurrent-revokes race the single statement does.
+  const revoked = await deps.staff.revokeLastOwnerSafe(tenantId, userId);
+  if (revoked === 0) {
     return err(validation('Cannot revoke the last owner of this tenant'));
   }
-
-  const revoked = await deps.staff.revoke(tenantId, userId);
   return ok({ userId, revoked });
 };
 

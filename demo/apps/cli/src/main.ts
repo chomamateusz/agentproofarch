@@ -70,10 +70,6 @@ const loginArgsSchema = z.object({
   password: z.string().min(1),
 });
 const magicLinkArgsSchema = z.object({ email: z.string().trim().min(1) });
-const devLinkEnvelopeSchema = z.discriminatedUnion('ok', [
-  z.object({ ok: z.literal(true), data: z.object({ link: z.string() }) }),
-  z.object({ ok: z.literal(false), error: z.object({ code: z.string(), message: z.string() }) }),
-]);
 const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
 
 // Merged global options (Commander parses them onto the root program). They flow
@@ -178,40 +174,29 @@ program
 program
   .command('login-link')
   .description(
-    'Passwordless magic-link sign-in (US-026). Requests a link; in dev the link is ' +
-      'not delivered but captured, so --follow retrieves it and establishes the session.',
+    'Passwordless magic-link sign-in (US-026). Without --link it requests a link ' +
+      '(read it from your inbox; in dev/CI the local Mailpit captures it — UI/API at ' +
+      'the SMTP capture, no in-app route). With --link <url> it follows that link and ' +
+      'establishes the session.',
   )
   .requiredOption('--email <email>')
-  .option('--follow', 'in dev: retrieve the captured link and sign in with it', false)
-  .action(async (options: { email: string; follow: boolean }) => {
+  .option('--link <url>', 'follow a magic link (copied from Mailpit/inbox) and sign in with it')
+  .action(async (options: { email: string; link?: string }) => {
     const ctx = cliCtx();
     const input = parseArgs(magicLinkArgsSchema, { email: options.email }, ctx.json);
     if (input === undefined) return;
-    const requested = await ctx.auth.requestMagicLink({ email: input.email, callbackURL: ctx.apiUrl });
-    if (!requested.ok) {
-      emit(requested, ctx.json, () => '');
-      return;
-    }
-    if (!options.follow) {
-      emit(ok({ requested: true, email: input.email }), ctx.json, () => `magic link requested for ${input.email}`);
-      return;
-    }
-    // The retrieval route exists only under the dev email transport (no delivery).
-    let linkResponse: Response;
-    try {
-      linkResponse = await fetch(
-        new URL(`/api/dev/magic-link?email=${encodeURIComponent(input.email)}`, ctx.apiUrl),
+
+    if (options.link === undefined) {
+      const requested = await ctx.auth.requestMagicLink({ email: input.email, callbackURL: ctx.apiUrl });
+      emit(
+        requested.ok ? ok({ requested: true, email: input.email }) : requested,
+        ctx.json,
+        () => `magic link requested for ${input.email} — open it from your inbox (dev/CI: Mailpit)`,
       );
-    } catch (cause) {
-      emit(err(internal(`Could not reach the dev magic-link capture: ${String(cause)}`)), ctx.json, () => '');
       return;
     }
-    const parsed = devLinkEnvelopeSchema.safeParse(await linkResponse.json().catch(() => null));
-    if (!parsed.success || !parsed.data.ok) {
-      emit(err(notFound(`No captured magic link for ${input.email} (dev transport only)`)), ctx.json, () => '');
-      return;
-    }
-    const followed = await followMagicLink(parsed.data.data.link);
+
+    const followed = await followMagicLink(options.link);
     if (!followed.ok) {
       emit(followed, ctx.json, () => '');
       return;

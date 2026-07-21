@@ -5,6 +5,8 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 
 import { observabilityEnvSchema, serverEnvSchema } from '#core/server/config.js';
 
+import { lintMigrations } from './migration-lint.js';
+
 /**
  * Doc-lint: keeps docs and enforcer configuration honest in both directions
  * (ADR-0004 §Decision 4). It is deliberately a plain script, not a framework.
@@ -272,6 +274,10 @@ for (const rel of trackedMarkdown) {
   }
 }
 
+// ── Migration sequence: gapless, duplicate-free prefixes matching the journal. ─
+const migrationProblems = lintMigrations(join(demoRoot, 'drizzle'));
+problems.push(...migrationProblems);
+
 if (problems.length > 0) {
   process.stderr.write(`doc-lint: ${problems.length} issue(s)\n\n`);
   for (const problem of problems) process.stderr.write(`  ${problem}\n`);
@@ -282,5 +288,6 @@ const summary =
   `doc-lint: OK — ${DOC_PROMISED_ENFORCERS.length} promised enforcer(s) present, ` +
   `${ruleFiles.length} custom rule(s) documented, ${countTokensSeen} count token(s) verified, ` +
   `${declaredEnvKeys.size} env key(s) in .env.example, ` +
-  `${trackedMarkdown.length} tracked .md file(s) clean of dead links and leaked delimiters.`;
+  `${trackedMarkdown.length} tracked .md file(s) clean of dead links and leaked delimiters, ` +
+  `migration sequence + journal consistent.`;
 process.stdout.write(`${summary}\n`);

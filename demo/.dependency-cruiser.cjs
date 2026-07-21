@@ -72,9 +72,10 @@ module.exports = {
     {
       name: 'smtp-sdk-only-in-adapters-email',
       severity: 'error',
-      comment: 'The SMTP client (nodemailer) lives only behind the EmailPort in adapters/email.',
+      comment:
+        'Every email-vendor SDK (the nodemailer SMTP client and the Amazon SES v2 SDK) lives only behind the EmailPort in adapters/email — no vendor name leaks into core, apps or other adapters.',
       from: { pathNot: '^adapters/email' },
-      to: { path: 'node_modules/nodemailer(/|$)' },
+      to: { path: 'node_modules/(nodemailer|@aws-sdk)(/|$)' },
     },
     {
       name: 'core-domain-only-zod',

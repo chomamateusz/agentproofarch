@@ -16,8 +16,13 @@ import {
   SmokeFailure,
   tsxBin,
 } from './smoke-cli.js';
+import { clearMailpit, waitForMailpit } from './mailpit.js';
 
 const SMOKE_DB = 'agentproofarch_smoke';
+// The dev/CI Mailpit (docker-compose.dev.yml): the real smtp adapter delivers
+// here and the magic-link phase reads the message back over its HTTP API.
+const MAILPIT_SMTP_PORT = 47925;
+const MAILPIT_API_URL = 'http://localhost:47980';
 const baseDatabaseUrl =
   process.env['DATABASE_URL'] ??
   'postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch';
@@ -126,6 +131,12 @@ const bootServer = async (
       APP_BASE_URL: `http://localhost:${port}`,
       APP_BASE_DOMAIN: 'localhost',
       WEB_DIST_DIR: webDistDir,
+      // Real smtp transport → the dev/CI Mailpit captures the magic-link send;
+      // pinned here so a stray EMAIL_TRANSPORT in the ambient shell can't divert it.
+      EMAIL_TRANSPORT: 'smtp',
+      SMTP_HOST: 'localhost',
+      SMTP_PORT: String(MAILPIT_SMTP_PORT),
+      SMTP_SECURE: 'false',
     },
   });
   let logs = '';
@@ -184,6 +195,11 @@ try {
   console.log('smoke: preparing isolated database...');
   await setupDatabase(baseDatabaseUrl);
   await migrateAndSeed(smokeDatabaseUrl);
+  console.log('smoke: waiting for Mailpit...');
+  await waitForMailpit(MAILPIT_API_URL).catch((cause: unknown) => {
+    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (npm run db:up)?\n${String(cause)}`);
+  });
+  await clearMailpit(MAILPIT_API_URL);
   const port = await ephemeralPort();
   console.log(`smoke: booting server on port ${port}...`);
   const webDistDir = mkdtempSync(join(tmpdir(), 'smoke-web-'));
@@ -194,7 +210,13 @@ try {
   server = await bootServer(port, smokeDatabaseUrl, webDistDir);
   console.log('smoke: driving the CLI...');
   await driveCli(
-    { baseUrl: `http://localhost:${port}`, email: 'demo@agentproofarch.dev', password: 'demo1234', tenant: 'acme' },
+    {
+      baseUrl: `http://localhost:${port}`,
+      email: 'demo@agentproofarch.dev',
+      password: 'demo1234',
+      tenant: 'acme',
+      mailpitApiUrl: MAILPIT_API_URL,
+    },
     homes,
   );
   console.log(`\nsmoke: PASS (${((Date.now() - startedAt) / 1000).toFixed(1)}s)`);

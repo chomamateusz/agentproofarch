@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { EXIT_CODE_BY_ERROR_CODE, publicCacheControl } from '#core/contract/index.js';
 import { probeSignInCookies } from '#adapters/auth/client-adapter.js';
 
+import { fetchMagicLink } from './mailpit.js';
+
 export const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const tsxBin = join(rootDir, 'node_modules/.bin/tsx');
 
@@ -147,6 +149,13 @@ export interface SmokeTarget {
   tenant: string;
   /** Deploy attestation: when set, health.sha must equal it (right deploy verified). */
   expectedSha?: string;
+  /**
+   * Mailpit HTTP-API base URL (local/CI only). When set, the magic-link phase
+   * requests a link, recovers it from Mailpit and follows it. Absent for
+   * `smoke:remote`, where a real relay delivers and there is no capture inbox —
+   * the phase is skipped there.
+   */
+  mailpitApiUrl?: string;
 }
 
 /**
@@ -685,44 +694,55 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   );
 
   // --- magic link + member binding (US-026): provision a member, sign them in
-  // via a passwordless magic link (dev transport captures it — no delivery), and
-  // prove the provisioned (null userId) member row is claimed on first sign-in.
-  // Self-cleaning: the provisioned member is removed before finishing; the magic
-  // sign-in creates one account (unique email) as the only residue.
-  const magicEmail = `smoke-magic-${randomUUID()}@example.com`;
-  const magicHome = mkdtempSync(join(tmpdir(), 'smoke-magic-'));
-  homes.push(magicHome);
+  // via a passwordless magic link, and prove the provisioned (null userId) member
+  // row is claimed on first sign-in. The real smtp adapter delivers to a local
+  // Mailpit (no dev transport); the link is recovered over Mailpit's HTTP API and
+  // followed, exactly as a human would from the inbox. Skipped for smoke:remote
+  // (a real relay delivers there, no capture inbox). Self-cleaning: the
+  // provisioned member is removed before finishing; the magic sign-in creates one
+  // account (unique email) as the only residue.
+  if (target.mailpitApiUrl !== undefined) {
+    const mailpitApiUrl = target.mailpitApiUrl;
+    const magicEmail = `smoke-magic-${randomUUID()}@example.com`;
+    const magicHome = mkdtempSync(join(tmpdir(), 'smoke-magic-'));
+    homes.push(magicHome);
 
-  const provisioned = memberEnsureSchema.parse(
-    expectOk(await cli(memberArgs('ensure', magicEmail, '--name', 'Magic Smoke'), authedHome), 'magic member ensure'),
-  );
-  assert(
-    provisioned.created && provisioned.member.email === magicEmail,
-    `magic member was not provisioned: ${JSON.stringify(provisioned)}`,
-  );
+    const provisioned = memberEnsureSchema.parse(
+      expectOk(await cli(memberArgs('ensure', magicEmail, '--name', 'Magic Smoke'), authedHome), 'magic member ensure'),
+    );
+    assert(
+      provisioned.created && provisioned.member.email === magicEmail,
+      `magic member was not provisioned: ${JSON.stringify(provisioned)}`,
+    );
 
-  const followed = magicLinkFollowSchema.parse(
     expectOk(
-      await cli(['--json', '--api-url', baseUrl, 'login-link', '--email', magicEmail, '--follow'], magicHome),
-      'magic link request + follow',
-    ),
-  );
-  assert(followed.email === magicEmail, `magic link signed in the wrong email: ${followed.email}`);
+      await cli(['--json', '--api-url', baseUrl, 'login-link', '--email', magicEmail], magicHome),
+      'magic link request',
+    );
+    const link = await fetchMagicLink(mailpitApiUrl, magicEmail);
+    const followed = magicLinkFollowSchema.parse(
+      expectOk(
+        await cli(['--json', '--api-url', baseUrl, 'login-link', '--email', magicEmail, '--link', link], magicHome),
+        'magic link follow',
+      ),
+    );
+    assert(followed.email === magicEmail, `magic link signed in the wrong email: ${followed.email}`);
 
-  const magicMe = meSchema.parse(
-    expectOk(
-      await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'whoami'], magicHome),
-      'magic whoami',
-    ),
-  );
-  assert(
-    magicMe.email === magicEmail &&
-      magicMe.tenant?.slug === target.tenant &&
-      magicMe.tenant?.memberId === provisioned.member.id,
-    `magic-link sign-in did not bind the provisioned member: ${JSON.stringify(magicMe)}`,
-  );
+    const magicMe = meSchema.parse(
+      expectOk(
+        await cli(['--json', '--api-url', baseUrl, '--tenant', target.tenant, 'whoami'], magicHome),
+        'magic whoami',
+      ),
+    );
+    assert(
+      magicMe.email === magicEmail &&
+        magicMe.tenant?.slug === target.tenant &&
+        magicMe.tenant?.memberId === provisioned.member.id,
+      `magic-link sign-in did not bind the provisioned member: ${JSON.stringify(magicMe)}`,
+    );
 
-  expectOk(await cli(memberArgs('remove', provisioned.member.id), authedHome), 'magic member cleanup');
+    expectOk(await cli(memberArgs('remove', provisioned.member.id), authedHome), 'magic member cleanup');
+  }
 
   // --- staff (FR-8): owner grants a second REGISTERED user admin, then revokes ---
   // Self-cleaning: the grant is revoked before the run ends, so tenant_admins is
