@@ -1,0 +1,65 @@
+name: selfhost
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Proves the Docker self-host target for real (PRD US-022, ADR-0004 §no-exceptions
+# enforcement): builds the image, boots the compose stack, and drives the same
+# smoke CLI suite the Vercel post-deploy gate runs — against the container.
+jobs:
+  docker-smoke:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      # The smoke suite drives the CLI (tsx) from the runner against the
+      # containerized app, so the runner needs the dependency tree too.
+      - run: npm ci
+
+      # Compose config from .env: localhost defaults already suit an http smoke
+      # (SECURE_COOKIES=false, APP_BASE_URL=http://localhost:47100). Seed the demo
+      # data on startup and pin the build attestation to this commit's SHA.
+      - name: Write .env for the compose stack
+        run: |
+          cp .env.example .env
+          echo "SEED_ON_START=true" >> .env
+          echo "APP_COMMIT_SHA=${GITHUB_SHA}" >> .env
+
+      # Default profile = postgres + app only (Caddy is opt-in `edge`); the app
+      # entrypoint migrates + seeds before serving.
+      - name: Build image and boot the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Wait for the app to become healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:47100/api/health/ready >/dev/null 2>&1; then
+              echo "app is ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "app did not become healthy in time"; exit 1
+
+      - name: Smoke the containerized stack via the CLI
+        run: npm run smoke:remote
+        env:
+          BASE_URL: http://localhost:47100
+          EXPECTED_SHA: ${{ github.sha }}
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
