@@ -29,6 +29,8 @@ type CardItem = { id: string; title: string; column: string; position: number };
 type CardList = { cards: CardItem[] };
 type CardWrite = { card: CardItem };
 type Session = { token: string | null };
+type PublicDiscovery = { slug: string; contentVersion: string };
+type PublicProfile = { slug: string; displayName: string; contentVersion: string };
 
 interface FakeApi {
   health: Mock<Async<Health>>;
@@ -40,6 +42,8 @@ interface FakeApi {
   listCards: Mock<Async<CardList>>;
   addCard: Mock<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>;
   moveCard: Mock<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>;
+  publicTenantDiscovery: Mock<AsyncIn<string, PublicDiscovery>>;
+  publicTenantProfile: Mock<(slug: string, version: string) => Promise<Result<PublicProfile, AppError>>>;
 }
 
 interface FakeAuth {
@@ -75,6 +79,8 @@ const h = vi.hoisted(
       listCards: vi.fn<Async<CardList>>(),
       addCard: vi.fn<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>(),
       moveCard: vi.fn<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>(),
+      publicTenantDiscovery: vi.fn<AsyncIn<string, PublicDiscovery>>(),
+      publicTenantProfile: vi.fn<(slug: string, version: string) => Promise<Result<PublicProfile, AppError>>>(),
     },
     auth: {
       signUp: vi.fn<AsyncIn<{ name: string; email: string; password: string }, Session>>(),
@@ -92,8 +98,10 @@ vi.mock('./config.js', () => ({
 }));
 
 vi.mock('#core/client/index.js', () => ({
+  // Capture the FIRST client built (the primary authed one); cliCtx also builds a
+  // second, header-less client for the public surface.
   createApiClient: (options: ApiClientOptions): FakeApi => {
-    h.apiOptions = options;
+    h.apiOptions ??= options;
     return h.api;
   },
 }));
@@ -140,6 +148,8 @@ beforeEach(() => {
     h.api.listCards,
     h.api.addCard,
     h.api.moveCard,
+    h.api.publicTenantDiscovery,
+    h.api.publicTenantProfile,
   ]) {
     fn.mockReset();
   }
@@ -159,6 +169,10 @@ beforeEach(() => {
   );
   h.api.moveCard.mockResolvedValue(
     ok({ card: { id: 'card-1234abcd', title: 'ship it', column: 'doing', position: 1 } }),
+  );
+  h.api.publicTenantDiscovery.mockResolvedValue(ok({ slug: 'acme', contentVersion: 'v1abc' }));
+  h.api.publicTenantProfile.mockResolvedValue(
+    ok({ slug: 'acme', displayName: 'Acme Corp', contentVersion: 'v1abc' }),
   );
   h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
   h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
@@ -645,5 +659,37 @@ describe('global options feed the client and auth adapter', () => {
     h.onToken?.('adapter-token');
 
     expect(h.saved).toEqual([{ apiUrl: 'http://cfg-url', token: 'adapter-token', tenant: null }]);
+  });
+});
+
+describe('public surface (no session)', () => {
+  it('discovers the version then fetches the profile keyed on it', async () => {
+    await run('--json', 'public', 'profile', 'acme');
+
+    expect(h.api.publicTenantDiscovery).toHaveBeenCalledWith('acme');
+    expect(h.api.publicTenantProfile).toHaveBeenCalledWith('acme', 'v1abc');
+    expect(soleJson()).toMatchObject({
+      ok: true,
+      data: { slug: 'acme', displayName: 'Acme Corp' },
+    });
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('rejects a non-slug tenant before any call (validation, exit 2)', async () => {
+    await run('--json', 'public', 'profile', 'Not A Slug');
+
+    expect(h.api.publicTenantDiscovery).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('surfaces a discovery error without fetching the profile', async () => {
+    h.api.publicTenantDiscovery.mockResolvedValue(err(appError('not_found', 'no profile')));
+
+    await run('--json', 'public', 'profile', 'ghost');
+
+    expect(h.api.publicTenantProfile).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'not_found' } });
+    expect(process.exitCode).toBe(5);
   });
 });

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { z } from 'zod';
 
-import { EXIT_CODE_BY_ERROR_CODE } from '#core/contract/index.js';
+import { EXIT_CODE_BY_ERROR_CODE, publicCacheControl } from '#core/contract/index.js';
 import { probeSignInCookies } from '#adapters/auth/client-adapter.js';
 
 export const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -225,6 +225,96 @@ const assertSessionCookieHardening = async (target: SmokeTarget): Promise<void> 
   );
 };
 
+const publicDiscoverySchema = z.object({ slug: z.string(), contentVersion: z.string() });
+const publicProfileSchema = z.object({
+  slug: z.string(),
+  displayName: z.string(),
+  contentVersion: z.string(),
+});
+
+/**
+ * The public contract group (US-028, FR-23/FR-24, §Public surface): unauthenticated
+ * GET, open CORS on this prefix ONLY, cacheable via the one shared helper, and
+ * content-version-keyed busting. The requests carry a FOREIGN `Origin` header —
+ * the curl-from-another-origin CORS proof — and assert `Access-Control-Allow-Origin`
+ * is echoed as `*`, while an error stays uncached and the authenticated
+ * `/api/health` surface remains CORS-closed under the same foreign Origin.
+ */
+const assertPublicSurface = async (baseUrl: string, tenant: string): Promise<void> => {
+  const foreignOrigin = 'https://someone-elses-site.example';
+  const readOk = async (res: Response, label: string): Promise<unknown> => {
+    const parsed = envelope.parse(await res.json());
+    assert(parsed.ok, `${label}: expected an ok envelope, got an error.`);
+    return parsed.data;
+  };
+
+  const discoveryRes = await fetch(`${baseUrl}/api/public/tenants/${tenant}`, {
+    headers: { origin: foreignOrigin },
+  });
+  assert(discoveryRes.status === 200, `public discovery must be 200, got ${discoveryRes.status}`);
+  assert(
+    discoveryRes.headers.get('access-control-allow-origin') === '*',
+    `public discovery must open CORS, got "${discoveryRes.headers.get('access-control-allow-origin')}"`,
+  );
+  assert(
+    discoveryRes.headers.get('cache-control') === publicCacheControl('discovery'),
+    `public discovery cache-control must be the discovery helper output, got "${discoveryRes.headers.get('cache-control')}"`,
+  );
+  const discovery = publicDiscoverySchema.parse(await readOk(discoveryRes, 'public discovery'));
+  assert(discovery.slug === tenant, `public discovery echoed the wrong slug: ${discovery.slug}`);
+
+  const profileRes = await fetch(
+    `${baseUrl}/api/public/tenants/${tenant}/v/${discovery.contentVersion}`,
+    { headers: { origin: foreignOrigin } },
+  );
+  assert(profileRes.status === 200, `public profile must be 200, got ${profileRes.status}`);
+  assert(
+    profileRes.headers.get('access-control-allow-origin') === '*',
+    `public profile must open CORS, got "${profileRes.headers.get('access-control-allow-origin')}"`,
+  );
+  assert(
+    profileRes.headers.get('cache-control') === publicCacheControl('profile'),
+    `public profile cache-control must be the profile helper output, got "${profileRes.headers.get('cache-control')}"`,
+  );
+  const profile = publicProfileSchema.parse(await readOk(profileRes, 'public profile'));
+  assert(
+    profile.slug === tenant && profile.displayName.length > 0,
+    `public profile carried the wrong safe fields: ${JSON.stringify(profile)}`,
+  );
+
+  const preflight = await fetch(`${baseUrl}/api/public/tenants/${tenant}/v/${discovery.contentVersion}`, {
+    method: 'OPTIONS',
+    headers: { origin: foreignOrigin, 'access-control-request-method': 'GET' },
+  });
+  assert(
+    preflight.headers.get('access-control-allow-origin') === '*',
+    `public CORS preflight must echo the origin as *, got "${preflight.headers.get('access-control-allow-origin')}"`,
+  );
+
+  const unknownRes = await fetch(`${baseUrl}/api/public/tenants/ghost-${randomUUID().slice(0, 8)}`, {
+    headers: { origin: foreignOrigin },
+  });
+  assert(unknownRes.status === 404, `unknown public tenant must be 404, got ${unknownRes.status}`);
+  assert(
+    unknownRes.headers.get('cache-control') === 'no-store',
+    `an errored public response must stay no-store, got "${unknownRes.headers.get('cache-control')}"`,
+  );
+  const unknownBody = envelope.parse(await unknownRes.json());
+  assert(!unknownBody.ok, 'unknown public tenant must return an error envelope.');
+  assert(
+    unknownBody.error.code === 'not_found',
+    `unknown public tenant must be not_found, got "${unknownBody.error.code}"`,
+  );
+
+  // The separation proof: the SAME foreign Origin against the authenticated
+  // surface must NOT enable CORS (architecture §Security baseline).
+  const authedRes = await fetch(`${baseUrl}/api/health`, { headers: { origin: foreignOrigin } });
+  assert(
+    authedRes.headers.get('access-control-allow-origin') === null,
+    `authenticated /api/* must stay CORS-closed under a foreign Origin, got "${authedRes.headers.get('access-control-allow-origin')}"`,
+  );
+};
+
 /**
  * The runtime contract every deploy target must satisfy, driven purely through
  * the CLI: health → sign-in → todos list/add/list → cards add/list/move (→done)
@@ -251,6 +341,7 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
   await assertResponseHeaders(baseUrl);
   await assertIndexHtmlCacheHeader(baseUrl);
   await assertSessionCookieHardening(target);
+  await assertPublicSurface(baseUrl, target.tenant);
   const authedHome = mkdtempSync(join(tmpdir(), 'smoke-cli-'));
   const anonHome = mkdtempSync(join(tmpdir(), 'smoke-anon-'));
   homes.push(authedHome, anonHome);
@@ -634,6 +725,19 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     'revoked admin loses tenant access',
     EXIT_CODE_BY_ERROR_CODE.tenant_not_found,
     'tenant_not_found',
+  );
+
+  // Public surface via the CLI with NO session: anonHome holds no token, so
+  // `public profile` proves the group is reachable unauthenticated (US-028).
+  const publicProfile = publicProfileSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, 'public', 'profile', target.tenant], anonHome),
+      'public profile (no session)',
+    ),
+  );
+  assert(
+    publicProfile.slug === target.tenant && publicProfile.displayName.length > 0,
+    `CLI public profile echoed the wrong safe fields: ${JSON.stringify(publicProfile)}`,
   );
 
   expectError(

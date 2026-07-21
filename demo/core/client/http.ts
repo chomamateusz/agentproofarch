@@ -15,6 +15,11 @@ import {
   memberRemoveOutputSchema,
   memberUpdateOutputSchema,
   meOutputSchema,
+  PUBLIC_API_ROUTES,
+  publicTenantDiscoveryOutputSchema,
+  publicTenantDiscoveryPath,
+  publicTenantProfileOutputSchema,
+  publicTenantProfilePath,
   staffGrantOutputSchema,
   staffListOutputSchema,
   staffRevokeOutputSchema,
@@ -179,6 +184,24 @@ export const createApiClient = (options: ApiClientOptions) => ({
     request(options, API_ROUTES.staffGrant.method, API_ROUTES.staffGrant.path, staffGrantOutputSchema, input, signal),
   revokeStaff: (input: StaffRevokeInput, signal?: AbortSignal) =>
     request(options, API_ROUTES.staffRevoke.method, API_ROUTES.staffRevoke.path, staffRevokeOutputSchema, input, signal),
+  publicTenantDiscovery: (slug: string, signal?: AbortSignal) =>
+    request(
+      options,
+      PUBLIC_API_ROUTES.tenantDiscovery.method,
+      publicTenantDiscoveryPath(slug),
+      publicTenantDiscoveryOutputSchema,
+      undefined,
+      signal,
+    ),
+  publicTenantProfile: (slug: string, version: string, signal?: AbortSignal) =>
+    request(
+      options,
+      PUBLIC_API_ROUTES.tenantProfile.method,
+      publicTenantProfilePath(slug, version),
+      publicTenantProfileOutputSchema,
+      undefined,
+      signal,
+    ),
 });
 
 export type ApiClient = ReturnType<typeof createApiClient>;
