@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const signIn = async (page: Page): Promise<void> => {
-  await page.goto('/');
+  await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'agentproofarch' })).toBeVisible();
   await page.getByLabel('email').fill('demo@agentproofarch.dev');
   await page.getByLabel('password').fill('demo1234');
   await page.getByRole('button', { name: 'sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Acme Sp. z o.o.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Switch tenant' })).toContainText('Acme');
 };
 
 const column = (page: Page, name: string) => page.locator(`section[aria-label="${name}"]`);
@@ -50,7 +50,7 @@ test('team board: entry column only, WIP guard blocks visibly and releases, lega
   const walker = `e2e team walker ${stamp}`;
 
   await signIn(page);
-  await page.goto('/team-board');
+  await page.goto('/app/team-board');
   await expect(page.getByRole('heading', { name: 'Team board' })).toBeVisible();
   await settled(page);
 

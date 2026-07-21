@@ -14,7 +14,16 @@ const verified: TenantDomain = {
 };
 
 const deps = (findByDomain: TenantDomainRepository['findByDomain']) => ({
-  tenantDomains: { findByDomain, listVerifiedDomains: async () => [] },
+  tenantDomains: {
+    findByDomain,
+    listVerifiedDomains: async () => [],
+    listByTenant: async () => [],
+    findAnyByDomain: async () => null,
+    findByTenantAndDomain: async () => null,
+    add: async (input) => input,
+    setVerified: async () => null,
+    removeByTenantAndDomain: async () => 0,
+  } satisfies TenantDomainRepository,
 });
 
 describe('internal domain-check endpoint', () => {

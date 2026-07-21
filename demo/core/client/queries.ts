@@ -10,6 +10,9 @@ import type {
 } from '@tanstack/query-core';
 
 import type {
+  DomainAddInput,
+  DomainCheckInput,
+  DomainRemoveInput,
   MemberEnsureInput,
   StaffGrantInput,
   StaffRevokeInput,
@@ -85,6 +88,10 @@ export const tenantsScopes = {
   all: () => ['tenants'] as const,
 };
 
+/** Invalidation filters (constructed here, never inline in apps/web). */
+export const tenantsInvalidates = () => ({ queryKey: tenantsScopes.all() });
+export const meInvalidates = () => ({ queryKey: meScopes.all() });
+
 export const todosScopes = {
   all: () => ['todos'] as const,
   lists: () => ['todos', 'list'] as const,
@@ -105,6 +112,11 @@ export const membersScopes = {
 export const staffScopes = {
   all: () => ['staff'] as const,
   lists: () => ['staff', 'list'] as const,
+};
+
+export const domainsScopes = {
+  all: () => ['domains'] as const,
+  lists: () => ['domains', 'list'] as const,
 };
 
 export const authScopes = {
@@ -200,6 +212,33 @@ export const revokeStaffMutation = (api: ApiClient) =>
 
 /** Both staff writes change the roster, so both invalidate the staff list scope. */
 export const staffInvalidates = () => ({ queryKey: staffScopes.lists() });
+
+export const domainsQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: domainsScopes.lists(),
+    call: ({ signal }) => api.listDomains(signal),
+  });
+
+export const addDomainMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...domainsScopes.all(), 'add'],
+    call: (input: DomainAddInput) => api.addDomain(input),
+  });
+
+export const checkDomainMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...domainsScopes.all(), 'check'],
+    call: (input: DomainCheckInput) => api.checkDomain(input),
+  });
+
+export const removeDomainMutation = (api: ApiClient) =>
+  defineMutation({
+    mutationKey: [...domainsScopes.all(), 'remove'],
+    call: (input: DomainRemoveInput) => api.removeDomain(input),
+  });
+
+/** Every domain write changes the roster, so all invalidate the domain list scope. */
+export const domainsInvalidates = () => ({ queryKey: domainsScopes.lists() });
 
 /**
  * Auth side effects are mutation descriptors over `AuthClientPort` like any

@@ -18,6 +18,8 @@ export const CAPABILITIES = [
   'staff:read',
   'staff:grant',
   'staff:revoke',
+  'domain:read',
+  'domain:write',
   'tenant:create',
 ] as const;
 
@@ -78,6 +80,12 @@ export const principalOf = (identity: Identity): Principal => {
  * run the tenant but cannot mint or remove other staff. This is why staff is two
  * principals, not one — an `admin` in the list below is simply absent from the
  * grant/revoke rows, and default-deny does the rest.
+ *
+ * The `domain:*` capabilities are the FR custom-domain surface (US-019): reading
+ * the tenant's attached domains is staff-readable (`owner+admin`), but attaching,
+ * verifying and removing a domain are OWNER-ONLY (`domain:write`) — the same
+ * owner/admin split as the staff-grant rows, since a custom domain is a
+ * tenant-configuration change an admin runs the tenant without.
  */
 const GRANTS: Record<Capability, readonly Principal[]> = {
   'todo:read': ['owner', 'admin', 'member'],
@@ -91,6 +99,8 @@ const GRANTS: Record<Capability, readonly Principal[]> = {
   'staff:read': ['owner', 'admin'],
   'staff:grant': ['owner'],
   'staff:revoke': ['owner'],
+  'domain:read': ['owner', 'admin'],
+  'domain:write': ['owner'],
   'tenant:create': ['owner', 'admin', 'visitor'],
 };
 

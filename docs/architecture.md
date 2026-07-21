@@ -150,6 +150,24 @@ apps/web/src/
   theme.ts          the entire visual language (MUI theme); no colors/fonts elsewhere
 ```
 
+**Route tree** (US-015): the public routes are `/login` and `/register`; every
+authenticated surface lives under `/app`, whose layout route (`AppLayout`, a
+feature under `features/settings/`) is the shell. The shell guards auth
+(an anonymous hit on any `/app/*` route redirects to `/login`), owns the shared
+chrome — the header **tenant switcher** (lists the caller's tenants; selecting one
+navigates to that tenant's host, the same subdomain mechanism `lib/tenant.ts`
+uses), the **logout** action, and the primary navigation — and renders the active
+child through its `Outlet`. When the caller has no accessible tenant on the
+current host (the tenant-less apex, or a tenant domain they lack access to) the
+shell renders the **create-tenant onboarding** instead of a child, which is where
+a freshly-registered user lands (US-016) to create their first tenant (with its
+owner row). The ledger is `/app`; the boards are `/app/board` and
+`/app/team-board`; `/app/members` is the staff customer roster; and settings live
+at `/app/settings` (current tenant + role, tenant switch/create), with
+`/app/settings/staff` (the FR-8 staff roster — grant-by-email and confirmed
+revoke, owner-only) and `/app/settings/domains` (US-019 custom domains) as
+sub-pages. Bare `/` redirects to `/app`.
+
 State rules:
 
 - **Server state**: TanStack Query only, consuming **bound actions** —
@@ -602,6 +620,8 @@ them):
 | `staff:read`     | allow | allow | deny   | deny                  |
 | `staff:grant`    | allow | deny  | deny   | deny                  |
 | `staff:revoke`   | allow | deny  | deny   | deny                  |
+| `domain:read`    | allow | allow | deny   | deny                  |
+| `domain:write`   | allow | deny  | deny   | deny                  |
 | `tenant:create`  | allow | allow | deny   | allow                 |
 
 Members are full collaborators on the tenant's boards (todos and cards are
@@ -611,7 +631,10 @@ grant or revoke admin access** (FR-8) — an admin runs the tenant but cannot mi
 or remove staff, and the last owner cannot be revoked (lockout guard, a
 `validation` error in `revokeAdmin`). Granting admin is to an EXISTING account by
 email — there are no invitations (post-MVP), so `grantAdmin` returns `not_found`
-when the email has no account. `tenant:create` is
+when the email has no account. Custom domains (US-019) follow the same
+owner/admin split: `domain:read` (the settings roster) is staff-readable, but
+`domain:write` — attaching, verifying and detaching a domain — is owner-only, so
+an admin runs the tenant without changing where it is reachable. `tenant:create` is
 tenant-less self-service (the caller becomes owner), so a visitor holds it while
 a member of one tenant may not provision others. The member-deny cell is
 **use-case-layer only**: over HTTP the create route deliberately sits above
@@ -965,7 +988,10 @@ code.
 - `TodoRepository`, `CardRepository`, `TenantDomainRepository`,
   `TenantRepository`, `TenantAccessReader`: the per-aggregate repository ports
   (todos, board cards, tenant domains, tenants + owner grants, staff/member
-  access reads).
+  access reads). `TenantDomainRepository` carries both the resolution reads
+  (`findByDomain` verified-only, `listVerifiedDomains`) and the US-019 tenant
+  CRUD (`listByTenant`, `findAnyByDomain`/`findByTenantAndDomain`, `add`,
+  `setVerified`, `removeByTenantAndDomain`).
 - `HealthPort`: database ping for the readiness route (`/api/health/ready` and
   the compat `/api/health`); liveness never calls it.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
@@ -982,7 +1008,10 @@ code.
   | `caddy` | Docker self-host | no-op (Caddy issues on demand) | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME`/`_IP` |
   | `noop` (default) | dev / Vercel | no-op | always accepts |
 
-  On self-host, TLS is issued with zero per-tenant config: Caddy's
+  `DomainPort` now also backs the US-019 web/CLI domain surface: `addDomain`
+  provisions then writes an unverified row, `checkDomain` runs `check` and
+  persists the resulting `verified` flag, and `removeDomain` detaches then
+  releases. On self-host, TLS is issued with zero per-tenant config: Caddy's
   `on_demand_tls { ask … }` calls an **internal-only** domain-check endpoint
   (see §Self-host custom domains and TLS) before minting a certificate. The
   Vercel Domains API adapter (**US-020**) is the one remaining implementation,

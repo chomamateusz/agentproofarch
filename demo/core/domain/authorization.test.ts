@@ -68,6 +68,8 @@ const EXPECTED: Record<Capability, Record<Principal, boolean>> = {
   'staff:read': { owner: true, admin: true, member: false, visitor: false },
   'staff:grant': { owner: true, admin: false, member: false, visitor: false },
   'staff:revoke': { owner: true, admin: false, member: false, visitor: false },
+  'domain:read': { owner: true, admin: true, member: false, visitor: false },
+  'domain:write': { owner: true, admin: false, member: false, visitor: false },
   'tenant:create': { owner: true, admin: true, member: false, visitor: true },
 };
 

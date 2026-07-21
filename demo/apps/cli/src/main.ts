@@ -19,6 +19,7 @@ import {
 import {
   boardIdSchema,
   canonicalSlugSchema,
+  domainAddInputSchema,
   err,
   internal,
   normalizeSlug,
@@ -488,6 +489,68 @@ staff
     if (input === undefined) return;
     emit(await ctx.api.revokeStaff(input), ctx.json, (data) =>
       `revoked: ${data.userId} (grants removed: ${data.revoked})`,
+    );
+  });
+
+const domain = program
+  .command('domain')
+  .description(
+    'Custom domains for the active tenant (US-019). Reading is staff-readable; ' +
+      'adding, checking and removing a domain are owner-only. A newly added domain is ' +
+      'unverified until `domain check` confirms DNS points at the deploy target.',
+  );
+
+domain.command('list').description('List the tenant custom domains and the DNS target').action(async () => {
+  const ctx = cliCtx();
+  emit(await ctx.api.listDomains(), ctx.json, (data) => {
+    const target = data.target.cname
+      ? `CNAME → ${data.target.cname}`
+      : data.target.ip
+        ? `A → ${data.target.ip}`
+        : 'no DNS target configured';
+    const rows =
+      data.domains.length === 0
+        ? 'no domains'
+        : data.domains
+            .map((d) => `- ${d.domain}\t${d.verified ? 'verified' : 'pending'}`)
+            .join('\n');
+    return `${rows}\n(${target})`;
+  });
+});
+
+domain
+  .command('add <domain>')
+  .description('Attach a custom domain (owner-only; starts unverified)')
+  .action(async (domainArg: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(domainAddInputSchema, { domain: domainArg }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.addDomain(input), ctx.json, (data) =>
+      `attached: ${data.domain.domain} (${data.domain.verified ? 'verified' : 'pending'})`,
+    );
+  });
+
+domain
+  .command('check <domain>')
+  .description('Re-verify a domain against the DNS target (owner-only)')
+  .action(async (domainArg: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(domainAddInputSchema, { domain: domainArg }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.checkDomain(input), ctx.json, (data) =>
+      `${data.domain.domain}: ${data.domain.verified ? 'verified' : 'pending'} — ${data.check.detail}`,
+    );
+  });
+
+domain
+  .command('remove <domain>')
+  .description('Detach a custom domain (owner-only)')
+  .action(async (domainArg: string) => {
+    const ctx = cliCtx();
+    const input = parseArgs(domainAddInputSchema, { domain: domainArg }, ctx.json);
+    if (input === undefined) return;
+    emit(await ctx.api.removeDomain(input), ctx.json, (data) =>
+      `removed: ${data.domain} (rows: ${data.removed})`,
     );
   });
 

@@ -28,7 +28,7 @@ export const LoginPage = () => {
     ...actions.signIn,
     onSuccess: async () => {
       await queryClient.invalidateQueries();
-      await navigate({ to: '/' });
+      await navigate({ to: '/app' });
     },
   });
 

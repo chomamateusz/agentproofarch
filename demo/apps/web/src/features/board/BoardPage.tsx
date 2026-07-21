@@ -31,12 +31,12 @@ export const BoardPage = () => {
 
   const errorCode = cards.error instanceof ApiError ? cards.error.appError.code : null;
   const unauthorized = errorCode === 'unauthorized';
-  // No tenant resolved (apex host): the ledger at "/" owns tenant selection.
+  // No tenant resolved (apex host): the app shell at "/app" owns tenant selection.
   const tenantless = errorCode === 'tenant_not_found';
 
   useEffect(() => {
     if (unauthorized) void navigate({ to: '/login' });
-    else if (tenantless) void navigate({ to: '/' });
+    else if (tenantless) void navigate({ to: '/app' });
   }, [unauthorized, tenantless, navigate]);
 
   useEffect(() => {
