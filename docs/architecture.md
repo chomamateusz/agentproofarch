@@ -922,7 +922,13 @@ config-regression probe (`config-regression/public-surface.test.ts`) asserts the
 `s-maxage`/`stale-while-revalidate` tokens appear in that one helper alone. The
 helper is applied at the same `respond()` seam as the `no-store` default, which
 pins **errors to `no-store` regardless of the argument**, so a transient public
-failure can never be cached at the edge.
+failure can never be cached at the edge. One platform truth the attestation must
+respect: Vercel's CDN **consumes** `s-maxage`/`stale-while-revalidate` at the edge
+and strips them from the client-visible header, so behind Vercel the observable
+remainder is `public, max-age=0` — `smoke:remote` therefore asserts that remainder
+**plus** `x-vercel-cache: HIT`/`STALE` on a repeat request (proof the edge actually
+cached), while direct-to-origin smoke (local, docker) asserts the literal helper
+output.
 
 Busting is by **content-version in the URL**, not an edge purge: a content change
 is a new key, which is exactly the "cache keyed to tenant content version" that
