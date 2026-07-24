@@ -1320,41 +1320,76 @@ slice; it is a Vercel-target concern and does not affect self-host.
 
 Four environments, mapped onto Vercel's native model
 ([ADR-0003](decisions/0003-vercel-environments.md)), under one hard security
-boundary: **no GitHub event can reach production.** Agents are given *maximum*
-GitHub freedom by design — full `gh` access as the repo owner, no machine
-account, merge and workflow-dispatch rights — precisely because the wall that
-matters sits elsewhere: the path from any push, merge, workflow run or bot action
-to a production deployment simply does not exist. CI/CD is fully automatic up to
-and including staging; production is promoted by hand, by the owner, inside the
-platform. This refines ADR-0003's "Production = `main`" mechanic — the
-environment model is unchanged; only the trigger for the production environment
-moves from a Git push to a human dashboard action.
+boundary: **only the owner can release to production, and the owner's diff review
+happens before the build that sees production secrets runs.** The wall is *not*
+"no GitHub event can reach production" — a merge to the `production` branch **is**
+the release trigger. The wall is that the merge which triggers a production build
+requires a pull request the owner alone can approve, enforced by a GitHub ruleset
+with an **empty bypass list**.
 
-The operating hygiene for running this safely under agents — secrets only in the
-platform store, no production access on agent machines, the human-only promotion
-gate, fail-closed review, and SHA attestation — is in the README's *Operating
+**Identity split (the base of the wall).** The repo is **public**. Agents act
+through a machine GitHub account, `chomamateusz-agent`, added as a **collaborator
+with Write, never Admin**; the owner's own credentials (gh sessions, PATs) never
+live on the agent machine. The owner's SSH key may remain on the machine, but the
+rulesets neutralize it for production: SSH can push a ref but **cannot call the
+API to edit a ruleset or approve a pull request**, and production requires an
+approved PR. Write-not-Admin means the agent cannot edit or delete the rulesets
+that bind it.
+
+**Topology.** `main` is trunk **and** staging: every merge to `main` auto-builds a
+Preview on a stable URL — the shared integration surface. The `production` branch
+is the release branch, and **Vercel Production Branch Tracking is set to
+`production`**. A release is the **owner** opening (or approving) a pull request
+`main → production` and merging it; the approval comes from a device the agent
+does not control. Because the merge to `production` is what triggers the
+production build, **the owner's diff review at the PR happens *before* the
+production build runs** — the correct ordering, and the specific correction over
+the old dashboard-promote model, where the review ran *after* the build. The
+former `staging` branch relic is deleted; `main` replaces it.
+
+**The two rulesets (the enforced wall).** Both carry an **empty bypass list**, so
+no identity — Admin included — merges past them.
+
+| Ruleset | Branch | Enforces |
+|---|---|---|
+| `production-protection` | `production` | require a PR + **1 approval**; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; the same four required status checks **plus "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
+
+Agents have full `main` freedom (0 approvals, gated only by the four green checks
+and up-to-date-ness); `production` needs an approval the agent cannot supply for
+its own PR — GitHub forbids self-approval, and the only other identity that can
+approve is the owner's. That single approval, from an owner device, is the
+release gate. The operating hygiene for running this under agents — secrets only
+in the platform store, no production platform-CLI access on agent machines, the
+owner-only release gate, and SHA attestation — is in the README's *Operating
 hygiene for agent-driven repos* section (recommendations for the platform owner;
-the enforced rules below are this section's). The click-by-click runbook for the
-one-time topology flip and the promotion ritual is
-[deploy-promotion.md](deploy-promotion.md).
+the enforced rules below are this section's). The click-by-click release runbook
+is [deploy-promotion.md](deploy-promotion.md).
 
 | Env | Git → deploy | Database | Host |
 |---|---|---|---|
-| Production | **none** — manual promotion only (Production Branch set to an unused ref, e.g. `production-manual`) | Neon branch `production` | project custom domain (+ wildcard when added) |
-| Staging | `main` → auto Preview deployment on a stable staging alias | Neon branch `staging` | staging alias URL |
+| Production | merge to `production` (owner-approved PR, `production-protection` ruleset) → Vercel Production build | Neon branch `production` | project custom domain (+ wildcard when added) |
+| Staging | `main` → auto Preview deployment on a stable URL | Neon branch `staging` | stable staging URL |
 | Preview | every PR → auto Preview deployment | **ephemeral Neon branch per PR** (marketplace integration) | per-PR URL |
 | Development | local | Docker Postgres (or a Neon `dev` branch) | `*.localhost` |
 
 **Preview + staging ARE the development environment** — there is no separate
 deployed dev environment. Per-PR previews are where a change is exercised in a
-real deployment; `main`'s auto-published staging deployment is the shared
-integration surface. Both are fully automatic and fully agent-reachable. Local
-(`*.localhost`) is the machine loop; every *deployed* non-production environment
-is a preview or the staging alias.
+real deployment; `main`'s auto-published staging deployment (Production Branch
+Tracking points at `production`, so `main` builds a Preview, not Production) is
+the shared integration surface. Both are fully automatic and fully
+agent-reachable. Local (`*.localhost`) is the machine loop; every *deployed*
+non-production environment is a preview or the stable staging URL.
 
 **Tenant addressing per environment.** Tenants live on subdomains of the app's
 base domain — but what "base domain" means differs per environment, and the code
-handles each honestly:
+handles each honestly. The server resolves a tenant per request in one fixed
+order (`core/server/usecases/resolve-identity.ts`): (1) an **exact
+custom-domain** match in `tenant_domains`, else (2) the **subdomain label of
+`APP_BASE_DOMAIN`** treated as the tenant slug, else (3) the **`X-Tenant`
+header** (CLI and other non-browser clients). The consequence of step 2: with a
+real owned base domain, a **single wildcard domain makes every tenant resolve
+automatically by subdomain — no per-tenant registration needed.**
 
 - **Local dev**: full subdomain tenancy on `*.localhost`
   (`acme.localhost:47100`). One caveat browsers impose: `Domain=.localhost`
@@ -1362,36 +1397,56 @@ handles each honestly:
   login is per-subdomain. This is a browser rule, not a bug; the e2e harness
   works within it.
 - **Vercel's shared apex (`<project>.vercel.app`)**: tenant subdomains are
-  **impossible by construction** — `acme.<project>.vercel.app` is not a
-  subdomain of your project; sibling names under `vercel.app` belong to OTHER
-  Vercel projects. `tenantUrl()` therefore returns `null` on this apex and the
-  web app runs single-tenant per deployment URL (tenant switching via the CLI's
-  `--tenant`); linking "sibling subdomains" here would send users to strangers'
-  deployments.
+  **impossible by platform restriction, confirmed live.** Vercel refuses to add
+  a subdomain under a project's own `*.vercel.app`; the dashboard error is
+  verbatim *"`<team>` does not have access to `*.<project>.vercel.app`
+  domains"*. So `acme.<project>.vercel.app` cannot be attached at all.
+  `tenantUrl()` therefore returns `null` on this apex and the web app runs
+  single-tenant per deployment URL (tenant switching via the CLI's `--tenant`).
 - **A real base domain with a wildcard** (`*.example.com` attached to the
-  project): full subdomain tenancy returns, and one session spans sibling
-  subdomains (the cookie domain is the real base). This is the production
-  shape; ADR-0003 and the domains feature (tenant_domains + provisioner ports)
-  are built for it.
+  project): full subdomain tenancy returns, one wildcard resolves all tenants
+  (step 2 above), and one session spans sibling subdomains (the cookie domain is
+  the real base). This is the production shape; ADR-0003 and the domains feature
+  (`tenant_domains` + provisioner ports) are built for it. **Cert mechanics
+  (from research):** a wildcard cert on Vercel needs an ACME **DNS-01**
+  challenge, which requires **NS delegation to Vercel** (Vercel-hosted DNS) *or*
+  the narrow `_acme-challenge` NS delegation. A records-only path (no NS
+  delegation) can only issue certs for **individual, non-wildcard per-tenant
+  hosts** (HTTP-01 via CNAME) — that is the US-020 programmatic domain-add
+  pattern, not a wildcard. Hobby caps at **50 custom domains per project**;
+  wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement, not a
+  technical wildcard gate).
 - **Self-host**: Caddy's on-demand TLS serves any custom tenant domain that
   passes the internal domain check (§Docker self-host) — subdomain and
   custom-domain tenancy both work.
 
+**The demo's live setup (in progress, pending eu.org approval — honest).** The
+demo takes a free **eu.org** domain, `agentproofarch.eu.org`, delegated to
+Vercel's nameservers — allowed precisely because it is *not* the company's
+`coderoad.pl` zone, so the delegation carries no risk to production DNS. That NS
+delegation buys the DNS-01 wildcard cert, giving browser multi-tenancy at zero
+cost. Production env is `APP_BASE_DOMAIN=agentproofarch.eu.org` +
+`APP_BASE_URL`. Until the eu.org registration is approved and the wildcard is
+live, the deployed web stays single-tenant on `*.vercel.app` and the CLI's
+`X-Tenant` carries multi-tenancy.
+
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):
 
-- **No Git-integration path to production** (control 1 of 5). The Vercel
-  project's Production Branch points at an unused ref (`production-manual`, never
-  pushed), so a push or merge to `main` produces a *Preview* deployment, never a
-  production one. Nothing an agent can do on GitHub — merge, force-push, dispatch
-  a workflow, retrigger a deploy hook — reaches production, because production has
-  no automatic trigger to reach.
-- **Production promotion is 100% manual, owner-only, inside Vercel.** The owner
-  picks a green staging/preview deployment and clicks **Promote to Production** in
-  the dashboard (works from a phone), or runs `vercel promote` from a human-only
-  device. Never from GitHub, never by an agent. Promotion re-points the production
-  alias at an *existing, already-gated* build — it does not rebuild, so the
-  promoted artifact is byte-identical to the one that passed `check`/`smoke`.
+- **Production release goes through an owner-approved PR to `production`**
+  (control 1 of 5). Production Branch Tracking points at the real `production`
+  branch, and the `production-protection` ruleset (require PR + 1 approval, empty
+  bypass, four required status checks) means the only way to trigger a production
+  build is a pull request `main → production` that the owner approves and merges.
+  An agent (`chomamateusz-agent`, Write, not Admin) can open the PR but cannot
+  approve its own PR, cannot edit the ruleset, and cannot force-push past it — so
+  no agent action reaches production without an owner approval from a device the
+  agent does not control.
+- **The release is owner-only and diff-reviewed before the build.** The owner
+  reads the diff on the `main → production` PR and approves it; the merge is what
+  triggers the production build. So the review precedes the build that sees
+  production secrets — the correct ordering. Never an agent, never a
+  self-approval.
 - **Two teams, one login** (paid-app topology). The commercial app's production
   lives on its own **Pro** team; the **Hobby** team hosts non-commercial work. One
   login spans both, but a pause, suspension or plan-limit hit on one team does not
@@ -1410,46 +1465,78 @@ foundation):
   runs `lintMigrations`, which fails the build on a duplicate, gapped or
   non-`<NNNN>` prefix or a `meta/_journal.json` that does not match the `.sql`
   files on disk — a config-regression probe plants a duplicate to prove the gate
-  still fires. A migration in the promoted diff takes a Neon snapshot/PITR point
-  first (§Constraint-adding migrations; runbook step in
+  still fires. A migration in the `main → production` diff takes a Neon
+  snapshot/PITR point first (§Constraint-adding migrations; runbook step in
   [deploy-promotion.md](deploy-promotion.md)).
-- **Tenant subdomains need the custom wildcard domain**; until one is
+- **Tenant subdomains need a real wildcard base domain**; until one is
   attached, web runs single-tenant on `*.vercel.app` while the API and CLI
   stay fully multi-tenant via `X-Tenant` — which is also how `smoke` drives a
   deployed environment (`npm run smoke:remote` = the same CLI suite against a
   deployment URL).
 
 **The five standing controls** (WHY and the click-by-click checklist in
-[deploy-promotion.md](deploy-promotion.md) §c): (1) **no Git-integration path to
-prod** — Production Branch is an unused ref; (2) **zero platform-CLI sessions on
-agent machines** — no `vercel`/`neonctl` login persists where an agent runs, and
-the agent harness's Bash hook bans launching them; (3) **all production env vars
-marked Sensitive** (write-only); (4) **passkey/2FA on the Vercel login**, sessions
-only on owner devices; (5) **platform-independent DR** — a cold standby on the
-owner's VPS via the Docker deploy target, an hourly `pg_dump` cron on the VPS, and
-Neon PITR, so a total-platform loss is recoverable off Vercel/Neon entirely.
+[deploy-promotion.md](deploy-promotion.md) §c): (1) **owner-approved PR to
+`production`** — the `production-protection` ruleset (PR + 1 approval, empty
+bypass) is the only path to a production build, and the agent's account is
+Write-not-Admin so it can neither self-approve nor edit the ruleset; (2) **zero
+platform-CLI sessions on agent machines** — no `vercel`/`neonctl` login persists
+where an agent runs, and the agent harness's Bash hook bans launching them;
+(3) **all production env vars marked Sensitive** (write-only); (4) **passkey/2FA
+on the Vercel login**, sessions only on owner devices; (5) **platform-independent
+DR** — a cold standby on the owner's VPS via the Docker deploy target, an hourly
+`pg_dump` cron on the VPS, and Neon PITR, so a total-platform loss is recoverable
+off Vercel/Neon entirely.
 
-**The irreducible residue, stated honestly.** These controls stop a GitHub event
-or a compromised agent from *triggering* a production deploy; they do not change
-the fact that **promoted code runs with production secrets at runtime.** An agent
-that lands malicious code in a deployment the owner then promotes has reached
-production secrets — the only defense at that seam is **the owner's diff review at
-promotion time** (review the diff since the last promoted SHA before clicking
-Promote). If production ever moves to self-host, an **egress allowlist** on the
-production host is the next control to add (bounding where exfiltrated secrets
-could be sent); on Vercel's managed functions that control is not available.
+**The irreducible residue, stated honestly.** The controls above stop an agent
+from *releasing* to production without an owner approval; they do **not** remove
+the fact that a **production build executes with production env vars available**
+(Vercel exposes them at build, sensitive vars included) **at merge time.**
+Therefore malicious build code merged to `production` could exfiltrate secrets
+**before any human sees the running result** — so the defense is the owner's diff
+review **at the PR, before the merge/build**, never after it. This is why the
+event ordering matters: on a single Git-connected Vercel project, an agent with
+repo access could, *absent the ruleset*, force a production build; the
+`production-protection` ruleset (PR + owner approval, owner-only) is exactly what
+closes that. But a human diff review is fallible, so build-time secret exposure
+is not fully closed here. **Full closure requires either a Git-*disconnected*
+production project** (secrets never reach a build triggered by a repo push) **or
+production off Vercel entirely** (self-host / k3s, where an **egress allowlist**
+on the production host bounds where exfiltrated secrets could go — a control
+Vercel's managed functions do not offer). Both are the escalation path — the
+three-tier ladder: **today** a shared laptop with the identity split above;
+**at Together go-live** a managed IdP plus cheap/revocable secrets (§Two
+security doctrines); **when it grows** a dedicated prod-ops machine or off-Vercel
+production.
 
-**Demo — current state (honest).** The demo project **still auto-deploys
-production from `main`** (the ADR-0003 topology); it has **not** yet been flipped
-to the manual-promotion topology above. Flipping it is a dashboard action, not a
-code change — the one-time procedure is [deploy-promotion.md](deploy-promotion.md)
-§a. One caveat is explicitly **unverified**: after the flip, the post-deploy
-**production** smoke trigger must be re-checked, because a manual "Promote to
-Production" may emit *different* GitHub deployment events than a `main` push does
-— possibly no `deployment_status` at all — and `post-deploy-smoke.yml` fires on
-`deployment_status`. Verify on the first promoted deploy and adjust the workflow
-trigger if promotion emits no usable event (tracked in [backlog.md](backlog.md)
-§Verification residuals).
+**Two security doctrines** (they keep the claims above honest):
+
+- **TIMELINE-TRACE.** Every security claim in these docs must be justified by
+  tracing the **actual** event order — who acts, when, with what privilege — not
+  the *intended* order. This session alone caught three claims that were true "in
+  intent" but false in timeline: an "unpushable ref" that was actually a naming
+  convention; a promotion diff-review that ran **after** the build (so it could
+  not defend the secret-exposure seam); and an owner SSH key assumed neutral that
+  could still merge via a plain push. A claim that has not been walked step by
+  step is a hypothesis, not a control.
+- **CHEAP SECRETS.** The build sees **every** production secret (residue above),
+  so every production secret must be **least-privilege, revocable, and
+  asymmetric-verify where possible.** Offline-forge-class secrets — a symmetric
+  session-signing key such as a self-hosted auth secret — should not exist on the
+  platform at all: prefer an **external managed IdP** that holds the signing key
+  and exposes only JWKS **verification** (a leaked verification key forges
+  nothing). Managed-IdP migration is a **Together-scope** item.
+
+**Demo — current state (honest).** The demo runs the topology above: Vercel
+Production Branch Tracking is set to `production`, and the `production-protection`
+and `main-gates` rulesets are in place with empty bypass lists. Agents act as
+`chomamateusz-agent` (Write, not Admin); the `main → production` release PR is
+owner-approved. The one item still **in progress** is the wildcard base domain:
+the `agentproofarch.eu.org` registration + NS delegation to Vercel is pending
+approval, so until it lands the deployed web is single-tenant on `*.vercel.app`
+and multi-tenancy is CLI-only via `X-Tenant`. Because a merge to `production` is
+an ordinary branch push, it emits the normal `deployment_status` for the
+`Production` environment, so `post-deploy-smoke.yml` fires as-is — the
+dashboard-promote trigger caveat that the old model carried no longer applies.
 
 **Per-app deployment specifics live with the app.** This section is the
 foundation's recommended topology; an individual application's concrete

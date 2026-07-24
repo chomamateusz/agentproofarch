@@ -1,10 +1,10 @@
 /**
  * URL of a sibling tenant on the same base domain (acme.localhost →
- * globex.localhost), or `null` when tenant subdomains do not exist here: on
- * the platform's shared apex (<project>.vercel.app) sibling subdomains belong
- * to OTHER Vercel projects, so linking them would send users to strangers'
- * deployments. Until a wildcard domain is attached (ADR-0003), the web app is
- * single-tenant and tenant switching happens through the CLI (`--tenant`).
+ * globex.localhost), or `null` on a `<project>.vercel.app` apex: Vercel refuses
+ * to add a subdomain under a project's own `*.vercel.app` ("<team> does not have
+ * access to *.<project>.vercel.app domains"), so tenant subdomains cannot exist
+ * there. Browser multi-tenancy needs a real wildcard base domain (ADR-0003);
+ * until then tenant switching is the CLI's `--tenant`.
  */
 export const tenantUrl = (slug: string): string | null => {
   const { protocol, hostname, port } = window.location;

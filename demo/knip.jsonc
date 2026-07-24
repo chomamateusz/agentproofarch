@@ -23,6 +23,11 @@
     // for version alignment across the OTel graph; never imported directly.
     "@opentelemetry/core"
   ],
+  "ignoreBinaries": [
+    // System binary (psmisc) the e2e harness shells out to free a stuck port on
+    // Linux CI; not an npm dependency, so knip cannot resolve it.
+    "fuser"
+  ],
   "rules": {
     // Gate on the unambiguous dead weight: dead files, undeclared/unused
     // dependencies, unresolved imports, duplicate exports. Unused *exports* and

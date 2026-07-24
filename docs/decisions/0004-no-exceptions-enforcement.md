@@ -75,7 +75,7 @@ green.
    to fix.
 
 5. **Third-party actions are pinned by full commit SHA.** Every `uses:` in every
-   workflow (`ci`, `post-deploy-smoke`, `mirror`) references an immutable commit
+   workflow (`ci`, `post-deploy-smoke`, `selfhost`) references an immutable commit
    SHA, never a mutable tag like `@v4` — a tag can be force-moved onto malicious
    code under an unchanged CI config. A trailing `# vX.Y.Z` comment records the
    human-readable version the SHA resolved to; bumps come through the same
@@ -92,21 +92,21 @@ cells name a commissioned gate, not a shipped one.
 - Every PR is marked red until both gates pass, and every production deploy is
   independently re-verified end-to-end. The two historical failure classes —
   runtime-only breakage and stale local state — are both structurally caught.
-- **Branch protection cannot be server-enforced on this repo today (honest
-  limitation).** The repository is **private under GitHub Free**, and the
-  branch-protection / required-status-checks API returns
-  `403 "Upgrade to GitHub Pro"`. So while CI *runs* and *marks PRs red*, GitHub
-  will not *block* a merge on a failing or missing check. The options are:
-  (a) make the repository **public** (branch protection becomes free),
-  (b) buy **GitHub Pro**, or (c) **discipline-only** — treat a red check as a
-  hard stop by convention until then. **This choice is deferred to the owner.**
-  Regardless of which is chosen, CI still runs on every PR and every deploy and
-  still turns the checks red; only the server-side *merge block* is contingent
-  on that decision.
-- CI must not run on the mirror. The repo is auto-mirrored to
-  `coderoadpl/agentproofarch-mirror`; every job is guarded with
-  `if: github.repository == 'chomamateusz/agentproofarch'` so the mirror never
-  spends Actions minutes or fails on missing secrets/services.
+- **Branch protection is now server-enforced.** The repository is **public**, so
+  GitHub rulesets are available at no cost, and two are in force with **empty
+  bypass lists**: `main-gates` on `main` (require a PR + the four required status
+  checks `check` / `smoke` / `e2e` / `docker-smoke` + "require branches up to
+  date", 0 approvals) and `production-protection` on `production` (the same four
+  checks + **1 required approval**, Merge-only). A merge is therefore **blocked**
+  on a failing or missing check, not merely marked red. This supersedes the
+  earlier private-repo limitation, when the branch-protection API returned
+  `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — going public
+  was the resolution. Full topology in [architecture.md](../architecture.md)
+  §Environments.
+- CI runs only on the canonical repo. The repo is public and therefore forkable;
+  every job is guarded with
+  `if: github.repository == 'chomamateusz/agentproofarch'` so a fork never spends
+  Actions minutes or fails on missing secrets/services.
 - The `smoke` job needs a Postgres service container in CI, but no
   `docker compose`: `smoke.ts` creates and drops its own isolated
   `agentproofarch_smoke` database over the provided `DATABASE_URL`, so a bare
