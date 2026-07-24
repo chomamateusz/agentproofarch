@@ -92,10 +92,22 @@ enterprise customer questionnaire)
   than a `main` push, unverified). Trigger: the demo flip to the manual-promotion
   topology ([deploy-promotion.md](deploy-promotion.md) §a).
 
+## Optional second reviewer (trigger: owner wants a deterministic-lint second opinion)
+
+- **CodeRabbit as an optional second reviewer.** Now that the repo is public,
+  CodeRabbit is free for open-source and could run alongside the `ai-review` gate
+  as a non-blocking second opinion (it comments; it does not replace the
+  fail-closed gate). Not built: the doctrine-scoped `ai-review` gate is the
+  enforcement tier and a second AI commenter adds noise, not enforcement. Add it
+  only if the owner wants the extra perspective; if added, it stays advisory
+  (never a required check), so it can never turn a real `FAIL` green.
+
 ## Open owner decisions (not deferred — awaiting answers)
 
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
-A1-S4 (magic-link email provider, social OAuth credentials), A1-S5
-(`VERCEL_TOKEN` for US-020) and F1 (AI-reviewer gate key).
+A1-S4 (magic-link email provider, social OAuth credentials) and A1-S5
+(`VERCEL_TOKEN` for US-020). **F1 (AI-reviewer gate) is decided and built** — the
+fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
+[../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

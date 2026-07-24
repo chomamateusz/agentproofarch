@@ -240,3 +240,55 @@ humans who own the platform; the architecture (`../docs/architecture.md`
   build commit SHA on `/api/health*`, and `smoke:remote` asserts the live SHA
   equals the SHA that was reviewed and promoted. That attestation — not a claim in
   a log — is what proves the running code is the code that passed the gates.
+
+### The `ai-review` gate (implementation of "fails closed")
+
+The [`ai-review`](../.github/workflows/ai-review.yml) workflow is the running
+version of the fail-closed bullet above (DECIDE F1). It runs
+[`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action)
+(pinned to a commit SHA) on `pull_request` `opened`/`synchronize`/`ready_for_review`
+targeting `main`, skipping drafts and forks. Sonnet reviews **only the PR diff**
+(`git diff origin/main...HEAD`, not the whole repo — cost) against this repo's
+doctrine (`CLAUDE.md`, the per-layer `CLAUDE.md`s, `architecture.md` §Layers/
+§Principles/§Authorization) and returns a machine-readable verdict via the
+action's `--json-schema` structured output: `{ verdict: PASS | FAIL, summary,
+blocking_issues }`.
+
+- **Verdict → exit code.** The action's `structured_output` is the only source of
+  truth. `.github/scripts/classify-review.sh` maps each attempt to
+  `pass | fail | infra`; `gate-review.sh` exits `0` **only** on a `PASS` and `1`
+  on everything else. The model gets read-only tools and never sets the exit code
+  directly — the workflow does.
+- **Fail-closed.** There is exactly one green path: a positive `PASS`. A `FAIL`
+  verdict, an infra failure (rate-limit / auth / network / the known
+  `--json-schema` CLI hang, bounded by `timeout-minutes`) on every available
+  token slot, an empty or malformed model output, or a missing `…_TOKEN_1` secret
+  all exit RED. "Could not verify" never renders green. Because the gate defaults
+  to RED unless it positively reads a `PASS`, a rare false-RED (e.g. the
+  documented cold-start flake, [claude-code#23265](https://github.com/anthropics/claude-code/issues/23265))
+  is a blocked merge the owner re-runs — never a silent pass.
+- **Token failover, infra-only.** Slots are tried in order:
+  `CLAUDE_CODE_OAUTH_TOKEN_1` (present today), then the wired-but-optional `…_2`
+  and `…_3`. A later slot is attempted **only** when the earlier slot produced no
+  verdict (infra failure); a legitimate `PASS`/`FAIL` fails fast and never burns
+  the next token re-running the same verdict. Absent slot secrets are skipped
+  cleanly (a preflight step emits presence booleans without ever echoing a token).
+  GitHub Actions has no native cross-step token failover — this ordered-attempt
+  ladder is the smallest honest wrapper for it.
+- **Posting.** The verdict is posted back as a single sticky PR comment
+  (`post-review.sh`, edit-last-else-create) — best-effort, so a comment-API hiccup
+  cannot flip a real `PASS` to RED.
+- **Secrets hygiene.** The OAuth token is a subscription-scoped, rotatable,
+  limited-value credential from `claude setup-token` — **not** a production
+  secret, so keeping it as a repo Actions secret does not violate the
+  "production secrets never in Actions" rule above. The workflow never echoes it.
+
+**Adding it to `main-gates` (owner, one-time).** The gate ships **non-required**:
+it runs and posts on every PR but blocks nothing until the owner opts in. To make
+it blocking, add the status-check context **`ai-review`** (the job name) to the
+`main-gates` ruleset's required-checks list (repo → Settings → Rules → `main-gates`);
+this is Admin-only and is not done here. Existing open PRs keep merging until then.
+
+**Adding slot `_2` / `_3` later.** Create repo Actions secrets
+`CLAUDE_CODE_OAUTH_TOKEN_2` / `_3` (each its own `claude setup-token`). No workflow
+edit is needed — the slots are already wired and skip cleanly while absent.
