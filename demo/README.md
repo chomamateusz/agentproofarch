@@ -227,11 +227,16 @@ humans who own the platform; the architecture (`../docs/architecture.md`
   outside the worktree, network to production hosts, `rsync`/`rm -rf` on shared
   mounts, and launching platform CLIs. A blocked command is enforcement; a
   documented "please don't" is not.
-- **The Production Branch is a human-only promotion gate.** Vercel's Production
-  Branch (`main`) is protected so an agent's merges land on **preview/staging**
-  only; promotion to production is a human action (a reviewed merge to `main`).
-  The same commit flows feature branch → preview → `staging` → `main`; only env
-  vars differ, and only a human crosses the last edge.
+- **Production release is an owner-approved PR gate.** Vercel Production Branch
+  Tracking points at the `production` branch, guarded by the
+  `production-protection` GitHub ruleset (require a PR + 1 approval, empty bypass).
+  An agent (a Write-not-Admin machine account) merges freely to `main` — which
+  builds a **preview/staging** deployment — but the production build is triggered
+  only by a `main → production` PR the **owner** approves and merges from a device
+  the agent does not control. The same commit flows feature branch → preview →
+  `main` (staging) → `production`; only env vars differ, and only the owner
+  crosses the last edge, reviewing the diff **before** the merge that triggers the
+  secret-exposed build.
 - **The AI-review gate fails closed.** A review check that cannot run — limits
   hit, tool unavailable, timeout — is a **red** check, never a skipped/green one.
   "Could not verify" and "verified safe" must never collapse to the same colour;

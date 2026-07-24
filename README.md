@@ -1,5 +1,11 @@
 # agentproofarch
 
+**agentproofarch** — an agent-first, strictly-layered TypeScript foundation for
+multi-tenant SaaS.
+A free, open project by **Mateusz Choma**, developed privately in collaboration
+with **[CodeRoad.pl](https://coderoad.pl)** and
+**[AmazingDesign.eu](https://amazingdesign.eu)**.
+
 An agent-first, strictly layered full-stack TypeScript architecture for
 multi-tenant SaaS — and a working reference implementation of it.
 
@@ -161,10 +167,17 @@ Same commit; environment variables only ([ADR-0003](docs/decisions/0003-vercel-e
 
 | Environment | Trigger | Web | Database |
 |---|---|---|---|
-| **Production** | `main` → <https://agentproofarch.vercel.app> | Vercel Production | Neon `production` branch, `DB_DRIVER=neon-http`, `fra1` |
-| **Staging** | long-lived `staging` branch (deployed as a Preview) | Vercel Preview | Neon `staging` branch |
+| **Production** | owner-approved PR merged to `production` (Production Branch Tracking = `production`) → <https://agentproofarch.vercel.app> | Vercel Production | Neon `production` branch, `DB_DRIVER=neon-http`, `fra1` |
+| **Staging** | `main` (built as a Preview on a stable URL) | Vercel Preview | Neon `staging` branch |
 | **Preview** | every PR (URL from `VERCEL_URL`, zero config) | Vercel Preview | ephemeral Neon branch, copy-on-write, deleted with the PR |
-| **Dev** | local (`vercel env pull` for parity) | Vite / built bundle | Docker `postgres:16` on 47542 |
+| **Dev** | local (non-secret local values; agents hold no `vercel env pull` session) | Vite / built bundle | Docker `postgres:16` on 47542 |
+
+The security wall is the identity split plus two GitHub rulesets: agents act as a
+Write-not-Admin machine account, and a production build is triggered only by an
+owner-approved PR to `production` (`production-protection`, empty bypass) — so the
+owner's diff review lands before the build that sees production secrets. Full
+detail in [docs/architecture.md](docs/architecture.md) §Environments and the
+[release runbook](docs/deploy-promotion.md).
 
 ## Adding a resource
 
