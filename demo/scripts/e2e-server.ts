@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
+import net from 'node:net';
 import { join } from 'node:path';
 
 import pg from 'pg';
@@ -81,6 +82,29 @@ const buildWebIfStale = async (): Promise<void> => {
   assert(build.code === 0, `build:web failed:\n${build.stdout}${build.stderr}`);
 };
 
+const isPortFree = (port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.once('listening', () => probe.close(() => resolve(true)));
+    probe.listen(port, '0.0.0.0');
+  });
+
+// A hardcoded port keeps the Playwright baseURL static, but on CI a leftover
+// listener or a TIME_WAIT socket from an earlier run in the same job makes the
+// server's bind fail with EADDRINUSE — killing the whole e2e job before any
+// test runs, which `retries` cannot recover. Wait the transient out, and after
+// a grace period force-free the port (fuser is Linux-only; the exec no-ops
+// elsewhere — dev reuses the existing server anyway).
+const ensurePortFree = async (port: number): Promise<void> => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (await isPortFree(port)) return;
+    if (attempt === 4) await new Promise<void>((resolve) => exec(`fuser -k ${port}/tcp`, () => resolve()));
+    await delay(500);
+  }
+  throw new SmokeFailure(`port ${port} is still occupied after 10s; cannot boot the e2e server`);
+};
+
 const bootServer = (): void => {
   const child = spawn(tsxBin, ['apps/server/src/entry.node.ts'], {
     cwd: rootDir,
@@ -139,6 +163,7 @@ try {
   });
   await clearMailpit(MAILPIT_API_URL);
   await buildWebIfStale();
+  await ensurePortFree(PORT);
   console.log(`e2e: booting server on port ${PORT}...`);
   bootServer();
   await waitForHealth();
