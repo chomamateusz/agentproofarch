@@ -44,6 +44,22 @@ enterprise customer questionnaire)
 - A11y: WCAG target + axe pass in e2e — trigger: first public-facing product UI.
 - i18n insurance rules — trigger: first non-English tenant requirement.
 - Product analytics + consent — trigger: first growth instrumentation ask.
+- Visual-regression tooling — **none today** (decision recorded, not built). The
+  recommended path is Playwright `toHaveScreenshot()` reusing the existing e2e
+  Chromium harness, with **baselines generated in CI, never on a dev Mac** (the
+  flake doctrine — a Mac-rendered baseline drifts against the Linux CI runner).
+  Storybook + Lost Pixel is the component-isolation alternative when the need is
+  per-component rather than per-page. Chromatic is excluded (paid). Trigger: the
+  first UI-heavy consumer of the foundation.
+- US-020 Vercel domain-provisioning adapter (`DomainPort`) — per-tenant custom
+  domains added via the Vercel Domains API, each getting an **HTTP-01** cert over
+  a CNAME (the no-wildcard path: records-only, no NS delegation, so no wildcard).
+  This is the complement to the wildcard base-domain path (§Tenant addressing):
+  wildcard covers `*.<base>` subdomain tenants for free; US-020 covers a tenant
+  that wants its **own** non-subdomain domain. Hobby caps at 50 custom domains per
+  project. Trigger: a tenant needing a custom (non-subdomain) domain, or moving
+  production off the `agentproofarch.eu.org` wildcard. Blocked on `VERCEL_TOKEN`
+  (A1-S5).
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -66,8 +82,8 @@ enterprise customer questionnaire)
 ## Unlegislated demo decisions (trigger: the next edit touching each)
 
 - `maxDuration: 30` as the de-facto latency budget.
-- Theme-mode / tenant-accent theming seam; visual tooling (screenshot/diff)
-  role.
+- Theme-mode / tenant-accent theming seam. (Visual-regression tooling role is
+  now recorded under §Product platform.)
 - dist-freshness cross-reference; coverage-ratchet ownership.
 - Client retry/GC numbers; CLI config precedence; SPA fallback semantics.
 
@@ -85,12 +101,13 @@ enterprise customer questionnaire)
 - Cross-subdomain session on a real base domain (switcher keeps the session in
   prod) is documented but not locally testable (S6). Trigger: first custom
   base-domain deployment — verify live, then delete this row.
-- Post-deploy production smoke trigger under manual promotion — verify on the
-  first promoted deploy, adjust the workflow trigger if promotion emits no
-  `deployment_status` (`post-deploy-smoke.yml` fires on `deployment_status`; a
-  dashboard "Promote to Production" may emit different GitHub deployment events
-  than a `main` push, unverified). Trigger: the demo flip to the manual-promotion
-  topology ([deploy-promotion.md](deploy-promotion.md) §a).
+- Post-deploy production smoke trigger — **resolved by the topology.** Production
+  is now released by merging an owner-approved PR to the `production` branch, and
+  a branch merge is an ordinary push that emits `deployment_status` for the
+  `Production` environment, so `post-deploy-smoke.yml` fires as-is. The old
+  concern (a dashboard "Promote to Production" possibly emitting a different or no
+  `deployment_status`) does not apply to the PR-merge model
+  ([deploy-promotion.md](deploy-promotion.md) §b step 6).
 
 ## Open owner decisions (not deferred — awaiting answers)
 

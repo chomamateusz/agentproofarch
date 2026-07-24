@@ -1,103 +1,117 @@
-# Deploy promotion runbook (Vercel target)
+# Deploy release runbook (Vercel target)
 
-The click-by-click companion to [architecture.md](architecture.md) §Environments.
-That section is normative: **no GitHub event reaches production; production is
-promoted by hand, by the owner, inside Vercel.** This file is the procedure that
-makes that true and keeps it true. Nothing here is agent-runnable — every step is
-an owner action on a human-only device.
+The step-by-step companion to [architecture.md](architecture.md) §Environments.
+That section is normative: **production is released by the owner merging an
+approved pull request `main → production`; the merge triggers the production
+build, so the owner's diff review happens *before* the build that sees production
+secrets.** This file is the procedure that makes that true and keeps it true.
+Nothing here except opening the PR is agent-runnable — the approval and merge are
+owner actions from a device the agent does not control.
 
-Vocabulary: the **last promoted SHA** is the commit currently serving production
-(read it off `/api/health` — see [architecture.md](architecture.md) §Health &
-deploy attestation). A **staging/preview deployment** is any auto-built Preview
-(from `main` or a PR). **Promotion** re-points the production alias at one of
-those existing builds; it never rebuilds.
+Vocabulary: the **released SHA** is the commit currently serving production (read
+it off `/api/health` — see [architecture.md](architecture.md) §Health & deploy
+attestation). A **staging/preview deployment** is any auto-built Preview (from
+`main` or a PR). A **release** is a merge of `main → production`, which builds
+Production against production env vars.
 
-## a. One-time flip: put a project on the manual-production topology
+## a. One-time setup: the topology and the two rulesets
 
-Do this once per Vercel project. It removes the Git → production trigger.
+Do this once per Vercel project + GitHub repo.
 
-1. Vercel dashboard → the project → **Settings → Git**.
-2. **Production Branch**: change it from `main` to an unused ref that is never
-   pushed — e.g. `production-manual`. (The ref does not need to exist as a real
-   branch; it only has to be a name nothing pushes to.) Save.
-3. Confirm the mapping: from now on a push or merge to `main` builds a **Preview**
-   deployment, not a Production one. Assign `main`'s Preview a stable **staging
-   alias** (Settings → Domains, or a `vercel alias`) so staging has a fixed URL.
-4. **Verify nothing auto-deploys production.** Push a trivial commit to `main`,
-   wait for the deploy, and confirm in **Deployments** that the new build is
-   tagged *Preview* (not *Production*) and that the production alias/`/api/health`
-   SHA is unchanged. If a push still lands on Production, the Production Branch was
-   not saved — repeat step 2.
-5. **Re-verify the post-deploy production smoke trigger** (unverified until first
-   promotion — see [backlog.md](backlog.md) §Verification residuals). A manual
-   "Promote to Production" may emit different GitHub deployment events than a
-   `main` push — possibly no `deployment_status` — and
-   [../.github/workflows/post-deploy-smoke.yml](../.github/workflows/post-deploy-smoke.yml)
-   fires on `deployment_status` for the `Production` environment. After the first
-   real promotion, check the repo's deployments/Actions: if the promotion produced
-   no `deployment_status` for `Production`, adjust the workflow trigger (e.g. add a
-   `workflow_dispatch` the owner runs post-promote, or a Vercel deploy hook that
-   posts the SHA) so the production SHA attestation still runs.
+1. **Vercel → the project → Settings → Git → Production Branch: `production`.**
+   From now on a push/merge to `main` builds a **Preview** (staging); only a
+   merge to `production` builds Production. Assign `main`'s Preview a stable URL
+   (Settings → Domains, or a `vercel alias`) so staging has a fixed address.
+2. **Create the `production` branch** off `main` and point Production Branch
+   Tracking at it (step 1). Delete any legacy `staging` branch — `main` is
+   staging now.
+3. **GitHub → Settings → Rules → Rulesets. Create `production-protection`**
+   targeting `production`: require a pull request, **1 required approval**, merge
+   method **Merge** only, required status checks **`check` / `smoke` / `e2e` /
+   `docker-smoke`**, block force-pushes, restrict deletions, and an **empty
+   bypass list** (no role, not even Admin, merges past it).
+4. **Create `main-gates`** targeting `main`: require a pull request, **0 required
+   approvals**, the same four required status checks **plus "require branches to
+   be up to date before merging"** (the concurrent-change / F2 guard), block
+   force-pushes, restrict deletions, empty bypass list.
+5. **Identity split.** Confirm the agent account (`chomamateusz-agent`) is a
+   collaborator with **Write, never Admin**, and that no owner gh session / PAT
+   lives on the agent machine. Write-not-Admin is what stops the agent editing or
+   deleting either ruleset; the empty bypass list is what stops anyone else.
+6. **Verify nothing but a `production` merge deploys Production.** Merge a trivial
+   PR to `main`, wait for the deploy, and confirm in **Deployments** that the new
+   build is tagged *Preview* (not *Production*) and that the production
+   `/api/health` SHA is unchanged. If a `main` merge lands on Production, the
+   Production Branch was not saved — repeat step 1.
 
-## b. The promotion ritual (every production release)
+## b. The release ritual (every production release)
 
-Performed by the owner, from a human-only device — dashboard (works from a phone)
-or `vercel promote` from a logged-in workstation.
+Performed by the **owner**, from a device the agent does not control. Opening the
+PR may be delegated to an agent; **approval and merge are not.**
 
-1. **Review the diff since the last promoted SHA.** Read the last promoted SHA
-   off production `/api/health`, then read `git diff <lastPromotedSHA>..<candidate>`.
-   This diff review is the only defense at the irreducible seam (promoted code runs
-   with production secrets) — do not skip it because the gates are green. Gates
-   prove the code *runs*; the diff review is what proves the code is *the code you
-   meant to ship*.
-2. **Confirm the gates are green on that exact SHA.** The candidate deployment
-   must be a build whose commit passed `check` and `smoke` in CI. Do not promote a
-   build that skipped or red-flagged a gate — a fail-closed review that "could not
-   run" is red, not promotable.
-3. **If the diff includes a migration, take a Neon snapshot / PITR point first.**
+1. **Open the release PR `main → production`** (agent or owner). Its diff *is* the
+   diff since the released SHA.
+2. **Review that diff — this is the seam defense.** Read the released SHA off
+   production `/api/health`, confirm the PR's base is that commit, and read the
+   whole diff. This review is the only defense at the irreducible seam (the
+   merge triggers a production build that runs with production secrets) and it
+   runs **before** the merge/build by construction — do not approve because the
+   gates are green. Gates prove the code *runs*; the diff review proves it is
+   *the code you meant to ship*.
+3. **Confirm the four required checks are green on the PR** (`check`, `smoke`,
+   `e2e`, `docker-smoke`). The `production-protection` ruleset already blocks the
+   merge until they pass; a check that "could not run" is red, not mergeable.
+4. **If the diff includes a migration, take a Neon snapshot / PITR point first.**
    A constraint-adding or destructive migration can abort mid-`ALTER` against real
-   data (see [architecture.md](architecture.md) §Constraint-adding migrations). Take
-   a Neon branch-from-timestamp restore point on the `production` branch and note
-   it, so a bad migration is a one-command rollback, not an incident.
-4. **Promote in the dashboard.** Deployments → the chosen build → **Promote to
-   Production** (or `vercel promote <deployment-url>`). This re-points the
-   production alias at that existing build; no rebuild.
-5. **Verify the post-deploy SHA attestation.** Confirm production `/api/health`
-   now reports the promoted commit's `sha`, and that `smoke:remote` ran green for
+   data (see [architecture.md](architecture.md) §Constraint-adding migrations).
+   Take a Neon branch-from-timestamp restore point on the `production` branch and
+   note it, so a bad migration is a one-command rollback, not an incident.
+5. **Approve and merge the PR.** The approval is the release gate (the agent
+   cannot self-approve its own PR, and no other identity can approve). Merging to
+   `production` triggers the Production build against production env vars.
+6. **Verify the post-deploy SHA attestation.** Confirm production `/api/health`
+   now reports the merged commit's `sha`, and that `smoke:remote` ran green for
    it (the `EXPECTED_SHA` equality in
    [../.github/workflows/post-deploy-smoke.yml](../.github/workflows/post-deploy-smoke.yml)).
-   If the workflow did not fire (see §a step 5), run the attestation check by hand
-   until the trigger is fixed.
+   Because a `production` merge is an ordinary branch push, it emits the normal
+   `deployment_status` for the `Production` environment, so the workflow fires as
+   usual.
 
-**Rollback** is the same ritual in reverse: promote the previous known-good
-deployment. Because promotion never rebuilds, the previous build is still present
-and promoting it is instant. A migration in the rolled-back release is undone via
-the Neon PITR point taken in step 3, not by "promoting older code" (code rollback
-and schema rollback are separate — old code against a new schema can still break).
+**Rollback** is a release in reverse: open and merge a PR that reverts
+`production` to the previous known-good SHA (or `git revert` the offending
+commit), through the same approval gate. A migration in the rolled-back release
+is undone via the Neon PITR point taken in step 4, not by shipping older code —
+code rollback and schema rollback are separate (old code against a new schema can
+still break).
 
 ## c. The five standing controls — checklist and WHY
 
 Each is a property of the environment, not a rule an agent is asked to remember.
 
-1. **No Git-integration path to prod.** Production Branch is an unused ref (§a).
-   *WHY:* agents have maximum GitHub freedom by design; the security wall is that
-   no GitHub event — merge, force-push, workflow dispatch, deploy-hook retrigger —
-   can trigger a production deploy, because production has no automatic trigger.
+1. **Owner-approved PR is the only path to production.** Production Branch
+   Tracking points at `production`, guarded by the `production-protection`
+   ruleset (PR + 1 approval, empty bypass, four required checks). *WHY:* agents
+   have full `main` freedom by design; the wall is that the merge which triggers a
+   production build needs an approval the agent cannot supply — GitHub forbids
+   self-approval, the agent is Write-not-Admin so it cannot edit the ruleset, and
+   an owner SSH key can push a ref but cannot approve a PR or edit a rule via the
+   API. The review lands **before** the secret-exposed build, which is the whole
+   point.
 2. **Zero platform-CLI sessions on agent machines + Bash-hook ban.** No
    `vercel`/`neonctl`/cloud-CLI login persists on any machine an agent drives, and
-   the agent harness's Bash hook denies launching them. *Executed today:* `vercel
-   logout` done, `.env.local` removed; the hook patch banning `vercel`/`neonctl`
-   was handed to the owner to apply. *WHY:* a logged-in CLI is a standing
-   credential to production infra; a blocked command is enforcement, a documented
-   "please don't" is not.
+   the agent harness's Bash hook denies launching them. *WHY:* a logged-in CLI is
+   a standing credential to production infra; a blocked command is enforcement, a
+   documented "please don't" is not.
 3. **All production env vars marked Sensitive (write-only).** In Vercel's env UI,
    every production variable is set Sensitive so its value cannot be read back,
    only overwritten. *WHY:* limits blast radius if a session or export is
    compromised — secrets are entered once by a human and never re-exfiltrated
-   through the dashboard/CLI read path.
+   through the dashboard/CLI read path. (The build itself still *sees* them —
+   §Environments "irreducible residue"; this control bounds the read path, not the
+   build.)
 4. **Passkey / 2FA on the Vercel login; sessions only on owner devices.** *WHY:*
-   the login is the single gate to promotion and to the secret store; phishing-
-   resistant auth on it is the account-takeover defense.
+   the login is the single gate to the secret store; phishing-resistant auth on it
+   is the account-takeover defense.
 5. **Platform-independent DR.** Cold standby on the owner's VPS via the Docker
    deploy target, an hourly `pg_dump` cron on the VPS, and Neon PITR. *WHY:* the
    whole topology assumes Vercel + Neon; a total-platform loss (account
@@ -110,8 +124,11 @@ Operating-hygiene context for these lives in
 
 ## d. What agents may do
 
-**Everything on GitHub, nothing on Vercel.** Agents merge, branch, dispatch
-workflows, open and land PRs, and drive preview + staging deployments freely —
-that is the whole development environment. No agent touches the Vercel dashboard,
-holds a platform-CLI session, or promotes anything. Promotion is the owner's, by
-hand, always.
+**Everything on `main`, nothing that releases production.** Agents (acting as
+`chomamateusz-agent`, Write) branch, open PRs, merge to `main` once the four
+checks pass, dispatch workflows, and drive preview + staging deployments freely —
+that is the whole development environment. An agent may **open** the
+`main → production` release PR, but cannot approve it (no self-approval), cannot
+edit the rulesets (Write, not Admin), and holds no platform-CLI session. Approval
+and merge to `production` are the owner's, from a device the agent does not
+control, always.
