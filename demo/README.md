@@ -247,7 +247,10 @@ The [`ai-review`](../.github/workflows/ai-review.yml) workflow is the running
 version of the fail-closed bullet above (DECIDE F1). It runs
 [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action)
 (pinned to a commit SHA) on `pull_request` `opened`/`synchronize`/`ready_for_review`
-targeting `main`, skipping drafts and forks. Sonnet reviews **only the PR diff**
+targeting `main`, skipping drafts (a draft cannot be merged, and marking it ready
+re-triggers the gate). PRs from forks are not skipped: fork runs receive no
+secrets, so every slot skips and the gate exits RED — fail-closed, because a
+skipped required check would count as passing. Sonnet reviews **only the PR diff**
 (`git diff origin/main...HEAD`, not the whole repo — cost) against this repo's
 doctrine (`CLAUDE.md`, the per-layer `CLAUDE.md`s, `architecture.md` §Layers/
 §Principles/§Authorization) and returns a machine-readable verdict via the

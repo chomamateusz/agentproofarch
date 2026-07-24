@@ -26,7 +26,9 @@ permissions:
 
 jobs:
   ai-review:
-    # Skip forks (no secrets reach them) and drafts, mirroring ci.yml's guard.
+    # Skip drafts and runs inside forked repos (ci.yml's guard). PRs FROM forks
+    # into this repo still run: fork runs get no secrets, so every slot skips
+    # and the gate exits RED — fail-closed, never green-by-skip.
     if: github.repository == 'chomamateusz/agentproofarch' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     # Bounds the known `--json-schema` CLI-hang failure mode (claude-code#27926);
