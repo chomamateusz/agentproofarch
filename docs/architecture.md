@@ -1355,6 +1355,11 @@ no identity — Admin included — merges past them.
 | `production-protection` | `production` | require a PR + **1 approval**; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
 | `main-gates` | `main` | require a PR + **0 approvals**; the same four required status checks **plus "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
 
+The `visual` job (pixel comparison,
+[ADR-0008](decisions/0008-visual-regression.md)) is deliberately **absent** from
+both lists: it reports a screenshot regression without blocking a merge until the
+owner adds it to the required set, and it comes back out the moment it flakes.
+
 Agents have full `main` freedom (0 approvals, gated only by the four green checks
 and up-to-date-ness); `production` needs an approval the agent cannot supply for
 its own PR — GitHub forbids self-approval, and the only other identity that can

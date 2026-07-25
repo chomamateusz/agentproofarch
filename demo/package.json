@@ -33,6 +33,8 @@
     "new:island": "tsx scripts/new-island.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e": "playwright test",
+    "visual": "playwright test --config playwright.visual.config.ts",
+    "visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "smoke:remote": "tsx scripts/smoke-remote.ts",
     "lock-lint": "npx -y npm@10 ls --all --package-lock-only >/dev/null"
   },
