@@ -204,6 +204,11 @@ for a real domain:
 docker compose -f docker-compose.prod.yml --profile edge up -d --build
 ```
 
+Backup and disaster recovery for this target — the hourly k3s `pg_dump` CronJob
+against Neon, the encrypted offsite copy, and the cold-standby restore runbook —
+live in [`ops/backup/`](ops/backup/README.md). They are installed by hand on the
+owner's VPS and are not part of any CI job.
+
 ## Operating hygiene for agent-driven repos
 
 When agents (and humans) share this repo, safety is an operating property of the
