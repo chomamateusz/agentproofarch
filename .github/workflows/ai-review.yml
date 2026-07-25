@@ -7,6 +7,10 @@ name: ai-review
 # an infra failure (rate-limit / auth / network / timeout) on all available
 # slots, an empty/malformed model output, or a missing slot-1 secret — exits the
 # gate RED. "Could not verify" and "verified safe" never collapse to one colour.
+# The ONLY exception to slot ordering is a single same-slot retry when an attempt
+# matches the claude-code#23265 cold-start signature (an is_error result at zero
+# cost — the model was never called); all other infra failures keep the
+# failover/RED behaviour.
 
 on:
   pull_request:
@@ -108,11 +112,37 @@ jobs:
           TRY_OUTCOME: ${{ steps.try1.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
 
+      - name: Detect cold-start (slot 1)
+        id: cold1
+        if: steps.classify1.outputs.outcome == 'infra'
+        env:
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/detect-coldstart.sh"
+
+      - name: AI review — token slot 1 (cold-start retry)
+        id: try1r
+        if: steps.cold1.outputs.cold_start == 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@44423bdec74b97d67543eb16c110546762c110b2 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN_1 }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ env.REVIEW_PROMPT }}
+          claude_args: ${{ env.CLAUDE_ARGS }}
+
+      - name: Classify slot 1 retry
+        id: classify1r
+        if: always()
+        env:
+          RAW: ${{ steps.try1r.outputs.structured_output }}
+          TRY_OUTCOME: ${{ steps.try1r.outcome }}
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
+
       - name: AI review — token slot 2
         id: try2
         # Failover ONLY on infra failure of slot 1 (no valid verdict); a real
         # PASS/FAIL verdict never burns the next slot.
-        if: steps.preflight.outputs.has_slot_2 == 'true' && steps.classify1.outputs.outcome != 'pass' && steps.classify1.outputs.outcome != 'fail'
+        if: steps.preflight.outputs.has_slot_2 == 'true' && steps.classify1.outputs.outcome != 'pass' && steps.classify1.outputs.outcome != 'fail' && steps.classify1r.outputs.outcome != 'pass' && steps.classify1r.outputs.outcome != 'fail'
         continue-on-error: true
         uses: anthropics/claude-code-action@44423bdec74b97d67543eb16c110546762c110b2 # v1
         with:
@@ -131,7 +161,7 @@ jobs:
 
       - name: AI review — token slot 3
         id: try3
-        if: steps.preflight.outputs.has_slot_3 == 'true' && steps.classify1.outputs.outcome != 'pass' && steps.classify1.outputs.outcome != 'fail' && steps.classify2.outputs.outcome != 'pass' && steps.classify2.outputs.outcome != 'fail'
+        if: steps.preflight.outputs.has_slot_3 == 'true' && steps.classify1.outputs.outcome != 'pass' && steps.classify1.outputs.outcome != 'fail' && steps.classify1r.outputs.outcome != 'pass' && steps.classify1r.outputs.outcome != 'fail' && steps.classify2.outputs.outcome != 'pass' && steps.classify2.outputs.outcome != 'fail'
         continue-on-error: true
         uses: anthropics/claude-code-action@44423bdec74b97d67543eb16c110546762c110b2 # v1
         with:
@@ -156,9 +186,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           O1: ${{ steps.classify1.outputs.outcome }}
+          O1R: ${{ steps.classify1r.outputs.outcome }}
           O2: ${{ steps.classify2.outputs.outcome }}
           O3: ${{ steps.classify3.outputs.outcome }}
           OUT1: ${{ steps.try1.outputs.structured_output }}
+          OUT1R: ${{ steps.try1r.outputs.structured_output }}
           OUT2: ${{ steps.try2.outputs.structured_output }}
           OUT3: ${{ steps.try3.outputs.structured_output }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/post-review.sh"
@@ -169,6 +201,7 @@ jobs:
         # every other state (any FAIL, all-infra, or no verdict at all) is RED.
         env:
           O1: ${{ steps.classify1.outputs.outcome }}
+          O1R: ${{ steps.classify1r.outputs.outcome }}
           O2: ${{ steps.classify2.outputs.outcome }}
           O3: ${{ steps.classify3.outputs.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/gate-review.sh"

@@ -8,7 +8,7 @@ set -euo pipefail
 # never interpolated into the shell.
 
 pick=""
-for pair in "${O1:-}|${OUT1:-}" "${O2:-}|${OUT2:-}" "${O3:-}|${OUT3:-}"; do
+for pair in "${O1:-}|${OUT1:-}" "${O1R:-}|${OUT1R:-}" "${O2:-}|${OUT2:-}" "${O3:-}|${OUT3:-}"; do
   oc="${pair%%|*}"
   js="${pair#*|}"
   if [ "$oc" = "pass" ] || [ "$oc" = "fail" ]; then
