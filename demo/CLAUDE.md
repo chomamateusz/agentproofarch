@@ -58,6 +58,18 @@ rejected.)
   trip the limiter and flake the run. It needs a browser and Postgres, so it is
   its own CI job (`e2e`), never part of `check`.
 
+- `npm run visual` = the **pixel** check
+  ([ADR-0008](../docs/decisions/0008-visual-regression.md)): Playwright
+  `toHaveScreenshot()` over the same boot harness, in its own suite
+  (`visual/`, `playwright.visual.config.ts`) so a moved screenshot can never
+  redden `e2e`. It is **not a required check** — the rulesets gate on
+  `check`/`smoke`/`e2e`/`docker-smoke` only, until the owner arms it. Baselines
+  (`visual/__screenshots__/<platform>/`) are rendered by the linux CI runner via
+  the `visual-baselines` workflow and committed; a mac run compares nothing
+  (`ignoreSnapshots`), so it can neither author nor overwrite them. Changing the
+  UI on purpose means dispatching `visual-baselines` with `update: true` and
+  committing the new PNGs in the same PR.
+
 ## Layer rules (enforced, but know them anyway)
 
 Per-layer one-screen summaries live beside the code — [`core/CLAUDE.md`](core/CLAUDE.md), [`adapters/CLAUDE.md`](adapters/CLAUDE.md), [`apps/CLAUDE.md`](apps/CLAUDE.md) (each with `AGENTS.md` symlink) — read the one for the layer you are editing.

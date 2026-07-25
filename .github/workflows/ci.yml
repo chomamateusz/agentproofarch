@@ -119,3 +119,54 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build:web
       - run: npm run e2e
+
+  # NON-REQUIRED (ADR-0008): the rulesets name check/smoke/e2e/docker-smoke, so
+  # this job reports a pixel regression without blocking a merge until the owner
+  # arms it. Baselines are rendered by this same linux image, never on a mac.
+  visual:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentproofarch
+          POSTGRES_PASSWORD: agentproofarch
+          POSTGRES_DB: agentproofarch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentproofarch"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports:
+          - 47925:1025
+          - 47980:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+          MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    env:
+      DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:web
+      - run: npm run visual
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: visual-diff
+          path: demo/test-results
+          retention-days: 7
