@@ -23,6 +23,9 @@ export default defineConfig({
     timeout: 10_000,
     toHaveScreenshot: {
       maxDiffPixels: 0,
+      // Playwright's default per-pixel tolerance is 0.2 (YIQ), so without this a
+      // whole-image colour shift counts as zero differing pixels.
+      threshold: 0,
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',

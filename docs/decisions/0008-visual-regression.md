@@ -39,8 +39,12 @@ away, or not screenshotted at all.
      without `--update-snapshots` — writes nothing at all.
 
    Baselines are produced by the `visual-baselines` workflow (`workflow_dispatch`,
-   `update: true`), which runs the suite with `--update-snapshots` and uploads the
-   PNGs as an artifact to be committed.
+   `update: true`), which runs the suite with `--update-snapshots`, re-runs it as
+   a comparison against what it just wrote, and only then uploads the PNGs as an
+   artifact to be committed. The authoring run cannot gate anything (Playwright
+   reports a newly written snapshot as a failure), so that second run is what
+   stops a run that died before the harness booted from shipping an empty or
+   partial artifact — and it is the determinism check in miniature.
 
 3. **A separate suite, structurally isolated from the required gates.** The specs
    live in `demo/visual/` with their own `playwright.visual.config.ts`
@@ -67,8 +71,13 @@ away, or not screenshotted at all.
      ambient theme, no locale-dependent number/date formatting;
    - `caret: 'hide'` — a focused input's blinking caret is a two-state pixel
      region by construction;
-   - `maxDiffPixels: 0` — the gate is exact. A tolerance budget is a slow leak:
-     it hides a one-pixel shift today and a real regression next quarter;
+   - `maxDiffPixels: 0` *and* `threshold: 0` — the gate is exact on both axes:
+     no pixel may differ, and "differ" means any colour difference at all.
+     Playwright's default `threshold` of 0.2 counts a pixel as equal until it
+     has drifted a fifth of the YIQ distance, which would let a uniform theme
+     shift repaint the whole image at zero diff pixels. A tolerance budget on
+     either axis is a slow leak: it hides a one-pixel shift today and a real
+     regression next quarter;
    - `retries: 0` — a retry that turns a screenshot green is the exact
      rerun-to-green the doctrine bans, so the suite is not given the option;
    - `workers: 1` and `fullyParallel: false` — no cross-test contention on the

@@ -9,8 +9,8 @@ name: ai-review
 # gate RED. "Could not verify" and "verified safe" never collapse to one colour.
 # The ONLY exception to slot ordering is a single same-slot retry when an attempt
 # matches the claude-code#23265 cold-start signature (an is_error result at zero
-# cost — the model was never called); all other infra failures keep the
-# failover/RED behaviour.
+# cost — the model was never called — whose text is not an auth rejection); all
+# other infra failures keep the failover/RED behaviour.
 
 on:
   pull_request:
