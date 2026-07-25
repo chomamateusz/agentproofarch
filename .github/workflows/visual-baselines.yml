@@ -53,11 +53,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build:web
       # Playwright reports a newly written snapshot as a failed test, so the
-      # authoring run must not gate the upload that carries the PNGs out of CI.
-      # Nothing is proven here — the proof is a later comparison run.
+      # authoring run itself cannot gate the upload that carries the PNGs out of
+      # CI. The comparison below gates it instead: it re-renders against what was
+      # just written, so an authoring run that died before the harness booted
+      # cannot ship an empty or partial artifact as a baseline set.
       - if: inputs.update
         run: npm run visual:update
         continue-on-error: true
+      - if: inputs.update
+        run: npm run visual
       - if: inputs.update
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -67,7 +71,7 @@ jobs:
       - if: ${{ !inputs.update }}
         run: npm run visual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ failure() && !inputs.update }}
+        if: ${{ failure() }}
         with:
           name: visual-diff
           path: demo/test-results

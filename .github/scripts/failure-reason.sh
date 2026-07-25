@@ -9,8 +9,11 @@ set -euo pipefail
 # all surface as the same schema-shaped lie. This is the only place the
 # underlying message reaches the log. Diagnostic only: callers run it with
 # continue-on-error so it can never move the gate, and a missing or unparsable
-# log is reported, not fatal. The path arrives as env (EXEC_LOG) — never
-# interpolated into the script.
+# log is reported, not fatal. `.result` is model-authored, PR-influenced text:
+# every emitted line is prefixed so an embedded newline followed by `::` cannot
+# reach column 0, where the runner would execute it as a workflow command
+# (::add-mask::, ::error::) against the job's own log. The path arrives as env
+# (EXEC_LOG) — never interpolated into the script.
 
 exec_log="${EXEC_LOG:-}"
 
@@ -19,11 +22,13 @@ if [ -z "$exec_log" ] || [ ! -f "$exec_log" ]; then
   exit 0
 fi
 
-jq -r '
-  [ (if type == "array" then .[] else . end)
-    | select(type == "object" and .type == "result") ]
-  | last
-  | if . == null then "no result event in execution log"
-    else "subtype=\(.subtype) is_error=\(.is_error) num_turns=\(.num_turns) cost=\(.total_cost_usd)\nresult=\(.result)"
-    end
-' "$exec_log" 2>/dev/null || echo "execution log is not parsable JSON"
+{
+  jq -r '
+    [ (if type == "array" then .[] else . end)
+      | select(type == "object" and .type == "result") ]
+    | last
+    | if . == null then "no result event in execution log"
+      else "subtype=\(.subtype) is_error=\(.is_error) num_turns=\(.num_turns) cost=\(.total_cost_usd)\nresult=\(.result)"
+      end
+  ' "$exec_log" 2>/dev/null || echo "execution log is not parsable JSON"
+} | sed 's/^/  | /'
