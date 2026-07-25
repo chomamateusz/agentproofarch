@@ -112,6 +112,15 @@ jobs:
           TRY_OUTCOME: ${{ steps.try1.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
 
+      - name: Slot 1 failure reason
+        # Every attempt writes the same execution-log path, so each slot's
+        # un-masking step must run before the next attempt overwrites it.
+        if: steps.classify1.outputs.outcome == 'infra'
+        continue-on-error: true
+        env:
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/failure-reason.sh"
+
       - name: Detect cold-start (slot 1)
         id: cold1
         if: steps.classify1.outputs.outcome == 'infra'
@@ -138,6 +147,13 @@ jobs:
           TRY_OUTCOME: ${{ steps.try1r.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
 
+      - name: Slot 1 retry failure reason
+        if: steps.classify1r.outputs.outcome == 'infra'
+        continue-on-error: true
+        env:
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/failure-reason.sh"
+
       - name: AI review — token slot 2
         id: try2
         # Failover ONLY on infra failure of slot 1 (no valid verdict); a real
@@ -159,6 +175,13 @@ jobs:
           TRY_OUTCOME: ${{ steps.try2.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
 
+      - name: Slot 2 failure reason
+        if: steps.classify2.outputs.outcome == 'infra'
+        continue-on-error: true
+        env:
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/failure-reason.sh"
+
       - name: AI review — token slot 3
         id: try3
         if: steps.preflight.outputs.has_slot_3 == 'true' && steps.classify1.outputs.outcome != 'pass' && steps.classify1.outputs.outcome != 'fail' && steps.classify1r.outputs.outcome != 'pass' && steps.classify1r.outputs.outcome != 'fail' && steps.classify2.outputs.outcome != 'pass' && steps.classify2.outputs.outcome != 'fail'
@@ -177,6 +200,13 @@ jobs:
           RAW: ${{ steps.try3.outputs.structured_output }}
           TRY_OUTCOME: ${{ steps.try3.outcome }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/classify-review.sh"
+
+      - name: Slot 3 failure reason
+        if: steps.classify3.outputs.outcome == 'infra'
+        continue-on-error: true
+        env:
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/failure-reason.sh"
 
       - name: Post verdict to PR
         if: always()
