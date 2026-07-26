@@ -30,6 +30,63 @@ const smokeUrlObject = new URL(baseDatabaseUrl);
 smokeUrlObject.pathname = `/${SMOKE_DB}`;
 const smokeDatabaseUrl = smokeUrlObject.toString();
 
+const dropOptionalDependencyEdges = (entry: readonly string[]): string[] => {
+  const kept: string[] = [];
+  let inOptionalEdges = false;
+  for (const line of entry) {
+    if (/^ {4}optionalDependencies:$/.test(line)) {
+      inOptionalEdges = true;
+      continue;
+    }
+    if (inOptionalEdges && /^ {6}\S/.test(line)) continue;
+    inOptionalEdges = false;
+    kept.push(line);
+  }
+  return kept;
+};
+
+// Platform-conditional optional entries (os/cpu/libc-gated packages such as
+// esbuild binaries or fsevents) legitimately differ between the committed
+// lockfile and what a non-linux host installed, so they are excluded from the
+// comparison on BOTH sides; everything else — importers, settings, every
+// unconditional package — must still match exactly.
+const normalizeLockfile = (raw: string): string => {
+  const out: string[] = [];
+  let section = '';
+  let entry: string[] = [];
+
+  const flushEntry = (): void => {
+    if (entry.length === 0) return;
+    const platformConditional =
+      section === 'packages:' && entry.some((line) => /^ {4}(?:os|cpu|libc): /.test(line));
+    const optionalSnapshot =
+      section === 'snapshots:' && entry.some((line) => /^ {4}optional: true$/.test(line));
+    if (!platformConditional && !optionalSnapshot) {
+      out.push(...(section === 'snapshots:' ? dropOptionalDependencyEdges(entry) : entry));
+    }
+    entry = [];
+  };
+
+  for (const line of raw.split('\n')) {
+    if (/^\S/.test(line)) {
+      flushEntry();
+      section = line;
+      out.push(line);
+      continue;
+    }
+    if (section === 'packages:' || section === 'snapshots:') {
+      if (/^ {2}\S/.test(line)) flushEntry();
+      if (entry.length > 0 || /^ {2}\S/.test(line)) {
+        entry.push(line);
+        continue;
+      }
+    }
+    out.push(line);
+  }
+  flushEntry();
+  return out.join('\n');
+};
+
 const checkLockfileDrift = (): void => {
   const verification = spawnSync(
     'pnpm',
@@ -50,7 +107,7 @@ const checkLockfileDrift = (): void => {
       'Dependencies are not installed (node_modules/.pnpm/lock.yaml missing). Run: pnpm install --frozen-lockfile',
     );
   }
-  if (installed !== source) {
+  if (normalizeLockfile(installed) !== normalizeLockfile(source)) {
     fail(
       'Installed dependency tree does not match pnpm-lock.yaml. Run: pnpm install --frozen-lockfile',
     );
