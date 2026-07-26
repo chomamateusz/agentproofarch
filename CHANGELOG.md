@@ -16,7 +16,7 @@ before that lives in the git history only.
 ### Added
 
 - Instance-wide `TENANT_CREATION=open|staff|closed` policy switch, defaulting to
-  open, controls who may create tenants ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  open, controls who may create tenants ([#77](https://github.com/chomamateusz/agentproofarch/pull/77)).
 - Project brand assets: layered-mark logo in the docs-site navbar, favicon
   refreshed to the slanted mark, social card for link previews and a README
   banner ([#72](https://github.com/chomamateusz/agentproofarch/pull/72)).
