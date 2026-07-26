@@ -48,6 +48,12 @@ before that lives in the git history only.
   gloss in the header, a problem→answer section up front, terms defined at first
   use — and admonition titles across the site fixed to the `:::type[Title]`
   bracket syntax ([#73](https://github.com/chomamateusz/agentproofarch/pull/73)).
+- Owner round-2 docs notes: quickstart env step now says plainly that local dev
+  needs no `.env`, the glossary merges Feature/Island, glosses seam and rung,
+  states that owner/admin are per-tenant grants with no platform super-admin,
+  and rewrites the foundation-lifecycle section around the fork scenario; the
+  authorization page gains a plain-words tenant-creation flow
+  ([#74](https://github.com/chomamateusz/agentproofarch/pull/74)).
 - Toolchain upgraded from Node.js 22 to Node.js 24 LTS across local pins, CI,
   Docker, engines and documentation, with npm 11 lockfile semantics
   ([#71](https://github.com/chomamateusz/agentproofarch/pull/71)).

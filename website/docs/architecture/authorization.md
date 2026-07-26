@@ -124,6 +124,27 @@ future callers that carry a member context — not as a barrier you can probe fr
 outside.
 :::
 
+### How a tenant comes to exist
+
+The `tenant:create` row is easiest to read as a flow. Sign-up happens at the
+**platform** level, into the one account pool every tenant shares — creating an
+account does not put you in any tenant. An account that holds no staff grant
+and no membership is a `visitor`: authenticated, tenant-less.
+
+That visitor may call `tenant:create`. The `createTenant` use-case authorizes,
+validates the slug and name, and then calls the repository's
+`createTenantWithOwner` — a single atomic operation (one database round-trip)
+that inserts the tenant row **and** the caller's founding `owner` grant
+together, so a tenant can never exist without an owner. This is the standard
+self-service onboarding: sign up, create a tenant, own it.
+
+A `member` acting *in a tenant's context* is denied `tenant:create` — being a
+customer of one tenant does not license provisioning others from inside it.
+Honestly, though: capability checks are per-request and per-tenant-context, so
+the **same person** addressing the base domain (no tenant resolved) is a
+`visitor` there and may create a tenant. The member deny constrains the
+context, not the human.
+
 ## One line per use-case
 
 Two helpers live in `core/server/authorize.ts`. `authorize` is the tenant-agnostic
