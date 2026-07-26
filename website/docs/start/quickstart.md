@@ -34,7 +34,7 @@ nvm use          # or Corepack — anything that lands you on Node 22 / npm 10
 npm ci
 ```
 
-:::danger Never `npm install` here
+:::danger[Never `npm install` here]
 `lock-lint` (part of `npm run check`) validates `package-lock.json` under npm-10
 semantics — exactly what `npm ci` enforces on the node-22 CI runner. A local
 npm 11 `npm install` silently prunes optional entries npm 10 requires, which
@@ -109,7 +109,7 @@ npm run build:web        # …or a prod-like page: build the SPA first,
 npm run dev:server       # then the API + built bundle on http://acme.localhost:47100
 ```
 
-:::warning `dev:server` serves a gitignored build
+:::warning[`dev:server` serves a gitignored build]
 `dev:server` serves whatever `dist/web` currently holds. After a contract change a
 stale bundle fails **every** page with "response does not match the contract" (a
 real incident, 2026-07-12). The server warns at boot when `dist/web` is missing or
@@ -187,7 +187,7 @@ npm run build:web
 npm run e2e
 ```
 
-:::danger Static-green is not done
+:::danger[Static-green is not done]
 **Done = `check` green AND `smoke` green.** Do not weaken a lint rule to make
 either go green, and do not rerun a red job until it passes — a flake is a P1 bug
 ([Testing doctrine](../guides/testing-doctrine.md)).

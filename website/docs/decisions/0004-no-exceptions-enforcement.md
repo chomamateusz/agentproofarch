@@ -71,7 +71,7 @@ Decision point 2 described the narrowest form of the gate. The shipped workflow 
 - **The target URL depends on the environment.** A Production deploy drives the production **alias** (`https://agentproofarch.vercel.app`): the alias is what users hit, it proves promotion/aliasing worked, and Better Auth only trusts `APP_BASE_URL` as the CSRF origin. Preview and staging deploys drive their own per-deployment `environment_url`, which their `VERCEL_URL`-derived auth origin already trusts.
 - **Because it drives live production, `smoke:remote` obeys the production smoke-account doctrine**: a dedicated canary tenant, never `db:seed` against a real database, credentials from CI secrets, forks overriding the defaults, and a non-self-poisoning drive. Its concurrency half is enforced by a per-environment group with `cancel-in-progress: false`, so overlapping deploys cannot race the shared canary.
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **Doc-lint is a named-manifest check**, not a proof that every prose-promised guarantee or boundary is covered by an enforcer.
 - **Some config-regression tests are structural rule-presence checks** rather than fixture-feeding probes.
 - **The AI-review gate that fulfils the REVIEW+AI tier is built and, since 2026-07-26, a required check on `main-gates`** — armed after it accumulated a verdict track record. See [CI gates](../operations/ci-gates.md).

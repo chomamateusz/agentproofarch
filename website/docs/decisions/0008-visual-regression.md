@@ -98,7 +98,7 @@ Four baselines exist today, all under `visual/__screenshots__/linux/chromium/`: 
 - **An intentional UI change is a two-step pull request**: land the change, dispatch `visual-baselines` with `update: true`, commit the new PNGs. The reviewer sees the before/after in the diff.
 - **Runner-image drift will one day redraw a baseline with no code change** (a font package changing in `ubuntu-latest`). That is the known cost of exactness; it surfaces as a red **non-required** job, is re-baselined deliberately, and is the reason the check is not armed by default.
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **`visual` blocks nothing today.** It reports. Arming it is an owner action that has not been taken.
 - **Coverage is four screenshots.** Three public surfaces plus the app shell chrome — chosen for byte-stability, not for breadth. Most of the UI is not visually covered, on purpose.
 - **One browser, one viewport, one colour scheme**: Chromium at 1280×800, light. There is no cross-browser, responsive or dark-mode visual coverage.

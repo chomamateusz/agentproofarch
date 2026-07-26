@@ -76,6 +76,6 @@ Three honest boundaries, so nobody reads this section as the complete decision r
 
 **3. Open questions are not decisions.** Owner decisions still awaiting answers — including the provider and secret choices that block specific slices, such as the `VERCEL_TOKEN` that gates the *live verification* of the built US-020 adapter — are tracked in the register's DECIDE queue, deliberately *not* here, because they are not decided yet.
 
-:::note Verification residuals are recorded, not polished away
+:::note[Verification residuals are recorded, not polished away]
 The register also carries accepted, report-only findings — a slug value object that drops diacritics instead of transliterating; `domainNameSchema` accepting a raw IPv4; a revoked staff member's denial being byte-identical to a stranger's (deliberate existence-hiding, recorded so nobody "fixes" it); the built US-020 Vercel domain adapter never having run against the live Domains API. Each has a named trigger. Recording them is the point: an undocumented known quirk is indistinguishable from a bug nobody noticed.
 :::

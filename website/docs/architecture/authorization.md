@@ -115,7 +115,7 @@ Reading the interesting rows:
 - **`tenant:create` is tenant-less self-service** — the caller becomes owner — so a
   `visitor` holds it while a `member` of one tenant may not provision others.
 
-:::caution The one cell that is not HTTP-reachable
+:::caution[The one cell that is not HTTP-reachable]
 The `member` deny on `tenant:create` is **use-case-layer only**. Over HTTP the
 create route deliberately sits above tenant resolution, so every authenticated
 caller presents as `visitor`; and a member could in any case drop the tenant
@@ -194,7 +194,7 @@ matrix, because a rule without one is prose, and prose decays.
 | **TEST** | the exhaustive `decide` matrix, per-use-case denial tests, the scaffolder's generated tests, and the structural probe (below). |
 | **REVIEW+AI** | flag a tenant-scoped use-case that touches a repository *before* the predicate, any grant that widens a capability beyond the table above, and any new entry in the probe's authentication-only allowlist without a self-scoped-read rationale. |
 
-:::caution Honest limit of the type tier
+:::caution[Honest limit of the type tier]
 The compiler forces the capability **name**, not the **call**. A use-case that
 never calls `authorize`/`authorizeTenant` at all still typechecks. That gap is why
 the structural probe below exists — and why the probe's own limits are stated

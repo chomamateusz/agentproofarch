@@ -83,7 +83,7 @@ with mode `0600`, and holds three keys:
 `null` — after revoking the session server-side first, because a bearer-authenticated
 CLI that only cleared its local copy would leave the session valid.
 
-:::note Position does not matter
+:::note[Position does not matter]
 Global options are declared on the root program and commander collects them onto
 it wherever they appear, so `cli -- --tenant acme todo list` and
 `cli -- todo list --tenant acme` are equivalent — `cliCtx()` reads

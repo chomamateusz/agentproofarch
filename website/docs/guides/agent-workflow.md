@@ -107,7 +107,7 @@ Open any merged PR and you can see both: the commit author is the owner, while t
 PR author and `mergedBy` are `chomamateusz-agent`. "The owner writes the code; the
 agent has restricted CLI access."
 
-:::info The wall is the ruleset, not the credential
+:::info[The wall is the ruleset, not the credential]
 It is tempting to read the split as "the agent is weak, therefore production is
 safe". That is not the mechanism. Two GitHub rulesets are:
 
@@ -181,7 +181,7 @@ The properties worth naming:
   sticky PR comment (edit-last-else-create) so a comment-API hiccup cannot flip a
   real `PASS` to RED.
 
-:::warning Honest caveats
+:::warning[Honest caveats]
 The gate has been a **required `main-gates` check since 2026-07-26**, so a PR
 without a `PASS` verdict cannot merge to `main`. Only
 `CLAUDE_CODE_OAUTH_TOKEN_1` is provisioned — slots `_2` and `_3` are wired and skip

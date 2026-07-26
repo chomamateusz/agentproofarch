@@ -8,7 +8,7 @@ description: Four environments from one commit, and an owner-only release gate e
 
 Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one. The answer here is nothing an agent is asked to remember — it is a property of the environment: the same commit flows feature branch → preview → `main` (staging) → `production`, only environment variables differ, and the single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
 
-:::info Sources
+:::info[Sources]
 Normative: [`docs/architecture.md` §Environments](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md).
 Click-by-click ritual: [`docs/deploy-promotion.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/deploy-promotion.md).
 Original mapping: [ADR-0003](../decisions/0003-vercel-environments.md) — its release topology was superseded on 2026-07-24.
@@ -79,7 +79,7 @@ flowchart TD
     d -->|"no logged-in session + Bash-hook ban"| no4["blocked"]
 ```
 
-:::note The irreducible residue
+:::note[The irreducible residue]
 The merge that triggers the production build runs a build **with production secrets**. Nothing removes that; the design bounds it instead — the owner's diff review lands *before* the merge by construction, and all production env vars are marked Sensitive so their values cannot be read back out of the dashboard or CLI, only overwritten. That is honest scoping of a *read* path, not a claim that the build never sees secrets.
 :::
 
@@ -143,7 +143,7 @@ Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant
 
 **Wildcard cert mechanics** (research recorded in `architecture.md`): a wildcard cert on Vercel needs an ACME **DNS-01** challenge, which requires **NS delegation to Vercel** *or* a narrow `_acme-challenge` NS delegation. A records-only path (no NS delegation) can only issue certs for **individual, non-wildcard per-tenant hosts** via HTTP-01 over a CNAME — which is what the built US-020 `vercel` provisioner attaches, one host at a time. Hobby caps at **50 custom domains per project**; wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement, not a technical wildcard gate).
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **No base-domain shape is live yet.** Both recorded plans — the delegated `agentproofarch.eu.org` and the company-DNS wildcard CNAME bridge — are pending, so the deployed web stays single-tenant on `*.vercel.app` and the CLI's `X-Tenant` carries multi-tenancy.
 - **ADR-0003 is superseded in part.** Its point 1 described `main` as production plus a long-lived `staging` branch. That mapping is gone and the branch relic is deleted; points 2–7 stand.
 - **Browser multi-tenancy is unexercised on previews** until a wildcard domain exists. `smoke:remote` covers the CLI/`X-Tenant` path meanwhile.

@@ -108,13 +108,13 @@ A request on the bare base domain with no header yields a tenant-less identity,
 which is a legitimate state (that is how the create-tenant onboarding works).
 Membership is **always** verified: resolving a tenant does not grant access to it.
 
-:::info The wildcard payoff
+:::info[The wildcard payoff]
 Because step 2 treats *any* subdomain label as a slug, a single wildcard domain
 makes every tenant resolve automatically — **no per-tenant registration needed**.
 `tenant_domains` exists for step 1, the custom-domain case.
 :::
 
-:::caution Existence-hiding is deliberate, do not "fix" it
+:::caution[Existence-hiding is deliberate, do not "fix" it]
 A caller who names a tenant by **slug or `X-Tenant`** and has no access gets
 `tenant_not_found` (HTTP 404, CLI exit 7) with the message
 `No tenant "<slug>" or you do not have access to it` — byte-identical to the
@@ -150,7 +150,7 @@ export const slugSchema = z.string().transform(normalizeSlug).pipe(canonicalSlug
 entries in total). The edge therefore accepts human input while only one canonical
 form is ever persisted or resolved.
 
-:::caution Known residual
+:::caution[Known residual]
 `normalizeSlug` **drops** diacritics rather than transliterating them, so a fully
 diacritic Polish tenant name yields a near-empty slug. Recorded as an accepted
 residual with a named trigger (the first real complaint, or the next edit to
@@ -214,7 +214,7 @@ matching CLI verbs list, attach, verify and detach domains through
 reachable. Operational detail lives in
 [Self-host & domains](../operations/self-host-and-domains.md).
 
-:::caution The demo's own setup is in progress
+:::caution[The demo's own setup is in progress]
 Two shapes are recorded in `architecture.md`, and neither is live yet:
 
 - a free **eu.org** domain, `agentproofarch.eu.org`, delegated to Vercel's
@@ -267,7 +267,7 @@ names a provider route or SDK, and dependency-cruiser proves it
 `listPasskeys` is the one **read**-tagged method on the port, because the passkey
 roster lives on the provider surface rather than in the contract API.
 
-:::note The zod 4 migration was a prerequisite, not a whim
+:::note[The zod 4 migration was a prerequisite, not a whim]
 `@better-auth/passkey` pinned a `better-call` whose optional `zod@^4` peer
 conflicted with the tree's `zod@^3`. The migration to `zod@^4` was done **first**,
 gates green, before the plugin went in — recorded in the

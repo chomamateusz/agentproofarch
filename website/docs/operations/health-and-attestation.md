@@ -8,7 +8,7 @@ description: Liveness, readiness, and proving which deploy a smoke run actually 
 
 *Is the process alive?* and *is it ready to serve traffic?* have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
 
-:::info Sources
+:::info[Sources]
 Normative: [`docs/architecture.md` §Health & deploy attestation](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md). Routes: `demo/apps/server/src/app.ts`. Schemas: `demo/core/contract/routes.ts`. Gate: [`post-deploy-smoke.yml`](https://github.com/chomamateusz/agentproofarch/blob/main/.github/workflows/post-deploy-smoke.yml).
 :::
 
@@ -195,7 +195,7 @@ Following the repo's TYPE / LINT / TEST / REVIEW+AI vocabulary:
 | **TEST** | `app.test.ts` asserts liveness returns `200` without a database touch, readiness returns `200`/`up` and `503`/`unavailable` when the ping fails, and the compat route stays `200` with a `sha`. `e2e` hits `/live` and `/ready` on the real stack. `smoke:remote` runs the `EXPECTED_SHA` equality. `routes.test.ts` proves the schemas reject the dishonest shapes — `database: 'down'` on readiness, a missing `sha` on liveness. |
 | **REVIEW+AI** | Flag a health route that pings the database on the liveness path, a readiness path that returns `200` while degraded, or a new deploy target that surfaces the raw vendor SHA variable instead of mapping it into `APP_COMMIT_SHA`. |
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **`sha` is `unknown` wherever `APP_COMMIT_SHA` is unset** — local dev and any deploy target that forgets to wire it. An `unknown` SHA cannot fail an attestation check because the check is only made where an expected SHA is supplied; a new deploy target must wire the variable to gain the guarantee.
 - **Readiness reports one dependency: the database.** It is a `pingDatabase()` call, not a fan-out over email, storage or the auth provider. A degraded outbound-mail relay does not make the process un-ready, by design — but it also means readiness is not a whole-system health score.
 - **The compat `/api/health` route can report `200` with `"database": "down"`.** That is deliberate backwards compatibility, and it is why it is documented as compat rather than as the endpoint to build on.

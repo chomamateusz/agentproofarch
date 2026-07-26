@@ -12,7 +12,7 @@ description: Branch-per-environment on Hobby, one Neon branch per environment, m
 
 Map onto Vercel's **native** environment model rather than inventing one on top of it, give every environment its own Neon branch, and run migrations at build time against that environment's own database. Zero fixed cost on Vercel Hobby + Neon Free.
 
-:::warning Superseded in part (2026-07-24)
+:::warning[Superseded in part (2026-07-24)]
 Decision point 1's **release mapping** has changed. **Staging is now `main`** (its Preview on a stable URL), and **production is a dedicated `production` branch** with Vercel Production Branch Tracking set to it; the long-lived `staging` branch relic is deleted. A production release is an **owner-approved PR `main → production`** whose merge triggers the production build, gated by the `production-protection` ruleset with an empty bypass list; agents act as a Write-not-Admin machine account.
 
 The normative text is [`architecture.md` §Environments](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md) — rendered here as [Environments & promotion](../operations/environments.md). **Points 2–7 below are unchanged.**
@@ -68,7 +68,7 @@ flowchart LR
 - **Build-time migrations couple deploy and migrate.** Mitigated by the expand→contract rule and Neon's instant branch restore.
 - **Browser multi-tenancy is unexercised on previews** until a wildcard domain exists; the CLI/`X-Tenant` path keeps it covered by `smoke:remote`.
 
-:::caution What changed, and what is still pending
+:::caution[What changed, and what is still pending]
 - **The release topology in point 1 no longer describes reality** — see the warning at the top of this page, and [Environments & promotion](../operations/environments.md) for the current model.
 - **Point 6 is still in force on Vercel.** Neither recorded base-domain shape is live — the `agentproofarch.eu.org` delegation waits on eu.org approval, the company-DNS bridge waits on `VERCEL_TOKEN` — so the deployed web app stays single-tenant on `*.vercel.app`. Both shapes are laid out in [Identity & multi-tenancy](../architecture/identity-and-multi-tenancy.md).
 - **US-020 — the Vercel Domains API `DomainPort` — is now built** but has never run against the live API, and this deployment still runs `DOMAIN_PROVISIONER=noop`, whose `check` accepts every domain; see [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).

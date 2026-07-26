@@ -118,7 +118,7 @@ stateDiagram-v2
 
 **The view API never changes across rungs.** Graduation is a core-internal diff.
 
-:::info Graduation must name its trigger
+:::info[Graduation must name its trigger]
 A core graduates only when a measurable trigger fires, and the PR says which one.
 Rung choice is judgment against named triggers, so there is deliberately **no lint
 rule** for it: it is a review question, and the `ai-review` gate is the tier that
@@ -131,7 +131,7 @@ half of these rules is enforced, not advisory. Details in
 [CI gates](../operations/ci-gates.md).
 :::
 
-:::caution Honest state of the tree
+:::caution[Honest state of the tree]
 Only three features have a `core/` folder. `todos` and `auth` predate the seam and
 carry none yet — they gain one when first touched by real client state — and
 `settings` is view-only. That is the honest reading of "every other feature remains
@@ -246,7 +246,7 @@ the map is unbounded. The guards are three pure predicates:
 `done-only-from-review`, `review-requires-in-dev` (reading the card's `visited`
 history) and `wip-limit`.
 
-:::danger Hand-writing the domain machine is forbidden
+:::danger[Hand-writing the domain machine is forbidden]
 `buildStates()` assembles the statechart from the table at runtime. A hand-wired
 machine drifts from the table, and drift is exactly the failure mode the property
 test catches. Both derivations **fail loud**: if no verdict is produced for a pair
@@ -294,7 +294,7 @@ treats the derived machine as an **oracle**, in one of two sanctioned shapes:
 Either way the dependency points one direction: UI machine → derived domain
 machine. Domain states never mirror UI states back.
 
-:::note Accepted cost
+:::note[Accepted cost]
 A runtime-assembled machine is invisible to static XState tooling — no visualizer,
 no typegen. That was traded for having exactly one source of truth for the rules.
 :::
@@ -348,7 +348,7 @@ graph LR
    injected at composition, not "communication".
 4. **URL / router** — coordination through the address, shareable for free.
 
-:::caution The bus module does not exist yet
+:::caution[The bus module does not exist yet]
 ADR-0005 declares the need proven and defines the channel, but no bus event has
 been written, so the module — and the lint rule confining it to
 `features/*/core/**` — **land with the first bus event**. What exists today is the
@@ -398,7 +398,7 @@ shareable filters**, and neither is duplicated into component state.
 - Trivial, component-lifetime state stays `useState`/`useReducer` in a view; React
   context is for cross-cutting concerns only (theme, session).
 
-:::caution Two app-level policies are prescribed but not wired
+:::caution[Two app-level policies are prescribed but not wired]
 **Bundle budgets** — the mechanism (a size gate in `check` with route-level
 splitting) is prescribed, thresholds are per app, and **no size gate is wired
 yet**. **Browser matrix** — the intended default is evergreen-latest only
