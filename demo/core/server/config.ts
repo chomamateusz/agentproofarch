@@ -38,12 +38,22 @@ export const serverEnvSchema = z.object({
   // e2e and Vercel never expose the domain-check surface).
   INTERNAL_PORT: z.coerce.number().int().positive().optional(),
   // Domain-provisioning adapter selector (composition root). `caddy` on the
-  // self-host target (on-demand TLS + DNS check), `noop` everywhere else.
-  DOMAIN_PROVISIONER: z.enum(['caddy', 'noop']).default('noop'),
+  // self-host target (on-demand TLS + DNS check), `vercel` on the Vercel target
+  // (per-host attach over the Domains API), `noop` everywhere else.
+  DOMAIN_PROVISIONER: z.enum(['vercel', 'caddy', 'noop']).default('noop'),
   // The public target self-host tenants must point a custom domain at; the caddy
   // DomainPort's `check` verifies DNS resolves here. Set one, not both.
   SELF_HOST_TARGET_CNAME: z.string().optional(),
   SELF_HOST_TARGET_IP: z.string().optional(),
+  // Vercel Domains API credentials, read only when DOMAIN_PROVISIONER=vercel is
+  // selected explicitly — presence of the platform's own VERCEL* vars never
+  // selects the provisioner, because the platform env carries no API token.
+  // Optional here (every other target runs without them) and required by the
+  // composition root, which refuses to boot on an incomplete block.
+  VERCEL_TOKEN: z.string().optional(),
+  VERCEL_PROJECT_ID: z.string().optional(),
+  // Only for a team-owned project; omitted on a personal one.
+  VERCEL_TEAM_ID: z.string().optional(),
   DATABASE_URL: databaseUrlField,
   DB_DRIVER: dbDriverField,
   APP_BASE_DOMAIN: z.string().default('localhost'),

@@ -134,6 +134,46 @@ describe('production env hardening (B2)', () => {
   });
 });
 
+describe('domain provisioner selection (US-020)', () => {
+  it('defaults to noop and leaves the Vercel credential block unset', () => {
+    const result = parseEnv(localDev());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.DOMAIN_PROVISIONER).toBe('noop');
+      expect(result.data.VERCEL_TOKEN).toBeUndefined();
+      expect(result.data.VERCEL_PROJECT_ID).toBeUndefined();
+      expect(result.data.VERCEL_TEAM_ID).toBeUndefined();
+    }
+  });
+
+  it('takes vercel with its credential block (the composition root enforces completeness)', () => {
+    const result = parseEnv({
+      ...localDev(),
+      DOMAIN_PROVISIONER: 'vercel',
+      VERCEL_TOKEN: 'token-value',
+      VERCEL_PROJECT_ID: 'prj_123',
+      VERCEL_TEAM_ID: 'team_42',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.DOMAIN_PROVISIONER).toBe('vercel');
+      expect(result.data.VERCEL_PROJECT_ID).toBe('prj_123');
+    }
+  });
+
+  it('refuses an unknown provisioner', () => {
+    expect(parseEnv({ ...localDev(), DOMAIN_PROVISIONER: 'cloudflare' }).success).toBe(false);
+  });
+
+  // The platform's own VERCEL flag says nothing about domain provisioning: it
+  // carries no API token, so it must not select the vercel adapter.
+  it('stays on noop on a Vercel deployment that set no provisioner', () => {
+    const result = parseEnv(deployed());
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.DOMAIN_PROVISIONER).toBe('noop');
+  });
+});
+
 // The command-specific subsets (DECIDE F4): each entry point parses only the
 // keys it needs, off the one shared config module, with the shared defaults.
 describe('config subsets', () => {

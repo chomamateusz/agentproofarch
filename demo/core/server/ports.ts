@@ -170,11 +170,13 @@ export interface DomainCheck {
 /**
  * Provisioning + verification for tenant custom domains. Selected by
  * `DOMAIN_PROVISIONER` in the composition root, per deploy target:
+ *   - `vercel` (Vercel target): `provision`/`remove` attach and detach the host
+ *     on the Vercel project over the Domains API (each host gets its own HTTP-01
+ *     certificate), and `check` reads the domain plus its config back.
  *   - `caddy` (self-host): `provision`/`remove` are no-ops — Caddy issues certs
  *     on demand via the `ask` endpoint — and `check` is a DNS lookup that the
  *     domain resolves to the configured target (`SELF_HOST_TARGET_CNAME`/`_IP`).
  *   - `noop` (dev/default): every method resolves without side effects.
- * A Vercel Domains API implementation is the deferred US-020 sibling.
  */
 export interface DomainPort {
   provision(domain: string): Promise<void>;

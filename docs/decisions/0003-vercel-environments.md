@@ -57,10 +57,11 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
 6. **No custom domain yet** (accepted constraint): web is single-tenant on
    `*.vercel.app`; API/CLI remain fully multi-tenant via `X-Tenant`. Attaching
    a wildcard domain later changes env vars (`APP_BASE_DOMAIN`), not code.
-   The `DOMAIN_PROVISIONER` switch is live: `caddy` (US-021) is built for the
-   Docker self-host target, while Vercel stays on `noop` until its own
-   adapter lands (US-020, deferred to the custom-domains slice) — on this
-   platform there is still nothing to provision.
+   The `DOMAIN_PROVISIONER` switch is live: `caddy` (US-021) for the Docker
+   self-host target and `vercel` (US-020) for this one — the Vercel adapter
+   attaches each tenant host to the project over the Domains API. This
+   deployment stays on the `noop` default until the owner sets `VERCEL_TOKEN` +
+   `VERCEL_PROJECT_ID`, which is also when the adapter first runs live.
 7. **Remote runtime gate**: `smoke:remote` reuses the smoke CLI suite against
    a deployment URL (health → sign-in → todos → negative case), replacing the
    boot-a-server phase with the deployed target.

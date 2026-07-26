@@ -18,9 +18,10 @@ run and verify features in a closed loop, and the same commit deploys to
 Vercel today **and** to a built self-hosted Docker stack (Node + Postgres +
 Caddy) — `Dockerfile`, `docker-compose.prod.yml` and `Caddyfile` ship in `demo/`
 (US-021 + US-022, DECIDE A2). The tenant domain-provisioning adapter
-(`DomainPort`) is built for self-host — Caddy on-demand TLS gated by an internal
-domain-check endpoint (US-021); the Vercel Domains API adapter (US-020) is
-deferred to the A1 custom-domains slice.
+(`DomainPort`) is built for both targets — Caddy on-demand TLS gated by an
+internal domain-check endpoint (US-021), and per-tenant hosts attached to the
+Vercel project over the Domains API (US-020, offline-tested; its first live run
+awaits the owner's `VERCEL_TOKEN`).
 
 ## Live demo
 
@@ -129,14 +130,14 @@ Two gates, four test levels, and probes that keep the enforcers honest
 
 - **`npm run check`** — the **static** gate: typecheck + ESLint (layer
   boundaries) + `lock-lint` (npm-10 lockfile semantics) + dependency-cruiser +
-  `doc-lint` + vitest with coverage. **<!--count:test-files-->83<!--/count--> test files.**
+  `doc-lint` + vitest with coverage. **<!--count:test-files-->84<!--/count--> test files.**
 - **`npm run smoke`** — the **runtime** gate (~5s): recreates an isolated
   `agentproofarch_smoke` DB, boots the real server and drives
   health → sign-in → todos → unauthorized through the CLI, asserting taxonomy
   exit codes. Static-green is not done; the app must actually run.
 - **Coverage ratchet** — thresholds are a floor set to the measured minimum
   (per-metric, rounded down); a coverage regression fails `check`.
-- **Four test levels** — **unit** (<!--count:test-files-->83<!--/count--> files,
+- **Four test levels** — **unit** (<!--count:test-files-->84<!--/count--> files,
   in `check`) · **integration** (<!--count:integration-tests-->48<!--/count-->,
   real Postgres, run in the `smoke` CI job) · **e2e**
   (<!--count:e2e-tests-->15<!--/count--> tests across
