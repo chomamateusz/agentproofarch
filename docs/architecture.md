@@ -1770,11 +1770,19 @@ live smoke assertion.
   under `VERCEL` · **REVIEW+AI**: flag any new deploy-only requirement added as
   prose-only instead of a schema refinement, and any widening of the "deployed"
   heuristic that would catch local dev.
-- **Dependency hygiene.** `package-lock.json` is committed and validated by
-  lock-lint in `check`. `npm audit --omit=dev --audit-level=high` runs in CI as an
-  **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
+- **Dependency hygiene.** The lockfile is committed and validated by lock-lint in
+  `check`. A production-only dependency audit at `--audit-level=high` runs in CI
+  as an **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
   gate a build-breaker on transitive noise); a high/critical advisory is triaged,
   and version bumps come through Dependabot/Renovate PRs that pass both gates.
+  The package manager is **pnpm**, chosen for install-time supply-chain hardening
+  ([ADR-0009](decisions/0009-package-manager-pnpm.md)): dependency lifecycle
+  scripts do not run unless the package is named in a reviewed
+  `onlyBuiltDependencies` allowlist, a minimum-release-age cooldown keeps freshly
+  published versions out of the install until they have aged, and the strict
+  non-hoisted `node_modules` makes phantom dependencies unresolvable rather than
+  merely linted. It hardens **installation**: a compromised package's runtime
+  code still executes when the app imports it.
 - **Trace-id exposure is safe.** The W3C trace id in the error fallback is a random
   correlation id — no PII, no capability, actionable only to someone who already
   has backend log access — so surfacing it turns a support ticket into a one-line
