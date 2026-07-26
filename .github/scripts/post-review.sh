@@ -46,9 +46,11 @@ if [ -n "$exec_log" ] && [ -f "$exec_log" ]; then
             + ($res.usage.cache_read_input_tokens // 0) | tostring ) end)
       , (if $res == null then "" else ($res.usage.output_tokens // 0 | tostring) end)
       , (if ($res.total_cost_usd | type) == "number" then ($res.total_cost_usd | tostring) else "" end)
-      ] | @tsv
+      ] | join("\u001f")
   ' "$exec_log" 2>/dev/null || true)"
-  IFS=$'\t' read -r log_model log_turns log_in log_out log_cost <<< "$log_meta" || true
+  # \x1f keeps empty fields in place — tab-IFS would collapse them and shift
+  # every later value one column left.
+  IFS=$'\x1f' read -r log_model log_turns log_in log_out log_cost <<< "$log_meta" || true
   model="${log_model:-$model}"
   turns="${log_turns:-$turns}"
   tokens_in="${log_in:-$tokens_in}"
@@ -75,11 +77,11 @@ if [ -n "$pick" ]; then
     [ (.verdict // "UNKNOWN" | tostring)
     , (if (.safe_to_merge | type) == "boolean" then (if .safe_to_merge then "yes" else "no" end) else "n/a" end)
     , (if (.blast_radius | type) == "object" then (.blast_radius.scope // "n/a" | tostring) else "n/a" end)
-    , (if (.blast_radius | type) == "object" then (.blast_radius.note // "" | tostring | gsub("[\r\n]+"; " ")) else "" end)
-    ] | @tsv end
+    , (if (.blast_radius | type) == "object" then (.blast_radius.note // "" | tostring | gsub("[\r\n\t]+"; " ")) else "" end)
+    ] | join("\u001f") end
   ' 2>/dev/null || true)"
   if [ -n "$verdict_meta" ]; then
-    IFS=$'\t' read -r verdict safe scope note <<< "$verdict_meta" || true
+    IFS=$'\x1f' read -r verdict safe scope note <<< "$verdict_meta" || true
   fi
   verdict="${verdict:-UNKNOWN}"
   safe="${safe:-n/a}"
