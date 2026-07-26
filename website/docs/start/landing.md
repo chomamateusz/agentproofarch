@@ -1,7 +1,7 @@
 ---
 title: Agent-Proof Architecture
 slug: /
-sidebar_label: What & why 🔷
+sidebar_label: 🔷 What & why
 description: An agent-first, strictly layered TypeScript foundation for multi-tenant SaaS.
 ---
 

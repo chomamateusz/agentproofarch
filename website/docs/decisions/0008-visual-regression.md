@@ -1,6 +1,6 @@
 ---
 title: ADR-0008 — Visual regression with CI-rendered baselines
-sidebar_label: '0008 · Visual regression 📸'
+sidebar_label: '📸 0008 · Visual regression'
 description: Determinism first — exact pixel comparison, baselines rendered only in CI, and a check that deliberately does not block.
 ---
 

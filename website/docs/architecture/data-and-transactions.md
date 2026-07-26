@@ -1,6 +1,6 @@
 ---
 title: Data & transactions
-sidebar_label: Data & transactions 🗄️
+sidebar_label: 🗄️ Data & transactions
 description: The neon-http single-statement doctrine, hard delete by default, and the conventions decided before the next aggregate copies them.
 ---
 

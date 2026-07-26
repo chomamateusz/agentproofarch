@@ -1,10 +1,10 @@
 ---
 title: ADR-0004 — No-exceptions enforcement
-sidebar_label: '0004 · No-exceptions enforcement 🛡️'
+sidebar_label: '🚧 0004 · No-exceptions enforcement'
 description: CI gates, post-deploy verification, and probes that keep the enforcers honest.
 ---
 
-# ADR-0004 — No-exceptions enforcement: CI gates, post-deploy verification, config-regression probes 🛡️ \{#adr-0004--no-exceptions-enforcement-ci-gates-post-deploy-verification-config-regression-probes}
+# ADR-0004 — No-exceptions enforcement: CI gates, post-deploy verification, config-regression probes 🚧 \{#adr-0004--no-exceptions-enforcement-ci-gates-post-deploy-verification-config-regression-probes}
 
 **2026-07-17 · accepted, with one sub-decision deferred to the owner.** Amended 2026-07-20 (post-deploy scope). → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0004-no-exceptions-enforcement.md)
 

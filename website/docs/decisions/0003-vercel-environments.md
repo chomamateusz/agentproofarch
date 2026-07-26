@@ -1,10 +1,10 @@
 ---
 title: ADR-0003 — Vercel environments (release topology superseded)
-sidebar_label: '0003 · Vercel environments 🚀'
+sidebar_label: '🔺 0003 · Vercel environments'
 description: Branch-per-environment on Hobby, one Neon branch per environment, migrations at build time.
 ---
 
-# ADR-0003 — Vercel environments: dev, staging, prod + previews on Hobby 🚀 \{#adr-0003--vercel-environments-dev-staging-prod--previews-on-hobby}
+# ADR-0003 — Vercel environments: dev, staging, prod + previews on Hobby 🔺 \{#adr-0003--vercel-environments-dev-staging-prod--previews-on-hobby}
 
 **2026-07-14 · accepted; release topology superseded 2026-07-24.** → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0003-vercel-environments.md)
 

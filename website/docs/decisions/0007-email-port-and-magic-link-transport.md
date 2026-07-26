@@ -1,6 +1,6 @@
 ---
 title: ADR-0007 — EmailPort shape and the magic-link transport
-sidebar_label: '0007 · EmailPort & magic link ✉️'
+sidebar_label: '✉️ 0007 · EmailPort & magic link'
 description: SMTP by default, SES by key, and no dev transport at all — dev sends for real, into a local capture inbox.
 ---
 

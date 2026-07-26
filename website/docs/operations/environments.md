@@ -1,6 +1,6 @@
 ---
 title: Environments & promotion
-sidebar_label: Environments & promotion 🗺️
+sidebar_label: 🗺️ Environments & promotion
 description: Four environments from one commit, and an owner-only release gate enforced by two GitHub rulesets.
 ---
 

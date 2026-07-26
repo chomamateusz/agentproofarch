@@ -1,6 +1,6 @@
 ---
 title: Identity & multi-tenancy
-sidebar_label: Identity & multi-tenancy 🏢
+sidebar_label: 🏢 Identity & multi-tenancy
 description: Global authentication, tenant-owned relationship, and honest per-environment tenant addressing.
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Writing tests per the doctrine
-sidebar_label: Testing doctrine ✅
+sidebar_label: ✅ Testing doctrine
 description: Four levels, a coverage ratchet, and a flake is a P1 bug.
 ---
 

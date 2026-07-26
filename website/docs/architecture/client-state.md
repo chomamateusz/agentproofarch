@@ -1,6 +1,6 @@
 ---
 title: Client state (island cores)
-sidebar_label: Client state 🏝️
+sidebar_label: 🏝️ Client state
 description: Pure island cores, a three-rung ladder of machines, and the seam that never changes.
 ---
 

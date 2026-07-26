@@ -1,10 +1,10 @@
 ---
 title: ADR-0006 — Public read-only contract surface
-sidebar_label: '0006 · Public read-only surface 📖'
+sidebar_label: '👀 0006 · Public read-only surface'
 description: A route group that sits outside the capability model by construction, and a content version derived rather than stored.
 ---
 
-# ADR-0006 — Public read-only contract surface: built shape and stances 📖 \{#adr-0006--public-read-only-contract-surface-built-shape-and-stances}
+# ADR-0006 — Public read-only contract surface: built shape and stances 👀 \{#adr-0006--public-read-only-contract-surface-built-shape-and-stances}
 
 **2026-07-21 · accepted.** Implements US-028, FR-23, FR-24; builds on [ADR-0001](./0001-public-surface-embeds-over-pages.md). → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0006-public-read-only-surface.md)
 

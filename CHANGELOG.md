@@ -52,6 +52,10 @@ before that lives in the git history only.
   had been resolving `@opentelemetry/sdk-trace-base` through npm's hoisting, and
   it is now declared as the production dependency it always was
   ([#81](https://github.com/chomamateusz/agentproofarch/pull/81)).
+- Owner round-6 docs notes: sidebar entries lead with their emoji (content
+  headings keep them trailing), every sidebar emoji is now unique — Quickstart
+  moves to 🔥, ADRs to ⚖️ — and the generated changelog page carries a
+  📝 sidebar label ([#82](https://github.com/chomamateusz/agentproofarch/pull/82)).
 - Owner round-5 docs notes: a meaning-matched trailing emoji on every heading
   site-wide, with 🔷 codified as the official brand emoji ([#80](https://github.com/chomamateusz/agentproofarch/pull/80)).
 - Owner round-4 docs notes: sidebar categories relabelled (Start here, Full

@@ -1,10 +1,10 @@
 ---
 title: Quickstart
-sidebar_label: Quickstart 🚀
+sidebar_label: 🔥 Quickstart
 description: Clone the repository and get to a green runtime gate.
 ---
 
-# Quickstart 🚀 \{#quickstart}
+# Quickstart 🔥 \{#quickstart}
 
 This page takes you from `git clone` to a green **runtime** gate — the point where
 the real server has booted, the CLI has driven a full multi-tenant flow through it,

@@ -1,6 +1,6 @@
 ---
 title: Decisions (ADRs)
-sidebar_label: 'Overview 📜'
+sidebar_label: '📜 Overview'
 slug: /decisions
 description: Decide, then enforce — the culture behind the ADR set, and the full record.
 ---

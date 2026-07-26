@@ -1,6 +1,6 @@
 ---
 title: Adding a feature
-sidebar_label: Adding a feature ✨
+sidebar_label: ✨ Adding a feature
 description: Start with the scaffolder; let the type system drive the chain.
 ---
 

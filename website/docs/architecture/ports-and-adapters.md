@@ -1,6 +1,6 @@
 ---
 title: Ports & adapters
-sidebar_label: Ports & adapters 🔌
+sidebar_label: 🔌 Ports & adapters
 description: The complete built port set, the adapters behind each one, and the rule for when a port may exist at all.
 ---
 

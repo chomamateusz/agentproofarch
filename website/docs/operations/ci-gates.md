@@ -1,10 +1,10 @@
 ---
 title: CI gates
-sidebar_label: CI gates 🛡️
+sidebar_label: 🚦 CI gates
 description: Which jobs run, which ones block a merge, which deliberately do not, and how the fail-closed AI review gate works.
 ---
 
-# CI gates 🛡️ \{#ci-gates}
+# CI gates 🚦 \{#ci-gates}
 
 Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `pnpm install --frozen-lockfile` in CI, on every change, and the enforcers themselves are enforced.
 
