@@ -1,4 +1,4 @@
-# agentproofarch documentation site
+# agentproofarch documentation site 🔷
 
 Docusaurus 3 (TypeScript) site published to GitHub Pages at
 <https://chomamateusz.github.io/agentproofarch/>.
@@ -30,12 +30,14 @@ or `CHANGELOG.md`.
 - **Explain every term at first use**: a plain-language gloss inline, plus a
   link to the deeper page. Never use a term before defining it.
 - **Short paragraphs**, generous line breaks — no walls of text.
-- **Sparse, gentle emoji**: at most one per H2 heading or key table cell, never
-  mid-sentence.
-- **🔷 is the official brand emoji**, reserved for brand-level headings (the
-  landing H1 and this README's title) with 🔷🔷🔷 as the ceremonial variant —
-  never used to decorate a regular section; every docs heading otherwise carries
-  one trailing meaning-matched emoji plus an explicit `{#id}` preserving its
-  pre-emoji anchor.
+- **Emoji on headings**: every heading on an authored docs page carries exactly
+  one trailing meaning-matched emoji (the generated `changelog.md` is exempt),
+  plus an explicit `\{#id}` — the plain slug of the heading text without the
+  emoji, so anchors stay emoji-free. Elsewhere emoji stay sparse: at most one
+  per key table cell, never mid-sentence.
+- **🔷 is the official brand emoji**, reserved for brand titles — the landing
+  page H1, the root `README.md` title and this README's title — and never used
+  to decorate a regular section. It may be used as 🔷🔷🔷 as a ceremonial
+  variant in announcements.
 - **No claim that is not verifiable in the repo.** Facts come from `docs/`,
   the source tree or the gates — invented claims are a defect.

@@ -32,7 +32,7 @@ A free, open project by **Mateusz Choma**, developed privately in collaboration
 with **[CodeRoad.pl](https://coderoad.pl)** and
 **[AmazingDesign.eu](https://amazingdesign.eu)**.
 
-## What problem does it solve 🎯 \{#what-problem-does-it-solve-}
+## What problem does it solve 🎯 \{#what-problem-does-it-solve}
 
 If you have watched an AI-assisted codebase rot, you already know these:
 
@@ -60,7 +60,7 @@ Those answers roll up into the four promises the architecture makes
 4. **Everything is testable.** Cores are pure and test without frameworks; the
    rest is driven end-to-end by the gates — static, runtime, browser.
 
-## Start here 🚀 \{#start-here-}
+## Start here 🚀 \{#start-here}
 
 Four commands boot a working demo on your machine, right now — multi-tenancy
 included, on localhost, with seeded data (a demo account and two tenants). The
@@ -88,7 +88,7 @@ Every term this site uses is defined in the [glossary](./glossary.md), which
 opens with the architecture in plain words; the full structural story is in
 [Layers](../architecture/layers.md).
 
-## The feature map 🗺️ \{#the-feature-map-️}
+## The feature map 🗺️ \{#the-feature-map}
 
 Every capability is reachable through the web app and, with three deliberate
 exceptions, through the CLI — and the CLI path is the one an agent uses,
@@ -158,7 +158,7 @@ Read the structure top-down in [Layers](../architecture/layers.md), then follow 
 single request through it in
 [Request lifecycle](../architecture/request-lifecycle.md).
 
-## How it defends itself 🛡️ \{#how-it-defends-itself-️}
+## How it defends itself 🛡️ \{#how-it-defends-itself}
 
 | Gate | Command | What it proves | Required check? |
 |---|---|---|---|
