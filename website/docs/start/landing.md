@@ -1,15 +1,14 @@
 ---
-title: agentproofarch
+title: Agent-Proof Architecture
 slug: /
 sidebar_label: What & why
 description: An agent-first, strictly layered TypeScript foundation for multi-tenant SaaS.
 ---
 
-# agentproofarch
+# Agent-Proof Architecture
 
-**agent-proof arch**itecture — a strictly layered full-stack TypeScript
-foundation that keeps its structure no matter how much of the code an AI agent
-writes.
+**agentproofarch** — a strictly layered full-stack TypeScript foundation that
+keeps its structure no matter how much of the code an AI agent writes.
 
 When an agent writes most of the code, the thing that decays first is not
 correctness — it is *structure*. A generated change lands wherever it compiles.

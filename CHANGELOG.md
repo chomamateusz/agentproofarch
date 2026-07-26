@@ -44,6 +44,8 @@ before that lives in the git history only.
 
 ### Changed
 
+- The docs-site landing title spells the name out — "Agent-Proof Architecture" —
+  with the `agentproofarch` slug demoted to the gloss line ([#76](https://github.com/chomamateusz/agentproofarch/pull/76)).
 - Owner round-3 docs notes: the landing page slims down — the four boot commands
   now live only in the quickstart, the walking-skeleton capability list moves to
   the top of the quickstart as "What you get after boot", and "The architecture,
