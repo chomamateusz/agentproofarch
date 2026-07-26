@@ -1,6 +1,6 @@
 ---
 title: Health & attestation
-sidebar_label: Health & attestation 🩺
+sidebar_label: 🩺 Health & attestation
 description: Liveness, readiness, and proving which deploy a smoke run actually verified.
 ---
 

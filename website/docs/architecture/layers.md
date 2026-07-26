@@ -1,10 +1,10 @@
 ---
 title: Layers
-sidebar_label: Layers 🧱
+sidebar_label: 📚 Layers
 description: The allowed dependency directions, and the two independent enforcers that guarantee them.
 ---
 
-# Layers 🧱 \{#layers}
+# Layers 📚 \{#layers}
 
 A layered architecture that lives in a README is a suggestion, and suggestions do
 not survive contact with an agent generating a hundred files. Here the layers are a **graph with machine-checked edges**: every

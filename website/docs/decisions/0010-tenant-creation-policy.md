@@ -1,10 +1,10 @@
 ---
 title: ADR-0010 — Tenant-creation policy (TENANT_CREATION)
-sidebar_label: '0010 · Tenant-creation policy 🏢'
+sidebar_label: '🏗️ 0010 · Tenant-creation policy'
 description: One env key, three modes — open, staff, closed — selecting who may create tenants, with default-deny untouched.
 ---
 
-# ADR-0010 — Tenant-creation policy: an env-selected `TENANT_CREATION` mode 🏢 \{#adr-0010--tenant-creation-policy-an-env-selected-tenant_creation-mode}
+# ADR-0010 — Tenant-creation policy: an env-selected `TENANT_CREATION` mode 🏗️ \{#adr-0010--tenant-creation-policy-an-env-selected-tenant_creation-mode}
 
 **2026-07-26 · accepted (owner-approved).** Builds on [ADR-0002](./0002-member-identity-and-idp.md) (one global account pool, per-request identity resolution) and the capability model in [Authorization](../architecture/authorization.md). → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0010-tenant-creation-policy.md)
 

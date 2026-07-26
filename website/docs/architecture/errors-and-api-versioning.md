@@ -1,6 +1,6 @@
 ---
 title: Errors & API versioning
-sidebar_label: Errors & API versioning 🚨
+sidebar_label: 🚨 Errors & API versioning
 description: A closed error taxonomy, one normalization edge, and deliberately no version namespace.
 ---
 

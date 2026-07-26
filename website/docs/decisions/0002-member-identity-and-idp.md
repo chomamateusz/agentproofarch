@@ -1,6 +1,6 @@
 ---
 title: 'ADR-0002 — Member identity: global authentication, tenant-owned relationship'
-sidebar_label: '0002 · Member identity 🔐'
+sidebar_label: '🔐 0002 · Member identity'
 description: Why no auth-provider organization feature is used at all, and what replaces it.
 ---
 

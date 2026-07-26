@@ -1,6 +1,6 @@
 ---
 title: 'ADR-0001 — Public surface: headless API and embeds over hosted pages'
-sidebar_label: '0001 · Public surface 🧩'
+sidebar_label: '🧩 0001 · Public surface'
 description: Why the foundation ships no public marketing pages, and owns the commerce layer instead.
 ---
 

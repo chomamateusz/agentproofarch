@@ -1,6 +1,6 @@
 ---
 title: Glossary
-sidebar_label: Glossary 📖
+sidebar_label: 📖 Glossary
 description: The words this architecture uses precisely — including the two that are deliberately not synonyms.
 ---
 

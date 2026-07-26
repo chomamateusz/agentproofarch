@@ -1,6 +1,6 @@
 ---
 title: Backup & DR runbook
-sidebar_label: Backup & DR 💾
+sidebar_label: 💾 Backup & DR
 description: Hourly encrypted pg_dump on k3s, an offsite copy, and the Docker self-host stack as cold standby.
 ---
 

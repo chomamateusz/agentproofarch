@@ -1,6 +1,6 @@
 ---
 title: 'ADR-0005 — Client application state: island cores'
-sidebar_label: '0005 · Client application state 🎛️'
+sidebar_label: '🎛️ 0005 · Client application state'
 description: One uniform seam per feature, three rungs of machine inside it, and a spike that settled both library choices.
 ---
 

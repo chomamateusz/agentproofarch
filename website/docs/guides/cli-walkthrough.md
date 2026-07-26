@@ -1,6 +1,6 @@
 ---
 title: CLI walkthrough
-sidebar_label: CLI walkthrough ⌨️
+sidebar_label: ⌨️ CLI walkthrough
 description: The agent feedback loop — every capability with --json and an exit code.
 ---
 

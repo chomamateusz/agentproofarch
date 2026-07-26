@@ -4,13 +4,13 @@ const sidebars: SidebarsConfig = {
   docs: [
     {
       type: 'category',
-      label: 'Start here 🚀',
+      label: '🚀 Start here',
       collapsed: false,
       items: ['start/landing', 'start/quickstart'],
     },
     {
       type: 'category',
-      label: 'Full architecture 🏛️',
+      label: '🏛️ Full architecture',
       items: [
         'start/glossary',
         'architecture/layers',
@@ -26,7 +26,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Step-by-step guides 🧭',
+      label: '🧭 Step-by-step guides',
       items: [
         'guides/cli-walkthrough',
         'guides/adding-a-feature',
@@ -36,7 +36,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Infrastructure 🧱',
+      label: '🧱 Infrastructure',
       items: [
         'operations/environments',
         'operations/ci-gates',
@@ -47,7 +47,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'ADRs 📜',
+      label: '⚖️ ADRs',
       link: {type: 'doc', id: 'decisions/index'},
       items: [
         'decisions/0001-public-surface-embeds-over-pages',

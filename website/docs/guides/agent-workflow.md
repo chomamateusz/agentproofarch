@@ -1,6 +1,6 @@
 ---
 title: Agent workflow
-sidebar_label: Agent workflow 🤖
+sidebar_label: 🤖 Agent workflow
 description: How this repository is actually built — worktrees, gates, audits, identity.
 ---
 
