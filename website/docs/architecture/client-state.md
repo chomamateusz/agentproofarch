@@ -125,10 +125,9 @@ rule** for it: it is a review question, and the `ai-review` gate is the tier tha
 flags rung-2/3 machinery with no trigger *and* trigger-hitting features stuck on
 rung 1.
 
-Honest caveat: that gate is **built and fail-closed but not yet a required
-check** — it runs and posts on every non-draft PR to `main`, and becomes blocking
-only when the owner adds the `ai-review` context to the `main-gates` ruleset. So
-today the semantic half of these rules is advisory. Details in
+That gate is fail-closed and, since 2026-07-26, a **required check on
+`main-gates`** — a PR without a `PASS` verdict cannot merge, so the semantic
+half of these rules is enforced, not advisory. Details in
 [CI gates](../operations/ci-gates.md).
 :::
 

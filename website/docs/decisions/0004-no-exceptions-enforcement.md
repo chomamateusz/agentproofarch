@@ -75,5 +75,5 @@ Decision point 2 described the narrowest form of the gate. The shipped workflow 
 - **Doc-lint is a named-manifest check**, not a proof that every prose-promised guarantee or boundary is covered by an enforcer.
 - **Some config-regression tests are structural rule-presence checks** rather than fixture-feeding probes.
 - **The AI-review gate that fulfils the REVIEW+AI tier is built and, since 2026-07-26, a required check on `main-gates`** — armed after it accumulated a verdict track record. See [CI gates](../operations/ci-gates.md).
-- **The required set is exactly four checks.** `visual` ([ADR-0008](./0008-visual-regression.md)), `ai-review` and `docs-build` all run and report without blocking, each for a stated reason.
+- **Two jobs report without blocking.** `visual` ([ADR-0008](./0008-visual-regression.md)) and `docs-build` are deliberately non-required, each for a stated reason; `ai-review` graduated to the `main-gates` required set on 2026-07-26.
 :::

@@ -179,7 +179,7 @@ The architecture exists so four things stay true while agents do the work
 | **Browser** | `npm run e2e` | a real Chromium over the real stack: 15 tests across 6 spec files | yes — `e2e` |
 | **Container** | `selfhost.yml` | builds the image, boots `docker-compose.prod.yml`, smokes the container through the CLI | yes — `docker-smoke` |
 | **Pixel** | `npm run visual` | Playwright `toHaveScreenshot()` against CI-rendered baselines ([ADR-0008](../decisions/0008-visual-regression.md)) | **no** — by design |
-| **Review** | `ai-review.yml` | fail-closed AI diff review; only a positive `PASS` verdict is green | **no** — until armed |
+| **Review** | `ai-review.yml` | fail-closed AI diff review; only a positive `PASS` verdict is green | **yes**, on `main` (since 2026-07-26) |
 
 :::danger Done = `check` green AND `smoke` green
 Static-green is not done. A typechecked, linted commit that does not boot is a
@@ -216,10 +216,9 @@ stay fully multi-tenant via the `X-Tenant` header.
   against the live API** — proven against a stubbed `fetch` only, because no
   `VERCEL_TOKEN` exists on CI or the build machine. Full statement:
   [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
-- **Three CI jobs run but block nothing.** The `main-gates` and
-  `production-protection` rulesets name `check`, `smoke`, `e2e` and
-  `docker-smoke` only, so `visual` (pixel), `ai-review` (AI diff review) and
-  `docs-build` (this site) report without gating until the owner arms them.
+- **Two CI jobs run but block nothing.** `visual` (pixel) and `docs-build`
+  (this site) report without gating until the owner arms them; `ai-review`
+  has been a required `main-gates` check since 2026-07-26.
   Adding a status check to a ruleset is Admin-only — which the agent account
   deliberately is not.
 - **`ai-review` has one token slot provisioned.** `CLAUDE_CODE_OAUTH_TOKEN_1` is

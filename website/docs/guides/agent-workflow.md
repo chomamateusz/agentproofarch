@@ -182,9 +182,8 @@ The properties worth naming:
   real `PASS` to RED.
 
 :::warning Honest caveats
-The gate is **not a required check**. The rulesets name `check`, `smoke`, `e2e` and
-`docker-smoke` only; adding the `ai-review` context to `main-gates` is Admin-only
-and has not been done, so today the gate runs and posts without blocking. Only
+The gate has been a **required `main-gates` check since 2026-07-26**, so a PR
+without a `PASS` verdict cannot merge to `main`. Only
 `CLAUDE_CODE_OAUTH_TOKEN_1` is provisioned — slots `_2` and `_3` are wired and skip
 cleanly while absent. And a `timeout-minutes: 15` bound exists because of a known
 `--json-schema` CLI hang; a timeout is a RED could-not-run, never a silent pass.

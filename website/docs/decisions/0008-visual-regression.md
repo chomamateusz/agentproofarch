@@ -56,7 +56,7 @@ The specs live in `demo/visual/` with their own `playwright.visual.config.ts` an
 
 ### 4. The check is NON-REQUIRED until the owner arms it
 
-The rulesets name exactly four required checks (`check` / `smoke` / `e2e` / `docker-smoke`). The `visual` job is deliberately not among them: it reports, it does not block. Arming it is a one-line ruleset edit made only after the check has a run history of green comparisons — and it is **reverted the moment the gate flakes**, because a flaky required gate is a P1 and, per ADR-0004's stance, an enforcer that cannot be trusted is worse than no enforcer.
+The required set (`check` / `smoke` / `e2e` / `docker-smoke`, plus `ai-review` on `main-gates` since 2026-07-26) deliberately omits the `visual` job: it reports, it does not block. Arming it is a one-line ruleset edit made only after the check has a run history of green comparisons — and it is **reverted the moment the gate flakes**, because a flaky required gate is a P1 and, per ADR-0004's stance, an enforcer that cannot be trusted is worse than no enforcer.
 
 ### 5. Determinism levers — the whole point
 
