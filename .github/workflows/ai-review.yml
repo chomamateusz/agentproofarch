@@ -78,8 +78,11 @@ jobs:
       # Read-only inspection tools only — the model never writes files or posts;
       # the workflow posts the verdict comment itself (deterministic, decoupled
       # from the model's tool use).
+      # Model is an owner cost knob: the AI_REVIEW_MODEL repository variable
+      # (Settings → Secrets and variables → Actions → Variables) switches it
+      # without a PR; unset falls back to sonnet, the decided F1 default.
       CLAUDE_ARGS: >-
-        --model sonnet
+        --model ${{ vars.AI_REVIEW_MODEL || 'sonnet' }}
         --max-turns 40
         --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
         --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}}},"required":["verdict","summary"]}'
