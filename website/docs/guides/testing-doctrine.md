@@ -27,7 +27,7 @@ flowchart LR
   subgraph static["npm run check — static gate"]
     tc["typecheck<br/>tsc + tsconfig.islands.json"]
     lint["eslint<br/>layer boundaries · no any · no as"]
-    lock["lock-lint<br/>npm-10 lockfile semantics"]
+    lock["lock-lint<br/>npm 11 lockfile semantics"]
     dc["dependency-cruiser"]
     knip["knip<br/>dead files"]
     dl["doc-lint<br/>docs ↔ enforcers · counts · env"]

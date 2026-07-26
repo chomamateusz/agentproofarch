@@ -18,8 +18,8 @@ and the walkthroughs assume exists. Every command below is copied from
 
 | Tool | Version | Why exactly this |
 |---|---|---|
-| **Node** | 22 (`.nvmrc` pins it) | `engines.node` is `22.x`; the CI runner is node 22. |
-| **npm** | `>=10 <11` | `packageManager` is `npm@10.9.2`, and `lock-lint` validates the lockfile under npm-10 semantics. npm 11 breaks it — see the warning below. |
+| **Node** | 24 (`.nvmrc` pins it) | `engines.node` is `24.x`; the CI runner is Node 24. |
+| **npm** | `>=11 <12` | `packageManager` is `npm@11.16.0`, matching the npm major bundled with Node 24; `lock-lint` validates npm 11 semantics. |
 | **Docker** | any recent | `npm run db:up` starts Postgres 16 and Mailpit from `docker-compose.dev.yml`. |
 
 Everything runs from `demo/` — it has its own `package.json`. The repository root
@@ -30,16 +30,15 @@ holds `docs/` (normative architecture + PRD) and `website/` (this site).
 ```bash
 git clone https://github.com/chomamateusz/agentproofarch.git
 cd agentproofarch/demo
-nvm use          # or Corepack — anything that lands you on Node 22 / npm 10
+nvm use          # or Corepack — anything that lands you on Node 24 / npm 11
 npm ci
 ```
 
-:::danger Never `npm install` here
-`lock-lint` (part of `npm run check`) validates `package-lock.json` under npm-10
-semantics — exactly what `npm ci` enforces on the node-22 CI runner. A local
-npm 11 `npm install` silently prunes optional entries npm 10 requires, which
-**broke CI twice**. Add dependencies with `npx -y npm@10 install <pkg>`, never a
-bare `npm install`.
+:::warning Keep npm on the pinned major
+`lock-lint` (part of `npm run check`) validates `package-lock.json` under npm 11
+semantics — exactly what `npm ci` enforces on the Node 24 CI runner. Add
+dependencies with `npx -y npm@11 install <pkg>` so the regenerated lockfile uses
+the same npm major as CI.
 :::
 
 ## 2. Environment: nothing to do (locally)
@@ -231,7 +230,7 @@ avoided so the stack never collides with whatever else you are running.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Every page fails with "response does not match the contract" | `dist/web` is a stale build and `dev:server` is serving it | `npm run build:web`, or use `dev:web` |
-| `check` fails in `lock-lint` after adding a dependency | a bare `npm install` under npm 11 pruned optional entries | reinstall with `npx -y npm@10 install <pkg>` and commit the regenerated lockfile |
+| `check` fails in `lock-lint` after adding a dependency | the lockfile was regenerated with a different npm major | reinstall with `npx -y npm@11 install <pkg>` and commit the regenerated lockfile |
 | `smoke` fails with "Dependencies are not installed" or a lockfile-drift list | `node_modules` does not match `package-lock.json` | `npm ci` |
 | Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
 | Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
