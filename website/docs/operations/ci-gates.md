@@ -109,13 +109,14 @@ Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs
 
 ## Deliberately non-required
 
-Two jobs run and report without blocking (`ai-review` graduated to required on 2026-07-26). Each non-required status is a stated design decision, not an oversight.
+Two jobs run and report without blocking (`ai-review` graduated to required on 2026-07-26), and one external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
 
 | Job | Why it does not block | How it becomes blocking |
 |---|---|---|
 | `visual` | Pixel comparison is the classic rerun-to-green offender, and the flake doctrine treats a flake as a P1 bug. The check earns arming only after a run history of green comparisons ([ADR-0008](../decisions/0008-visual-regression.md) §4). | The owner adds `visual` to `main-gates`' required list — and takes it back out the moment it flakes. |
 | `ai-review` | Shipped non-required to accumulate a verdict track record first; **armed as a required `main-gates` check on 2026-07-26**. | Done — the owner added the **`ai-review`** context (the job name) to `main-gates`. Admin-only. |
 | `docs-build` | It is **path-filtered** on `website/**` and `CHANGELOG.md`, so on a PR that leaves both alone it never runs — and a required check that never runs is unmergeable. | Not possible as written; the path filter would have to go first. |
+| `CodeRabbit` (GitHub App, no workflow) | An advisory second opinion configured by `.coderabbit.yaml` (chill profile, `request_changes_workflow: false`): it comments and reports a status but must never gate — the doctrinal enforcement tier is `ai-review`, and a second AI reviewer stays a perspective, not a wall. | Deliberately never; if it ever gated, a config PR would have to say so here first. |
 
 On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact (7-day retention), because a developer on macOS gets no local comparison at all: baselines are platform-scoped and `ignoreSnapshots` is on for every non-linux platform. New baselines come from the separate `visual-baselines` workflow (`workflow_dispatch`, `update: true`), which re-renders and then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs — so an authoring run that died before the harness booted cannot ship an empty or partial baseline set.
 
