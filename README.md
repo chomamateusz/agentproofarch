@@ -41,23 +41,24 @@ Run everything from `demo/` (its own `package.json`). Node 24 LTS.
 
 ```bash
 cd demo
-npm ci            # lock-lint enforces npm 11 lockfile semantics
-npm run db:up     # Postgres 16 in Docker on port 47542
-npm run db:migrate
-npm run db:seed
-npm run dev:web   # Vite + hot reload on 47180
+corepack enable && corepack prepare --activate
+pnpm install --frozen-lockfile
+pnpm run db:up     # Postgres 16 in Docker on port 47542
+pnpm run db:migrate
+pnpm run db:seed
+pnpm run dev:web   # Vite + hot reload on 47180
 ```
 
 Then drive the same capabilities from the CLI — the agent feedback loop:
 
 ```bash
-npm run --silent cli -- --json health
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- --tenant acme todo list --json
+pnpm --silent run cli --json health
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli --tenant acme todo list --json
 ```
 
 Full walkthrough, prod-like serving, the error-taxonomy exit codes and the
-`npm install` caveat: [quickstart on the docs site](https://chomamateusz.github.io/agentproofarch/start/quickstart)
+pnpm supply-chain controls: [quickstart on the docs site](https://chomamateusz.github.io/agentproofarch/start/quickstart)
 and [demo/README.md](demo/README.md).
 
 ## Repository layout

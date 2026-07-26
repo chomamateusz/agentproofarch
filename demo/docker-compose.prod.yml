@@ -1,5 +1,5 @@
 # Self-host production stack (PRD US-021 + US-022). Distinct from
-# docker-compose.dev.yml, which only runs a bare Postgres for local `npm` dev.
+# docker-compose.dev.yml, which only runs a bare Postgres for local `pnpm` dev.
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
 #     -> postgres + app (app runs migrations on startup, then serves API + SPA)
@@ -43,7 +43,7 @@ services:
       - .env
     environment:
       # The service-internal DB URL always wins over any .env value (which points
-      # at a host port for local `npm` dev). This is the one line that differs
+      # at a host port for local `pnpm` dev). This is the one line that differs
       # between the Vercel and Docker targets — node-postgres against the sidecar.
       DB_DRIVER: node-postgres
       DATABASE_URL: postgresql://${POSTGRES_USER:-agentproofarch}:${POSTGRES_PASSWORD:-agentproofarch}@postgres:5432/${POSTGRES_DB:-agentproofarch}

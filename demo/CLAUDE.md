@@ -4,33 +4,40 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 
 ## The two gates
 
-- `npm run check` = typecheck + ESLint (boundaries) + lock-lint (validates
-  package-lock.json under npm 11 semantics, exactly what `npm ci` on the
-  Node 24 CI runner enforces) + dependency-cruiser +
+- `pnpm run check` = typecheck + ESLint (boundaries) + lock-lint (proves
+  `pnpm-lock.yaml` matches `package.json` with the same frozen-lockfile
+  semantics as the Node 24 CI runner) + dependency-cruiser +
   knip (dead files + dependency hygiene; unused exports/types stay advisory
   during the PRD build-out — see `knip.jsonc`) +
   doc-lint (docs↔config enforcer coverage, injected count tokens, env-schema ⊆
   `.env.example`, dead relative links) + vitest with `--coverage` — the
   **static** gate; coverage thresholds are a ratchet floor (measured minimum
   rounded down, per-metric) enforced here, so a coverage regression fails
-  `npm run check`.
-- `npm run smoke` = the **runtime** gate: it verifies the installed dependency
-  tree matches `package-lock.json`, drops+recreates an isolated
+  `pnpm run check`.
+- `pnpm run smoke` = the **runtime** gate: it verifies the installed dependency
+  tree matches `pnpm-lock.yaml`, drops+recreates an isolated
   `agentproofarch_smoke` database (never touches your dev-seeded data), migrates
   and seeds it, boots the real server (`entry.node.ts`) on an ephemeral port and
   drives health → sign-in → todos through the CLI, asserting taxonomy exit codes
-  (including unauthorized = exit 3). Assumes `npm run db:up`. Runs in ~5s.
-  Integration tests (`npm run test:integration`, opt-in `VITEST_INTEGRATION=1`)
+  (including unauthorized = exit 3). Assumes `pnpm run db:up`. Runs in ~5s.
+  Integration tests (`pnpm run test:integration`, opt-in `VITEST_INTEGRATION=1`)
   run where Postgres exists — the CI smoke job runs them before smoke — so local
-  `npm run smoke` stays fast.
+  `pnpm run smoke` stays fast.
 
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.
 
-The toolchain is pinned to the CI runner: `.nvmrc` (Node 24), `engines.npm`
-(`>=11 <12`) and `packageManager` (`npm@11.16.0`) keep every install on npm 11
-semantics, matching the npm major bundled with Node 24. Use `nvm use` (or
-Corepack) before `npm ci`; add dependencies with `npx -y npm@11 install`.
+The toolchain is pinned by `.nvmrc` and `engines.node` (Node 24),
+`engines.pnpm` (`>=10`) and `packageManager` (`pnpm@10.34.5`). Run `nvm use`,
+then `corepack enable && corepack prepare --activate`, before installing. Use
+`pnpm add` for dependencies and commit the settled lockfile.
+
+pnpm blocks dependency lifecycle scripts unless a package is named in
+`pnpm-workspace.yaml`'s `onlyBuiltDependencies`; keep that allowlist minimal and
+add an entry only when a gate demonstrably fails without it. The same config
+sets `minimumReleaseAge: 4320`, so releases cool down for three days before they
+can be resolved. Every immutable install path uses
+`pnpm install --frozen-lockfile`; a missing or stale lockfile is a hard failure.
 
 **Flake doctrine (owner ruling 2026-07-20, DECIDE F3): the gates are
 deterministic; a flake is a P1 bug, never rerun-to-green.** A red gate means
@@ -43,7 +50,7 @@ TEST: the retry-plus-trace config itself surfaces and records every flake ·
 REVIEW+AI: the PR-template line; a rerun-to-green merge without a filed P1 is
 rejected.)
 
-- `npm run e2e` = the **browser** gate: Playwright drives a real Chromium over
+- `pnpm run e2e` = the **browser** gate: Playwright drives a real Chromium over
   the real stack (isolated `agentproofarch_e2e` DB, `localhost` registered as a
   single-tenant custom domain, `entry.node.ts` serving the built bundle) across
   three spec files (9 tests): `app.spec.ts` (login → seeded todos → add-todo →
@@ -57,7 +64,7 @@ rejected.)
   trip the limiter and flake the run. It needs a browser and Postgres, so it is
   its own CI job (`e2e`), never part of `check`.
 
-- `npm run visual` = the **pixel** check
+- `pnpm run visual` = the **pixel** check
   ([ADR-0008](../docs/decisions/0008-visual-regression.md)): Playwright
   `toHaveScreenshot()` over the same boot harness, in its own suite
   (`visual/`, `playwright.visual.config.ts`) so a moved screenshot can never
@@ -104,11 +111,11 @@ Per-layer one-screen summaries live beside the code — [`core/CLAUDE.md`](core/
 ## Verify features through the CLI first
 
 ```bash
-npm run db:up && npm run db:migrate && npm run db:seed
-npm run dev:server &          # port 47100
-npm run --silent cli -- --json health
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- --tenant acme todo list
+pnpm run db:up && pnpm run db:migrate && pnpm run db:seed
+pnpm run dev:server &          # port 47100
+pnpm --silent run cli --json health
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli --tenant acme todo list
 ```
 
 `--json` prints exactly one JSON envelope on stdout; exit codes come from
@@ -120,16 +127,16 @@ tests at the core layer.
 Client state follows the island-core model (`../docs/architecture.md`
 §Client application state, ADR-0005): a feature's `core/` is pure TS —
 events in, selectors out — with lint-enforced purity; scaffold a new island
-with `npm run new:island -- <name>`. How a core graduates rungs is read off
+with `pnpm run new:island -- <name>`. How a core graduates rungs is read off
 the two living boards in `../docs/island-graduation.md`.
 
 Start every new resource with the scaffolder — it is the canonical entry point:
-`npm run new:resource -- <singular-name>` (e.g. `blog-post`). It generates the
+`pnpm run new:resource -- <singular-name>` (e.g. `blog-post`). It generates the
 files a resource owns outright (domain type, use-cases + test, repository, web
 page + route) and prints an ordered checklist for the shared files you must wire
 by hand, each with its anchor line and a paste-ready snippet. It deliberately
 does **not** edit shared files: the generated code imports symbols that don't
-exist yet, so `npm run check` stays RED through the type-forced steps (domain,
+exist yet, so `pnpm run check` stays RED through the type-forced steps (domain,
 contract, port/use-case, client wiring). Three steps are **not** type-forced — a
 missing CLI command, an unregistered web route, and a hand-registered server
 route (routes are wired by hand against `API_PATHS`, with no parity check) all
@@ -138,12 +145,12 @@ not the compiler, is what guarantees they are done.
 
 ## Dev notes
 
-- **Frontend work goes through `npm run dev:web`** (Vite on 47180, hot reload) —
-  that is the canonical dev path. `npm run dev:server` serves whatever `dist/web`
+- **Frontend work goes through `pnpm run dev:web`** (Vite on 47180, hot reload) —
+  that is the canonical dev path. `pnpm run dev:server` serves whatever `dist/web`
   holds, which is a gitignored build: after a contract change an old bundle fails
   every page with "response does not match the contract" (incident 2026-07-12).
   The server warns at boot when `dist/web` is missing or older than the
-  web/contract sources; on that warning run `npm run build:web` or switch to
+  web/contract sources; on that warning run `pnpm run build:web` or switch to
   `dev:web`.
 - Ports: API 47100, Vite dev 47180, Postgres 47542 (never 3000/8080/5432).
 - Tenants live on subdomains: `acme.localhost:47100`. Browsers reject

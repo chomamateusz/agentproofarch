@@ -147,9 +147,9 @@ from the scaffolder.
 :::
 
 ```bash
-npm run new:island -- <name>                      # rung 1 seam: events, selectors, core test, view, route
-npm run new:island -- <name> --machine=store       # rung 2, with optimistic-apply + undo tests
-npm run new:island -- <name> --machine=statechart  # rung 3, with the transition table and a drift test
+pnpm run new:island -- <name>                      # rung 1 seam: events, selectors, core test, view, route
+pnpm run new:island -- <name> --machine=store       # rung 2, with optimistic-apply + undo tests
+pnpm run new:island -- <name> --machine=statechart  # rung 3, with the transition table and a drift test
 ```
 
 ## The two-machines contract 🤝 \{#the-two-machines-contract}

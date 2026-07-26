@@ -15,19 +15,20 @@ real resource end-to-end in 30 minutes.
 ## Quickstart (local demo)
 
 ```bash
-npm ci               # NOT npm install (see "The two gates")
-npm run db:up        # Postgres 16 in Docker on port 47542
-npm run db:migrate
-npm run db:seed      # demo user + two tenants + todos
-npm run dev:web      # frontend: Vite + hot reload on 47180 — the canonical dev path
+corepack enable && corepack prepare --activate
+pnpm install --frozen-lockfile
+pnpm run db:up        # Postgres 16 in Docker on port 47542
+pnpm run db:migrate
+pnpm run db:seed      # demo user + two tenants + todos
+pnpm run dev:web      # frontend: Vite + hot reload on 47180 — the canonical dev path
 ```
 
 `dev:web` is where **all frontend work** happens. For a prod-like page (the
 server serving a built bundle instead of the Vite dev server):
 
 ```bash
-npm run build:web
-npm run dev:server   # API + built SPA on http://acme.localhost:47100
+pnpm run build:web
+pnpm run dev:server   # API + built SPA on http://acme.localhost:47100
 ```
 
 Open **http://acme.localhost:47100** and **http://globex.localhost:47100** —
@@ -41,17 +42,17 @@ old bundle fails every page, so rebuild or use `dev:web`.
 ## CLI — the agent feedback loop
 
 ```bash
-npm run --silent cli -- register --name Demo --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- tenant list
-npm run --silent cli -- tenant switch acme
-npm run --silent cli -- todo list
-npm run --silent cli -- --tenant globex todo add Something for Globex
-npm run --silent cli -- card list --board team           # team board cards
-npm run --silent cli -- card add Ship it --board team --column todo
-npm run --silent cli -- card move <id> --board team --to in-dev
-npm run --silent cli -- --json whoami        # single JSON document on stdout
-npm run --silent cli -- logout                           # drops the stored token
+pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli tenant list
+pnpm --silent run cli tenant switch acme
+pnpm --silent run cli todo list
+pnpm --silent run cli --tenant globex todo add Something for Globex
+pnpm --silent run cli card list --board team           # team board cards
+pnpm --silent run cli card add Ship it --board team --column todo
+pnpm --silent run cli card move <id> --board team --to in-dev
+pnpm --silent run cli --json whoami        # single JSON document on stdout
+pnpm --silent run cli logout                           # drops the stored token
 ```
 
 Full command set: `health`, `register`, `login`, `logout`, `whoami`,
@@ -90,14 +91,13 @@ type assertions (`as`, except `as const`) are lint errors.
 ## The two gates
 
 ```bash
-npm run check   # static gate: typecheck + lint + lock-lint + depcruise + knip + doc-lint + coverage
-npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s)
+pnpm run check   # static gate: typecheck + lint + lock-lint + depcruise + knip + doc-lint + coverage
+pnpm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s)
 ```
 
 - **`check`** runs typecheck, ESLint (layer boundaries), `lock-lint`
-  (validates `package-lock.json` under npm 11 semantics — the exact rules
-  `npm ci` enforces on CI; add dependencies with
-  `npx -y npm@11 install`), dependency-cruiser, `knip`
+  (proves `pnpm-lock.yaml` matches `package.json` under the frozen-lockfile
+  semantics CI uses; add dependencies with `pnpm add`), dependency-cruiser, `knip`
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
@@ -108,14 +108,18 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   unauthorized through the CLI, asserting taxonomy exit codes. **Done =
   `check` green AND `smoke` green.** Static-green is not done.
 
+Dependency lifecycle scripts are blocked unless explicitly named in
+`pnpm-workspace.yaml`'s minimal `onlyBuiltDependencies` allowlist. The same
+configuration applies a three-day (`4320` minute) minimum-release-age cooldown.
+
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
 <!--count:integration-tests-->48<!--/count--> integration tests against a real
 Postgres and <!--count:e2e-tests-->15<!--/count--> Playwright tests across
 <!--count:e2e-specs-->6<!--/count--> spec files:
 
 ```bash
-npm run test:integration   # repositories, against a real Postgres
-npm run e2e                # real Chromium over the real stack
+pnpm run test:integration   # repositories, against a real Postgres
+pnpm run e2e                # real Chromium over the real stack
 ```
 
 <!--count:config-regression-->47<!--/count--> config-regression probes guard the
@@ -129,14 +133,14 @@ stay green ([ADR-0004](../docs/decisions/0004-no-exceptions-enforcement.md)).
 Start with the scaffolder — the canonical entry point:
 
 ```bash
-npm run new:resource -- <singular-name>    # e.g. note, blog-post
+pnpm run new:resource -- <singular-name>    # e.g. note, blog-post
 ```
 
 It generates the files a resource owns (domain type, use-cases + test,
 repository, web page + route) and prints an ordered checklist for the shared
 files you wire by hand, each with its anchor line and a paste-ready snippet. It
 does **not** edit shared files: the generated code imports symbols that don't
-exist yet, so `npm run check` stays RED through the type-forced steps (domain,
+exist yet, so `pnpm run check` stays RED through the type-forced steps (domain,
 contract, port/use-case, client wiring). Three steps — the CLI command,
 server-route registration, and the web route — typecheck fine while unwired, so
 for those the checklist, not the compiler, enforces completion. Full narrated
@@ -148,7 +152,7 @@ core — the events-in / selectors-out seam of
 [ADR-0005](../docs/decisions/0005-client-application-state.md):
 
 ```bash
-npm run new:island -- <name>               # e.g. personal-board
+pnpm run new:island -- <name>               # e.g. personal-board
 ```
 
 ## Tenant resolution

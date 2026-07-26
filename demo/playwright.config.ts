@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // `agentproofarch_e2e` database (drop/create/migrate/seed) with `localhost`
 // registered as a single-tenant custom domain, serving the built web bundle
 // from `entry.node.ts` — the same server production runs. Kept out of
-// `npm run check` (needs a browser + Postgres); runs as its own CI job.
+// `pnpm run check` (needs a browser + Postgres); runs as its own CI job.
 const PORT = 47990;
 const baseURL = `http://localhost:${PORT}`;
 

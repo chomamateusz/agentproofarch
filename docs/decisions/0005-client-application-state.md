@@ -244,7 +244,7 @@ repo; their conclusions and probe results are summarized in this ADR.
   > feature (todos, auth) remains rung 1 and honestly so — none fires a
   > graduation trigger; the pre-existing features still carry no explicit
   > `core/` folder and gain one when first touched by real client state. New
-  > islands start from `npm run new:island`, which scaffolds the rung-1 seam.
+  > islands start from `pnpm run new:island`, which scaffolds the rung-1 seam.
   >
   > **Portable by construction (landed 2026-07-21).** Both cores were made
   > genuinely portable: `core/index.ts` no longer imports api.ts but exports a
@@ -265,7 +265,7 @@ repo; their conclusions and probe results are summarized in this ADR.
   > `actions.<name>` directly — a coreless starting point (like the todos
   > page), **not** an exemption from decision 2's "no opt-outs". Its checklist
   > and the generated page both name the graduation path: when the feature
-  > grows client state, `npm run new:island -- <name>` plants the rung-1 seam
+  > grows client state, `pnpm run new:island -- <name>` plants the rung-1 seam
   > and the page reads through `<name>Selectors.list` instead of api.ts. The
   > island scaffolder is the one that enforces the uniform seam; the resource
   > scaffolder points at it rather than silently minting a seam-less feature.

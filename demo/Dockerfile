@@ -7,26 +7,29 @@
 FROM node:24-bookworm AS builder
 WORKDIR /build
 ENV CI=true
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && corepack prepare --activate
+RUN pnpm install --frozen-lockfile
 COPY . .
 # Server TS -> dist/server, SPA -> dist/web (both under the gitignored dist/).
 # The final `touch` stamps the bundle as the newest artifact: the dist-freshness
 # guard compares dist/web against the (compiled) contract/client sources by
 # mtime and COPY preserves builder mtimes, so in a sealed per-commit image (where
 # the bundle is always current) this keeps a false STALE BUNDLE warning off boot.
-RUN npx tsc -p tsconfig.docker.json \
-  && npm run build:web \
+RUN pnpm exec tsc -p tsconfig.docker.json \
+  && pnpm run build:web \
   && find dist/web -exec touch {} +
 
-# Production dependency tree only — the honest --omit=dev prune. The OTel
-# sdk-trace-base/core packages the server imports at runtime survive because
-# they are transitive dependencies of the prod @opentelemetry/sdk-trace-node.
+# Production dependency tree only — the honest --prod install. pnpm's strict
+# layout exposes only DECLARED dependencies, so @opentelemetry/sdk-trace-base
+# is a production dependency in its own right: under npm it resolved here only
+# because hoisting flattened it out of @opentelemetry/sdk-trace-node.
 FROM node:24-bookworm AS prod-deps
 WORKDIR /build
 ENV CI=true
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && corepack prepare --activate
+RUN pnpm install --frozen-lockfile --prod
 
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \

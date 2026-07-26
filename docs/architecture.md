@@ -38,8 +38,8 @@ never carries silent gaps.
   HTTP servers, databases, auth providers and platforms are replaceable
   adapters behind ports.
 - **Machine-enforced boundaries**: layer rules are lint rules
-  (eslint-plugin-boundaries + dependency-cruiser), not conventions. `npm run
-  check` is the static gate; `npm run smoke` is the runtime gate — it verifies
+  (eslint-plugin-boundaries + dependency-cruiser), not conventions. `pnpm run
+  check` is the static gate; `pnpm run smoke` is the runtime gate — it verifies
   the installed dependency tree matches the lockfile, boots the real server
   against a real database and drives health → sign-in → todos through the
   CLI, asserting taxonomy exit codes. Static-green is not done; the app must
@@ -472,7 +472,7 @@ rung 1, honestly: no other feature fires a graduation
 trigger. The pre-existing features (todos, auth) predate the seam and carry
 no explicit `core/` folder yet; they gain one when first touched by real
 client state, and every **new** island starts from the scaffolder —
-`npm run new:island -- <name>` generates the rung-1 seam (events, selectors,
+`pnpm run new:island -- <name>` generates the rung-1 seam (events, selectors,
 core test, view, route) with marked extension points for the machine.
 
 The action set is CQRS-partitioned: every action is either a query (safe
@@ -494,7 +494,7 @@ single resource with rollback. Errors surface as `ApiError` carrying the
 is mandatory. Non-trivial behavior is extracted to `*.logic.ts` and unit-tested
 without rendering; component tests use real providers + MSW, never hook mocks.
 React correctness (`react-hooks`, compiler, a11y, query plugins) runs at error
-level in the same `npm run check` gate.
+level in the same `pnpm run check` gate.
 
 ## Errors
 
@@ -1524,7 +1524,7 @@ foundation):
 - **Migrations run at build time** against that environment's own database
   (previews migrate their ephemeral branch — always safe; staging/prod are
   forward-only: destructive changes ship as two deploys, expand → contract). The
-  drizzle migration sequence is mechanically gated (DECIDE F2): `npm run doc-lint`
+  drizzle migration sequence is mechanically gated (DECIDE F2): `pnpm run doc-lint`
   runs `lintMigrations`, which fails the build on a duplicate, gapped or
   non-`<NNNN>` prefix or a `meta/_journal.json` that does not match the `.sql`
   files on disk — a config-regression probe plants a duplicate to prove the gate
@@ -1534,7 +1534,7 @@ foundation):
 - **Tenant subdomains need a real wildcard base domain**; until one is
   attached, web runs single-tenant on `*.vercel.app` while the API and CLI
   stay fully multi-tenant via `X-Tenant` — which is also how `smoke` drives a
-  deployed environment (`npm run smoke:remote` = the same CLI suite against a
+  deployed environment (`pnpm run smoke:remote` = the same CLI suite against a
   deployment URL).
 
 **The five standing controls** (WHY and the click-by-click checklist in
@@ -1787,11 +1787,19 @@ live smoke assertion.
   under `VERCEL` · **REVIEW+AI**: flag any new deploy-only requirement added as
   prose-only instead of a schema refinement, and any widening of the "deployed"
   heuristic that would catch local dev.
-- **Dependency hygiene.** `package-lock.json` is committed and validated by
-  lock-lint in `check`. `npm audit --omit=dev --audit-level=high` runs in CI as an
-  **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
+- **Dependency hygiene.** The lockfile is committed and validated by lock-lint in
+  `check`. A production-only dependency audit at `--audit-level=high` runs in CI
+  as an **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
   gate a build-breaker on transitive noise); a high/critical advisory is triaged,
   and version bumps come through Dependabot/Renovate PRs that pass both gates.
+  The package manager is **pnpm**, chosen for install-time supply-chain hardening
+  ([ADR-0009](decisions/0009-package-manager-pnpm.md)): dependency lifecycle
+  scripts do not run unless the package is named in a reviewed
+  `onlyBuiltDependencies` allowlist, a minimum-release-age cooldown keeps freshly
+  published versions out of the install until they have aged, and the strict
+  non-hoisted `node_modules` makes phantom dependencies unresolvable rather than
+  merely linted. It hardens **installation**: a compromised package's runtime
+  code still executes when the app imports it.
 - **Trace-id exposure is safe.** The W3C trace id in the error fallback is a random
   correlation id — no PII, no capability, actionable only to someone who already
   has backend log access — so surfacing it turns a support ticket into a one-line

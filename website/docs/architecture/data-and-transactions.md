@@ -266,7 +266,7 @@ forward-only, and a destructive change ships as **two** deploys
 (expand → contract), the same vocabulary the contract uses for breaking changes
 ([Errors & API versioning](errors-and-api-versioning.md)).
 
-The sequence itself is mechanically gated (DECIDE F2): `npm run doc-lint` runs
+The sequence itself is mechanically gated (DECIDE F2): `pnpm run doc-lint` runs
 `lintMigrations`, which fails the build on a duplicate, gapped or
 non-`<NNNN>`-prefixed migration, or a `meta/_journal.json` that does not match the
 `.sql` files on disk — and a config-regression probe plants a duplicate to prove

@@ -251,7 +251,7 @@ and `admin` is denied exactly the owner-only rows (the FR-8 split).
 staff-allowed, member allowed-or-denied per policy, and the tenant-less caller
 denied.
 
-**3. The scaffolder generates them.** `npm run new:resource` emits all three
+**3. The scaffolder generates them.** `pnpm run new:resource` emits all three
 outcomes as real tests for a new aggregate — staff allowed, member allowed per the
 baseline collaborative policy (the test title carries the flip-to-forbidden
 guidance for a staff-only aggregate), and the tenant-less caller `forbidden`. A
@@ -279,6 +279,6 @@ new aggregate therefore starts with its denial tests already written.
    hold it.
 3. Extend `EXPECTED` in the test (also exhaustive) with the four cells.
 4. Name it in the use-case's first statement via `authorize` / `authorizeTenant`.
-5. Add the denial tests, or let `npm run new:resource` scaffold them.
+5. Add the denial tests, or let `pnpm run new:resource` scaffold them.
 
 There is no step where a wildcard shortcut exists, which is the point.

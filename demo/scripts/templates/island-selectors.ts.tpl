@@ -24,7 +24,7 @@ export const __SINGULAR_CAMEL__SelectorsOf = <TList>(
 ): { readonly list: TList } => ({
   // Replace `actions.__SINGULAR_CAMEL__` (bound in api.ts, injected by index.web.ts)
   // with this island's real read descriptor: reuse an existing resource query
-  // (e.g. `actions.todos`), or scaffold one via `npm run new:resource`. Until it
-  // is bound, `npm run check` stays RED.
+  // (e.g. `actions.todos`), or scaffold one via `pnpm run new:resource`. Until it
+  // is bound, `pnpm run check` stays RED.
   list: descriptors.list,
 });

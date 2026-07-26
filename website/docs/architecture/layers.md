@@ -11,7 +11,7 @@ not survive contact with an agent generating a hundred files. Here the layers ar
 allowed dependency direction below is spelled out twice — once in
 `eslint.config.js` (`eslint-plugin-boundaries`, denying everything by default)
 and once in `.dependency-cruiser.cjs` — so a wrong import is a red
-`npm run check`, not architectural drift somebody notices six months later.
+`pnpm run check`, not architectural drift somebody notices six months later.
 
 ## The stack 🥞 \{#the-stack}
 
@@ -115,7 +115,7 @@ enforced — see [Client state](client-state.md).
 
 ## What dependency-cruiser enforces 🚢 \{#what-dependency-cruiser-enforces}
 
-`npm run depcruise` runs over `core adapters apps scripts api` as a **second,
+`pnpm run depcruise` runs over `core adapters apps scripts api` as a **second,
 independent** pass. It sees the same graph from a different angle — including
 `node_modules` targets, which is how the vendor-containment bans work — and it
 covers directories the ESLint element map does not classify.
@@ -150,7 +150,7 @@ things the other misses, and both sit in the same red gate.
 
 ## What knip enforces ✂️ \{#what-knip-enforces}
 
-`npm run knip` is the dead-weight gate — the reason a generated file that nothing
+`pnpm run knip` is the dead-weight gate — the reason a generated file that nothing
 imports cannot quietly accumulate. Its rule severities are a deliberate split
 (`knip.jsonc`):
 
@@ -181,12 +181,12 @@ and `visual/`, and every `*.test.ts`.
 ## Where the rules run 🏃 \{#where-the-rules-run}
 
 ```bash
-npm run check
+pnpm run check
 # = typecheck && typecheck:islands && lint && lock-lint
 #   && depcruise && knip && doc-lint && test:coverage
 ```
 
-Static-green is not done: `npm run smoke` is the second, runtime gate — it boots
+Static-green is not done: `pnpm run smoke` is the second, runtime gate — it boots
 the real server against a real database and drives health, sign-in and todos
 through the CLI, asserting taxonomy exit codes. See
 [CI gates](../operations/ci-gates.md).
@@ -231,7 +231,7 @@ turns a contract violation into a loud failure instead of corrupted state (see
 
 ## Divergence cannot be silent 📢 \{#divergence-cannot-be-silent}
 
-`npm run doc-lint` closes the loop from the other direction: removing an enforcer
+`pnpm run doc-lint` closes the loop from the other direction: removing an enforcer
 from config without updating the docs that promise it fails the gate
 ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Weakening a
 *structural* rule — letting a client import `core/server`, a framework into

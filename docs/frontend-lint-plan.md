@@ -2,7 +2,7 @@
 
 Enforcement spec for `architecture.md` §Frontend. Method: **warn → fix →
 error** — a rule lands at `warn`, violations are fixed in the same or next
-session, then it is promoted; a rule only counts once it fails `npm run check`.
+session, then it is promoted; a rule only counts once it fails `pnpm run check`.
 Rules below are grouped into phases in promotion order. Rationale and sources:
 [frontend-comparison.md](frontend-comparison.md).
 
@@ -199,7 +199,7 @@ and why.
   architectural-exception | defensive-runtime-check`.
 - Unused `eslint-disable` directives are themselves errors: the ESLint config
   sets `linterOptions.reportUnusedDisableDirectives: 'error'` (wired), so a
-  disable that no longer suppresses anything fails `npm run check`. A
+  disable that no longer suppresses anything fails `pnpm run check`. A
   `scripts/lint-suppressions.mjs` counter that gates the *total* suppression
   count (fails on any increase) is **planned, not yet built**.
 - "Make lint pass" is never a standalone instruction to an agent; every new
@@ -238,7 +238,7 @@ honest is not worth it now.
 
 1. Phase 1 plugins + vitest/jsdom fix + error boundary (one session).
 2. Phase 2 inner boundaries + depcruise mirror + proof test (a temporary
-   violating file must fail `npm run check`, then is removed — same as the
+   violating file must fail `pnpm run check`, then is removed — same as the
    original layer-boundary proof).
 3. Phase 3 restricted rules, promoted per the ratchet.
 4. Phase 4 plugin only after Phases 1–3 are at `error` and stable.

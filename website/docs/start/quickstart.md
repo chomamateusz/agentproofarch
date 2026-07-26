@@ -37,8 +37,8 @@ drivable from both the web app and the CLI:
 | Tool | Version | Why exactly this |
 |---|---|---|
 | **Node** | 24 (`.nvmrc` pins it) | `engines.node` is `24.x`; the CI runner is Node 24. |
-| **npm** | `>=11 <12` | `packageManager` is `npm@11.16.0`, matching the npm major bundled with Node 24; `lock-lint` validates npm 11 semantics. |
-| **Docker** | any recent | `npm run db:up` starts Postgres 16 and Mailpit from `docker-compose.dev.yml`. |
+| **pnpm** | `10.34.5` | `packageManager` pins the exact release; `engines.pnpm` requires pnpm 10 or newer. |
+| **Docker** | any recent | `pnpm run db:up` starts Postgres 16 and Mailpit from `docker-compose.dev.yml`. |
 
 Everything runs from `demo/` — it has its own `package.json`. The repository root
 holds `docs/` (normative architecture + PRD) and `website/` (this site).
@@ -48,15 +48,19 @@ holds `docs/` (normative architecture + PRD) and `website/` (this site).
 ```bash
 git clone https://github.com/chomamateusz/agentproofarch.git
 cd agentproofarch/demo
-nvm use          # or Corepack — anything that lands you on Node 24 / npm 11
-npm ci
+nvm use
+corepack enable
+corepack prepare --activate
+pnpm install --frozen-lockfile
 ```
 
-:::warning[Keep npm on the pinned major]
-`lock-lint` (part of `npm run check`) validates `package-lock.json` under npm 11
-semantics — exactly what `npm ci` enforces on the Node 24 CI runner. Add
-dependencies with `npx -y npm@11 install <pkg>` so the regenerated lockfile uses
-the same npm major as CI.
+:::warning[Keep the lock and supply-chain policy intact]
+`lock-lint` proves `pnpm-lock.yaml` matches `package.json` with
+`pnpm install --frozen-lockfile --lockfile-only`, the same frozen semantics used
+by CI and Docker. Add dependencies with `pnpm add <pkg>` and commit the settled
+lockfile. Dependency build scripts are blocked unless explicitly allowlisted in
+`onlyBuiltDependencies`, and `minimumReleaseAge: 4320` keeps releases out for
+three days.
 :::
 
 ## 2. Environment: nothing to do (locally) ⚙️ \{#2-environment-nothing-to-do-locally}
@@ -92,9 +96,9 @@ the env schema against — a new env key missing from it fails `check`.
 ## 3. Database, mail sink, seed 🗄️ \{#3-database-mail-sink-seed}
 
 ```bash
-npm run db:up            # Postgres 16 on 47542 + Mailpit on 47925 (SMTP) / 47980 (UI)
-npm run db:migrate       # tsx adapters/db/migrate.ts — applies the drizzle migrations
-npm run db:seed          # idempotent; running it twice is a no-op
+pnpm run db:up            # Postgres 16 on 47542 + Mailpit on 47925 (SMTP) / 47980 (UI)
+pnpm run db:migrate       # tsx adapters/db/migrate.ts — applies the drizzle migrations
+pnpm run db:seed          # idempotent; running it twice is a no-op
 ```
 
 The seed is worth knowing by heart, because the walkthroughs and the e2e specs all
@@ -127,19 +131,19 @@ Two dev paths, and picking the wrong one is the most common first-run
 frustration:
 
 ```bash
-npm run dev:web          # Vite + hot reload on 47180 — the canonical frontend path
+pnpm run dev:web          # Vite + hot reload on 47180 — the canonical frontend path
 ```
 
 ```bash
-npm run build:web        # …or a prod-like page: build the SPA first,
-npm run dev:server       # then the API + built bundle on http://acme.localhost:47100
+pnpm run build:web        # …or a prod-like page: build the SPA first,
+pnpm run dev:server       # then the API + built bundle on http://acme.localhost:47100
 ```
 
 :::warning[`dev:server` serves a gitignored build]
 `dev:server` serves whatever `dist/web` currently holds. After a contract change a
 stale bundle fails **every** page with "response does not match the contract" (a
 real incident, 2026-07-12). The server warns at boot when `dist/web` is missing or
-older than the web/contract sources; on that warning either `npm run build:web` or
+older than the web/contract sources; on that warning either `pnpm run build:web` or
 switch to `dev:web`. **All frontend work goes through `dev:web`.**
 :::
 
@@ -155,14 +159,14 @@ per-subdomain login is a localhost artefact, not the design.
 
 ## 5. Say hello from the CLI ⌨️ \{#5-say-hello-from-the-cli}
 
-The CLI is the reference client and the agent feedback loop. `--silent` keeps npm's
+The CLI is the reference client and the agent feedback loop. `--silent` keeps pnpm's
 own chatter off stdout, so `--json` really does emit one document:
 
 ```bash
-npm run --silent cli -- --json health
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- whoami
-npm run --silent cli -- --tenant acme todo list
+pnpm --silent run cli --json health
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli whoami
+pnpm --silent run cli --tenant acme todo list
 ```
 
 Human output of that flow against a fresh seed:
@@ -185,11 +189,11 @@ parenthesis on a todo is the first 8 characters of its row id; the seed uses
 ## 6. Run the gates 🛡️ \{#6-run-the-gates}
 
 ```bash
-npm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
-npm run smoke            # runtime: isolated DB, real server, CLI flow — ~5s
+pnpm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
+pnpm run smoke            # runtime: isolated DB, real server, CLI flow — ~5s
 ```
 
-`smoke` assumes `npm run db:up` is running. It does **not** touch your dev-seeded
+`smoke` assumes `pnpm run db:up` is running. It does **not** touch your dev-seeded
 database: it drops and recreates `agentproofarch_smoke`, migrates and seeds that,
 boots `entry.node.ts` on an ephemeral port, and drives the flow. A green run prints
 these phases (the port is ephemeral and the elapsed time is measured, so both vary):
@@ -208,9 +212,9 @@ The browser gate needs Chromium and a built bundle, so it is a separate command
 (and a separate CI job) — run it for any `apps/web` change:
 
 ```bash
-npx playwright install --with-deps chromium
-npm run build:web
-npm run e2e
+pnpm exec playwright install --with-deps chromium
+pnpm run build:web
+pnpm run e2e
 ```
 
 :::danger[Static-green is not done]
@@ -223,19 +227,19 @@ either go green, and do not rerun a red job until it passes — a flake is a P1 
 
 ```mermaid
 flowchart TD
-  clone["git clone · cd demo"] --> install["npm ci<br/>never npm install"]
-  install --> up["npm run db:up<br/>Postgres 47542 + Mailpit 47925/47980"]
-  up --> migrate["npm run db:migrate"]
-  migrate --> seed["npm run db:seed<br/>demo user · acme + globex"]
+  clone["git clone · cd demo"] --> install["corepack prepare --activate<br/>pnpm install --frozen-lockfile"]
+  install --> up["pnpm run db:up<br/>Postgres 47542 + Mailpit 47925/47980"]
+  up --> migrate["pnpm run db:migrate"]
+  migrate --> seed["pnpm run db:seed<br/>demo user · acme + globex"]
   seed --> choose{"What are you doing?"}
-  choose -->|"frontend work"| devweb["npm run dev:web<br/>Vite on 47180"]
-  choose -->|"prod-like page"| build["npm run build:web"]
-  build --> devserver["npm run dev:server<br/>API + SPA on 47100"]
-  choose -->|"verify a capability"| clihello["npm run --silent cli -- --json health"]
+  choose -->|"frontend work"| devweb["pnpm run dev:web<br/>Vite on 47180"]
+  choose -->|"prod-like page"| build["pnpm run build:web"]
+  build --> devserver["pnpm run dev:server<br/>API + SPA on 47100"]
+  choose -->|"verify a capability"| clihello["pnpm --silent run cli --json health"]
   devweb --> gates
   devserver --> gates
   clihello --> gates
-  gates["npm run check<br/>npm run smoke"] --> done["Done = both green"]
+  gates["pnpm run check<br/>pnpm run smoke"] --> done["Done = both green"]
 ```
 
 ## Ports 🔌 \{#ports}
@@ -256,12 +260,12 @@ avoided so the stack never collides with whatever else you are running.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Every page fails with "response does not match the contract" | `dist/web` is a stale build and `dev:server` is serving it | `npm run build:web`, or use `dev:web` |
-| `check` fails in `lock-lint` after adding a dependency | the lockfile was regenerated with a different npm major | reinstall with `npx -y npm@11 install <pkg>` and commit the regenerated lockfile |
-| `smoke` fails with "Dependencies are not installed" or a lockfile-drift list | `node_modules` does not match `package-lock.json` | `npm ci` |
+| Every page fails with "response does not match the contract" | `dist/web` is a stale build and `dev:server` is serving it | `pnpm run build:web`, or use `dev:web` |
+| `check` fails in `lock-lint` after adding a dependency | `package.json` and `pnpm-lock.yaml` are out of sync | run `pnpm install` with the pinned package manager and commit the settled lockfile |
+| `smoke` fails with "Dependencies are not installed" or a lockfile-drift list | `node_modules` does not match `pnpm-lock.yaml` | `pnpm install --frozen-lockfile` |
 | Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
 | Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
-| `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `npm run db:up`, then wait for its healthcheck |
+| `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `pnpm run db:up`, then wait for its healthcheck |
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
 

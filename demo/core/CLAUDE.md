@@ -43,5 +43,5 @@ adapter and app is written against.
 ## Verify you didn't break this layer
 
 ```bash
-npm run depcruise
+pnpm run depcruise
 ```

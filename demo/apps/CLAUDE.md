@@ -33,13 +33,13 @@ logic lives here.
   selectors out); UI is presentational; the client is constructed only in
   `web/src/api.ts` (see [architecture §Frontend](../../docs/architecture.md#frontend-appsweb)).
 - Adding a resource walks the 12-step chain; start with
-  `npm run new:resource -- <singular-name>` and finish every checklist item
+  `pnpm run new:resource -- <singular-name>` and finish every checklist item
   (missing CLI command / web route / server route still typecheck — the
   checklist, not the compiler, guarantees they are wired).
-- Verify features through the CLI first (`npm run --silent cli -- --json …`).
+- Verify features through the CLI first (`pnpm --silent run cli --json …`).
 
 ## Verify you didn't break this layer
 
 ```bash
-npm run depcruise
+pnpm run depcruise
 ```

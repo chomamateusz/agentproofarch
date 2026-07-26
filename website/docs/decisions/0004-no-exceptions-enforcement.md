@@ -10,7 +10,7 @@ description: CI gates, post-deploy verification, and probes that keep the enforc
 
 ## Summary 📋 \{#summary}
 
-Both gates — the static `check` and the runtime `smoke` — are **required CI checks on every PR**, run from a clean `npm ci`. Every production deploy is independently re-verified end to end. And the enforcers themselves are enforced: config-regression probes feed a deliberately violating fixture to each rule and assert the gate still goes red.
+Both gates — the static `check` and the runtime `smoke` — are **required CI checks on every PR**, run from a clean `pnpm install --frozen-lockfile`. Every production deploy is independently re-verified end to end. And the enforcers themselves are enforced: config-regression probes feed a deliberately violating fixture to each rule and assert the gate still goes red.
 
 ## The WHY 🤔 \{#the-why}
 
@@ -26,7 +26,7 @@ The lesson is the project's own rule made load-bearing: **static-green is not do
 flowchart TD
     f1["Failure class 1:<br/>static-green, production broken"] --> smoke["runtime gate: smoke<br/>boot the real server, drive the CLI"]
     f1 --> pds["post-deploy verification<br/>smoke:remote against the real deploy"]
-    f2["Failure class 2:<br/>stale local node_modules / DB"] --> clean["every gate runs from a clean npm ci in CI<br/>— a CI checkout cannot carry stale state"]
+    f2["Failure class 2:<br/>stale local node_modules / DB"] --> clean["every gate runs from a clean pnpm install --frozen-lockfile in CI<br/>— a CI checkout cannot carry stale state"]
     f3["Meta-risk:<br/>someone weakens a rule to go green"] --> probes["config-regression probes<br/>a violating fixture MUST fail the gate"]
     f3 --> doclint["doc-lint: docs ↔ config, both ways"]
 ```
@@ -34,11 +34,11 @@ flowchart TD
 ## Decided ⚖️ \{#decided}
 
 1. **Both gates are required CI checks on every PR** (`ci` workflow, on `pull_request` and `push` to `main`):
-   - **`check`** — `npm ci && npm run check`, the static gate from a clean install: typecheck, ESLint layer boundaries, `lock-lint`, dependency-cruiser, doc-lint and vitest with coverage. *(The chain has since grown to eight members, adding `typecheck:islands` and `knip` — see [CI gates](../operations/ci-gates.md).)*
-   - **`smoke`** — the runtime gate against a `postgres:16` service container. It verifies the installed tree matches `package-lock.json`, drops and recreates the isolated `agentproofarch_smoke` database, migrates, seeds, boots the real server and drives health → sign-in → todos → unauthorized through the CLI. **A clean CI checkout structurally cannot carry stale local state**, which closes the second failure class.
+   - **`check`** — `pnpm install --frozen-lockfile && pnpm run check`, the static gate from a clean install: typecheck, ESLint layer boundaries, `lock-lint`, dependency-cruiser, doc-lint and vitest with coverage. *(The chain has since grown to eight members, adding `typecheck:islands` and `knip` — see [CI gates](../operations/ci-gates.md).)*
+   - **`smoke`** — the runtime gate against a `postgres:16` service container. It verifies the installed tree matches `pnpm-lock.yaml`, drops and recreates the isolated `agentproofarch_smoke` database, migrates, seeds, boots the real server and drives health → sign-in → todos → unauthorized through the CLI. **A clean CI checkout structurally cannot carry stale local state**, which closes the second failure class.
 2. **Post-deploy verification against real production.** `post-deploy-smoke` listens for the `deployment_status` event and, on a successful deployment, checks out the deployed commit and runs `smoke:remote` against it. This is the only gate that exercises the actual platform contract that broke in #10–#15: it turns "deployed" into "deployed and verified working".
 3. **Config-regression probes.** The lint and dependency-cruiser configurations are themselves covered by behavioural tests: a deliberately violating fixture **must** fail the gate. Weaken or delete a rule, and the corresponding probe goes green where it should be red — so the test suite fails. *You cannot disable a rule silently and keep CI green.*
-4. **Doc-lint** (`npm run doc-lint`, wired into `check`) keeps docs and enforcer configuration in sync **both ways**:
+4. **Doc-lint** (`pnpm run doc-lint`, wired into `check`) keeps docs and enforcer configuration in sync **both ways**:
    - **docs → config**: an in-script manifest maps prose-promised guarantees (layer boundaries, `@vercel/*` and `@neondatabase/*` containment, "no `any`", "no `as`", "features are islands") to their concrete ESLint / dependency-cruiser entries, each with the doc section it is promised in. Any literal `agentproofarch/<rule>` id spelled in the docs is checked too.
    - **config → docs**: every custom rule in `eslint-plugin-agentproofarch/rules` must be documented **by name** somewhere under `docs/`, so an enforcer cannot be added in silence.
    - **leaked-delimiter scan**: every git-tracked `.md` is read and the check fails if a stray tool/XML delimiter survived into committed prose, so stray agent-output markup cannot ship in the docs.

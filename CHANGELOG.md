@@ -36,7 +36,7 @@ before that lives in the git history only.
   (a non-required check). The site's changelog page is generated from this file, and a standing
   convention now requires a behaviour-visible change to update `website/docs` and
   add an entry here in the same PR.
-- Mermaid parse gate for the docs site (`npm run check:mermaid`): mermaid renders
+- Mermaid parse gate for the docs site (`pnpm run check:mermaid`): mermaid renders
   client-side, so a green Docusaurus build never parses a diagram. The check feeds
   every fenced block to mermaid's own parser and fails on a syntax error; it runs in
   `docs-ci.yml` beside `typecheck` and in `docs-deploy.yml` before the Pages upload.
@@ -46,6 +46,12 @@ before that lives in the git history only.
 
 ### Changed
 
+- Package management migrated from npm to pnpm with frozen-lockfile gates,
+  blocked dependency build scripts, and a three-day release cooldown; the strict
+  non-hoisted layout surfaced one phantom dependency — the Docker runtime image
+  had been resolving `@opentelemetry/sdk-trace-base` through npm's hoisting, and
+  it is now declared as the production dependency it always was
+  ([#81](https://github.com/chomamateusz/agentproofarch/pull/81)).
 - Owner round-6 docs notes: sidebar entries lead with their emoji (content
   headings keep them trailing), every sidebar emoji is now unique — Quickstart
   moves to 🔥, ADRs to ⚖️ — and the generated changelog page carries a

@@ -119,7 +119,7 @@ describe('generateResource', () => {
     // being a coreless rung-0 start and names the new:island graduation path.
     const page = result.files.find((file) => file.path.endsWith('BlogPostsPage.tsx'))?.contents ?? '';
     expect(page).toContain('ADR-0005');
-    expect(page).toContain('npm run new:island -- blog-post');
+    expect(page).toContain('pnpm run new:island -- blog-post');
   });
 
   it('reconciles the two scaffolders: the checklist routes the rung-1 core through new:island', () => {
@@ -131,7 +131,7 @@ describe('generateResource', () => {
     });
     expect(checklist).toContain('RUNG-1 CORE');
     expect(checklist).toContain('no opt-outs');
-    expect(checklist).toContain('npm run new:island -- diary-entry');
+    expect(checklist).toContain('pnpm run new:island -- diary-entry');
     expect(checklist).toContain('diaryEntrySelectors.list');
     expect(checklist).toContain('actions.diaryEntries');
   });
@@ -176,9 +176,9 @@ describe('generateResource', () => {
       repoRoot: sandbox,
       dryRun: true,
     });
-    expect(checklist).toContain('npm run check` will stay RED');
+    expect(checklist).toContain('pnpm run check` will stay RED');
     expect(checklist).toContain('write core tests before wiring the UI');
-    expect(checklist).toContain('npm run check && npm run smoke');
+    expect(checklist).toContain('pnpm run check && pnpm run smoke');
     expect(checklist).toContain("path: '/api/gadgets'");
     // The authorization step is part of the type-forced RED chain.
     expect(checklist).toContain('AUTHORIZATION');

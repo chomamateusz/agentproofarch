@@ -162,11 +162,11 @@ single request through it in
 
 | Gate | Command | What it proves | Required check? |
 |---|---|---|---|
-| **Static** | `npm run check` | typecheck (both TS projects) + ESLint boundaries + `lock-lint` + dependency-cruiser + knip + `doc-lint` + vitest with a coverage ratchet | yes — `check` |
-| **Runtime** | `npm run smoke` | recreates an isolated database, boots the real server, drives health → sign-in → todos → unauthorized through the CLI asserting taxonomy exit codes | yes — `smoke` |
-| **Browser** | `npm run e2e` | a real Chromium over the real stack: 15 tests across 6 spec files | yes — `e2e` |
+| **Static** | `pnpm run check` | typecheck (incl. the island TS project) + ESLint boundaries + `lock-lint` + dependency-cruiser + knip + `doc-lint` + vitest with a coverage ratchet | yes — `check` |
+| **Runtime** | `pnpm run smoke` | recreates an isolated database, boots the real server, drives health → sign-in → todos → unauthorized through the CLI asserting taxonomy exit codes | yes — `smoke` |
+| **Browser** | `pnpm run e2e` | a real Chromium over the real stack: 15 tests across 6 spec files | yes — `e2e` |
 | **Container** | `selfhost.yml` | builds the image, boots `docker-compose.prod.yml`, smokes the container through the CLI | yes — `docker-smoke` |
-| **Pixel** | `npm run visual` | Playwright `toHaveScreenshot()` against CI-rendered baselines ([ADR-0008](../decisions/0008-visual-regression.md)) | **no** — by design |
+| **Pixel** | `pnpm run visual` | Playwright `toHaveScreenshot()` against CI-rendered baselines ([ADR-0008](../decisions/0008-visual-regression.md)) | **no** — by design |
 | **Review** | `ai-review.yml` | fail-closed AI diff review; only a positive `PASS` verdict is green | **yes**, on `main` (since 2026-07-26) |
 
 :::danger[Done = `check` green AND `smoke` green]

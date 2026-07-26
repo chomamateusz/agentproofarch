@@ -2,7 +2,7 @@
 
 - `docs/` — normative architecture (`architecture.md`) and the PRD. Read
   these before designing anything; PRD §3 is the contract.
-- `demo/` — the entire implementation (own `package.json`; run all npm
+- `demo/` — the entire implementation (own `package.json`; run all pnpm
   commands from `demo/`). Implementation rules, layer boundaries and the
   verification workflow live in `demo/CLAUDE.md`.
 - `website/` — the Docusaurus documentation site (own `package.json`) published

@@ -1,7 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 
 // Integration tests hit a real Postgres and are opt-in: the default `vitest run`
-// (npm run test / test:coverage) must stay database-free for the CI check job.
+// (pnpm run test / test:coverage) must stay database-free for the CI check job.
 // Enabling `VITEST_INTEGRATION=1` adds the `integration` project; the `node`
 // project always excludes *.integration.test.ts so they never leak into a
 // default run (they still match the `**/*.test.ts` glob).
@@ -34,7 +34,7 @@ export default defineConfig({
         // depress the database-free ratchet floor below.
         'scripts/e2e-server.ts',
         // Smoke-gate orchestration, same rationale: these boot the real server /
-        // drive a real deploy through the CLI (`npm run smoke` / `smoke:remote`),
+        // drive a real deploy through the CLI (`pnpm run smoke` / `smoke:remote`),
         // so they have no database-free unit surface and are exercised by the
         // smoke CI job — counting them as 0% would falsely depress the floor.
         'scripts/smoke.ts',
@@ -46,15 +46,15 @@ export default defineConfig({
         // reason as the smoke/e2e scripts above.
         'scripts/mailpit.ts',
         // doc-lint is a check-gate orchestration script (a top-level program that
-        // scans docs/config and process.exit()s), run by `npm run doc-lint`
-        // inside `npm run check`, not by vitest. Like the smoke/e2e scripts above
+        // scans docs/config and process.exit()s), run by `pnpm run doc-lint`
+        // inside `pnpm run check`, not by vitest. Like the smoke/e2e scripts above
         // it has no database-free unit surface, so counting it as 0% would
         // falsely depress the branch floor.
         'scripts/doc-lint.ts',
       ],
       // Ratchet floor, not aspiration: each threshold is the measured coverage
       // of the default (database-free) `vitest run --coverage`, rounded DOWN to
-      // the whole percent. A regression below the floor fails `npm run check`;
+      // the whole percent. A regression below the floor fails `pnpm run check`;
       // raise the floor whenever coverage climbs. Integration-only files
       // (repositories.ts, cards-repository.ts, migrate.ts, …) read 0% here
       // because they are covered by `test:integration`, which runs where

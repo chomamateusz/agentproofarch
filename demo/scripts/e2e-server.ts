@@ -35,7 +35,7 @@ const setupDatabase = async (adminUrl: string): Promise<void> => {
     await client.query(`CREATE DATABASE ${E2E_DB}`);
   } catch (cause) {
     fail(
-      `Could not prepare the e2e database "${E2E_DB}". Is the dev Postgres up (npm run db:up)?\n${String(cause)}`,
+      `Could not prepare the e2e database "${E2E_DB}". Is the dev Postgres up (pnpm run db:up)?\n${String(cause)}`,
     );
   } finally {
     await client.end();
@@ -159,7 +159,7 @@ try {
   await registerLocalhostTenant(e2eDatabaseUrl);
   console.log('e2e: waiting for Mailpit...');
   await waitForMailpit(MAILPIT_API_URL).catch((cause: unknown) => {
-    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (npm run db:up)?\n${String(cause)}`);
+    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (pnpm run db:up)?\n${String(cause)}`);
   });
   await clearMailpit(MAILPIT_API_URL);
   await buildWebIfStale();

@@ -6,7 +6,7 @@ the flake doctrine (`demo/CLAUDE.md`: a flake is a P1 bug, never rerun-to-green)
 
 ## Context
 
-The browser gate (`npm run e2e`) proves behaviour — a login lands on the ledger,
+The browser gate (`pnpm run e2e`) proves behaviour — a login lands on the ledger,
 the WIP guard blocks, a card survives a reload — but it is blind to appearance.
 A theme token, an MUI upgrade or a stray `sx` value can repaint the whole shell
 without failing a single assertion. The one thing this repo cannot accept in
@@ -48,7 +48,7 @@ away, or not screenshotted at all.
 
 3. **A separate suite, structurally isolated from the required gates.** The specs
    live in `demo/visual/` with their own `playwright.visual.config.ts`
-   (`npm run visual`), not in `demo/e2e/`. The required check `e2e` therefore
+   (`pnpm run visual`), not in `demo/e2e/`. The required check `e2e` therefore
    cannot go red because a screenshot moved — the isolation is a directory, not a
    filter someone can forget to apply.
 
@@ -112,7 +112,7 @@ away, or not screenshotted at all.
 
 ## Consequences
 
-- `npm run visual` is a no-op-ish local convenience on macOS (it drives the pages
+- `pnpm run visual` is a no-op-ish local convenience on macOS (it drives the pages
   but compares nothing). Visual feedback for a developer comes from the CI job's
   uploaded diff artifact, not from a local run — a deliberate trade for baselines
   that mean one thing everywhere.

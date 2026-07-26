@@ -15,7 +15,7 @@ export type { __SINGULAR_PASCAL__Event, MergedItem, ServerItem } from './core/in
  * The store is optimistic: it needs a gateway that persists each edit (see
  * __SINGULAR_PASCAL__Gateway in core/store.ts). Bind a real one in api.ts (a
  * core/client mutation adapter) and import it here — until `__SINGULAR_CAMEL__Gateway`
- * exists, `npm run check` stays RED. See docs/architecture.md §Client application
+ * exists, `pnpm run check` stays RED. See docs/architecture.md §Client application
  * state (ADR-0005).
  */
 const core = create__SINGULAR_PASCAL__Core({
