@@ -30,9 +30,14 @@ export interface Run {
   stdout: string;
   stderr: string;
 }
-export const run = (cmd: string, args: string[], env: NodeJS.ProcessEnv): Promise<Run> =>
+export const run = (
+  cmd: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  cwd: string = rootDir,
+): Promise<Run> =>
   new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd: rootDir, env: { ...process.env, ...env } });
+    const child = spawn(cmd, args, { cwd, env: { ...process.env, ...env } });
     let stdout = '';
     let stderr = '';
     child.stdout?.on('data', (chunk) => {
