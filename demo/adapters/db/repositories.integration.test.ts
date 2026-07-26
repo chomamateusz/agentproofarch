@@ -15,6 +15,7 @@ import {
   moveCard,
   removeMember,
   updateMember,
+  type Ctx,
 } from '#core/server/index.js';
 
 import type { Db } from './client.js';
@@ -431,7 +432,7 @@ describe('team board rules against Postgres', () => {
     staffRole: 'owner',
     memberId: null,
   };
-  const ctx = { identity: identityA };
+  const ctx: Ctx = { identity: identityA, tenantCreationMode: 'open' };
   const teamDeps = () => ({
     cards: cardRepo(),
     ids: { nextId: () => `itest-team-${crypto.randomUUID()}` },
@@ -527,7 +528,7 @@ describe('team board rules against Postgres', () => {
 // creates itself, so the seeded rows the cascade suite counts stay intact.
 describe('MemberRepository + member use-cases', () => {
   const memberRepo = () => createMemberRepository(db);
-  const staffCtx = (tenantId: string): { identity: Identity } => ({
+  const staffCtx = (tenantId: string): Ctx => ({
     identity: {
       userId: `staff-of-${tenantId}`,
       email: 'staff@example.com',
@@ -538,6 +539,7 @@ describe('MemberRepository + member use-cases', () => {
       staffRole: 'owner',
       memberId: null,
     },
+    tenantCreationMode: 'open',
   });
   const memberDeps = () => ({
     members: memberRepo(),

@@ -34,6 +34,11 @@ const memberIdentity: Identity = {
   memberId: 'm-1',
 };
 
+const ownerIdentity: Identity = {
+  ...identity,
+  staffRole: 'owner',
+};
+
 const fakeTenants = (initialTenants: Tenant[] = []) => {
   const tenants = [...initialTenants];
   const ownerGrants: OwnerGrantRecord[] = [];
@@ -80,7 +85,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'new-co', name: 'New Co' },
       deps(store.repo),
     );
@@ -103,7 +108,35 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity: memberIdentity },
+      { identity: memberIdentity, tenantCreationMode: 'open' },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
+  });
+
+  it('denies a visitor under staff mode before touching the repository', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity, tenantCreationMode: 'staff' },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
+  });
+
+  it('denies an owner under closed mode before touching the repository', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity: ownerIdentity, tenantCreationMode: 'closed' },
       { slug: 'new-co', name: 'New Co' },
       deps(store.repo),
     );
@@ -117,7 +150,7 @@ describe('createTenant', () => {
     const store = fakeTenants([{ id: 't-acme', slug: 'acme', name: 'Acme' }]);
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'acme', name: 'Acme Duplicate' },
       deps(store.repo),
     );
@@ -134,7 +167,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: '  New Co!!  ', name: 'New Co' },
       deps(store.repo),
     );
@@ -147,7 +180,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'admin', name: 'Invalid' },
       deps(store.repo),
     );
@@ -164,7 +197,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'valid-co', name: '   ' },
       deps(store.repo),
     );

@@ -50,16 +50,16 @@ describe('todos use-cases', () => {
       { id: '1', tenantId: 't-acme', title: 'a', createdBy: 'u1', createdAt: 'x' },
       { id: '2', tenantId: 't-globex', title: 'b', createdBy: 'u1', createdAt: 'x' },
     ]);
-    const result = await listTodos({ identity: identity('t-acme') }, deps(repo));
+    const result = await listTodos({ identity: identity('t-acme'), tenantCreationMode: 'open' }, deps(repo));
     expect(result.ok && result.value.map((t) => t.id)).toEqual(['1']);
   });
 
   it('denies a tenant-less caller with forbidden (default-deny predicate runs first)', async () => {
     const { repo } = fakeRepo();
-    const listed = await listTodos({ identity: identity(null) }, deps(repo));
+    const listed = await listTodos({ identity: identity(null), tenantCreationMode: 'open' }, deps(repo));
     expect(listed).toMatchObject({ ok: false, error: { code: 'forbidden' } });
 
-    const added = await addTodo({ identity: identity(null) }, { title: 'x' }, deps(repo));
+    const added = await addTodo({ identity: identity(null), tenantCreationMode: 'open' }, { title: 'x' }, deps(repo));
     expect(added).toMatchObject({ ok: false, error: { code: 'forbidden' } });
   });
 
@@ -67,20 +67,20 @@ describe('todos use-cases', () => {
     const { repo, store } = fakeRepo([
       { id: '1', tenantId: 't-acme', title: 'a', createdBy: 'u1', createdAt: 'x' },
     ]);
-    const listed = await listTodos({ identity: memberIdentity }, deps(repo));
+    const listed = await listTodos({ identity: memberIdentity, tenantCreationMode: 'open' }, deps(repo));
     expect(listed.ok && listed.value.map((t) => t.id)).toEqual(['1']);
 
-    const added = await addTodo({ identity: memberIdentity }, { title: 'from member' }, deps(repo));
+    const added = await addTodo({ identity: memberIdentity, tenantCreationMode: 'open' }, { title: 'from member' }, deps(repo));
     expect(added).toMatchObject({ ok: true, value: { tenantId: 't-acme', title: 'from member' } });
     expect(store).toHaveLength(2);
   });
 
   it('validates input and stamps tenant + author on create', async () => {
     const { repo, store } = fakeRepo();
-    const invalid = await addTodo({ identity: identity('t-acme') }, { title: '  ' }, deps(repo));
+    const invalid = await addTodo({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { title: '  ' }, deps(repo));
     expect(invalid).toMatchObject({ ok: false, error: { code: 'validation' } });
 
-    const created = await addTodo({ identity: identity('t-acme') }, { title: 'Ship it' }, deps(repo));
+    const created = await addTodo({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { title: 'Ship it' }, deps(repo));
     expect(created).toMatchObject({
       ok: true,
       value: { tenantId: 't-acme', createdBy: 'u1', title: 'Ship it' },

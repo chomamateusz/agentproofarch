@@ -92,13 +92,13 @@ const seededDomain = (over: Partial<TenantDomain> = {}): TenantDomain => ({
 describe('domain use-cases — authorization matrix', () => {
   it('listDomains is readable by owner AND admin, forbidden to member and visitor', async () => {
     const { deps } = fakes([seededDomain()]);
-    expect((await listDomains({ identity: owner }, deps)).ok).toBe(true);
-    expect((await listDomains({ identity: admin }, deps)).ok).toBe(true);
-    expect(await listDomains({ identity: member }, deps)).toMatchObject({
+    expect((await listDomains({ identity: owner, tenantCreationMode: 'open' }, deps)).ok).toBe(true);
+    expect((await listDomains({ identity: admin, tenantCreationMode: 'open' }, deps)).ok).toBe(true);
+    expect(await listDomains({ identity: member, tenantCreationMode: 'open' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
-    expect(await listDomains({ identity: visitor }, deps)).toMatchObject({
+    expect(await listDomains({ identity: visitor, tenantCreationMode: 'open' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -106,7 +106,7 @@ describe('domain use-cases — authorization matrix', () => {
 
   it('addDomain is owner-only: an admin is forbidden before any write', async () => {
     const { deps, store } = fakes();
-    expect(await addDomain({ identity: admin }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
+    expect(await addDomain({ identity: admin, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -115,11 +115,11 @@ describe('domain use-cases — authorization matrix', () => {
 
   it('checkDomain and removeDomain are owner-only (admin forbidden)', async () => {
     const { deps } = fakes([seededDomain()]);
-    expect(await checkDomain({ identity: admin }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
+    expect(await checkDomain({ identity: admin, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
-    expect(await removeDomain({ identity: admin }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
+    expect(await removeDomain({ identity: admin, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -129,7 +129,7 @@ describe('domain use-cases — authorization matrix', () => {
 describe('addDomain', () => {
   it('attaches a normalized custom domain unverified and provisions it', async () => {
     const { deps, store, provisioned } = fakes();
-    const result = await addDomain({ identity: owner }, { domain: 'HTTPS://Shop.Acme.com/' }, deps);
+    const result = await addDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'HTTPS://Shop.Acme.com/' }, deps);
     expect(result).toMatchObject({ ok: true, value: { domain: 'shop.acme.com', verified: false } });
     expect(store()).toHaveLength(1);
     expect(provisioned).toEqual(['shop.acme.com']);
@@ -137,7 +137,7 @@ describe('addDomain', () => {
 
   it('rejects a bare word that is not a fully-qualified domain (validation)', async () => {
     const { deps } = fakes();
-    expect(await addDomain({ identity: owner }, { domain: 'localhost' }, deps)).toMatchObject({
+    expect(await addDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'localhost' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'validation' },
     });
@@ -145,7 +145,7 @@ describe('addDomain', () => {
 
   it('refuses a domain already attached anywhere with conflict', async () => {
     const { deps, store } = fakes([seededDomain({ verified: true })]);
-    expect(await addDomain({ identity: owner }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
+    expect(await addDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'conflict' },
     });
@@ -156,19 +156,19 @@ describe('addDomain', () => {
 describe('checkDomain', () => {
   it('flips verified true when the provisioner resolves the domain', async () => {
     const { deps } = fakes([seededDomain()], true);
-    const result = await checkDomain({ identity: owner }, { domain: 'shop.acme.com' }, deps);
+    const result = await checkDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps);
     expect(result).toMatchObject({ ok: true, value: { domain: { verified: true } } });
   });
 
   it('keeps verified false when the provisioner does not resolve the domain', async () => {
     const { deps } = fakes([seededDomain({ verified: true })], false);
-    const result = await checkDomain({ identity: owner }, { domain: 'shop.acme.com' }, deps);
+    const result = await checkDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps);
     expect(result).toMatchObject({ ok: true, value: { domain: { verified: false } } });
   });
 
   it('returns not_found for a domain not attached to this tenant', async () => {
     const { deps } = fakes();
-    expect(await checkDomain({ identity: owner }, { domain: 'other.example.com' }, deps)).toMatchObject({
+    expect(await checkDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'other.example.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'not_found' },
     });
@@ -178,7 +178,7 @@ describe('checkDomain', () => {
 describe('removeDomain', () => {
   it('detaches a domain and releases it through the provisioner', async () => {
     const { deps, store, removed } = fakes([seededDomain()]);
-    const result = await removeDomain({ identity: owner }, { domain: 'shop.acme.com' }, deps);
+    const result = await removeDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps);
     expect(result).toMatchObject({ ok: true, value: { domain: 'shop.acme.com', removed: 1 } });
     expect(store()).toHaveLength(0);
     expect(removed).toEqual(['shop.acme.com']);
@@ -186,7 +186,7 @@ describe('removeDomain', () => {
 
   it('returns not_found when the domain is not this tenant’s', async () => {
     const { deps } = fakes();
-    expect(await removeDomain({ identity: owner }, { domain: 'ghost.example.com' }, deps)).toMatchObject({
+    expect(await removeDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'ghost.example.com' }, deps)).toMatchObject({
       ok: false,
       error: { code: 'not_found' },
     });

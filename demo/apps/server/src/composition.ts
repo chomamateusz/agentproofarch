@@ -73,6 +73,7 @@ export interface AppDeps {
   ids: IdGenerator;
   clock: Clock;
   baseDomain: string;
+  tenantCreationMode: Env['TENANT_CREATION'];
   /** Build attestation surfaced by the health routes; 'unknown' outside a deploy. */
   commitSha: string;
 }
@@ -205,6 +206,7 @@ export const createDeps = (env: Env): AppDeps => {
     ids: { nextId: () => randomUUID() },
     clock: { nowIso: () => new Date().toISOString() },
     baseDomain: env.APP_BASE_DOMAIN,
+    tenantCreationMode: env.TENANT_CREATION,
     commitSha: env.APP_COMMIT_SHA ?? 'unknown',
   };
 };
