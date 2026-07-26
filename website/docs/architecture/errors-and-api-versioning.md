@@ -6,6 +6,14 @@ description: A closed error taxonomy, one normalization edge, and deliberately n
 
 # Errors & API versioning
 
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — the error
+taxonomy already works out of the box. This page is the reference for the error
+model and the no-versioning contract. Come back when you are adding an error
+kind, mapping a new failure to an HTTP status or CLI exit code, or wondering
+why there is no `/v1`.
+:::
+
 This page exists because two decisions here look like omissions until you see the
 reasoning. First: use-cases return `Result<T, AppError>` and deliberately **do
 not** catch infrastructure failures — those are normalized once, at a single edge.

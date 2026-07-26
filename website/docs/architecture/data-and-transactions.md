@@ -6,6 +6,14 @@ description: The neon-http single-statement doctrine, hard delete by default, an
 
 # Data & transactions
 
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — the seeded
+demo and single-row writes work without reading this. This page is the
+reference for the data layer and its atomicity doctrine. Come back when you are
+writing a migration, adding an aggregate, or making a multi-row write that must
+never be observable half-done.
+:::
+
 The same `db.transaction(async tx => …)` that is perfectly atomic on
 `node-postgres` is **not atomic at all** on Neon's HTTP driver — same code, same
 types, silently different guarantee. Nothing in the type system tells you. A multi-row write that must never be observable half-done is

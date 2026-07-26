@@ -46,6 +46,10 @@ before that lives in the git history only.
 
 ### Changed
 
+- Owner round-4 docs notes: sidebar categories relabelled (Start here, Full
+  architecture, Step-by-step guides, Infrastructure, ADRs), the glossary moves
+  to the head of Full architecture, and the three heaviest reference pages open
+  with a "you do not need this to start" on-ramp (#TBD).
 - The docs-site landing page opens with the brand banner, the same asset the
   README uses ([#78](https://github.com/chomamateusz/agentproofarch/pull/78)).
 - The docs-site landing title spells the name out — "Agent-Proof Architecture" —
