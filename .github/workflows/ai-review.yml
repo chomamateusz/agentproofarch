@@ -67,12 +67,20 @@ jobs:
         Do not modify any files. Conclude by calling the StructuredOutput tool
         with: verdict (PASS if mergeable, FAIL if there are blocking issues), a
         concise summary, and blocking_issues (empty when PASS).
+
+        You run under a hard turn cap. Budget it: read the full diff first;
+        on a large diff, triage — inspect closely only the files where the
+        doctrine above is at risk. Always leave your last turn for the
+        StructuredOutput call. If the cap is near and you have not finished a
+        confident review, call StructuredOutput with verdict FAIL and say in
+        the summary what remained unreviewed — an explicit FAIL beats running
+        out of turns without a verdict.
       # Read-only inspection tools only — the model never writes files or posts;
       # the workflow posts the verdict comment itself (deterministic, decoupled
       # from the model's tool use).
       CLAUDE_ARGS: >-
         --model sonnet
-        --max-turns 20
+        --max-turns 40
         --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
         --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}}},"required":["verdict","summary"]}'
     steps:
