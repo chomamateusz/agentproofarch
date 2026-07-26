@@ -102,7 +102,7 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->83<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->84<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -170,6 +170,7 @@ Same commit, env only — live on Vercel today
 | API | Hono handler as a function (`api/index.ts` via `@hono/node-server/vercel`) | Node container (`entry.node.ts`) |
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static build | served by the same Node process |
+| Tenant domains | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`) — each host attached to the project, HTTP-01 cert per host | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` — Caddy on-demand TLS |
 
 Production = `main` → <https://agentproofarch.vercel.app>; staging is a
 long-lived branch; every PR gets a preview on an ephemeral Neon branch; each
@@ -182,10 +183,11 @@ multi-stage `Dockerfile` (SPA + tsc-compiled server, prod-only deps, non-root,
 `HEALTHCHECK`), `docker-compose.prod.yml` (`postgres:16` + app + an
 `edge`-profiled Caddy for on-demand TLS) and `docker-entrypoint.sh` (runs
 migrations on startup). A dedicated CI job (`selfhost.yml`) builds the image,
-boots the stack and runs the smoke CLI against the container on every push. The
-one piece still deferred is the **Vercel** Domains API adapter (US-020, folded
-into the A1 custom-domains slice) — self-host issues TLS via Caddy and needs no
-such adapter.
+boots the stack and runs the smoke CLI against the container on every push.
+Self-host issues TLS via Caddy and needs no platform API; the **Vercel** Domains
+API adapter (US-020, `DOMAIN_PROVISIONER=vercel`) is the other target's
+equivalent — it attaches each tenant host to the Vercel project, and is tested
+against a stubbed `fetch` only until the owner supplies `VERCEL_TOKEN`.
 
 ### Self-host with Docker
 

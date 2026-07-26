@@ -51,15 +51,20 @@ enterprise customer questionnaire)
   Storybook + Lost Pixel is the component-isolation alternative when the need is
   per-component rather than per-page. Chromatic is excluded (paid). Trigger: the
   first UI-heavy consumer of the foundation.
-- US-020 Vercel domain-provisioning adapter (`DomainPort`) — per-tenant custom
-  domains added via the Vercel Domains API, each getting an **HTTP-01** cert over
-  a CNAME (the no-wildcard path: records-only, no NS delegation, so no wildcard).
-  This is the complement to the wildcard base-domain path (§Tenant addressing):
-  wildcard covers `*.<base>` subdomain tenants for free; US-020 covers a tenant
-  that wants its **own** non-subdomain domain. Hobby caps at 50 custom domains per
-  project. Trigger: a tenant needing a custom (non-subdomain) domain, or moving
-  production off the `agentproofarch.eu.org` wildcard. Blocked on `VERCEL_TOKEN`
-  (A1-S5).
+- ~~US-020 Vercel domain-provisioning adapter (`DomainPort`)~~ — **BUILT** (the
+  trigger fired: tenant subdomains bridged through company DNS with one plain
+  wildcard CNAME `*.agentproofarch.coderoad.pl → cname.vercel-dns.com`, and a
+  records-only zone can carry no DNS-01 wildcard cert, so every per-tenant host
+  needs its own HTTP-01 cert and therefore its own programmatic attach).
+  `adapters/domain-provisioning/vercel.ts` + `DOMAIN_PROVISIONER=vercel` ship with
+  `VERCEL_TOKEN`/`VERCEL_PROJECT_ID`(+`VERCEL_TEAM_ID`) and a boot refusal when
+  the block is incomplete (see
+  [architecture.md](architecture.md#ports-complete-list)). Hobby
+  caps at 50 custom domains per project. **Residual, still open: the adapter has
+  never run against the live Domains API** — its behaviour is proven only against
+  a stubbed `fetch`, because CI and the build machine have no token. The owner
+  supplying `VERCEL_TOKEN` in the Vercel env (A1-S5) is what closes that gap; the
+  first live add/check/remove against a real project is the acceptance run.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -125,6 +130,8 @@ Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
 A1-S4 (magic-link email provider, social OAuth credentials) and A1-S5
-(`VERCEL_TOKEN` for US-020). **F1 (AI-reviewer gate) is decided and built** — the
+(`VERCEL_TOKEN` for US-020 — the adapter is built and offline-tested; the token
+is what remains, and only the live verification depends on it).
+**F1 (AI-reviewer gate) is decided and built** — the
 fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
 [../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

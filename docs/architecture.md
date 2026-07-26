@@ -49,10 +49,10 @@ never carries silent gaps.
   is live today; the Docker/Caddy packaging (`Dockerfile`, `docker-compose.prod.yml`,
   `Caddyfile`, `docker-entrypoint.sh`) now ships in the tree (US-022, DECIDE A2),
   and Caddy on-demand TLS is wired to an internal domain-check endpoint proven by
-  unit + real-Postgres integration tests (US-021). The one self-host capability
-  still deferred is the **Vercel** Domains API adapter (US-020) — a Vercel-target
-  concern folded into the A1 custom-domains slice; self-host issues TLS via Caddy
-  and needs no such adapter. **Vendor packages are contained**: `@vercel/*` and
+  unit + real-Postgres integration tests (US-021). The Vercel Domains API adapter
+  (US-020) ships too — per-tenant hosts attached to the Vercel project over the
+  REST API, offline-tested against a stubbed `fetch`, with live verification
+  pending the owner's `VERCEL_TOKEN`. **Vendor packages are contained**: `@vercel/*` and
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
@@ -68,7 +68,7 @@ core/contract   API routes + I/O schemas + error envelope       → domain
 core/server     use-cases + ports (interfaces)                  → domain
 core/client     typed HTTP client + query definitions           → contract
 adapters/*      implement ports (db, auth, domain provisioning:
-                caddy + noop built; vercel deferred US-020)   → core
+                vercel + caddy + noop)                        → core
 apps/server     HTTP wiring + composition root                  → everything server-side
 apps/web        SPA (no SSR)                                    → core/client (+ auth client adapter)
 apps/cli        commands                                        → core/client
@@ -83,7 +83,8 @@ Dependency rules (enforced):
 - Server adapters are instantiated exclusively in the composition root
   (`apps/server/src/composition.ts`), where env decides implementations
   (`DB_DRIVER` selects the db driver; `DOMAIN_PROVISIONER` selects the
-  domain-provisioning adapter — `caddy` on self-host, `noop` by default). The
+  domain-provisioning adapter — `vercel` on the Vercel target, `caddy` on
+  self-host, `noop` by default). The
   one deliberate exception is the
   auth *client* adapter, constructed in `apps/web/src/api.ts` (web) and the
   CLI's `cliCtx`; the operational entry `adapters/db/migrate.ts` also reads
@@ -1119,26 +1120,49 @@ code.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
   keep use-cases pure and deterministic in tests.
 
-**BUILT** (US-021, DECIDE A2):
+**BUILT** (US-021 + US-020, DECIDE A2):
 
 - `DomainPort` (`provision`/`check`/`remove` tenant domains) lives in
-  `core/server/ports.ts`. Two adapters ship in `adapters/domain-provisioning/`,
+  `core/server/ports.ts`. Three adapters ship in `adapters/domain-provisioning/`,
   selected by `DOMAIN_PROVISIONER` in the composition root:
 
   | provisioner | target | `provision`/`remove` | `check` |
   |---|---|---|---|
+  | `vercel` | Vercel | attach/detach the host on the Vercel project (Domains API) | the project's domain + config endpoints report `verified` and not `misconfigured` |
   | `caddy` | Docker self-host | no-op (Caddy issues on demand) | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME`/`_IP` |
-  | `noop` (default) | dev / Vercel | no-op | always accepts |
+  | `noop` (default) | dev | no-op | always accepts |
 
   `DomainPort` now also backs the US-019 web/CLI domain surface: `addDomain`
   provisions then writes an unverified row, `checkDomain` runs `check` and
   persists the resulting `verified` flag, and `removeDomain` detaches then
   releases. On self-host, TLS is issued with zero per-tenant config: Caddy's
   `on_demand_tls { ask … }` calls an **internal-only** domain-check endpoint
-  (see §Self-host custom domains and TLS) before minting a certificate. The
-  Vercel Domains API adapter (**US-020**) is the one remaining implementation,
-  **deferred to the A1 custom-domains slice** — a Vercel-target concern; self-host
-  needs no such adapter.
+  (see §Self-host custom domains and TLS) before minting a certificate.
+
+  **The Vercel adapter (US-020) — why per-host attach, not a wildcard.** A
+  wildcard cert on Vercel needs an ACME DNS-01 challenge, which needs NS
+  delegation (§Tenant addressing). Where the base domain is a company zone that
+  cannot be delegated — the demo's own case, one plain wildcard CNAME record
+  `*.agentproofarch.coderoad.pl → cname.vercel-dns.com` bridged through company
+  DNS — every tenant host resolves, but certs are **per host over HTTP-01**, so
+  each host must be attached to the Vercel project individually. That attach is
+  exactly what this adapter does: `provision` POSTs the host to the project's
+  domains, `remove` deletes it, `check` reads the domain and its config back.
+  Attach is convergent, so an already-attached host (`409`) is a success — the
+  use-case may retry. `DOMAIN_PROVISIONER=vercel` must be selected
+  **explicitly** together with `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+
+  `VERCEL_TEAM_ID` for a team-owned project); it is never inferred from running
+  on Vercel, because the platform env carries no API token, and composition
+  **fails fast at boot** when `vercel` is selected without that block (the
+  `EMAIL_TRANSPORT=ses` rule, same shape). The token travels only in the
+  `Authorization` header — never logged, never echoed into an error detail; auth
+  failures name the misconfigured env key instead. Every API response is
+  zod-parsed at the boundary, and the injected `fetch` makes the whole adapter
+  testable offline (success, idempotent `409`, `401`/`403`, `5xx`, network
+  failure, corrupted JSON). **Honest status: verified only against a stubbed
+  `fetch`.** Live verification against the real Domains API is pending the
+  owner's `VERCEL_TOKEN` — until that runs, no claim is made about the live API's
+  behaviour beyond the documented contract.
 
 **BUILT** (US-026/US-028a, A1 sub-package 4): the provider auth methods that were
 "normative when triggered" are now wired — this package was the trigger.
@@ -1247,9 +1271,10 @@ app + an `edge`-profiled Caddy; migrations run on startup via
 `docker-entrypoint.sh`; healthchecks throughout) and `Caddyfile` (on-demand TLS).
 The same commit runs on either target, and a dedicated CI job (`selfhost.yml`)
 proves it: it builds the image, boots the compose stack, and drives the same
-smoke CLI suite the Vercel post-deploy gate runs — against the container. The only
-remaining follow-up is the Vercel Domains API adapter (US-020, deferred to the A1
-custom-domains slice).
+smoke CLI suite the Vercel post-deploy gate runs — against the container. Both
+targets now provision tenant domains through their own `DomainPort` adapter
+(`DOMAIN_PROVISIONER=vercel` / `caddy`); the Vercel one awaits its first live run
+against the real API (pending the owner's `VERCEL_TOKEN`).
 
 | | Vercel | Docker self-host |
 |---|---|---|
@@ -1258,7 +1283,8 @@ custom-domains slice).
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
 | Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
-| TLS for tenant domains | Vercel Domains API (US-020, deferred) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, built; live run pending `VERCEL_TOKEN`) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly — boot refuses if the block is incomplete | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
 | CI proof | `post-deploy-smoke.yml` (smoke the live deploy) | `selfhost.yml` (build image → boot compose → smoke the container) |
 
@@ -1307,14 +1333,15 @@ Two properties make this safe:
 | Issue/refuse decision | `GET /internal/domain-check?domain=` → 200/404 | `apps/server/src/internal-app.ts` |
 | Endpoint isolation | separate app on `INTERNAL_PORT`, never published | `entry.node.ts`, `docker-compose.prod.yml` |
 | DNS precondition (verify UI) | `caddy` `DomainPort.check` resolves domain → `SELF_HOST_TARGET_CNAME`/`_IP` | `adapters/domain-provisioning/caddy.ts` |
-| Provisioner selection | `DOMAIN_PROVISIONER=caddy` (self-host) / `noop` (default) | `apps/server/src/composition.ts` |
+| Provisioner selection | `DOMAIN_PROVISIONER=caddy` (self-host) / `vercel` (Vercel target) / `noop` (default) | `apps/server/src/composition.ts` |
 
 The `DomainPort.check` (DNS resolution) and the ask endpoint are complementary:
 the endpoint gates certificate issuance at handshake time on *verified* state;
 `check` is what a future domains-settings "Verify" action (US-019) calls to
 confirm the operator pointed DNS at the deploy before flipping `verified`. The
-Vercel Domains API `DomainPort` (US-020) is deferred to the A1 custom-domains
-slice; it is a Vercel-target concern and does not affect self-host.
+Vercel Domains API `DomainPort` (US-020) is the same seam on the other target and
+does not affect self-host: it attaches each host to the Vercel project instead of
+resolving DNS itself (see §Ports).
 
 ## Environments (Vercel target)
 
@@ -1417,8 +1444,10 @@ automatically by subdomain — no per-tenant registration needed.**
   challenge, which requires **NS delegation to Vercel** (Vercel-hosted DNS) *or*
   the narrow `_acme-challenge` NS delegation. A records-only path (no NS
   delegation) can only issue certs for **individual, non-wildcard per-tenant
-  hosts** (HTTP-01 via CNAME) — that is the US-020 programmatic domain-add
-  pattern, not a wildcard. Hobby caps at **50 custom domains per project**;
+  hosts** (HTTP-01 via CNAME) — that is what the built US-020 adapter is for
+  (`DOMAIN_PROVISIONER=vercel`): each tenant host is attached to the project
+  programmatically so it gets its own HTTP-01 cert, no wildcard needed. Hobby
+  caps at **50 custom domains per project**;
   wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement, not a
   technical wildcard gate).
 - **Self-host**: Caddy's on-demand TLS serves any custom tenant domain that
@@ -1434,6 +1463,17 @@ cost. Production env is `APP_BASE_DOMAIN=agentproofarch.eu.org` +
 `APP_BASE_URL`. Until the eu.org registration is approved and the wildcard is
 live, the deployed web stays single-tenant on `*.vercel.app` and the CLI's
 `X-Tenant` carries multi-tenancy.
+
+**The company-DNS bridge (the owner's chosen shape for tenant subdomains).** The
+company zone `coderoad.pl` cannot be NS-delegated, so tenants are bridged with a
+single **plain wildcard CNAME record**, `*.agentproofarch.coderoad.pl →
+cname.vercel-dns.com`, added in company DNS. That record resolves every tenant
+host, but records-only means **no DNS-01 wildcard cert** — so each per-tenant host
+must be attached to the Vercel project to get its own HTTP-01 cert, which is
+precisely the US-020 adapter's job (`DOMAIN_PROVISIONER=vercel`, §Ports). On that
+target `SELF_HOST_TARGET_CNAME=cname.vercel-dns.com` is what US-019's UI shows a
+tenant bringing its own domain. Pending the owner's `VERCEL_TOKEN`, the attach
+path is offline-tested only.
 
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):
