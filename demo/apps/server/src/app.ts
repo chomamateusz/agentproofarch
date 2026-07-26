@@ -54,6 +54,7 @@ import {
   tenantCreationContext,
   updateMember,
   type AuthenticatedUser,
+  type Ctx,
 } from '#core/server/index.js';
 import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
 
@@ -84,6 +85,11 @@ const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
 
 export const buildApp = (deps: AppDeps) => {
   const app = new Hono<Vars>();
+
+  const ctxOf = (identity: Identity): Ctx => ({
+    identity,
+    tenantCreationMode: deps.tenantCreationMode,
+  });
 
   // Security baseline (architecture §Security baseline). style-src allows
   // inline because emotion injects runtime <style> tags; scripts stay 'self'.
@@ -193,7 +199,7 @@ export const buildApp = (deps: AppDeps) => {
   app.get(API_PATHS.tenants, async (c) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
     if (!user) return respond(err(unauthorized()));
-    const result = await listMyTenants({ identity: tenantlessIdentity(user) }, deps);
+    const result = await listMyTenants(ctxOf(tenantlessIdentity(user)), deps);
     return respond(result.ok ? ok({ tenants: result.value }) : result);
   });
 
@@ -251,7 +257,7 @@ export const buildApp = (deps: AppDeps) => {
   });
 
   app.get(API_PATHS.todos, async (c) => {
-    const result = await listTodos({ identity: c.get('identity') }, deps);
+    const result = await listTodos(ctxOf(c.get('identity')), deps);
     return respond(result.ok ? ok({ todos: result.value }) : result);
   });
 
@@ -261,7 +267,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid todo payload', parsed.error.flatten())));
     }
-    const result = await addTodo({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await addTodo(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ todo: result.value }) : result);
   });
 
@@ -270,7 +276,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid board', parsed.error.flatten())));
     }
-    const result = await listCards({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await listCards(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ cards: result.value }) : result);
   });
 
@@ -280,7 +286,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid card payload', parsed.error.flatten())));
     }
-    const result = await addCard({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await addCard(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ card: result.value }) : result);
   });
 
@@ -290,12 +296,12 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid card move payload', parsed.error.flatten())));
     }
-    const result = await moveCard({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await moveCard(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ card: result.value }) : result);
   });
 
   app.get(API_PATHS.members, async (c) => {
-    const result = await listMembers({ identity: c.get('identity') }, deps);
+    const result = await listMembers(ctxOf(c.get('identity')), deps);
     return respond(result.ok ? ok({ members: result.value }) : result);
   });
 
@@ -305,7 +311,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid member payload', parsed.error.flatten())));
     }
-    const result = await ensureMember({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await ensureMember(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
@@ -315,7 +321,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid member update payload', parsed.error.flatten())));
     }
-    const result = await updateMember({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await updateMember(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ member: result.value }) : result);
   });
 
@@ -325,7 +331,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid member reference', parsed.error.flatten())));
     }
-    const result = await removeMember({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await removeMember(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
@@ -334,12 +340,12 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid member reference', parsed.error.flatten())));
     }
-    const result = await exportMember({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await exportMember(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
   app.get(API_PATHS.staff, async (c) => {
-    const result = await listStaff({ identity: c.get('identity') }, deps);
+    const result = await listStaff(ctxOf(c.get('identity')), deps);
     return respond(result.ok ? ok({ staff: result.value }) : result);
   });
 
@@ -349,7 +355,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid admin grant payload', parsed.error.flatten())));
     }
-    const result = await grantAdmin({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await grantAdmin(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
@@ -359,12 +365,12 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid staff reference', parsed.error.flatten())));
     }
-    const result = await revokeAdmin({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await revokeAdmin(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
   app.get(API_PATHS.domains, async (c) => {
-    const result = await listDomains({ identity: c.get('identity') }, deps);
+    const result = await listDomains(ctxOf(c.get('identity')), deps);
     return respond(result.ok ? ok({ domains: result.value, target: deps.domainTarget }) : result);
   });
 
@@ -374,7 +380,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
     }
-    const result = await addDomain({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await addDomain(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok({ domain: result.value }) : result);
   });
 
@@ -384,7 +390,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
     }
-    const result = await checkDomain({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await checkDomain(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 
@@ -394,7 +400,7 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
     }
-    const result = await removeDomain({ identity: c.get('identity') }, parsed.data, deps);
+    const result = await removeDomain(ctxOf(c.get('identity')), parsed.data, deps);
     return respond(result.ok ? ok(result.value) : result);
   });
 

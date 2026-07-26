@@ -55,17 +55,29 @@ export const principalOf = (identity: Identity): Principal => {
 };
 
 /**
+ * The one mode-dependent grant row. `Record<TenantCreationMode, …>` makes it a
+ * compile error to add a mode without deciding, here, who may create tenants
+ * under it. `tenant:create` makes the caller owner: `open` grants tenant-less
+ * visitor self-service, `staff` limits creation to existing owners/admins
+ * across the instance, and `closed` grants it to nobody — the empty list is
+ * denied by the ordinary default-deny rule, not a special case.
+ */
+const TENANT_CREATION_GRANTS: Record<TenantCreationMode, readonly Principal[]> = {
+  open: ['owner', 'admin', 'visitor'],
+  staff: ['owner', 'admin'],
+  closed: [],
+};
+
+/**
  * The whole policy as data: a capability lists exactly the principals it is
  * granted to. Default-deny — a principal absent from the list is denied, there
- * is no wildcard-allow. `Record<Capability, …>` makes it a compile error to add
- * a capability without deciding, here, who may exercise it.
+ * is no wildcard-allow. The returned `Record<Capability, …>` makes it a compile
+ * error to add a capability without deciding, here, who may exercise it.
  *
  * Baseline demo policy: staff (owner AND admin) get read+write on every
  * tenant-scoped aggregate; members are full collaborators on the boards (todos,
- * cards); tenant administration is not a member capability. `tenant:create`
- * makes the caller owner: `open` grants tenant-less visitor self-service,
- * `staff` limits creation to existing owners/admins across the instance, and
- * `closed` grants it to nobody. (Listing one's own memberships is a self-scoped
+ * cards); tenant administration is not a member capability; `tenant:create` is
+ * the mode-selected row above. (Listing one's own memberships is a self-scoped
  * read gated by authentication, not a capability — see §Authorization.)
  *
  * The `member:*` capabilities are STAFF-ONLY (owner+admin), deliberately not
@@ -91,12 +103,6 @@ export const principalOf = (identity: Identity): Principal => {
  * owner/admin split as the staff-grant rows, since a custom domain is a
  * tenant-configuration change an admin runs the tenant without.
  */
-const TENANT_CREATION_GRANTS: Record<TenantCreationMode, readonly Principal[]> = {
-  open: ['owner', 'admin', 'visitor'],
-  staff: ['owner', 'admin'],
-  closed: [],
-};
-
 export const grantsFor = (
   tenantCreationMode: TenantCreationMode,
 ): Record<Capability, readonly Principal[]> => ({
@@ -119,7 +125,7 @@ export const grantsFor = (
 export const decide = (
   identity: Identity,
   capability: Capability,
-  tenantCreationMode: TenantCreationMode = 'open',
+  tenantCreationMode: TenantCreationMode,
 ): Verdict => {
   const principal = principalOf(identity);
   return grantsFor(tenantCreationMode)[capability].includes(principal)

@@ -80,28 +80,28 @@ const deps = (repo: MemberRepository): MemberDeps => ({
 describe('member use-cases — authorization', () => {
   it('denies a tenant-less staff caller with forbidden before any repository access', async () => {
     const { repo, store } = fakeRepo();
-    const listed = await listMembers({ identity: staff(null) }, deps(repo));
+    const listed = await listMembers({ identity: staff(null), tenantCreationMode: 'open' }, deps(repo));
     expect(listed).toMatchObject({ ok: false, error: { code: 'forbidden' } });
 
-    const ensured = await ensureMember({ identity: staff(null) }, { email: 'a@b.com' }, deps(repo));
+    const ensured = await ensureMember({ identity: staff(null), tenantCreationMode: 'open' }, { email: 'a@b.com' }, deps(repo));
     expect(ensured).toMatchObject({ ok: false, error: { code: 'forbidden' } });
     expect(store()).toHaveLength(0);
   });
 
   it('denies an end-customer member (members are staff-managed, not roster editors)', async () => {
     const { repo } = fakeRepo([seedMember()]);
-    expect(await listMembers({ identity: member }, deps(repo))).toMatchObject({
+    expect(await listMembers({ identity: member, tenantCreationMode: 'open' }, deps(repo))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
     expect(
-      await ensureMember({ identity: member }, { email: 'a@b.com' }, deps(repo)),
+      await ensureMember({ identity: member, tenantCreationMode: 'open' }, { email: 'a@b.com' }, deps(repo)),
     ).toMatchObject({ ok: false, error: { code: 'forbidden' } });
-    expect(await removeMember({ identity: member }, { id: 'm-seed' }, deps(repo))).toMatchObject({
+    expect(await removeMember({ identity: member, tenantCreationMode: 'open' }, { id: 'm-seed' }, deps(repo))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
-    expect(await exportMember({ identity: member }, { id: 'm-seed' }, deps(repo))).toMatchObject({
+    expect(await exportMember({ identity: member, tenantCreationMode: 'open' }, { id: 'm-seed' }, deps(repo))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -112,7 +112,7 @@ describe('ensureMember — idempotent find-or-create by (tenant, email)', () => 
   it('creates a member row with null userId and normalized fields on first call', async () => {
     const { repo, store } = fakeRepo();
     const result = await ensureMember(
-      { identity: staff('t-acme') },
+      { identity: staff('t-acme'), tenantCreationMode: 'open' },
       { email: 'New@Example.com', displayName: 'New', marketingConsents: [{ channel: 'email', granted: true }] },
       deps(repo),
     );
@@ -135,7 +135,7 @@ describe('ensureMember — idempotent find-or-create by (tenant, email)', () => 
   it('returns the existing member unchanged on a repeat call (created: false)', async () => {
     const { repo, store } = fakeRepo([seedMember({ id: 'm-seed', email: 'seed@example.com', tags: ['vip'] })]);
     const result = await ensureMember(
-      { identity: staff('t-acme') },
+      { identity: staff('t-acme'), tenantCreationMode: 'open' },
       { email: 'seed@example.com', tags: [] },
       deps(repo),
     );
@@ -145,7 +145,7 @@ describe('ensureMember — idempotent find-or-create by (tenant, email)', () => 
 
   it("rejects a non-email with 'validation' before touching the repository", async () => {
     const { repo, store } = fakeRepo();
-    const result = await ensureMember({ identity: staff('t-acme') }, { email: 'nope' }, deps(repo));
+    const result = await ensureMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { email: 'nope' }, deps(repo));
     expect(result).toMatchObject({ ok: false, error: { code: 'validation' } });
     expect(store()).toHaveLength(0);
   });
@@ -155,7 +155,7 @@ describe('updateMember', () => {
   it('sets displayName, tags and re-stamps consents', async () => {
     const { repo } = fakeRepo([seedMember({ id: 'm-seed', displayName: 'Old', tags: ['a'] })]);
     const result = await updateMember(
-      { identity: staff('t-acme') },
+      { identity: staff('t-acme'), tenantCreationMode: 'open' },
       { id: 'm-seed', displayName: 'New', tags: ['b'], marketingConsents: [{ channel: 'sms', granted: false }] },
       deps(repo),
     );
@@ -171,13 +171,13 @@ describe('updateMember', () => {
 
   it('clears displayName when passed null but leaves omitted fields intact', async () => {
     const { repo } = fakeRepo([seedMember({ id: 'm-seed', displayName: 'Old', tags: ['keep'] })]);
-    const result = await updateMember({ identity: staff('t-acme') }, { id: 'm-seed', displayName: null }, deps(repo));
+    const result = await updateMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'm-seed', displayName: null }, deps(repo));
     expect(result).toMatchObject({ ok: true, value: { displayName: null, tags: ['keep'] } });
   });
 
   it("returns not_found for an id outside the caller's tenant", async () => {
     const { repo } = fakeRepo([seedMember({ id: 'm-other', tenantId: 't-globex' })]);
-    const result = await updateMember({ identity: staff('t-acme') }, { id: 'm-other', tags: [] }, deps(repo));
+    const result = await updateMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'm-other', tags: [] }, deps(repo));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 });
@@ -185,14 +185,14 @@ describe('updateMember', () => {
 describe('removeMember', () => {
   it('deletes the member row and reports the cascade count', async () => {
     const { repo, store } = fakeRepo([seedMember({ id: 'm-seed' })]);
-    const result = await removeMember({ identity: staff('t-acme') }, { id: 'm-seed' }, deps(repo));
+    const result = await removeMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'm-seed' }, deps(repo));
     expect(result).toMatchObject({ ok: true, value: { memberId: 'm-seed', deleted: { members: 1 } } });
     expect(store()).toHaveLength(0);
   });
 
   it('cannot remove a member of another tenant (tenant-scoped not_found)', async () => {
     const { repo, store } = fakeRepo([seedMember({ id: 'm-other', tenantId: 't-globex' })]);
-    const result = await removeMember({ identity: staff('t-acme') }, { id: 'm-other' }, deps(repo));
+    const result = await removeMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'm-other' }, deps(repo));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
     expect(store()).toHaveLength(1);
   });
@@ -201,7 +201,7 @@ describe('removeMember', () => {
 describe('exportMember', () => {
   it('dumps the member incl. its own email snapshot with export metadata', async () => {
     const { repo } = fakeRepo([seedMember({ id: 'm-seed', email: 'dump@example.com' })]);
-    const result = await exportMember({ identity: staff('t-acme') }, { id: 'm-seed' }, deps(repo));
+    const result = await exportMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'm-seed' }, deps(repo));
     expect(result).toMatchObject({
       ok: true,
       value: {
@@ -214,7 +214,7 @@ describe('exportMember', () => {
 
   it('returns not_found for an unknown member', async () => {
     const { repo } = fakeRepo();
-    const result = await exportMember({ identity: staff('t-acme') }, { id: 'ghost' }, deps(repo));
+    const result = await exportMember({ identity: staff('t-acme'), tenantCreationMode: 'open' }, { id: 'ghost' }, deps(repo));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 });

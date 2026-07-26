@@ -2,10 +2,15 @@ import type { Identity, TenantCreationMode } from '#core/domain/index.js';
 
 import type { AuthenticatedUser, TenantAccessReader } from './ports.js';
 
-/** Every tenant-scoped use-case takes this as its first argument. */
+/**
+ * Every tenant-scoped use-case takes this as its first argument.
+ * `tenantCreationMode` is deliberately required: the only default lives in the
+ * env schema (`config.ts`), so a call site that forgets the mode is a compile
+ * error, never a silent fall-back to the most permissive policy.
+ */
 export interface Ctx {
   identity: Identity;
-  tenantCreationMode?: TenantCreationMode;
+  tenantCreationMode: TenantCreationMode;
 }
 
 export const tenantCreationContext = async (

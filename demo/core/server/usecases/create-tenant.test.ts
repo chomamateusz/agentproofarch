@@ -85,7 +85,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'new-co', name: 'New Co' },
       deps(store.repo),
     );
@@ -108,7 +108,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity: memberIdentity },
+      { identity: memberIdentity, tenantCreationMode: 'open' },
       { slug: 'new-co', name: 'New Co' },
       deps(store.repo),
     );
@@ -150,7 +150,7 @@ describe('createTenant', () => {
     const store = fakeTenants([{ id: 't-acme', slug: 'acme', name: 'Acme' }]);
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'acme', name: 'Acme Duplicate' },
       deps(store.repo),
     );
@@ -167,7 +167,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: '  New Co!!  ', name: 'New Co' },
       deps(store.repo),
     );
@@ -180,7 +180,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'admin', name: 'Invalid' },
       deps(store.repo),
     );
@@ -197,7 +197,7 @@ describe('createTenant', () => {
     const store = fakeTenants();
 
     const result = await createTenant(
-      { identity },
+      { identity, tenantCreationMode: 'open' },
       { slug: 'valid-co', name: '   ' },
       deps(store.repo),
     );

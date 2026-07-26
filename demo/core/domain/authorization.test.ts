@@ -97,34 +97,34 @@ describe('decide — exhaustive capability × principal matrix', () => {
     for (const principal of PRINCIPALS) {
       const expected = EXPECTED[capability][principal];
       it(`${principal} ${expected ? 'may' : 'may NOT'} ${capability}`, () => {
-        expect(decide(identityFor[principal], capability).allowed).toBe(expected);
+        expect(decide(identityFor[principal], capability, 'open').allowed).toBe(expected);
       });
     }
   }
 
   it('carries a reason on every denial and none on a grant', () => {
-    const denied = decide(asVisitor, 'card:write');
+    const denied = decide(asVisitor, 'card:write', 'open');
     expect(denied).toEqual({ allowed: false, reason: 'card:write is not permitted for visitor' });
-    expect(decide(asStaff('admin'), 'card:write')).toEqual({ allowed: true });
+    expect(decide(asStaff('admin'), 'card:write', 'open')).toEqual({ allowed: true });
   });
 
   it('grants an owner every capability (owner is the superset principal)', () => {
     for (const capability of CAPABILITIES) {
-      expect(decide(asStaff('owner'), capability).allowed).toBe(true);
+      expect(decide(asStaff('owner'), capability, 'open').allowed).toBe(true);
     }
   });
 
   it('denies an admin exactly the owner-only staff-grant capabilities (FR-8 split)', () => {
-    expect(decide(asStaff('admin'), 'staff:grant')).toEqual({
+    expect(decide(asStaff('admin'), 'staff:grant', 'open')).toEqual({
       allowed: false,
       reason: 'staff:grant is not permitted for admin',
     });
-    expect(decide(asStaff('admin'), 'staff:revoke')).toEqual({
+    expect(decide(asStaff('admin'), 'staff:revoke', 'open')).toEqual({
       allowed: false,
       reason: 'staff:revoke is not permitted for admin',
     });
     // Everything else an admin shares with an owner, including reading the roster.
-    expect(decide(asStaff('admin'), 'staff:read').allowed).toBe(true);
+    expect(decide(asStaff('admin'), 'staff:read', 'open').allowed).toBe(true);
   });
 });
 
