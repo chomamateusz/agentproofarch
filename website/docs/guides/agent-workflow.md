@@ -54,7 +54,7 @@ sequenceDiagram
     Agent->>Agent: docs first if the architecture moves
     Agent->>Local: db:up · db:migrate · db:seed · dev:server
     Agent->>Local: verify the capability through the --json CLI
-    Local->>Local: npm run check · npm run smoke · e2e for a web change
+    Local->>Local: pnpm run check · pnpm run smoke · e2e for a web change
     Agent->>GH: open a PR (commits authored as the owner)
     GH->>CI: check · smoke · e2e · docker-smoke · ai-review (required)
     GH->>CI: visual · docs-build (reporting only)
@@ -76,9 +76,9 @@ sequenceDiagram
   and `e2e` for any `apps/web` change. The CLI is the loop because it is the only
   surface with a machine-readable envelope and a taxonomy exit code
   ([CLI walkthrough](./cli-walkthrough.md)).
-- **Dependencies via `npx -y npm@11 install`**, never a bare `npm install` from
-  another npm major. `lock-lint` inside `check` verifies the same npm 11
-  semantics used by CI.
+- **Dependencies via `pnpm add`** using the `packageManager` pin. `lock-lint`
+  inside `check` enforces the same frozen-lockfile semantics used by CI; a
+  dependency build script is allowlisted only after a gate proves it necessary.
 - **Zero comment narration.** A comment is allowed *only* for a non-obvious WHY the
   code cannot express. What-narration, section headers and change-describing
   comments are blocking — that is written verbatim into the `ai-review` gate's

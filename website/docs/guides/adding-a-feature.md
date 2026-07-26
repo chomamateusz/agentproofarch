@@ -12,7 +12,7 @@ edits to *shared* files rot the moment anyone else touches them. So the scaffold
 here does something deliberately partial. It writes only the files the new resource
 owns outright, leaves every shared file alone, and prints an ordered checklist with
 the anchor line and a paste-ready snippet for each hand edit. The generated code
-imports symbols that do not exist yet, which means `npm run check` is **red from the
+imports symbols that do not exist yet, which means `pnpm run check` is **red from the
 first second** and every error it prints is literally the next step. You are not
 following a tutorial; you are following the compiler.
 
@@ -24,7 +24,7 @@ The long-form narration lives in the repository as
 
 ```bash
 cd demo
-npm run new:resource -- note        # singular kebab-case: note, blog-post
+pnpm run new:resource -- note        # singular kebab-case: note, blog-post
 ```
 
 Six files land — everything a resource owns and nothing shared:
@@ -58,7 +58,7 @@ mechanical.
 
 ```mermaid
 flowchart TD
-  s0["npm run new:resource -- note<br/>6 owned files planted"] --> s1
+  s0["pnpm run new:resource -- note<br/>6 owned files planted"] --> s1
   s1["1 · DOMAIN<br/>core/domain/index.ts"] --> s2
   s2["2 · CONTRACT<br/>core/contract/routes.ts"] --> s3
   s3["3 · PORT<br/>core/server/ports.ts"] --> s4
@@ -70,7 +70,7 @@ flowchart TD
   s9["9 · CLIENT QUERIES<br/>core/client/queries.ts"] --> s10
   s10["10 · CLI<br/>apps/cli/src/main.ts"] --> s11
   s11["11 · WEB BINDING<br/>apps/web/src/api.ts"] --> s12
-  s12["12 · WEB ROUTE<br/>apps/web/src/main.tsx"] --> verify["Verify: npm run check<br/>then npm run smoke"]
+  s12["12 · WEB ROUTE<br/>apps/web/src/main.tsx"] --> verify["Verify: pnpm run check<br/>then pnpm run smoke"]
 
   classDef forced fill:#dcfce7,stroke:#16a34a,color:#14532d;
   classDef manual fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
@@ -78,7 +78,7 @@ flowchart TD
   class s7,s10,s12 manual;
 ```
 
-Green steps are **type-forced**: skip one and `npm run check` cannot go green.
+Green steps are **type-forced**: skip one and `pnpm run check` cannot go green.
 Red steps are not.
 
 :::danger Three steps the compiler cannot hold
@@ -95,13 +95,13 @@ This is the whole rhythm. Run the gate, read the *first* error, do the step it
 names, run it again.
 
 ```bash
-npm run check
+pnpm run check
 ```
 
 ```mermaid
 stateDiagram-v2
     [*] --> Red: scaffolded files import symbols that do not exist yet
-    Red --> ReadFirstError: npm run check
+    Red --> ReadFirstError: pnpm run check
     ReadFirstError --> FixThatStep: the error names the next checklist step
     FixThatStep --> Red: next missing symbol
     Red --> StaticGreen: last type-forced step wired
@@ -135,8 +135,8 @@ schemas and the `pgTable` columns together, because the boundary between them is
 zod-parsed at runtime. Then:
 
 ```bash
-npm run db:generate     # drizzle-kit diffs the schema into a new SQL migration
-npm run db:migrate      # applies it to your dev database
+pnpm run db:generate     # drizzle-kit diffs the schema into a new SQL migration
+pnpm run db:migrate      # applies it to your dev database
 ```
 
 Commit the generated migration. Never hand-edit an applied one — add a new
@@ -148,7 +148,7 @@ Behaviour lives in the use-case layer, and that layer is pure: no server, no
 database, no React. Fill in the generated test file before you wire any UI.
 
 ```bash
-npx vitest run core/server/usecases/notes.test.ts
+pnpm exec vitest run core/server/usecases/notes.test.ts
 ```
 
 The scaffolder already ships three **real** authorization tests (staff allowed,
@@ -164,14 +164,14 @@ Once the chain compiles, the CLI is the fastest proof the feature is really wire
 end to end:
 
 ```bash
-npm run dev:server &
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- --tenant acme note add Buy milk
-npm run --silent cli -- --tenant acme note list --json
+pnpm run dev:server &
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli --tenant acme note add Buy milk
+pnpm --silent run cli --tenant acme note list --json
 ```
 
 If that round-trips, every layer from contract to repository is connected. This is
-the same loop `npm run smoke` automates and the same loop an agent uses — see
+the same loop `pnpm run smoke` automates and the same loop an agent uses — see
 [CLI walkthrough](./cli-walkthrough.md).
 
 ## 6. The web page
@@ -180,7 +180,7 @@ the same loop `npm run smoke` automates and the same loop an agent uses — see
 to the query client and register the route.
 
 ```bash
-npm run dev:web        # Vite + hot reload on 47180
+pnpm run dev:web        # Vite + hot reload on 47180
 ```
 
 Always `dev:web` for frontend work — `dev:server` serves a gitignored built bundle
@@ -191,7 +191,7 @@ The generated page reads server state directly through `actions`, exactly like t
 pre-existing todos page. That is a deliberate starting point, not a carve-out from
 [ADR-0005](../decisions/0005-client-application-state.md): the moment the feature
 grows its own *client* state, give it the island seam with
-`npm run new:island -- note`, point that island's selectors at this resource's
+`pnpm run new:island -- note`, point that island's selectors at this resource's
 `actions.notes`, and read through the core instead of `api.ts`. `new:resource` owns
 the server/data slice; `new:island` owns the client feature and its rung-1
 events-in / selectors-out seam. See [Client state](../architecture/client-state.md).
@@ -200,15 +200,16 @@ events-in / selectors-out seam. See [Client state](../architecture/client-state.
 ## 7. Green, then a PR
 
 ```bash
-npm run check          # static
-npm run smoke          # runtime
-npm run e2e            # browser — required for any apps/web change
+pnpm run check          # static
+pnpm run smoke          # runtime
+pnpm run e2e            # browser — required for any apps/web change
 ```
 
 The PR template is this checklist made explicit: `check` green, `smoke` green,
 `e2e` green for a web change, architecture docs updated *first* if you moved a
 boundary, `website/docs` and a `CHANGELOG.md` entry for a behaviour-visible change,
-new dependencies via `npx -y npm@11 install` only, work done in a git worktree, and
+new dependencies via `pnpm add`, build-script allowances justified by a red gate,
+work done in a git worktree, and
 a filed P1 linked if any gate run was flaky. CI re-runs `check`, `smoke` and `e2e`
 on a clean checkout, `docker-smoke` boots the container stack, and
 `post-deploy-smoke` re-verifies the deployed result. See

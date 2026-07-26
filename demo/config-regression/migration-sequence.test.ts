@@ -7,7 +7,7 @@ import { lintMigrations } from '../scripts/migration-lint.js';
 
 /**
  * Behavioral probe for the migration-sequence gate (DECIDE F2): plant a broken
- * drizzle directory and prove `lintMigrations` — the check `npm run doc-lint`
+ * drizzle directory and prove `lintMigrations` — the check `pnpm run doc-lint`
  * runs — still REJECTS it, so a silently-weakened sequence fails CI. The real
  * `drizzle/` must stay clean; every fixture lives in its own temp dir.
  */

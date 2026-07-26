@@ -6,7 +6,7 @@ description: Which jobs run, which ones block a merge, which deliberately do not
 
 # CI gates
 
-Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `npm ci` in CI, on every change, and the enforcers themselves are enforced.
+Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `pnpm install --frozen-lockfile` in CI, on every change, and the enforcers themselves are enforced.
 
 :::info Sources
 The workflows in [`.github/workflows/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/workflows), the scripts in [`.github/scripts/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/scripts), and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) / [ADR-0008](../decisions/0008-visual-regression.md).
@@ -21,7 +21,7 @@ flowchart TD
     pr --> ai["ai-review.yml<br/>PRs to main, non-draft"]
     pr --> dci["docs-ci.yml<br/>path-filtered on website/** + CHANGELOG.md"]
 
-    ci --> check["check — REQUIRED<br/>npm ci + npm run check"]
+    ci --> check["check — REQUIRED<br/>pnpm install --frozen-lockfile + pnpm run check"]
     ci --> smoke["smoke — REQUIRED<br/>postgres:16 + mailpit<br/>integration tests then runtime smoke"]
     ci --> e2e["e2e — REQUIRED<br/>Chromium over the real stack"]
     ci --> visual["visual — not required<br/>pixel comparison"]
@@ -51,8 +51,8 @@ flowchart TD
 ### `check` — the static gate
 
 ```bash
-npm ci
-npm run check
+pnpm install --frozen-lockfile
+pnpm run check
 # = typecheck && typecheck:islands && lint && lock-lint
 #   && depcruise && knip && doc-lint && test:coverage
 ```
@@ -64,7 +64,7 @@ One step in the same job is deliberately **advisory**:
 ```yaml
 # Advisory only (architecture §Security baseline): high/critical findings
 # are triaged, but audit's transitive noise must not break the build.
-- run: npm audit --omit=dev --audit-level=high
+- run: pnpm audit --prod --audit-level=high
   continue-on-error: true
 ```
 
@@ -73,8 +73,8 @@ One step in the same job is deliberately **advisory**:
 Service containers: `postgres:16` and a **Mailpit** SMTP sink (`axllent/mailpit:v1.21`, SMTP on `47925`, HTTP API on `47980`). Mailpit exists because there is no dev email transport at all — dev, e2e and CI run the *real* `smtp` adapter against a sink that captures every send instead of delivering it ([ADR-0007](../decisions/0007-email-port-and-magic-link-transport.md)).
 
 ```yaml
-- run: npm run test:integration   # the tier that needs a real Postgres
-- run: npm run smoke              # boot the real server, drive the CLI
+- run: pnpm run test:integration   # the tier that needs a real Postgres
+- run: pnpm run smoke              # boot the real server, drive the CLI
 ```
 
 The integration tier lives here rather than in `check` because `check` is database-free, and rather than in the local `smoke` script because that must stay fast. `smoke.ts` creates and drops its own isolated `agentproofarch_smoke` database over the provided `DATABASE_URL`, so a bare `postgres:16` service is sufficient — no `docker compose` in CI.
@@ -82,9 +82,9 @@ The integration tier lives here rather than in `check` because `check` is databa
 ### `e2e` — a real browser over the real stack
 
 ```yaml
-- run: npx playwright install --with-deps chromium
-- run: npm run build:web
-- run: npm run e2e
+- run: pnpm exec playwright install --with-deps chromium
+- run: pnpm run build:web
+- run: pnpm run e2e
 ```
 
 This is the only surface `smoke` cannot reach: `smoke` drives the CLI and never a browser. The e2e harness boots `entry.node.ts` against an isolated `agentproofarch_e2e` database and serves the built bundle.
@@ -99,7 +99,7 @@ This is the only surface `smoke` cannot reach: `smoke` drives the CLI and never 
 - run: echo "APP_COMMIT_SHA=${GITHUB_SHA}" >> .env
 - run: docker compose -f docker-compose.prod.yml up -d --build
 # then poll /api/health/ready for up to 60 attempts, 2s apart
-- run: npm run smoke:remote
+- run: pnpm run smoke:remote
   env:
     BASE_URL: http://localhost:47100
     EXPECTED_SHA: ${{ github.sha }}
@@ -284,10 +284,10 @@ Because this drives live production, it runs under the production smoke-account 
 
 ## Cross-cutting hardening
 
-- **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing comment recording the human-readable version the SHA resolved to (`# v4.3.0` for `actions/checkout`, `# v4.4.0` for `actions/setup-node`, and `# v1` for `anthropics/claude-code-action`, whose pinned commit is its `v1.0.181` release — the comment records the major line the pin tracks). A tag can be force-moved onto malicious code under an unchanged CI config.
+- **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing comment recording the human-readable version the SHA resolved to (`# v4.3.0` for `actions/checkout`, `# v4` for `pnpm/action-setup`, `# v4.4.0` for `actions/setup-node`, and `# v1` for `anthropics/claude-code-action`, whose pinned commit is its `v1.0.181` release — the comment records the major line the pin tracks). A tag can be force-moved onto malicious code under an unchanged CI config.
 - **Every job is guarded** with `if: github.repository == 'chomamateusz/agentproofarch'`. The repo is public and therefore forkable; a fork must never spend Actions minutes or fail on missing secrets and services.
-- **Node 24 with `cache: npm`** and an explicit `cache-dependency-path`, so each workflow caches against the right lockfile (`demo/` or `website/`).
-- **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block — a malformed one would ship as a red error box with every check green, which is the exact "could not verify, reported green" shape this repo rejects. `npm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error. It runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
+- **pnpm is installed before Node setup**, then Node 24 uses `cache: pnpm` with an explicit `cache-dependency-path`, so each workflow caches against the right `pnpm-lock.yaml` (`demo/` or `website/`).
+- **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block — a malformed one would ship as a red error box with every check green, which is the exact "could not verify, reported green" shape this repo rejects. `pnpm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error. It runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
 - **The enforcers are enforced.** Config-regression probes feed a deliberately violating fixture to a lint or dependency-cruiser rule and assert the gate still goes red, so a rule cannot be quietly deleted while CI stays green ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md) §3).
 
 :::caution Honest caveats

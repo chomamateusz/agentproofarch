@@ -11,7 +11,7 @@ reviews:
     enabled: true
     drafts: false
   path_filters:
-    - "!**/package-lock.json"
+    - "!**/pnpm-lock.yaml"
     - "!demo/visual/__screenshots__/**"
     - "!website/build/**"
   path_instructions:

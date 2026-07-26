@@ -112,10 +112,10 @@ That `"database": "down"` at `200` is exactly why new callers should use `/ready
 **From the CLI** — the same data through the agent contract:
 
 ```bash
-npm run cli -- health
+pnpm run cli health
 # status=ok db=up v0.1.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
 
-npm run cli -- --json health
+pnpm run cli --json health
 # exactly one JSON document on stdout: { "ok": true, "data": { … } }
 ```
 
@@ -158,7 +158,7 @@ sequenceDiagram
     participant W as post-deploy-smoke
     participant D as The deployment
     GH->>W: state=success, deployment.sha=ABC
-    W->>W: checkout ref ABC, npm ci
+    W->>W: checkout ref ABC, pnpm install --frozen-lockfile
     W->>D: CLI health against BASE_URL
     D-->>W: status ok, database up, sha unknown to the caller
     Note over W: assert health.sha equals EXPECTED_SHA, i.e. ABC

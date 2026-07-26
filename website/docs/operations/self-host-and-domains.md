@@ -69,8 +69,8 @@ Why Caddy is behind a **profile**: the default `up` needs no `Caddyfile` and bin
 
 ```mermaid
 flowchart LR
-    b["builder — node:24-bookworm<br/>npm ci, tsc -p tsconfig.docker.json,<br/>build:web, touch dist/web"]
-    p["prod-deps — node:24-bookworm<br/>npm ci --omit=dev"]
+    b["builder — node:24-bookworm<br/>pnpm install --frozen-lockfile, tsc -p tsconfig.docker.json,<br/>build:web, touch dist/web"]
+    p["prod-deps — node:24-bookworm<br/>pnpm install --frozen-lockfile --prod"]
     r["runtime — node:24-bookworm-slim<br/>USER node, EXPOSE 47100,<br/>HEALTHCHECK /api/health/live"]
     b -->|"dist/server, dist/web, drizzle"| r
     p -->|"node_modules"| r
@@ -234,18 +234,18 @@ Authorization is split deliberately: `domain:read` is `owner` **and** `admin` (s
 ### Driving it from the CLI
 
 ```bash
-npm run cli -- domain list
+pnpm run cli domain list
 # - shop.acme.com	verified
 # - beta.acme.com	pending
 # (CNAME → apps.example.com)
 
-npm run cli -- domain add shop.acme.com
+pnpm run cli domain add shop.acme.com
 # attached: shop.acme.com (pending)
 
-npm run cli -- domain check shop.acme.com
+pnpm run cli domain check shop.acme.com
 # shop.acme.com: verified — shop.acme.com is a CNAME to apps.example.com
 
-npm run cli -- domain remove beta.acme.com
+pnpm run cli domain remove beta.acme.com
 # removed: beta.acme.com (rows: 1)
 ```
 

@@ -14,16 +14,19 @@ jobs:
         working-directory: demo
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-      - run: npm ci
-      - run: npm run check
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
       # Advisory only (architecture §Security baseline): high/critical findings
       # are triaged, but audit's transitive noise must not break the build.
-      - run: npm audit --omit=dev --audit-level=high
+      - run: pnpm audit --prod --audit-level=high
         continue-on-error: true
 
   smoke:
@@ -60,17 +63,20 @@ jobs:
       DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-      - run: npm ci
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
       # Integration tests need a real Postgres, which only this smoke job has;
       # run them here (not in the check job, which is database-free, nor in the
       # local `smoke` script, which must stay fast) before the runtime smoke.
-      - run: npm run test:integration
-      - run: npm run smoke
+      - run: pnpm run test:integration
+      - run: pnpm run smoke
 
   e2e:
     if: github.repository == 'chomamateusz/agentproofarch'
@@ -106,19 +112,22 @@ jobs:
       DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-      - run: npm ci
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
       # A real browser over the real stack: the only surface smoke can't reach
       # (it drives the CLI, never a browser). Needs both a browser and Postgres,
-      # so it stays out of `npm run check`; the e2e server boots entry.node.ts
+      # so it stays out of `pnpm run check`; the e2e server boots entry.node.ts
       # against an isolated agentproofarch_e2e database and serves this bundle.
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build:web
-      - run: npm run e2e
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run build:web
+      - run: pnpm run e2e
 
   # NON-REQUIRED (ADR-0008): `visual` is in no ruleset's required list, so
   # this job reports a pixel regression without blocking a merge until the owner
@@ -155,15 +164,18 @@ jobs:
       DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build:web
-      - run: npm run visual
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run build:web
+      - run: pnpm run visual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:

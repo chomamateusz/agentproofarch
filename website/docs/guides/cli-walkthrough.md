@@ -16,10 +16,10 @@ if the CLI round-trips your feature, every layer from contract to repository is
 wired. This page walks every command group as it exists in
 `demo/apps/cli/src/main.ts`.
 
-Run everything from `demo/`. `--silent` keeps npm's own output off stdout:
+Run everything from `demo/`. `--silent` keeps pnpm's own output off stdout:
 
 ```bash
-npm run --silent cli -- --json health
+pnpm --silent run cli --json health
 ```
 
 ## The invocation model
@@ -33,7 +33,7 @@ sequenceDiagram
     participant API as apps/server · Hono
     participant Emit as emit() — the one output funnel
 
-    You->>CLI: npm run --silent cli -- --tenant acme todo add Buy milk
+    You->>CLI: pnpm --silent run cli --tenant acme todo add Buy milk
     CLI->>Zod: global options + command args
     Zod-->>Emit: parse failure → validation envelope, exit 2
     Zod->>Client: parsed input
@@ -144,7 +144,7 @@ cannot drift.
 ## Session: `health`, `register`, `login`, `login-link`, `logout`, `whoami`
 
 ```bash
-npm run --silent cli -- health
+pnpm --silent run cli health
 ```
 
 ```text
@@ -160,9 +160,9 @@ the compat `/api/health` the `health` command calls, which reports the database
 status inline at 200.
 
 ```bash
-npm run --silent cli -- register --name Demo --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- whoami
+pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli whoami
 ```
 
 ```text
@@ -197,15 +197,15 @@ Passwordless sign-in is two steps, because there is deliberately no in-app
 dev route that hands you the link:
 
 ```bash
-npm run --silent cli -- login-link --email mag@example.com
+pnpm --silent run cli login-link --email mag@example.com
 # → magic link requested for mag@example.com — open it from your inbox (dev/CI: Mailpit)
 #   read it at http://localhost:47980
-npm run --silent cli -- login-link --email mag@example.com --link 'http://localhost:47100/api/auth/magic-link/verify?...'
+pnpm --silent run cli login-link --email mag@example.com --link 'http://localhost:47100/api/auth/magic-link/verify?...'
 # → signed in as mag@example.com via magic link
 ```
 
 ```bash
-npm run --silent cli -- logout        # revokes server-side, then drops the token
+pnpm --silent run cli logout        # revokes server-side, then drops the token
 ```
 
 ## `tenant`: `list`, `create`, `switch`
@@ -214,7 +214,7 @@ npm run --silent cli -- logout        # revokes server-side, then drops the toke
 you are a customer of.
 
 ```bash
-npm run --silent cli -- tenant list
+pnpm --silent run cli tenant list
 ```
 
 ```text
@@ -223,9 +223,9 @@ globex	Globex Corp	(admin)
 ```
 
 ```bash
-npm run --silent cli -- tenant create Northwind Traders
+pnpm --silent run cli tenant create Northwind Traders
 # → created tenant: Northwind Traders (northwind-traders)
-npm run --silent cli -- tenant switch globex
+pnpm --silent run cli tenant switch globex
 # → active tenant: Globex Corp (globex)
 ```
 
@@ -240,8 +240,8 @@ config.
 The smallest complete vertical slice, and the one the smoke gate drives.
 
 ```bash
-npm run --silent cli -- --tenant acme todo list
-npm run --silent cli -- --tenant acme todo add Buy milk
+pnpm --silent run cli --tenant acme todo list
+pnpm --silent run cli --tenant acme todo add Buy milk
 ```
 
 ```text
@@ -274,7 +274,7 @@ use-case takes `ctx.identity` and every repository method requires a `tenantId`.
 Switch the header and the same command returns a different world:
 
 ```bash
-npm run --silent cli -- --tenant globex todo list
+pnpm --silent run cli --tenant globex todo list
 # → - Globex: przygotować prezentację architektury  (…)
 ```
 
@@ -286,11 +286,11 @@ ordered columns `todo → in-dev → review → done`, with WIP limits of **3** 
 `in-dev` and **2** on `review`.
 
 ```bash
-npm run --silent cli -- card add Sketch the API
-npm run --silent cli -- card list
-npm run --silent cli -- card add Ship it --board team
-npm run --silent cli -- card move <id> --board team --to in-dev
-npm run --silent cli -- card list --board team
+pnpm --silent run cli card add Sketch the API
+pnpm --silent run cli card list
+pnpm --silent run cli card add Ship it --board team
+pnpm --silent run cli card move <id> --board team --to in-dev
+pnpm --silent run cli card list --board team
 ```
 
 ```text
@@ -317,7 +317,7 @@ default, because a card spawned directly in `done` would have bypassed every
 guard above.
 
 ```bash
-npm run --silent cli -- card move <id> --board team --to done; echo "exit=$?"
+pnpm --silent run cli card move <id> --board team --to done; echo "exit=$?"
 # → error(validation): …done-only-from-review…
 # → exit=2
 ```
@@ -328,7 +328,7 @@ Members are the tenant's **end customers** — a different concept from staff. T
 whole group is staff-only.
 
 ```bash
-npm run --silent cli -- --tenant acme member list
+pnpm --silent run cli --tenant acme member list
 ```
 
 ```text
@@ -337,12 +337,12 @@ npm run --silent cli -- --tenant acme member list
 ```
 
 ```bash
-npm run --silent cli -- member ensure carol@example.com --name "Carol Example" --tag vip --tag beta
+pnpm --silent run cli member ensure carol@example.com --name "Carol Example" --tag vip --tag beta
 # → created: carol@example.com (…)      # run again → exists: carol@example.com (…)
-npm run --silent cli -- member update <id> --name "Carol E." --tag vip
-npm run --silent cli -- member export <id>
+pnpm --silent run cli member update <id> --name "Carol E." --tag vip
+pnpm --silent run cli member export <id>
 # → exported carol@example.com at 2026-07-26T09:31:02.004Z
-npm run --silent cli -- member remove <id>
+pnpm --silent run cli member remove <id>
 # → removed: <id> (members deleted: 1)
 ```
 
@@ -359,7 +359,7 @@ Flat `owner`/`admin` grants — there is no organizations/teams concept in the
 foundation. Listing is staff-readable; granting and revoking are **owner-only**.
 
 ```bash
-npm run --silent cli -- staff list
+pnpm --silent run cli staff list
 ```
 
 ```text
@@ -367,9 +367,9 @@ npm run --silent cli -- staff list
 ```
 
 ```bash
-npm run --silent cli -- staff grant colleague@example.com
+pnpm --silent run cli staff grant colleague@example.com
 # → granted: colleague@example.com (admin)     # re-run → already staff: …
-npm run --silent cli -- staff revoke --email colleague@example.com
+pnpm --silent run cli staff revoke --email colleague@example.com
 # → revoked: … (grants removed: 1)
 ```
 
@@ -383,7 +383,7 @@ Custom domains for the active tenant. Reading is staff-readable; add, check and
 remove are owner-only.
 
 ```bash
-npm run --silent cli -- --tenant acme domain list
+pnpm --silent run cli --tenant acme domain list
 ```
 
 ```text
@@ -397,11 +397,11 @@ because that provisioner sets neither a CNAME nor an IP; the `caddy` self-host
 provisioner sets exactly one.
 
 ```bash
-npm run --silent cli -- domain add shop.example.com
+pnpm --silent run cli domain add shop.example.com
 # → attached: shop.example.com (pending)
-npm run --silent cli -- domain check shop.example.com
+pnpm --silent run cli domain check shop.example.com
 # → shop.example.com: pending — <detail from the DNS check>
-npm run --silent cli -- domain remove shop.example.com
+pnpm --silent run cli domain remove shop.example.com
 # → removed: shop.example.com (rows: 1)
 ```
 
@@ -416,7 +416,7 @@ The unauthenticated read surface, deliberately exercised with **no session** —
 command builds a second API client that carries neither token nor tenant header.
 
 ```bash
-npm run --silent cli -- public profile acme
+pnpm --silent run cli public profile acme
 ```
 
 ```text
@@ -452,7 +452,7 @@ The point of the exit codes is that a script can branch on them without parsing
 prose:
 
 ```bash
-npm run --silent cli -- --tenant acme todo list --json > out.json
+pnpm --silent run cli --tenant acme todo list --json > out.json
 case $? in
   0) jq '.data.todos | length' out.json ;;
   3) echo "session expired — re-run login" ;;
@@ -461,7 +461,7 @@ case $? in
 esac
 ```
 
-The runtime gate does exactly this, at a larger scale: `npm run smoke` boots the
+The runtime gate does exactly this, at a larger scale: `pnpm run smoke` boots the
 real server against an isolated database and drives health → sign-in → todos →
 unauthorized through this same CLI, asserting the taxonomy exit codes on the way
 (including `unauthorized` = 3 and a `--tenant` that does not resolve =

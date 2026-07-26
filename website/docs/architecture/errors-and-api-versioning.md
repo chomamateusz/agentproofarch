@@ -159,7 +159,7 @@ client and server — a split this architecture does not have.
 
 **No version namespace, no version header, no content negotiation.** The
 contract's types are the version, checked at build for every consumer at once: a
-breaking change that reaches production un-migrated is a red `npm run check`, not a
+breaking change that reaches production un-migrated is a red `pnpm run check`, not a
 runtime surprise.
 
 ## Normative now: every change to `core/contract`

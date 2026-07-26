@@ -13,7 +13,7 @@ export type { __SINGULAR_PASCAL__Descriptors } from './selectors.js';
  * PORTABLE BY CONSTRUCTION. This module imports no api.ts and no DOM: it is a
  * FACTORY over its dependencies. The web composition (index.web.ts) injects the
  * bound server-read descriptor once; a TUI would inject its own. The core stays
- * typecheckable without DOM (tsconfig.islands.json / `npm run typecheck:islands`)
+ * typecheckable without DOM (tsconfig.islands.json / `pnpm run typecheck:islands`)
  * and node-testable through this public factory.
  *
  * `send` is the events-in entry point. RUNG 1 has no client machine, so it is a

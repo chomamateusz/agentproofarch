@@ -6,14 +6,14 @@ A concrete walkthrough of adding a real resource to the foundation. We'll add a
 The point isn't the notes; it's the *loop*: the scaffolder plants generated
 files, the type checker turns red, and every red error is the next wiring step.
 
-Run everything from `demo/`. If you haven't yet: `npm ci && npm run db:up &&
-npm run db:migrate && npm run db:seed` (and read [demo/CLAUDE.md](../demo/CLAUDE.md)
+Run everything from `demo/`. If you haven't yet: `pnpm install --frozen-lockfile && pnpm run db:up &&
+pnpm run db:migrate && pnpm run db:seed` (and read [demo/CLAUDE.md](../demo/CLAUDE.md)
 for the layer rules — they're enforced, but knowing them makes this faster).
 
 ## 1. Scaffold
 
 ```bash
-npm run new:resource -- note
+pnpm run new:resource -- note
 ```
 
 The scaffolder writes only the files a resource **owns outright** — never the
@@ -30,7 +30,7 @@ shared files, because generated edits to shared files rot. It writes:
 
 Then it prints an ordered checklist for the shared files you wire by hand. It
 deliberately does **not** touch them: the generated code imports symbols that
-don't exist yet, so `npm run check` stays RED through the type-forced steps
+don't exist yet, so `pnpm run check` stays RED through the type-forced steps
 (domain, contract, port/use-case, client wiring). Three steps are **not**
 type-forced — a missing CLI command, an unregistered web route, and a
 hand-registered server route (routes are wired by hand against `API_PATHS`, with
@@ -59,7 +59,7 @@ coupling to it.) Extracting a scaffolder into a versioned package later — the
 same trigger as the enforcement configs (a real second app, see
 architecture.md §Foundation evolution) — is therefore mechanical.
 
-(The scaffolder has a client-state sibling, `npm run new:island -- <name>`,
+(The scaffolder has a client-state sibling, `pnpm run new:island -- <name>`,
 which plants a feature's island core — the events-in / selectors-out seam of
 [ADR-0005](decisions/0005-client-application-state.md). Notes are pure server
 state, so this walkthrough never needs it.)
@@ -87,7 +87,7 @@ the **anchor line** to find, and a paste-ready snippet. A representative slice:
    add a sibling table:
      export const notes = pgTable('notes', { ... });
    Then generate + apply the migration:
-     npm run db:generate && npm run db:migrate
+     pnpm run db:generate && pnpm run db:migrate
 ```
 
 Work top to bottom. You don't have to memorize the chain — the checklist and
@@ -99,7 +99,7 @@ This is the core rhythm. After scaffolding, run the gate and read the first
 error:
 
 ```bash
-npm run check
+pnpm run check
 ```
 
 It fails — the generated `core/domain/note.ts` is exported from nowhere, so
@@ -120,8 +120,8 @@ Two steps genuinely need thought, not just pasting:
 - **Migration (step 5, second half).** After you've settled the columns:
 
   ```bash
-  npm run db:generate     # drizzle-kit diffs the schema → a new SQL migration
-  npm run db:migrate      # applies it to your dev database
+  pnpm run db:generate     # drizzle-kit diffs the schema → a new SQL migration
+  pnpm run db:migrate      # applies it to your dev database
   ```
 
   `db:generate` writes a migration file from the schema diff; commit it. Never
@@ -136,7 +136,7 @@ AppError>` returns — and it's pure, so tests are fast and need no server or
 database. Replace the `TODO` cases with the real ones:
 
 ```bash
-npx vitest run core/server/usecases/notes.test.ts
+pnpm exec vitest run core/server/usecases/notes.test.ts
 ```
 
 Cover the happy path (`addNote` returns `ok`, `listNotes` returns only the
@@ -146,14 +146,14 @@ verified independently of React and Hono.
 
 ## 5. Verify through the CLI
 
-Once the chain compiles (`npm run check` green), the CLI is the fastest way to
+Once the chain compiles (`pnpm run check` green), the CLI is the fastest way to
 see the feature actually work end-to-end. Boot the server and drive it:
 
 ```bash
-npm run dev:server &
-npm run --silent cli -- login --email demo@agentproofarch.dev --password demo1234
-npm run --silent cli -- --tenant acme note add Buy milk
-npm run --silent cli -- --tenant acme note list --json
+pnpm run dev:server &
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli --tenant acme note add Buy milk
+pnpm --silent run cli --tenant acme note list --json
 ```
 
 `--json` prints one envelope; the exit code comes from the error taxonomy. This
@@ -167,7 +167,7 @@ The scaffolder already generated `NotesPage.tsx` and its route; steps 11–12
 bind them to the query client and register the route. Then:
 
 ```bash
-npm run dev:web              # Vite + hot reload on 47180
+pnpm run dev:web              # Vite + hot reload on 47180
 ```
 
 Open the app, sign in, navigate to `/notes`, and add one through the UI. For
@@ -179,16 +179,16 @@ bundle that goes stale after a contract change.
 Both gates, plus the browser gate since you touched `apps/web`:
 
 ```bash
-npm run check                # static: typecheck + lint + lock-lint + depcruise + doc-lint + coverage
-npm run smoke                # runtime: real server + CLI flow, ~5s
-npm run e2e                  # browser: Playwright over the real stack
+pnpm run check                # static: typecheck + lint + lock-lint + depcruise + doc-lint + coverage
+pnpm run smoke                # runtime: real server + CLI flow, ~5s
+pnpm run e2e                  # browser: Playwright over the real stack
 ```
 
 When all three are green, open a PR. The
 [template](../.github/pull_request_template.md) is the same checklist made
 explicit — `check` green, `smoke` green, `e2e` green for a web change,
 architecture docs updated first if you changed a boundary, new deps via
-`npx -y npm@11 install`, work done in a worktree. CI re-runs `check`, `smoke`
+`pnpm add`, work done in a worktree. CI re-runs `check`, `smoke`
 and `e2e` on a clean checkout, and `post-deploy-smoke` verifies the deployed
 result against real production. Static-green is not done — but now you've proven
 it runs.

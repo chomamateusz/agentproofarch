@@ -109,7 +109,7 @@ See [Data & transactions](../architecture/data-and-transactions.md).
 
 | Term | Meaning |
 |---|---|
-| **Gate** | A red-or-green mechanical check. The static gate is `npm run check`; the runtime gate is `npm run smoke`. Static-green is not done — the app must actually run. |
+| **Gate** | A red-or-green mechanical check. The static gate is `pnpm run check`; the runtime gate is `pnpm run smoke`. Static-green is not done — the app must actually run. |
 | **`check`** | `typecheck` + `typecheck:islands` + `lint` + `lock-lint` + `depcruise` + `knip` + `doc-lint` + `test:coverage`. |
 | **`smoke`** | Boots the real server against a real database and drives health → sign-in → todos through the CLI, asserting taxonomy exit codes. `smoke:remote` runs the same CLI suite against a deployment URL. |
 | **Attestation** | The release `version` + commit `sha` carried by every health response, so a smoke run can prove *which* deploy it verified. `sha` is a vendor-neutral `APP_COMMIT_SHA`; unset (local dev) it reports `unknown`. |

@@ -40,8 +40,8 @@ snapshotPathTemplate: '{testDir}/__screenshots__/{platform}/{projectName}/{arg}{
 
 ```mermaid
 flowchart TD
-    dispatch["workflow_dispatch: visual-baselines<br/>update = true"] --> render["npm run visual:update<br/>continue-on-error: true"]
-    render --> compare["npm run visual<br/>comparison against what was just written"]
+    dispatch["workflow_dispatch: visual-baselines<br/>update = true"] --> render["pnpm run visual:update<br/>continue-on-error: true"]
+    render --> compare["pnpm run visual<br/>comparison against what was just written"]
     compare -->|"green"| upload["upload-artifact: visual-baselines"]
     compare -->|"red"| stop["no artifact — a partial or empty<br/>baseline set cannot escape CI"]
     upload --> commit["owner commits the PNGs;<br/>the PR diff is the review"]
@@ -52,7 +52,7 @@ The authoring run **cannot** gate anything, because Playwright reports a newly w
 
 ### 3. A separate suite, structurally isolated
 
-The specs live in `demo/visual/` with their own `playwright.visual.config.ts` and `npm run visual`, not in `demo/e2e/`. The required check `e2e` therefore cannot go red because a screenshot moved — **the isolation is a directory, not a filter someone can forget to apply.**
+The specs live in `demo/visual/` with their own `playwright.visual.config.ts` and `pnpm run visual`, not in `demo/e2e/`. The required check `e2e` therefore cannot go red because a screenshot moved — **the isolation is a directory, not a filter someone can forget to apply.**
 
 ### 4. The check is NON-REQUIRED until the owner arms it
 
@@ -94,7 +94,7 @@ Four baselines exist today, all under `visual/__screenshots__/linux/chromium/`: 
 
 ## Consequences
 
-- **`npm run visual` is a no-op-ish local convenience on macOS** — it drives the pages but compares nothing. Visual feedback for a developer comes from the CI job's uploaded diff artifact, not a local run: a deliberate trade for baselines that mean one thing everywhere.
+- **`pnpm run visual` is a no-op-ish local convenience on macOS** — it drives the pages but compares nothing. Visual feedback for a developer comes from the CI job's uploaded diff artifact, not a local run: a deliberate trade for baselines that mean one thing everywhere.
 - **An intentional UI change is a two-step pull request**: land the change, dispatch `visual-baselines` with `update: true`, commit the new PNGs. The reviewer sees the before/after in the diff.
 - **Runner-image drift will one day redraw a baseline with no code change** (a font package changing in `ubuntu-latest`). That is the known cost of exactness; it surfaces as a red **non-required** job, is re-baselined deliberately, and is the reason the check is not armed by default.
 

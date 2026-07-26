@@ -173,7 +173,11 @@ patch on npm:
 - **Phantom-dependency breakage surfaces at migration time, not later.** Any
   import that only ever resolved through npm's hoisting fails immediately under
   the strict layout. That is the feature; the fix is a declared dependency in
-  `package.json`.
+  `package.json`. The migration found exactly one: `observability.ts` imports
+  `@opentelemetry/sdk-trace-base`, which the Docker runtime image resolved only
+  because npm hoisted it out of `@opentelemetry/sdk-trace-node` — under the
+  strict `--prod` tree the image failed to boot with `ERR_MODULE_NOT_FOUND`, and
+  the fix was to declare it as the production dependency it always was.
 - **The Docker image's `node_modules` becomes a linked tree** (a virtual store
   plus symlinks) rather than a flat directory. The multi-stage build copies the
   directory as a whole, so the links stay internal and valid — and the
@@ -182,5 +186,5 @@ patch on npm:
 - **What this does not buy, stated plainly**: a compromised package whose payload
   lives in its runtime code still executes when the application imports it. The
   cooldown narrows the window in which such a version is installable at all, and
-  `npm audit`'s advisory role in CI is unchanged, but neither is a runtime
+  `pnpm audit`'s advisory role in CI is unchanged, but neither is a runtime
   defence. This decision hardens **installation**.

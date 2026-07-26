@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  * prints an ordered checklist for the shared files that must be EDITED by hand,
  * each with its anchor line and a ready-to-paste snippet. Generated edits to
  * shared files rot; the type system is left to enforce completion instead, so
- * `npm run check` stays RED through the type-forced steps. Three steps are not
+ * `pnpm run check` stays RED through the type-forced steps. Three steps are not
  * type-forced (server-route registration against API_PATHS, CLI command,
  * web-route registration) — the printed checklist, not the compiler,
  * guarantees those.
@@ -192,7 +192,7 @@ Scaffolded resource "${n.singularKebab}". Generated files (owned by this resourc
 ${generated}
 
 These GENERATED files already participate in typecheck and import symbols that do
-not exist yet, so \`npm run check\` will stay RED through the type-forced steps
+not exist yet, so \`pnpm run check\` will stay RED through the type-forced steps
 below. Three steps are NOT type-forced — the server route registration (7,
 wired by hand against API_PATHS with no parity check), the CLI command (10)
 and the web route registration (12) all typecheck while unwired — so finish
@@ -273,7 +273,7 @@ Work top to bottom — this is the 12-step chain from demo/CLAUDE.md:
        (table) => [index('${n.pluralSnake}_tenantId_idx').on(table.tenantId)],
      );
    Then generate + apply the migration:
-     npm run db:generate && npm run db:migrate
+     pnpm run db:generate && pnpm run db:migrate
    (The generated adapter repository — adapters/db/${n.pluralKebab}-repository.ts —
     is already written; it imports this table from ./schema.js.)
 
@@ -406,14 +406,14 @@ RUNG-1 CORE — ADR-0005 (the events-in / selectors-out seam is uniform, no opt-
    reads server state DIRECTLY through \`actions\` — a rung-0 starting point, like
    the pre-existing todos page. That is deliberately coreless, NOT an exemption:
    when this feature grows its own client state, give it the island seam with
-   \`npm run new:island -- ${n.singularKebab}\`, point that island's
+   \`pnpm run new:island -- ${n.singularKebab}\`, point that island's
    \`${n.singularCamel}Selectors.list\` at this resource's \`actions.${n.pluralCamel}\`,
    and read through the core instead of api.ts. new:resource owns the server/data
    slice; new:island owns the client feature and its rung-1 seam. See
    docs/decisions/0005-client-application-state.md.
 
 Verify (write core tests before wiring the UI):
-  npm run check && npm run smoke
+  pnpm run check && pnpm run smoke
 `;
 };
 
@@ -422,7 +422,7 @@ const runCli = (): void => {
   const dryRun = args.includes('--dry-run');
   const name = args.find((arg) => !arg.startsWith('--'));
   if (name === undefined) {
-    process.stderr.write('Usage: npm run new:resource -- <singular-name> [--dry-run]\n');
+    process.stderr.write('Usage: pnpm run new:resource -- <singular-name> [--dry-run]\n');
     process.exit(1);
   }
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');

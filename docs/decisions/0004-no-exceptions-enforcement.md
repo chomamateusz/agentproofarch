@@ -4,7 +4,7 @@ Date: 2026-07-17 · Status: accepted (2026-07-17), with one sub-decision deferre
 
 ## Context
 
-The foundation's two gates (`npm run check` static, `npm run smoke` runtime)
+The foundation's two gates (`pnpm run check` static, `pnpm run smoke` runtime)
 are only worth anything if they actually run on every change and cannot be
 silently bypassed. Two classes of failure proved that running them locally,
 by hand, on the honour system, is not enough:
@@ -29,12 +29,12 @@ green.
 
 1. **Both gates are required CI checks on every PR.** A GitHub Actions
    workflow (`ci`) runs on `pull_request` and on `push` to `main`:
-   - **`check`** — `npm ci && npm run check`, the static gate, from a clean
+   - **`check`** — `pnpm install --frozen-lockfile && pnpm run check`, the static gate, from a clean
      install. Its six members are: typecheck + ESLint (layer boundaries) +
      lock-lint + dependency-cruiser + doc-lint + vitest with coverage.
-   - **`smoke`** — `npm ci && npm run smoke` against a `postgres:16` service
+   - **`smoke`** — `pnpm install --frozen-lockfile && pnpm run smoke` against a `postgres:16` service
      container, the runtime gate: it verifies the installed tree matches
-     `package-lock.json`, drops+recreates the isolated `agentproofarch_smoke`
+     `pnpm-lock.yaml`, drops+recreates the isolated `agentproofarch_smoke`
      database, migrates, seeds, boots the real server and drives
      health → sign-in → todos → unauthorized through the CLI. A clean CI
      checkout structurally cannot carry stale local state, which closes the
@@ -43,7 +43,7 @@ green.
 2. **Post-deploy verification against real production.** A second workflow
    (`post-deploy-smoke`) listens for the `deployment_status` event and, when a
    **Production** deployment reports **success**, checks out the deployed
-   commit and runs `npm run smoke:remote` against the deployment's
+   commit and runs `pnpm run smoke:remote` against the deployment's
    `environment_url` (via the `BASE_URL` the script reads). This is the only
    gate that exercises the actual platform contract that broke in #10–#15;
    it turns "deployed" into "deployed and verified working".
@@ -56,7 +56,7 @@ green.
    and keep CI green.
 
 4. **Doc-lint.** Docs and enforcer configuration must stay in sync both ways
-   (`npm run doc-lint`, `scripts/doc-lint.ts`, wired into the `check` chain).
+   (`pnpm run doc-lint`, `scripts/doc-lint.ts`, wired into the `check` chain).
    - **docs → config**: every enforcer the docs promise must still exist in
      configuration. An in-script manifest maps prose-promised guarantees (layer
      boundaries, the `@vercel/*`/`@neondatabase/*` containment, "no `any`", "no

@@ -24,17 +24,17 @@ and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md).
 
 ```mermaid
 flowchart LR
-  subgraph static["npm run check — static gate"]
+  subgraph static["pnpm run check — static gate"]
     tc["typecheck<br/>tsc + tsconfig.islands.json"]
     lint["eslint<br/>layer boundaries · no any · no as"]
-    lock["lock-lint<br/>npm 11 lockfile semantics"]
+    lock["lock-lint<br/>pnpm frozen-lockfile semantics"]
     dc["dependency-cruiser"]
     knip["knip<br/>dead files"]
     dl["doc-lint<br/>docs ↔ enforcers · counts · env"]
     vt["vitest --coverage<br/>node · web · config projects"]
   end
 
-  subgraph runtime["npm run smoke — runtime gate"]
+  subgraph runtime["pnpm run smoke — runtime gate"]
     db["drop + recreate<br/>agentproofarch_smoke"]
     boot["boot entry.node.ts<br/>ephemeral port"]
     drive["drive the CLI<br/>assert taxonomy exit codes"]
@@ -64,18 +64,18 @@ Four levels carry the doctrine — unit, integration, e2e, smoke:
 
 | Level | Command | Environment | Count today | Where it runs |
 |---|---|---|---|---|
-| **unit** | `npm run test` (inside `check`) | node + jsdom, **no database** | 84 test files | every `check`, locally and in CI |
-| **integration** | `npm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | 48 tests | the CI `smoke` job — the only one with a database |
-| **e2e** | `npm run e2e` | real Chromium over the real stack | 15 tests / 6 specs | the CI `e2e` job |
-| **smoke** | `npm run smoke` | real server, driven through the CLI | the runtime gate | locally + the CI `smoke` job |
+| **unit** | `pnpm run test` (inside `check`) | node + jsdom, **no database** | 84 test files | every `check`, locally and in CI |
+| **integration** | `pnpm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | 48 tests | the CI `smoke` job — the only one with a database |
+| **e2e** | `pnpm run e2e` | real Chromium over the real stack | 15 tests / 6 specs | the CI `e2e` job |
+| **smoke** | `pnpm run smoke` | real server, driven through the CLI | the runtime gate | locally + the CI `smoke` job |
 
 …plus two suites that are not levels of their own, because neither is a place a
 new test gets written:
 
 | Suite | Command | Environment | What it is | Where it runs |
 |---|---|---|---|---|
-| **remote smoke** | `npm run smoke:remote` | a deployed URL | the **same** smoke suite pointed at a deploy, not a separate set of tests | `post-deploy-smoke`, after every deploy |
-| **pixel** | `npm run visual` | Chromium + CI-rendered baselines | screenshot comparison, deliberately **not a required check** ([ADR-0008](../decisions/0008-visual-regression.md)) | the `visual` job |
+| **remote smoke** | `pnpm run smoke:remote` | a deployed URL | the **same** smoke suite pointed at a deploy, not a separate set of tests | `post-deploy-smoke`, after every deploy |
+| **pixel** | `pnpm run visual` | Chromium + CI-rendered baselines | screenshot comparison, deliberately **not a required check** ([ADR-0008](../decisions/0008-visual-regression.md)) | the `visual` job |
 
 The unit run is split into vitest **projects**, and which one your file lands in is
 decided by its path:

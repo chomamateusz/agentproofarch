@@ -192,7 +192,7 @@ export const tenantUrl = (slug: string): string | null => {
 
 A `null` there means the tenant switcher cannot navigate by host, so the deployed
 web app is single-tenant per deployment URL while the API and CLI stay fully
-multi-tenant through `X-Tenant`. That is also how `npm run smoke:remote` drives a
+multi-tenant through `X-Tenant`. That is also how `pnpm run smoke:remote` drives a
 deployed environment.
 
 ### The custom-domain path
