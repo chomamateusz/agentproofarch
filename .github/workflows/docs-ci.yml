@@ -1,0 +1,38 @@
+name: docs-ci
+
+# NON-REQUIRED: `docs-build` is not in any ruleset's required set, so this job
+# reports a broken docs build without blocking a merge until the owner adds
+# `docs-build` to the required list.
+# It is also path-filtered, so it does not run on PRs that leave website/ alone —
+# which is another reason it cannot be a required check as written.
+
+on:
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  docs-build:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      # Diagrams render client-side, so a green build proves nothing about them:
+      # this runs mermaid's own parser over every fenced block.
+      - run: npm run check:mermaid

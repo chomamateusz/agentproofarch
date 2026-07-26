@@ -1,0 +1,61 @@
+name: docs-deploy
+
+# Publishes website/ to GitHub Pages after a merge to main. GitHub Pages must be
+# set to "GitHub Actions" by the repository owner (Settings -> Pages) before the
+# first run can succeed; until then this workflow fails at the deploy step and
+# nothing else is affected.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel in progress: a running Pages deployment must finish rather than be
+# pre-empted by the next push.
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      # No separate link-check step: onBrokenLinks/onBrokenAnchors are `throw`.
+      - run: npm run build
+      # Diagrams render client-side, so the build cannot catch a malformed one.
+      - run: npm run check:mermaid
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: website/build
+
+  deploy:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

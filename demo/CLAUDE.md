@@ -62,8 +62,9 @@ rejected.)
   ([ADR-0008](../docs/decisions/0008-visual-regression.md)): Playwright
   `toHaveScreenshot()` over the same boot harness, in its own suite
   (`visual/`, `playwright.visual.config.ts`) so a moved screenshot can never
-  redden `e2e`. It is **not a required check** — the rulesets gate on
-  `check`/`smoke`/`e2e`/`docker-smoke` only, until the owner arms it. Baselines
+  redden `e2e`. It is **not a required check** — the required set is
+  `check`/`smoke`/`e2e`/`docker-smoke` (+ `ai-review` on `main-gates`), and
+  `visual` stays out of it until the owner arms it. Baselines
   (`visual/__screenshots__/<platform>/`) are rendered by the linux CI runner via
   the `visual-baselines` workflow and committed; a mac run compares nothing
   (`ignoreSnapshots`), so it can neither author nor overwrite them. Changing the

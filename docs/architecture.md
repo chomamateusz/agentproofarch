@@ -56,7 +56,7 @@ never carries silent gaps.
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
-  read in `env.ts`, `composition.ts` and `adapters/db/migrate.ts` to select
+  read in `apps/server/src/env.ts` and `core/server/config.ts` to select
   behavior, and that is fine; what must not leak into core is the coupling to a
   vendor SDK.
 
@@ -746,9 +746,10 @@ transitively: "delete everything for tenant X" is one
 guaranteeing no orphans. Global/shared tables (accounts, the shared account pool)
 are deliberately outside that chain: one account spans many tenants (§Identity and
 multi-tenancy), so it must never cascade from a single tenant's deletion. The
-invariant is mechanically checkable — a smoke/integration test seeds every
-aggregate for a throwaway tenant, deletes the tenant row, and asserts zero rows
-remain for that `tenantId` (pattern normative, demo implements on first need).
+invariant is mechanically checked — the offboarding-cascade integration test
+(`adapters/db/repositories.integration.test.ts`) seeds every aggregate for a
+throwaway tenant, deletes the tenant row, and asserts zero rows remain for that
+`tenantId` while a sibling tenant is untouched.
 
 **GDPR mechanics** (NORMATIVE WHEN TRIGGERED — trigger: first real end-user
 personal data in production, beyond the demo seed). Right to access/portability is
@@ -1379,15 +1380,15 @@ no identity — Admin included — merges past them.
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
-| `main-gates` | `main` | require a PR + **0 approvals**; the same four required status checks **plus "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval**, stale approvals dismissed on push, last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
 
 The `visual` job (pixel comparison,
 [ADR-0008](decisions/0008-visual-regression.md)) is deliberately **absent** from
 both lists: it reports a screenshot regression without blocking a merge until the
 owner adds it to the required set, and it comes back out the moment it flakes.
 
-Agents have full `main` freedom (0 approvals, gated only by the four green checks
+Agents have full `main` freedom (0 approvals, gated only by the five green checks
 and up-to-date-ness); `production` needs an approval the agent cannot supply for
 its own PR — GitHub forbids self-approval, and the only other identity that can
 approve is the owner's. That single approval, from an owner device, is the
