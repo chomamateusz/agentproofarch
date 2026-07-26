@@ -6,6 +6,13 @@ description: Pure island cores, a three-rung ladder of machines, and the seam th
 
 # Client state (island cores)
 
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — server state
+via TanStack Query needs none of this. This page is the reference for client
+application state inside island cores. Come back when your island needs a store
+or a statechart, or a view is tempted to hold state of its own.
+:::
+
 This page exists because client state is where architectures usually stop being
 architecture. The rules here are unusual in one specific way: **the seam a view
 talks to is identical on every rung of complexity**, so upgrading a feature from

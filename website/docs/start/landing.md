@@ -80,7 +80,7 @@ From there:
 - **[Adding a feature](../guides/adding-a-feature.md)** — the scaffolder (a
   generator that plants a new resource) and the 12-step wiring checklist.
 - **[Layers](../architecture/layers.md)** and
-  **[Decisions](../decisions/index.md)** — why the seams sit where they do.
+  **[ADRs](../decisions/index.md)** — why the seams sit where they do.
 - **[Agent workflow](../guides/agent-workflow.md)** — how this repository is
   actually developed.
 
