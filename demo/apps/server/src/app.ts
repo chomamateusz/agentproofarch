@@ -51,6 +51,7 @@ import {
   resolveIdentity,
   revokeAdmin,
   runBackfillBatch,
+  tenantCreationContext,
   updateMember,
   type AuthenticatedUser,
 } from '#core/server/index.js';
@@ -184,12 +185,11 @@ export const buildApp = (deps: AppDeps) => {
   // identity resolution or authorization. Open CORS is scoped to this group only.
   registerPublicRoutes(app, deps);
 
-  // Tenancy self-service sits ABOVE tenant resolution: listing and creating one's
-  // own tenants are self-scoped operations gated by authentication alone, not by
-  // the tenant the current host resolves to (§Authorization — `listMyTenants` is
-  // the reasoned no-capability read). Serving them here lets the switcher and the
-  // post-register onboarding work on ANY host, including a tenant domain the
-  // caller has no access to (where the `/api/*` middleware below would 403).
+  // Tenant listing and creation sit ABOVE tenant resolution: they are not scoped
+  // by the tenant the current host resolves to (§Authorization). Serving them
+  // here lets the switcher and post-register onboarding work on ANY host,
+  // including a tenant domain the caller has no access to (where the `/api/*`
+  // middleware below would 403).
   app.get(API_PATHS.tenants, async (c) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
     if (!user) return respond(err(unauthorized()));
@@ -205,7 +205,8 @@ export const buildApp = (deps: AppDeps) => {
     if (!parsed.success) {
       return respond(err(validation('Invalid tenant payload', parsed.error.flatten())));
     }
-    const result = await createTenant({ identity: tenantlessIdentity(user) }, parsed.data, deps);
+    const ctx = await tenantCreationContext(user, deps.tenantCreationMode, deps);
+    const result = await createTenant(ctx, parsed.data, deps);
     return respond(result.ok ? ok({ tenant: result.value }) : result);
   });
 

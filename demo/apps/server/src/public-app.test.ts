@@ -91,6 +91,7 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   ids: { nextId: () => 'test-id' },
   clock: { nowIso: () => '2026-07-15T00:00:00.000Z' },
   baseDomain: 'localhost',
+  tenantCreationMode: 'open',
   commitSha: 'test-sha',
 });
 

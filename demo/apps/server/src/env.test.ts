@@ -14,6 +14,7 @@ beforeEach(() => {
   vi.stubEnv('APP_BASE_URL', undefined);
   vi.stubEnv('VERCEL_URL', undefined);
   vi.stubEnv('SECURE_COOKIES', undefined);
+  vi.stubEnv('TENANT_CREATION', undefined);
 });
 
 afterEach(() => {
@@ -52,6 +53,13 @@ describe('loadEnv', () => {
     expect(loadEnv().APP_COMMIT_SHA).toBeUndefined();
     vi.stubEnv('APP_COMMIT_SHA', 'deadbeef');
     expect(loadEnv().APP_COMMIT_SHA).toBe('deadbeef');
+  });
+
+  it('defaults tenant creation to open and accepts only declared modes', () => {
+    expect(loadEnv().TENANT_CREATION).toBe('open');
+    expect(parseEnv({ ...localDev(), TENANT_CREATION: 'staff' }).success).toBe(true);
+    expect(parseEnv({ ...localDev(), TENANT_CREATION: 'closed' }).success).toBe(true);
+    expect(parseEnv({ ...localDev(), TENANT_CREATION: 'invalid' }).success).toBe(false);
   });
 });
 

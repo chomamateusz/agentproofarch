@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { TENANT_CREATION_MODES } from '#core/domain/index.js';
+
 /**
  * The single source of environment configuration (DECIDE F4). One module owns
  * every env key and its parse rule; the runtime server, the migrate/seed
@@ -58,6 +60,7 @@ export const serverEnvSchema = z.object({
   DB_DRIVER: dbDriverField,
   APP_BASE_DOMAIN: z.string().default('localhost'),
   APP_BASE_URL: z.url().optional(),
+  TENANT_CREATION: z.enum(TENANT_CREATION_MODES).default('open'),
   // Set by Vercel on every deployment (`VERCEL=1`). Presence is the "we are
   // deployed on Vercel" signal the hardening refinements key off.
   VERCEL: z.string().optional(),

@@ -34,6 +34,11 @@ const memberIdentity: Identity = {
   memberId: 'm-1',
 };
 
+const ownerIdentity: Identity = {
+  ...identity,
+  staffRole: 'owner',
+};
+
 const fakeTenants = (initialTenants: Tenant[] = []) => {
   const tenants = [...initialTenants];
   const ownerGrants: OwnerGrantRecord[] = [];
@@ -104,6 +109,34 @@ describe('createTenant', () => {
 
     const result = await createTenant(
       { identity: memberIdentity },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
+  });
+
+  it('denies a visitor under staff mode before touching the repository', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity, tenantCreationMode: 'staff' },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
+    expect(store.tenants).toEqual([]);
+    expect(store.ownerGrants).toEqual([]);
+  });
+
+  it('denies an owner under closed mode before touching the repository', async () => {
+    const store = fakeTenants();
+
+    const result = await createTenant(
+      { identity: ownerIdentity, tenantCreationMode: 'closed' },
       { slug: 'new-co', name: 'New Co' },
       deps(store.repo),
     );

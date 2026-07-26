@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CAPABILITIES,
   decide,
+  grantsFor,
   PRINCIPALS,
   principalOf,
   type Capability,
@@ -124,5 +125,35 @@ describe('decide — exhaustive capability × principal matrix', () => {
     });
     // Everything else an admin shares with an owner, including reading the roster.
     expect(decide(asStaff('admin'), 'staff:read').allowed).toBe(true);
+  });
+});
+
+describe('tenant creation modes', () => {
+  const cases = [
+    ['open', { owner: true, admin: true, member: false, visitor: true }],
+    ['staff', { owner: true, admin: true, member: false, visitor: false }],
+    ['closed', { owner: false, admin: false, member: false, visitor: false }],
+  ] as const;
+
+  for (const [mode, expected] of cases) {
+    it(`${mode} derives and enforces the tenant:create row`, () => {
+      for (const principal of PRINCIPALS) {
+        expect(grantsFor(mode)['tenant:create'].includes(principal)).toBe(expected[principal]);
+        expect(decide(identityFor[principal], 'tenant:create', mode).allowed).toBe(
+          expected[principal],
+        );
+      }
+    });
+  }
+
+  it('leaves a non-varying capability unchanged across modes', () => {
+    for (const mode of ['open', 'staff', 'closed'] as const) {
+      expect(grantsFor(mode)['todo:write']).toEqual(['owner', 'admin', 'member']);
+      expect(decide(asMember, 'todo:write', mode)).toEqual({ allowed: true });
+      expect(decide(asVisitor, 'todo:write', mode)).toEqual({
+        allowed: false,
+        reason: 'todo:write is not permitted for visitor',
+      });
+    }
   });
 });

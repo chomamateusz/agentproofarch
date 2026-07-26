@@ -92,7 +92,7 @@ capability without deciding its grants **does not compile**:
 | `staff:revoke` | allow | **deny** | deny | deny |
 | `domain:read` | allow | allow | deny | deny |
 | `domain:write` | allow | **deny** | deny | deny |
-| `tenant:create` | allow | allow | **deny** | **allow** |
+| `tenant:create` | mode-derived | mode-derived | **deny** | mode-derived |
 
 Reading the interesting rows:
 
@@ -112,16 +112,31 @@ Reading the interesting rows:
   returns `not_found` when the email has no account.
 - **`domain:write` is owner-only** for the same reason: an admin runs the tenant
   without changing *where it is reachable*.
-- **`tenant:create` is tenant-less self-service** — the caller becomes owner — so a
-  `visitor` holds it while a `member` of one tenant may not provision others.
+- **`tenant:create` is selected by `TENANT_CREATION`.** The caller becomes owner
+  when creation is allowed; the three modes are detailed below.
 
-:::caution[The one cell that is not HTTP-reachable]
-The `member` deny on `tenant:create` is **use-case-layer only**. Over HTTP the
-create route deliberately sits above tenant resolution, so every authenticated
-caller presents as `visitor`; and a member could in any case drop the tenant
-header and legitimately present as one. The cell exists as defense-in-depth for
-future callers that carry a member context — not as a barrier you can probe from
-outside.
+### Tenant-creation modes
+
+`TENANT_CREATION` selects the instance-wide `tenant:create` grant row:
+
+| mode | `tenant:create` principals | behavior |
+|---|---|---|
+| `open` (default) | `owner`, `admin`, `visitor` | Any authenticated account may self-serve a tenant. |
+| `staff` | `owner`, `admin` | A caller who already holds a staff grant in any tenant may create another tenant. The first tenant must come from seed or operator tooling. |
+| `closed` | none | In-app creation is denied to everyone; seed or operator tooling creates every tenant. |
+
+The server reads the key from the single environment schema. In `staff` mode,
+the tenant-less create path checks the caller's staff grants across the instance
+before applying the ordinary grant table. `closed` is the same default-deny rule
+with an empty grant list, not a special authorization branch. Denial uses the
+existing `forbidden` response and requires no CLI or web-client handling.
+
+:::caution[The member cell is context-dependent]
+The `member` deny on `tenant:create` is a use-case-layer defense for callers
+that carry a member context. The HTTP create route sits above tenant resolution:
+under `open`, that account presents as a tenant-less `visitor` and may create;
+under `staff`, only an instance-wide owner/admin grant changes that principal;
+under `closed`, nobody is granted the capability.
 :::
 
 ### How a tenant comes to exist
@@ -131,19 +146,20 @@ The `tenant:create` row is easiest to read as a flow. Sign-up happens at the
 account does not put you in any tenant. An account that holds no staff grant
 and no membership is a `visitor`: authenticated, tenant-less.
 
-That visitor may call `tenant:create`. The `createTenant` use-case authorizes,
-validates the slug and name, and then calls the repository's
-`createTenantWithOwner` — a single atomic operation (one database round-trip)
-that inserts the tenant row **and** the caller's founding `owner` grant
-together, so a tenant can never exist without an owner. This is the standard
-self-service onboarding: sign up, create a tenant, own it.
+Under the default `open` mode, that visitor may call `tenant:create`. The
+`createTenant` use-case authorizes, validates the slug and name, and then calls
+the repository's `createTenantWithOwner` — a single atomic operation (one
+database round-trip) that inserts the tenant row **and** the caller's founding
+`owner` grant together, so a tenant can never exist without an owner. This is
+the standard self-service onboarding: sign up, create a tenant, own it.
 
 A `member` acting *in a tenant's context* is denied `tenant:create` — being a
 customer of one tenant does not license provisioning others from inside it.
-Honestly, though: capability checks are per-request and per-tenant-context, so
-the **same person** addressing the base domain (no tenant resolved) is a
-`visitor` there and may create a tenant. The member deny constrains the
-context, not the human.
+Capability checks are per-request and per-tenant-context, so the **same person**
+addressing the base domain has no member principal there. Whether they may
+create is then determined by `TENANT_CREATION`: `open` permits the resulting
+visitor, `staff` requires an existing staff grant elsewhere, and `closed`
+permits nobody.
 
 ## One line per use-case
 
@@ -153,7 +169,7 @@ variant; `authorizeTenant` both denies **and** hands back the resolved non-null
 
 ```ts
 export const authorize = (ctx: Ctx, capability: Capability): AppError | null => {
-  const verdict = decide(ctx.identity, capability);
+  const verdict = decide(ctx.identity, capability, ctx.tenantCreationMode);
   return verdict.allowed ? null : forbidden(verdict.reason);
 };
 
