@@ -36,13 +36,13 @@
     "visual": "playwright test --config playwright.visual.config.ts",
     "visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "smoke:remote": "tsx scripts/smoke-remote.ts",
-    "lock-lint": "npx -y npm@10 ls --all --package-lock-only >/dev/null"
+    "lock-lint": "npx -y npm@11 ls --all --package-lock-only >/dev/null"
   },
   "engines": {
-    "node": "22.x",
-    "npm": ">=10 <11"
+    "node": "24.x",
+    "npm": ">=11 <12"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@11.16.0",
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1091.0",
     "@better-auth/passkey": "^1.6.23",

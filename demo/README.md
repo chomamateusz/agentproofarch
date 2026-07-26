@@ -95,10 +95,9 @@ npm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5s
 ```
 
 - **`check`** runs typecheck, ESLint (layer boundaries), `lock-lint`
-  (validates `package-lock.json` under npm-10 semantics — the exact rules
-  `npm ci` enforces on CI; a local npm 11 `npm install` silently prunes
-  optional entries and broke CI twice, so **never `npm install` here** — add
-  deps with `npx -y npm@10 install`), dependency-cruiser, `knip`
+  (validates `package-lock.json` under npm 11 semantics — the exact rules
+  `npm ci` enforces on CI; add dependencies with
+  `npx -y npm@11 install`), dependency-cruiser, `knip`
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
