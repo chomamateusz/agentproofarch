@@ -43,7 +43,7 @@ before that lives in the git history only.
 
 - Toolchain upgraded from Node.js 22 to Node.js 24 LTS across local pins, CI,
   Docker, engines and documentation, with npm 11 lockfile semantics
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  ([#71](https://github.com/chomamateusz/agentproofarch/pull/71)).
 - Root README slimmed to a front door — attribution, the documentation
   site, live demo, minimal quickstart and the repo map; the layer diagram,
   gate details and environment matrix now live on the docs site
