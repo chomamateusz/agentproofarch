@@ -1,10 +1,10 @@
 ---
 title: Quickstart
-sidebar_label: Quickstart
+sidebar_label: Quickstart 🚀
 description: Clone the repository and get to a green runtime gate.
 ---
 
-# Quickstart
+# Quickstart 🚀 \{#quickstart}
 
 This page takes you from `git clone` to a green **runtime** gate — the point where
 the real server has booted, the CLI has driven a full multi-tenant flow through it,
@@ -14,7 +14,7 @@ account and a local mail sink, because every one of those is something the gates
 and the walkthroughs assume exists. Every command below is copied from
 `demo/package.json` and the repository READMEs.
 
-## What you get after boot
+## What you get after boot 📦 \{#what-you-get-after-boot}
 
 The demo is a **walking skeleton** — the thinnest version of the real system
 with every layer connected and actually working — not a scaffold of stubs.
@@ -32,7 +32,7 @@ drivable from both the web app and the CLI:
 - todos and two exemplar boards (a personal one and a WIP-guarded team one);
 - a public unauthenticated read surface.
 
-## Prerequisites
+## Prerequisites 🧰 \{#prerequisites}
 
 | Tool | Version | Why exactly this |
 |---|---|---|
@@ -43,7 +43,7 @@ drivable from both the web app and the CLI:
 Everything runs from `demo/` — it has its own `package.json`. The repository root
 holds `docs/` (normative architecture + PRD) and `website/` (this site).
 
-## 1. Clone and install
+## 1. Clone and install 📥 \{#1-clone-and-install}
 
 ```bash
 git clone https://github.com/chomamateusz/agentproofarch.git
@@ -59,7 +59,7 @@ dependencies with `npx -y npm@11 install <pkg>` so the regenerated lockfile uses
 the same npm major as CI.
 :::
 
-## 2. Environment: nothing to do (locally)
+## 2. Environment: nothing to do (locally) ⚙️ \{#2-environment-nothing-to-do-locally}
 
 For plain local development this step really is **nothing**: no `.env` file to
 create, no variable to export — skip straight to step 3. Every key a local boot
@@ -89,7 +89,7 @@ You create a `.env` (`cp .env.example .env`) in three cases:
 `.env.example` documents **names only**, and it is also the file `doc-lint` checks
 the env schema against — a new env key missing from it fails `check`.
 
-## 3. Database, mail sink, seed
+## 3. Database, mail sink, seed 🗄️ \{#3-database-mail-sink-seed}
 
 ```bash
 npm run db:up            # Postgres 16 on 47542 + Mailpit on 47925 (SMTP) / 47980 (UI)
@@ -121,7 +121,7 @@ CI and e2e all run the real SMTP adapter pointed at Mailpit, which captures send
 instead of delivering them. Read a magic link from its UI at
 `http://localhost:47980` — there is no in-app dev route for it.
 
-## 4. Run it
+## 4. Run it ▶️ \{#4-run-it}
 
 Two dev paths, and picking the wrong one is the most common first-run
 frustration:
@@ -153,7 +153,7 @@ Browsers reject `Domain=.localhost` cookies, so in dev you sign in **per
 subdomain**. On a real base domain one session spans every tenant subdomain; the
 per-subdomain login is a localhost artefact, not the design.
 
-## 5. Say hello from the CLI
+## 5. Say hello from the CLI ⌨️ \{#5-say-hello-from-the-cli}
 
 The CLI is the reference client and the agent feedback loop. `--silent` keeps npm's
 own chatter off stdout, so `--json` really does emit one document:
@@ -182,7 +182,7 @@ parenthesis on a todo is the first 8 characters of its row id; the seed uses
 `crypto.randomUUID()`, so yours will differ. Full tour:
 [CLI walkthrough](../guides/cli-walkthrough.md).
 
-## 6. Run the gates
+## 6. Run the gates 🛡️ \{#6-run-the-gates}
 
 ```bash
 npm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
@@ -219,7 +219,7 @@ either go green, and do not rerun a red job until it passes — a flake is a P1 
 ([Testing doctrine](../guides/testing-doctrine.md)).
 :::
 
-## The whole first run, in order
+## The whole first run, in order 🗺️ \{#the-whole-first-run-in-order}
 
 ```mermaid
 flowchart TD
@@ -238,7 +238,7 @@ flowchart TD
   gates["npm run check<br/>npm run smoke"] --> done["Done = both green"]
 ```
 
-## Ports
+## Ports 🔌 \{#ports}
 
 Nothing binds a common port, on purpose — 3000, 5432, 8080 and friends are all
 avoided so the stack never collides with whatever else you are running.
@@ -252,7 +252,7 @@ avoided so the stack never collides with whatever else you are running.
 | 47980 | Mailpit web UI + HTTP API (override with `MAILPIT_API_PORT`) |
 | 47101 | Self-host only: the internal domain-check control plane (`INTERNAL_PORT`, unset in dev) |
 
-## Troubleshooting
+## Troubleshooting 🚨 \{#troubleshooting}
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -265,7 +265,7 @@ avoided so the stack never collides with whatever else you are running.
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
 
-## Next
+## Next ➡️ \{#next}
 
 - [CLI walkthrough](../guides/cli-walkthrough.md) — every command group with real
   output and exit codes.

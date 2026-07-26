@@ -32,5 +32,10 @@ or `CHANGELOG.md`.
 - **Short paragraphs**, generous line breaks — no walls of text.
 - **Sparse, gentle emoji**: at most one per H2 heading or key table cell, never
   mid-sentence.
+- **🔷 is the official brand emoji**, reserved for brand-level headings (the
+  landing H1 and this README's title) with 🔷🔷🔷 as the ceremonial variant —
+  never used to decorate a regular section; every docs heading otherwise carries
+  one trailing meaning-matched emoji plus an explicit `{#id}` preserving its
+  pre-emoji anchor.
 - **No claim that is not verifiable in the repo.** Facts come from `docs/`,
   the source tree or the gates — invented claims are a defect.

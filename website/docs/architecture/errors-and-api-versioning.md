@@ -1,10 +1,10 @@
 ---
 title: Errors & API versioning
-sidebar_label: Errors & API versioning
+sidebar_label: Errors & API versioning 🚨
 description: A closed error taxonomy, one normalization edge, and deliberately no version namespace.
 ---
 
-# Errors & API versioning
+# Errors & API versioning 🚨 \{#errors--api-versioning}
 
 :::note[You do not need this to start]
 You can build with just the [Quickstart](../start/quickstart.md) — the error
@@ -22,7 +22,7 @@ server, web and CLI ship from one commit and the compiled contract *is* the
 version. Both are decided contracts, and both carry named triggers for the day
 they stop holding.
 
-## The taxonomy
+## The taxonomy 🗂️ \{#the-taxonomy}
 
 `ErrorCode` is a closed union in `core/domain/errors.ts`, mapped exhaustively in
 exactly two places — to HTTP statuses for the API and to process exit codes for the
@@ -51,7 +51,7 @@ export const validation = (message: string, details?: unknown): AppError =>
 `AppError` carries `code`, `message` and an optional `details` — typically a zod
 `flatten()` payload for a validation failure.
 
-## `Result`, not exceptions
+## `Result`, not exceptions 🎯 \{#result-not-exceptions}
 
 `core/domain/result.ts` is deliberately tiny and dependency-free:
 
@@ -71,7 +71,7 @@ the closed taxonomy above. Dropping `Result` and throwing across a boundary is o
 of the structural changes that takes a fork
 [off the foundation](../decisions/0004-no-exceptions-enforcement.md).
 
-## Domain error versus infrastructure failure
+## Domain error versus infrastructure failure ⚖️ \{#domain-error-versus-infrastructure-failure}
 
 This is the split that matters:
 
@@ -105,7 +105,7 @@ This is a decided contract (owner ruling 2026-07-20, closing audit rider CP-4/F8
 normalization stays at the single edge, and use-cases never grow per-call
 `try`/`catch` for infrastructure failures.
 
-## One envelope, everywhere
+## One envelope, everywhere ✉️ \{#one-envelope-everywhere}
 
 ```json
 { "ok": true, "data": { "todos": [] } }
@@ -121,7 +121,7 @@ client parses the envelope first and the route's payload second. Every response 
 success, 404, 503 — goes through `respond()`, so a client never has to handle a
 non-JSON body from `/api/*`.
 
-## The client side of the taxonomy
+## The client side of the taxonomy 💻 \{#the-client-side-of-the-taxonomy}
 
 `core/client/http.ts` parses in three steps and produces a taxonomy error at each
 failure:
@@ -157,7 +157,7 @@ stdout and `error(<code>): <message>` on stderr. One decision, three renderings 
 which is what makes the CLI a real verification surface for an agent (see
 [CLI walkthrough](../guides/cli-walkthrough.md)).
 
-## Why there is no API version
+## Why there is no API version 🔢 \{#why-there-is-no-api-version}
 
 Server, web and CLI ship **together from one commit**
 ([ADR-0003](../decisions/0003-vercel-environments.md)). The `core/contract` zod
@@ -170,7 +170,7 @@ contract's types are the version, checked at build for every consumer at once: a
 breaking change that reaches production un-migrated is a red `npm run check`, not a
 runtime surprise.
 
-## Normative now: every change to `core/contract`
+## Normative now: every change to `core/contract` 📜 \{#normative-now-every-change-to-corecontract}
 
 - **Additive-first.** New request fields are optional with a server default; new
   response fields are pure additions. A field's name, type and meaning are
@@ -185,7 +185,7 @@ runtime surprise.
 - **zod-parse at every boundary** is what makes a contract violation fail loud
   instead of corrupting state.
 
-### Expand → contract, concretely
+### Expand → contract, concretely 🪗 \{#expand--contract-concretely}
 
 Illustrating the rule with a hypothetical rename of a response field; this is the
 *procedure*, not a change the repo has made:
@@ -207,7 +207,7 @@ sequenceDiagram
 The window is deliberately narrow: only deploy 2 can strand anything, and the
 stranding is loud, never silent.
 
-## The one real skew: the stale tab
+## The one real skew: the stale tab ⏳ \{#the-one-real-skew-the-stale-tab}
 
 CLI and server are always the same commit; only a long-lived SPA session drifts. A
 tab left open overnight runs yesterday's bundle against today's API.
@@ -229,7 +229,7 @@ with no PII and no capability, actionable only to someone who already has backen
 log access — so surfacing it turns a support ticket into a one-line log lookup at
 zero disclosure cost.
 
-## Normative when triggered
+## Normative when triggered 🔔 \{#normative-when-triggered}
 
 | Trigger | Rule |
 |---|---|
@@ -243,7 +243,7 @@ arrive with the external consumer that triggers real versioning — building the
 first would mean maintaining machinery for a consumer that does not exist.
 :::
 
-## Cache headers are part of the response contract
+## Cache headers are part of the response contract 🧊 \{#cache-headers-are-part-of-the-response-contract}
 
 `respond()` owns them, so the default cannot be forgotten:
 

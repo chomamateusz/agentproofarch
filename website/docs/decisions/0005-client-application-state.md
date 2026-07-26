@@ -1,18 +1,18 @@
 ---
 title: 'ADR-0005 — Client application state: island cores'
-sidebar_label: 0005 · Client application state
+sidebar_label: '0005 · Client application state 🎛️'
 description: One uniform seam per feature, three rungs of machine inside it, and a spike that settled both library choices.
 ---
 
-# ADR-0005 — Client application state: island cores with a ladder of machines
+# ADR-0005 — Client application state: island cores with a ladder of machines 🎛️ \{#adr-0005--client-application-state-island-cores-with-a-ladder-of-machines}
 
 **2026-07-19 · accepted;** the two machine choices were resolved by the owner the same day, after a code spike. → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0005-client-application-state.md)
 
-## Summary
+## Summary 📋 \{#summary}
 
 Every feature (island) exposes exactly one seam: **events in, selectors out**. What varies is the machine behind that seam, on a three-rung ladder, and a core graduates a rung only when a **measurable trigger** fires. The view API is identical on every rung, so graduation never touches views.
 
-## The WHY
+## The WHY 🤔 \{#the-why}
 
 The server-state seam was fully regulated — descriptors, the CQRS partition, the QueryClient policy, optimistic updates. Client *application* state was one paragraph: `useState`/`useReducer` local to the feature, context for cross-cutting concerns, no global state libraries.
 
@@ -20,9 +20,9 @@ That paragraph holds for CRUD lists and says nothing about multi-step edits, dra
 
 The gap surfaced while auditing an external (anonymized) frontend-guidelines document. Most of it did not survive adversarial review: strict assumptions with zero enforcement, a hand-rolled view factory reimplementing what React context provides, reads and writes mixed on one channel. Its strongest concept *did* survive — **a framework-agnostic client core that views talk to through events in and subscriptions out, with the state machinery invisible behind that seam** — and five negotiation rounds hardened it into this architecture's idioms.
 
-## Decided
+## Decided ⚖️ \{#decided}
 
-### The ladder
+### The ladder 🪜 \{#the-ladder}
 
 ```mermaid
 flowchart TD
@@ -45,12 +45,12 @@ flowchart TD
 8. **Pure-TS cores — portable by construction.** A core is a pure TypeScript module: no React, no DOM, no `react-query`, **no `api.ts`**. It is a factory over its dependencies (`createBoardCore(deps)`), composed in a single web binding (`features/<name>/index.web.ts`) that injects the real gateway and bound descriptors.
 9. **Isomorphic domain rules for guarded transitions.** When transition legality is a *business* rule (WIP limits, an enforced status path), it is domain logic, not view logic — implemented client-only it is cosmetics, since a CLI request would walk straight past it. Such rules live as pure predicates in `core/domain`; the server enforces them on mutation and the island wires the same predicates as transition guards for instant UX.
 
-### The two library choices (resolved by spike)
+### The two library choices (resolved by spike) 📦 \{#the-two-library-choices-resolved-by-spike}
 
 - **(a) Rung-2 store: `@xstate/store`.** Its event map *is* the events-in seam — the store's `on: { cardAdded: … }` keys mirror the island's event union one-to-one with zero explicit generics and zero casts — and the same-vendor `fromStore` bridge makes rung-2 → rung-3 graduation a **supported move rather than a rewrite**. Substitute clause: `zustand/vanilla` is acceptable *only* for a team that foresees no graduation to rung 3; the demo always uses the first choice.
 - **(b) Isomorphic rules: transition-table-as-data.** The table (allowed moves + guard predicates) lives as plain data in `core/domain` with **zero dependencies**, so "zod only" stands unamended. The island's XState machine is **derived from the table programmatically — hand-writing the machine is forbidden** — the server check is derived from the same table, and a **drift property test in CI** proves the two derivations agree.
 
-## Alternatives considered
+## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |
 |---|---|---|
@@ -62,7 +62,7 @@ flowchart TD
 | **A shared machine for isomorphic rules (option B2)** | **rejected on spike evidence** | Two proven reasons: the rules are **board-scoped** while the machine is **card-scoped**, so every server check had to rebuild a synthetic per-card context around a board-global question — and it **fails open**: probe-verified, an unhandled transition returned its placeholder `{ allowed: true }` as the server's answer. |
 | **A stringly-typed client event bus** | still banned | This ADR *narrows* the earlier "no client event bus" decision rather than reversing it: what is sanctioned is exactly the closed-union escape hatch that decision reserved, now with a proven need, an owner per event, and a views-never-touch-it rule. |
 
-### The evidence
+### The evidence 🔍 \{#the-evidence}
 
 A code spike with **five implementations** over one shared behaviour suite — rung 2 as `zustand/vanilla`, `@xstate/store` and a full-XState reference; isomorphic rules as table-as-data versus a shared machine. It was judged by **two independent judge panels** whose disagreements were settled by an adjudicator with **verified runtime probes** (fail-open, index clamping, interleaving, subscription granularity — each reproduced against the code, not argued). Both panels independently picked `@xstate/store` and the table.
 
@@ -70,14 +70,14 @@ A code spike with **five implementations** over one shared behaviour suite — r
 The full spike report and decision-context notes are **not committed**; their conclusions and probe results are summarised in the ADR itself. That is stated in the ADR and repeated here so nobody hunts for missing files.
 :::
 
-### Spike learnings that became implementation requirements
+### Spike learnings that became implementation requirements 💡 \{#spike-learnings-that-became-implementation-requirements}
 
 - **Fail loud on unhandled transitions.** The derived machine and check **throw** when no verdict is produced; never seed a permissive initial verdict — fail-open is exactly what sank the shared machine.
 - **Clamp raw payload indices (`toIndex`) before the gateway call**, not only in optimistic state. Both rung-2 spike stores forwarded raw indices, so persisted order could silently diverge from optimistic order. The server re-clamps regardless.
 - **Drift property tests must cover WIP=1 edge limits** (both spike suites omitted `{todo: 1}` / `{done: 1}`) and must demonstrate their own detection power with a **planted mutant** — a hand-wired machine that drops a guard must make the suite fail.
 - **The `as`-free event-carrier typing trick.** XState's `types` field infers the event union from a value, and a single object literal collapses the union; under the no-`as` regime, pass a value whose *static* type is already the full union (index a `Record<ColumnId, MachineEvent>`), never `{} as MachineEvent`.
 
-## Consequences
+## Consequences ⚡ \{#consequences}
 
 - **Honest cost: the seam taxes simple features.** A rung-1 core is extra files where `useQuery(actions.todos)` was two lines. Mitigation: rung 1 is scaffolder-generated re-export boilerplate, and uniformity is what removes agent guesswork — a fixed small tax instead of a variable large one when agents improvise topologies.
 - **Enforcement surface grows**: new lint rules (event-suffix taxonomy, core purity bans, persistence bans, `setQueryData` confinement) plus config-regression probes for each, and every normative rule in the architecture section ships an explicit TYPE/LINT/TEST/REVIEW+AI matrix.

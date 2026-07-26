@@ -1,10 +1,10 @@
 ---
 title: Data & transactions
-sidebar_label: Data & transactions
+sidebar_label: Data & transactions 🗄️
 description: The neon-http single-statement doctrine, hard delete by default, and the conventions decided before the next aggregate copies them.
 ---
 
-# Data & transactions
+# Data & transactions 🗄️ \{#data--transactions}
 
 :::note[You do not need this to start]
 You can build with just the [Quickstart](../start/quickstart.md) — the seeded
@@ -22,7 +22,7 @@ is how that is *enforced*, plus the cross-cutting data conventions that were
 settled deliberately, before the next aggregate copied whatever shape happened to
 exist.
 
-## Per-target guarantee matrix
+## Per-target guarantee matrix 📊 \{#per-target-guarantee-matrix}
 
 Two drivers are selected by `DB_DRIVER` (`node-postgres` for self-host and dev,
 `neon-http` on Vercel — where the env schema **refuses to boot** on any other
@@ -51,7 +51,7 @@ never run on Vercel — and such a path must say so in code. Anywhere else it is
 correctness bug that passes every local test.
 :::
 
-## The MUST-ATOMIC list
+## The MUST-ATOMIC list ⚛️ \{#the-must-atomic-list}
 
 Each operation that must never be observable half-done is implemented as **one
 port method**, so the compiler — not review — prevents a caller from half-doing
@@ -107,7 +107,7 @@ Enforcement beyond the probe: an adapter test counts driver round-trips (exactly
 one `execute`) for the CTE operations, and an integration test fires two
 concurrent writers at the race-prone one and asserts the invariant holds.
 
-## Data lifecycle
+## Data lifecycle ♻️ \{#data-lifecycle}
 
 **Hard delete is the default** (normative now). A tenant-scoped delete removes the
 row. "Soft-delete everything" is a lie the moment one query forgets the
@@ -172,7 +172,7 @@ real need appears it is a new aggregate with its own retention, not a telemetry
 setting.
 :::
 
-## Data conventions
+## Data conventions 📐 \{#data-conventions}
 
 Decided 2026-07-20 (DECIDE C2) — *before* the next aggregate copied the current
 shape. Existing tables are grandfathered where noted: documented legacy, never a
@@ -199,7 +199,7 @@ Why cursors and not offsets: offsets skew under concurrent writes (rows shift
 between pages) and cost the database the full skipped prefix, while a keyed cursor
 is stable and index-backed.
 
-### The grandfather list, stated out loud
+### The grandfather list, stated out loud 👴 \{#the-grandfather-list-stated-out-loud}
 
 | Table | Legacy shape | Migrated? |
 |---|---|---|
@@ -222,7 +222,7 @@ exercises is a lie waiting to be believed. What exists today is the *decision*, 
 the first implementation has nothing to invent.
 :::
 
-## Invariant placement matrix
+## Invariant placement matrix 🧭 \{#invariant-placement-matrix}
 
 Every data invariant is placed deliberately — at the database, at the database
 *and* the app boundary, or app-only with a stated reason why the DB cannot express
@@ -258,7 +258,7 @@ one-command rollback rather than an incident. Previews (ephemeral branches) and
 self-host (own backup cadence) need no extra step.
 :::
 
-## Migrations
+## Migrations 🚚 \{#migrations}
 
 Migrations run at build time against that environment's own database — previews
 migrate their ephemeral branch (always safe), staging and production are

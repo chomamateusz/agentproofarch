@@ -1,10 +1,10 @@
 ---
 title: Authorization (default-deny)
-sidebar_label: Authorization
+sidebar_label: Authorization 🛡️
 description: A closed capability union, a wildcard-free grant table, and the tests that pin every cell.
 ---
 
-# Authorization (default-deny)
+# Authorization (default-deny) 🛡️ \{#authorization-default-deny}
 
 "We check permissions in the handlers" is how cross-tenant data leaks happen:
 one handler forgets the check, and nothing above it notices. Authorization here
@@ -14,7 +14,7 @@ cell and a structural probe that fails the build when a new use-case forgets the
 call. Nothing is granted by wildcard: a principal absent from a capability's list
 is denied.
 
-## Two questions, two steps
+## Two questions, two steps ❓ \{#two-questions-two-steps}
 
 Tenant resolution answers *which* tenant and *whether* the caller belongs to it
 ([Identity & multi-tenancy](identity-and-multi-tenancy.md)). Authorization answers
@@ -39,7 +39,7 @@ graph TD
     scoped -->|yes| allow["ok with the non-null tenantId"]
 ```
 
-## The capability model
+## The capability model 🔑 \{#the-capability-model}
 
 `core/domain/authorization.ts` holds the whole policy — no framework, no
 database, no I/O. The `Capability` union is closed:
@@ -72,7 +72,7 @@ export const principalOf = (identity: Identity): Principal => {
 principal until FR-8; the staff-grant surface is the first capability where they
 diverge, so the split is honest rather than cosmetic.
 
-## The grant table
+## The grant table 📋 \{#the-grant-table}
 
 The policy is data — a `Record<Capability, readonly Principal[]>` — so adding a
 capability without deciding its grants **does not compile**:
@@ -115,7 +115,7 @@ Reading the interesting rows:
 - **`tenant:create` is selected by `TENANT_CREATION`.** The caller becomes owner
   when creation is allowed; the three modes are detailed below.
 
-### Tenant-creation modes
+### Tenant-creation modes 🏢 \{#tenant-creation-modes}
 
 `TENANT_CREATION` selects the instance-wide `tenant:create` grant row:
 
@@ -139,7 +139,7 @@ under `staff`, only an instance-wide owner/admin grant changes that principal;
 under `closed`, nobody is granted the capability.
 :::
 
-### How a tenant comes to exist
+### How a tenant comes to exist 🌱 \{#how-a-tenant-comes-to-exist}
 
 The `tenant:create` row is easiest to read as a flow. Sign-up happens at the
 **platform** level, into the one account pool every tenant shares — creating an
@@ -161,7 +161,7 @@ create is then determined by `TENANT_CREATION`: `open` permits the resulting
 visitor, `staff` requires an existing staff grant elsewhere, and `closed`
 permits nobody.
 
-## One line per use-case
+## One line per use-case 📏 \{#one-line-per-use-case}
 
 Two helpers live in `core/server/authorize.ts`. `authorize` is the tenant-agnostic
 variant; `authorizeTenant` both denies **and** hands back the resolved non-null
@@ -201,7 +201,7 @@ A capability is modelled only where authorization is a **real decision**:
 authentication and carries no capability. A self-scoped read is not an access
 decision.
 
-## Public routes never authorize
+## Public routes never authorize 🚪 \{#public-routes-never-authorize}
 
 The public contract group (`/api/public/*`) is unauthenticated, so expressing its
 reads as a `visitor` capability would be dishonest — `visitor` is an
@@ -219,7 +219,7 @@ the public app for any identity-bearing use-case name or
 `authorize`/`resolveIdentity` reference, and asserts the public use-case's first
 parameter is not `ctx: Ctx`.
 
-## How each rule is actually held
+## How each rule is actually held 🔒 \{#how-each-rule-is-actually-held}
 
 The foundation's convention is that every rule carries an explicit enforcement
 matrix, because a rule without one is prose, and prose decays.
@@ -238,7 +238,7 @@ the structural probe below exists — and why the probe's own limits are stated
 rather than glossed.
 :::
 
-## The denial tests
+## The denial tests ✅ \{#the-denial-tests}
 
 **1. The exhaustive matrix.** `core/domain/authorization.test.ts` declares an
 `EXPECTED: Record<Capability, Record<Principal, boolean>>` — exhaustive by
@@ -272,7 +272,7 @@ new aggregate therefore starts with its denial tests already written.
 - the probe also asserts it found the known use-cases, so a broken scan cannot
   pass vacuously, and that the allowlist has no stale entries.
 
-## Adding a capability
+## Adding a capability ➕ \{#adding-a-capability}
 
 1. Add the string to `CAPABILITIES` in `core/domain/authorization.ts`.
 2. The `GRANTS` record now fails to compile — decide, explicitly, which principals

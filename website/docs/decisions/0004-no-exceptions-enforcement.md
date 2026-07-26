@@ -1,18 +1,18 @@
 ---
 title: ADR-0004 — No-exceptions enforcement
-sidebar_label: 0004 · No-exceptions enforcement
+sidebar_label: '0004 · No-exceptions enforcement 🛡️'
 description: CI gates, post-deploy verification, and probes that keep the enforcers honest.
 ---
 
-# ADR-0004 — No-exceptions enforcement: CI gates, post-deploy verification, config-regression probes
+# ADR-0004 — No-exceptions enforcement: CI gates, post-deploy verification, config-regression probes 🛡️ \{#adr-0004--no-exceptions-enforcement-ci-gates-post-deploy-verification-config-regression-probes}
 
 **2026-07-17 · accepted, with one sub-decision deferred to the owner.** Amended 2026-07-20 (post-deploy scope). → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0004-no-exceptions-enforcement.md)
 
-## Summary
+## Summary 📋 \{#summary}
 
 Both gates — the static `check` and the runtime `smoke` — are **required CI checks on every PR**, run from a clean `npm ci`. Every production deploy is independently re-verified end to end. And the enforcers themselves are enforced: config-regression probes feed a deliberately violating fixture to each rule and assert the gate still goes red.
 
-## The WHY
+## The WHY 🤔 \{#the-why}
 
 Two gates on the honour system are worth nothing, and two concrete failure classes proved it.
 
@@ -31,7 +31,7 @@ flowchart TD
     f3 --> doclint["doc-lint: docs ↔ config, both ways"]
 ```
 
-## Decided
+## Decided ⚖️ \{#decided}
 
 1. **Both gates are required CI checks on every PR** (`ci` workflow, on `pull_request` and `push` to `main`):
    - **`check`** — `npm ci && npm run check`, the static gate from a clean install: typecheck, ESLint layer boundaries, `lock-lint`, dependency-cruiser, doc-lint and vitest with coverage. *(The chain has since grown to eight members, adding `typecheck:islands` and `knip` — see [CI gates](../operations/ci-gates.md).)*
@@ -45,7 +45,7 @@ flowchart TD
    - **dead relative links**: every git-tracked `.md` has its relative link targets resolved on disk. Build-generated docs are a named exception (today exactly one — `website/docs/changelog.md`, written by `prebuild`), because they are legitimately absent from a clean checkout; the exception is a literal path list, so a typo still fails.
 5. **Third-party actions are pinned by full commit SHA**, never a mutable tag — a tag can be force-moved onto malicious code under an unchanged CI config. A trailing comment records the version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; a comment may also record just the major line the pin tracks — `# v1` for `claude-code-action`, pinned at its `v1.0.181` release commit); bumps come through the same dependency PRs and pass both gates.
 
-## Alternatives considered
+## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |
 |---|---|---|
@@ -56,14 +56,14 @@ flowchart TD
 | **Pin actions by tag (`@v4`)** | rejected | A tag is mutable and can be force-moved onto malicious code with no visible change to the workflow file. |
 | **A PR-template review checklist for the REVIEW+AI tier** | rejected as the endpoint | The owner's direction (2026-07-20, DECIDE F1) commissioned a **full AI-review CI gate** instead of a transitional checklist. It now ships as the fail-closed `ai-review` workflow. |
 
-## Consequences
+## Consequences ⚡ \{#consequences}
 
 - **Every PR is red until both gates pass**, and every production deploy is independently re-verified end to end. Both historical failure classes are structurally caught.
 - **Branch protection is server-enforced.** The repository is **public**, so GitHub rulesets are available at no cost, and two are in force with **empty bypass lists**: `main-gates` on `main` (PR + the required checks `check` / `smoke` / `e2e` / `docker-smoke` / `ai-review` + "require branches up to date", 0 approvals, merge-commit only) and `production-protection` on `production` (`check` / `smoke` / `e2e` / `docker-smoke` + **1 required approval**, stale approvals dismissed on push, merge-commit only). A merge is therefore *blocked*, not merely marked red. This supersedes the earlier private-repo limitation, when the branch-protection API returned `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — **going public was the resolution.**
 - **CI runs only on the canonical repo.** Every job is guarded with `if: github.repository == 'chomamateusz/agentproofarch'`, so a fork never spends Actions minutes or fails on missing secrets and services.
 - **Probes and doc-lint add maintenance surface** — fixtures must track the rules they guard — accepted as the price of turning "you cannot silently disable a rule" from a hope into a mechanical guarantee.
 
-### Amendment (2026-07-20): post-deploy scope and target URL
+### Amendment (2026-07-20): post-deploy scope and target URL 📝 \{#amendment-2026-07-20-post-deploy-scope-and-target-url}
 
 Decision point 2 described the narrowest form of the gate. The shipped workflow is broader, and all three sources now agree:
 

@@ -1,10 +1,10 @@
 ---
 title: CLI walkthrough
-sidebar_label: CLI walkthrough
+sidebar_label: CLI walkthrough ⌨️
 description: The agent feedback loop — every capability with --json and an exit code.
 ---
 
-# CLI walkthrough
+# CLI walkthrough ⌨️ \{#cli-walkthrough}
 
 An agent cannot read a screenshot to decide whether it wired a feature correctly.
 That is why every capability in this foundation has a CLI command, why `--json`
@@ -22,7 +22,7 @@ Run everything from `demo/`. `--silent` keeps npm's own output off stdout:
 npm run --silent cli -- --json health
 ```
 
-## The invocation model
+## The invocation model ▶️ \{#the-invocation-model}
 
 ```mermaid
 sequenceDiagram
@@ -58,7 +58,7 @@ Three properties fall out of that shape and matter to anyone scripting it:
   `core/client` parses the envelope and then the route's output schema; a mismatch
   becomes `internal` rather than a half-typed object.
 
-## Global options and stored config
+## Global options and stored config ⚙️ \{#global-options-and-stored-config}
 
 | Option | Meaning |
 |---|---|
@@ -92,7 +92,7 @@ additionally sniffed straight off `process.argv`, so even a commander parse
 failure emits its envelope as JSON when you asked for JSON.
 :::
 
-## The envelope and the exit codes
+## The envelope and the exit codes 📦 \{#the-envelope-and-the-exit-codes}
 
 `--json` emits the `Result` re-wrapped as an envelope, pretty-printed with two
 spaces:
@@ -141,7 +141,7 @@ kind cannot be added without both. The smoke gate imports the same table and
 asserts against it, which is why the CLI's exit codes and the server's statuses
 cannot drift.
 
-## Session: `health`, `register`, `login`, `login-link`, `logout`, `whoami`
+## Session: `health`, `register`, `login`, `login-link`, `logout`, `whoami` 🔐 \{#session-health-register-login-login-link-logout-whoami}
 
 ```bash
 npm run --silent cli -- health
@@ -208,7 +208,7 @@ npm run --silent cli -- login-link --email mag@example.com --link 'http://localh
 npm run --silent cli -- logout        # revokes server-side, then drops the token
 ```
 
-## `tenant`: `list`, `create`, `switch`
+## `tenant`: `list`, `create`, `switch` 🏢 \{#tenant-list-create-switch}
 
 `tenant` is the **staff** surface — the tenants you administer, not the tenants
 you are a customer of.
@@ -235,7 +235,7 @@ against your staff memberships and refuses locally with `not_found` (exit 5) —
 "You do not administer any tenant with slug …" — before writing anything to
 config.
 
-## `todo`: `list`, `add`
+## `todo`: `list`, `add` 📝 \{#todo-list-add}
 
 The smallest complete vertical slice, and the one the smoke gate drives.
 
@@ -278,7 +278,7 @@ npm run --silent cli -- --tenant globex todo list
 # → - Globex: przygotować prezentację architektury  (…)
 ```
 
-## `card`: `list`, `add`, `move`
+## `card`: `list`, `add`, `move` 🃏 \{#card-list-add-move}
 
 Two boards share one substrate. `--board personal` (the default) has columns
 `todo`/`doing`/`done` and no path rules. `--board team` is the *guarded* exemplar:
@@ -322,7 +322,7 @@ npm run --silent cli -- card move <id> --board team --to done; echo "exit=$?"
 # → exit=2
 ```
 
-## `member`: `list`, `ensure`, `update`, `remove`, `export`
+## `member`: `list`, `ensure`, `update`, `remove`, `export` 👥 \{#member-list-ensure-update-remove-export}
 
 Members are the tenant's **end customers** — a different concept from staff. The
 whole group is staff-only.
@@ -353,7 +353,7 @@ separate flag from omitting `--name`). `export` is the GDPR access/portability
 dump; `remove` deletes the member and their tenant-scoped data while leaving the
 global account untouched.
 
-## `staff`: `list`, `grant`, `revoke`
+## `staff`: `list`, `grant`, `revoke` 👑 \{#staff-list-grant-revoke}
 
 Flat `owner`/`admin` grants — there is no organizations/teams concept in the
 foundation. Listing is staff-readable; granting and revoking are **owner-only**.
@@ -377,7 +377,7 @@ There are **no invitations**: the target must already have an account, and a
 grant against an unknown email is `not_found` (exit 5). Revoking the last owner
 is refused — the tenant cannot be left ownerless.
 
-## `domain`: `list`, `add`, `check`, `remove`
+## `domain`: `list`, `add`, `check`, `remove` 🌐 \{#domain-list-add-check-remove}
 
 Custom domains for the active tenant. Reading is staff-readable; add, check and
 remove are owner-only.
@@ -410,7 +410,7 @@ the deploy target. See
 [Self-host and domains](../operations/self-host-and-domains.md) for the two
 provisioning paths.
 
-## `public`: `profile`
+## `public`: `profile` 📣 \{#public-profile}
 
 The unauthenticated read surface, deliberately exercised with **no session** — the
 command builds a second API client that carries neither token nor tenant header.
@@ -433,7 +433,7 @@ tenant's visible content, so a rename changes it — yours will differ from the
 sample. Rationale:
 [ADR-0006](../decisions/0006-public-read-only-surface.md).
 
-## Command reference
+## Command reference 📋 \{#command-reference}
 
 | Group | Commands |
 |---|---|
@@ -446,7 +446,7 @@ sample. Rationale:
 | `domain` | `list`, `add <domain>`, `check <domain>`, `remove <domain>` |
 | `public` | `profile <tenant>` |
 
-## Using it as an agent loop
+## Using it as an agent loop 🤖 \{#using-it-as-an-agent-loop}
 
 The point of the exit codes is that a script can branch on them without parsing
 prose:

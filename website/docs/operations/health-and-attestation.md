@@ -1,10 +1,10 @@
 ---
 title: Health & attestation
-sidebar_label: Health & attestation
+sidebar_label: Health & attestation 🩺
 description: Liveness, readiness, and proving which deploy a smoke run actually verified.
 ---
 
-# Health & deploy attestation
+# Health & deploy attestation 🩺 \{#health--deploy-attestation}
 
 *Is the process alive?* and *is it ready to serve traffic?* have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
 
@@ -12,7 +12,7 @@ description: Liveness, readiness, and proving which deploy a smoke run actually 
 Normative: [`docs/architecture.md` §Health & deploy attestation](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md). Routes: `demo/apps/server/src/app.ts`. Schemas: `demo/core/contract/routes.ts`. Gate: [`post-deploy-smoke.yml`](https://github.com/chomamateusz/agentproofarch/blob/main/.github/workflows/post-deploy-smoke.yml).
 :::
 
-## Three endpoints, one attestation
+## Three endpoints, one attestation 📡 \{#three-endpoints-one-attestation}
 
 ```mermaid
 flowchart TD
@@ -35,7 +35,7 @@ flowchart TD
 
 All three are mounted **before** tenant resolution — they are a public surface — and all three go out through the shared `respond()` seam, so they carry `cache-control: no-store` and `content-type: application/json` like every other API response.
 
-## Real payloads
+## Real payloads 📦 \{#real-payloads}
 
 The envelope is the repo-wide one: `{ ok: true, data }` or `{ ok: false, error }`. The commit SHA in the samples below is a stand-in for whatever commit is deployed — the field, not the value, is the point.
 
@@ -119,7 +119,7 @@ npm run cli -- --json health
 # exactly one JSON document on stdout: { "ok": true, "data": { … } }
 ```
 
-## Why the split matters
+## Why the split matters ✂️ \{#why-the-split-matters}
 
 The route code is three lines each, and the shapes are what carry the doctrine:
 
@@ -146,11 +146,11 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||47100)+'/api/health/live').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ```
 
-## The attestation, and the SHA it carries
+## The attestation, and the SHA it carries 🧾 \{#the-attestation-and-the-sha-it-carries}
 
 `sha` is a **vendor-neutral** `APP_COMMIT_SHA`. The platform entry (`api/index.ts`) maps Vercel's `VERCEL_GIT_COMMIT_SHA` into it, so the vendor's variable name stays contained to that single platform boundary — the same containment rule the layer doctrine applies to vendor SDKs. Self-host sets `APP_COMMIT_SHA` directly (the `docker-smoke` job writes `APP_COMMIT_SHA=${GITHUB_SHA}` into `.env`). Unset, it reports `unknown`.
 
-### The attestation gate
+### The attestation gate 🛡️ \{#the-attestation-gate}
 
 ```mermaid
 sequenceDiagram
@@ -184,7 +184,7 @@ Two properties of the design deserve naming:
 - **The attestation is opt-in per caller, not per endpoint.** `EXPECTED_SHA` is an environment variable `smoke-remote.ts` reads; local `smoke` omits it (the SHA would be `unknown`), and `docker-smoke` supplies `${{ github.sha }}`. The endpoint always publishes the SHA; the *assertion* belongs to whoever knows what they deployed.
 - **It is the trust anchor for the release gate.** Step 6 of the release ritual is "read the SHA off production `/api/health` and confirm it is the merged commit". That attestation — not a line in a deploy log — is what proves the running code is the code that passed the gates and the owner's diff review. See [Environments & promotion](./environments.md).
 
-## Enforcement
+## Enforcement ⚖️ \{#enforcement}
 
 Following the repo's TYPE / LINT / TEST / REVIEW+AI vocabulary:
 

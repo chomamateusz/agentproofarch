@@ -1,10 +1,10 @@
 ---
 title: Environments & promotion
-sidebar_label: Environments & promotion
+sidebar_label: Environments & promotion 🗺️
 description: Four environments from one commit, and an owner-only release gate enforced by two GitHub rulesets.
 ---
 
-# Environments & promotion topology
+# Environments & promotion topology 🗺️ \{#environments--promotion-topology}
 
 Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one. The answer here is nothing an agent is asked to remember — it is a property of the environment: the same commit flows feature branch → preview → `main` (staging) → `production`, only environment variables differ, and the single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
 
@@ -14,7 +14,7 @@ Click-by-click ritual: [`docs/deploy-promotion.md`](https://github.com/chomamate
 Original mapping: [ADR-0003](../decisions/0003-vercel-environments.md) — its release topology was superseded on 2026-07-24.
 :::
 
-## Four environments, one commit
+## Four environments, one commit 🌍 \{#four-environments-one-commit}
 
 | Env | Git → deploy | Database | Host |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Two structural facts follow from the table:
 
 The function runs in `fra1` (`vercel.json` → `"regions": ["fra1"]`) and the Neon project lives in `aws-eu-central-1` — co-located deliberately (ADR-0003 §5: whoever moves one side moves both).
 
-## The promotion flow
+## The promotion flow ➡️ \{#the-promotion-flow}
 
 ```mermaid
 flowchart LR
@@ -46,15 +46,15 @@ flowchart LR
 
 Agents own everything left of the `production` branch. An agent — acting as the machine account `chomamateusz-agent` — branches, opens PRs, merges to `main` once the five checks pass, dispatches workflows and drives preview + staging deployments freely. It may even **open** the `main → production` release PR. It cannot approve it.
 
-## The wall
+## The wall 🧱 \{#the-wall}
 
 The security boundary is **not** "no GitHub event can reach production" — a merge to `production` *is* the release trigger. The wall is that this merge requires a pull request only the owner can approve, so **the owner's diff review happens before the build that sees production secrets runs.** That ordering is the whole point, and it is the specific correction over the older dashboard-promote model, where the review ran *after* the build.
 
-### Base: the identity split
+### Base: the identity split 🪪 \{#base-the-identity-split}
 
 The repository is **public**. Agents act through a machine GitHub account, `chomamateusz-agent`, added as a collaborator with **Write, never Admin**; the owner's own credentials (gh sessions, PATs) never live on the agent machine. The owner's SSH key may remain there, and the rulesets neutralise it for production: SSH can push a ref but **cannot call the API to edit a ruleset or approve a pull request**.
 
-### The two rulesets
+### The two rulesets 📜 \{#the-two-rulesets}
 
 Both carry an **empty bypass list**, so no identity — Admin included — merges past them.
 
@@ -83,7 +83,7 @@ flowchart TD
 The merge that triggers the production build runs a build **with production secrets**. Nothing removes that; the design bounds it instead — the owner's diff review lands *before* the merge by construction, and all production env vars are marked Sensitive so their values cannot be read back out of the dashboard or CLI, only overwritten. That is honest scoping of a *read* path, not a claim that the build never sees secrets.
 :::
 
-## The release ritual
+## The release ritual 🚀 \{#the-release-ritual}
 
 Performed by the owner. Opening the PR may be delegated to an agent; **approval and merge are not.**
 
@@ -117,11 +117,11 @@ The steps in words, matching [`deploy-promotion.md`](https://github.com/chomamat
 
 Because a `production` merge is an ordinary branch push, it emits the normal `deployment_status` event for the `Production` environment, so `post-deploy-smoke.yml` fires without any special wiring. (The older worry — that a dashboard "Promote to Production" click might emit a different event or none — does not apply to the PR-merge model.)
 
-### Rollback
+### Rollback ⏪ \{#rollback}
 
 A rollback is a release in reverse: open and merge a PR that returns `production` to the previous known-good SHA (or `git revert` the offending commit), through the same approval gate. **Code rollback and schema rollback are separate** — a migration in the rolled-back release is undone via the Neon PITR point from step 4, not by shipping older code, because old code against a new schema can still break.
 
-## The five standing controls
+## The five standing controls 🛡️ \{#the-five-standing-controls}
 
 Each is a property of the environment, not a rule someone is asked to remember.
 
@@ -135,7 +135,7 @@ Each is a property of the environment, not a rule someone is asked to remember.
 
 Control 5 has a second effect worth naming: the Docker target is the reason a **paid-app topology** works at all. Production for a commercial app lives on its own **Pro** team while non-commercial work stays on **Hobby** — one login spans both, but a pause, suspension or plan-limit hit on one team does not take the other down.
 
-## Tenant addressing per environment
+## Tenant addressing per environment 🏢 \{#tenant-addressing-per-environment}
 
 Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant` order, what each environment can and cannot address, and the `*.vercel.app` impossibility — is one subject with one page: [Identity & multi-tenancy §Tenant addressing per environment](../architecture/identity-and-multi-tenancy.md). What belongs *here* is the deploy-side consequence of it.
 
@@ -151,7 +151,7 @@ Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant
 - **A cross-subdomain session on a real base domain is documented but not locally testable** — it is recorded as a verification residual to be confirmed live on the first custom base-domain deployment.
 :::
 
-## Secrets and migrations
+## Secrets and migrations 🔑 \{#secrets-and-migrations}
 
 - **Secrets live only in Vercel's env store**, scoped per environment (staging uses branch-scoped Preview vars on Hobby). Local dev never pulls them: agent machines hold no platform-CLI sessions, and local development runs entirely on non-secret local values — `.env.example` documents every *name*, and the dev database is local Docker. Nothing secret lives in the repo.
 - **Migrations run at build time** against that environment's own database (`vercel-build` = `npm run db:migrate && npm run build`). Previews migrate their ephemeral branch, which is always safe. Staging and production are **forward-only**: destructive changes ship as two deploys, expand → contract. The migration *sequence* is mechanically gated — `npm run doc-lint` runs `lintMigrations`, which fails the build on a duplicate, gapped or reordered migration.
