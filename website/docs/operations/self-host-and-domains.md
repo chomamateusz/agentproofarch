@@ -265,7 +265,7 @@ convergent — an already-attached host (`409`) and an unknown host on delete
 `Authorization` header, never into a log or an error detail, and every response
 is zod-parsed at the boundary.
 
-**What proves it.** An offline suite against a stubbed `fetch`, 22 tests:
+**What proves it.** An offline suite against a stubbed `fetch`, 20 tests:
 success, team scoping, the convergent `409`/`404`, `401` and `403` (naming the
 misconfigured env, never echoing the token), `5xx`, transport failures, and
 corrupted payloads on both the domain and DNS-config reads.

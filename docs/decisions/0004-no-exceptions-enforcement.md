@@ -78,9 +78,10 @@ green.
    workflow (`ci`, `post-deploy-smoke`, `selfhost`) references an immutable commit
    SHA, never a mutable tag like `@v4` — a tag can be force-moved onto malicious
    code under an unchanged CI config. A trailing comment records the
-   human-readable version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; for an
-   action that publishes only a moving major tag the comment records that line,
-   `# v1`); bumps come through the same
+   human-readable version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; a
+   comment may also record just the major line the pin tracks, like `# v1`
+   for `claude-code-action` pinned at its `v1.0.181` release commit); bumps
+   come through the same
    Dependabot/Renovate PRs as dependencies and pass both gates.
 
 Direction note (owner decision, 2026-07-20, DECIDE F1): the **REVIEW+AI** tier

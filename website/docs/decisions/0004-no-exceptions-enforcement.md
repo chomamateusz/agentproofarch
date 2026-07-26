@@ -43,7 +43,7 @@ flowchart TD
    - **config → docs**: every custom rule in `eslint-plugin-agentproofarch/rules` must be documented **by name** somewhere under `docs/`, so an enforcer cannot be added in silence.
    - **leaked-delimiter scan**: every git-tracked `.md` is read and the check fails if a stray tool/XML delimiter survived into committed prose, so stray agent-output markup cannot ship in the docs.
    - **dead relative links**: every git-tracked `.md` has its relative link targets resolved on disk. Build-generated docs are a named exception (today exactly one — `website/docs/changelog.md`, written by `prebuild`), because they are legitimately absent from a clean checkout; the exception is a literal path list, so a typo still fails.
-5. **Third-party actions are pinned by full commit SHA**, never a mutable tag — a tag can be force-moved onto malicious code under an unchanged CI config. A trailing comment records the version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; for an action that publishes only a moving major tag the comment records that line, `# v1`); bumps come through the same dependency PRs and pass both gates.
+5. **Third-party actions are pinned by full commit SHA**, never a mutable tag — a tag can be force-moved onto malicious code under an unchanged CI config. A trailing comment records the version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; a comment may also record just the major line the pin tracks — `# v1` for `claude-code-action`, pinned at its `v1.0.181` release commit); bumps come through the same dependency PRs and pass both gates.
 
 ## Alternatives considered
 

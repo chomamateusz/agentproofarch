@@ -6,8 +6,8 @@ description: The complete built port set, the adapters behind each one, and the 
 
 # Ports & adapters
 
-This page exists to answer two questions precisely: **what is actually behind a
-port in this repo today**, and **when are you allowed to add one**. The second
+Two questions, answered precisely: **what is actually behind a port in this
+repo today**, and **when are you allowed to add one**. The second
 question matters more than it looks — a port with exactly one implementation
 forever is not architecture, it is a second copy of a library's API. So the rule
 is blunt: *add a port only when a second implementation or a platform difference

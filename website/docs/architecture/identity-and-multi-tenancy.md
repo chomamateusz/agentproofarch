@@ -6,9 +6,9 @@ description: Global authentication, tenant-owned relationship, and honest per-en
 
 # Identity & multi-tenancy
 
-This page exists because "multi-tenant" is where most SaaS foundations quietly
-sell out: they let the auth provider own the organization model, and two years
-later swapping the provider is a data migration rather than an adapter change.
+"Multi-tenant" is where most SaaS foundations quietly sell out: they let the
+auth provider own the organization model, and two years later swapping the
+provider is a data migration rather than an adapter change.
 Here the split is deliberate and enforced — **the provider owns authentication
 only; every relationship lives in foundation tables** — and the second half of
 the page is the part nobody writes down: what tenant addressing *actually* does
