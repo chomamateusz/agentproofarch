@@ -176,7 +176,8 @@ from rotting once nobody remembers writing it.
 | zustand ban | all of `apps/web` | importing `zustand` at all — it is not a demo dependency |
 | persist ban | `features/*/core/**` | store persistence middleware / JSON storage — client state must die on reload |
 | storage-globals ban | all of `apps/web` | `localStorage`, `sessionStorage` (one designated exception: `theme-mode.tsx`) |
-| `agentproofarch/query-descriptors-only` | all of `apps/web` | inline `queryKey`/`queryFn`, raw `fetch`, holding an `ApiClient` or a port in feature code |
+| `agentproofarch/query-descriptors-only` | all of `apps/web` | a query built from an inline object, a descriptor not imported, or one imported from another feature's module |
+| `QUERY_KEY_BAN` / `HTTP_GLOBALS` / `CLIENT_CONSTRUCTION_BANS` (eslint.config.js) | all of `apps/web` | inline `queryKey`/`queryFn`, raw `fetch`, holding an `ApiClient` or a port in feature code |
 | `setQueryData` ban | all of `apps/web` **except** a feature's `optimistic.ts` | manual cache writes outside the single-resource optimistic path |
 | `agentproofarch/event-suffix-taxonomy` | `features/*/core/events.ts` | an imperative event name — see below |
 | `agentproofarch/sx-layout-only` | all of `apps/web` | colour, typography, background and border-styling keys in an `sx` prop — `sx` carries layout/spacing/flex/grid/position/sizing only, and `theme.ts` owns the visual language. Existing debt is held by a **frozen per-file baseline that may only shrink** |

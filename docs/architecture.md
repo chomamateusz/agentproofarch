@@ -1387,7 +1387,7 @@ The `visual` job (pixel comparison,
 both lists: it reports a screenshot regression without blocking a merge until the
 owner adds it to the required set, and it comes back out the moment it flakes.
 
-Agents have full `main` freedom (0 approvals, gated only by the four green checks
+Agents have full `main` freedom (0 approvals, gated only by the five green checks
 and up-to-date-ness); `production` needs an approval the agent cannot supply for
 its own PR — GitHub forbids self-approval, and the only other identity that can
 approve is the owner's. That single approval, from an owner device, is the

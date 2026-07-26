@@ -128,9 +128,9 @@ The design goal is one sentence: **"could not verify" and "verified safe" must n
 `anthropics/claude-code-action` (pinned to a commit SHA) reviews **only the PR diff** — the prompt instructs the model to fetch `git diff origin/main...HEAD` itself rather than read the whole repository — against this repo's doctrine: layer boundaries, the comment doctrine (zero narration), no false claims in prose, no weakening of gates or lint rules to go green, authorize-first tenant-scoped use-cases, no `any`, no `as` except `as const`, and domain errors returned as `Result` rather than thrown. The model gets **read-only tools only**:
 
 ```
---model sonnet
---max-turns 20
---allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
+--model ${{ vars.AI_REVIEW_MODEL || 'sonnet' }}
+--max-turns ${{ vars.AI_REVIEW_MAX_TURNS || 40 }}
+--allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
 --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},…}}'
 ```
 

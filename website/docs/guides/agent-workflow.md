@@ -56,9 +56,9 @@ sequenceDiagram
     Agent->>Local: verify the capability through the --json CLI
     Local->>Local: npm run check · npm run smoke · e2e for a web change
     Agent->>GH: open a PR (commits authored as the owner)
-    GH->>CI: check · smoke · e2e · docker-smoke (required)
-    GH->>CI: ai-review · visual · docs-build (reporting only)
-    CI-->>GH: four green required checks
+    GH->>CI: check · smoke · e2e · docker-smoke · ai-review (required)
+    GH->>CI: visual · docs-build (reporting only)
+    CI-->>GH: five green required checks
     Agent->>GH: merge to main — builds a staging Preview
     Note over Agent,Prod: The agent cannot cross the next edge
     Agent->>GH: open the release PR main to production
@@ -111,8 +111,8 @@ agent has restricted CLI access."
 It is tempting to read the split as "the agent is weak, therefore production is
 safe". That is not the mechanism. Two GitHub rulesets are:
 
-- **`main-gates`** on `main` — require a PR, **0** approvals, four required status
-  checks (`check`, `smoke`, `e2e`, `docker-smoke`), require branches up to date,
+- **`main-gates`** on `main` — require a PR, **0** approvals, five required status
+  checks (`check`, `smoke`, `e2e`, `docker-smoke`, `ai-review`), require branches up to date,
   block force-pushes, **empty bypass list**. The agent merges here freely, behind
   the gates.
 - **`production-protection`** on `production` — require a PR, **1 required

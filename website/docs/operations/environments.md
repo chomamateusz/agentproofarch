@@ -36,7 +36,7 @@ The function runs in `fra1` (`vercel.json` → `"regions": ["fra1"]`) and the Ne
 flowchart LR
     fb["feature branch"] -->|"push"| pr["Pull request"]
     pr -->|"automatic"| prev["Vercel Preview<br/>ephemeral Neon branch"]
-    pr -->|"main-gates:<br/>PR + 0 approvals, 4 required checks,<br/>branch up to date"| main["main<br/>trunk AND staging"]
+    pr -->|"main-gates:<br/>PR + 0 approvals, 5 required checks,<br/>branch up to date"| main["main<br/>trunk AND staging"]
     main -->|"automatic"| stg["Vercel Preview on a stable URL<br/>Neon staging branch"]
     main -->|"production-protection:<br/>PR + 1 OWNER approval,<br/>empty bypass, 4 required checks"| prodbr["production branch"]
     prodbr -->|"Production Branch Tracking"| prod["Vercel Production<br/>Neon production branch"]
@@ -44,7 +44,7 @@ flowchart LR
     stg -->|"deployment_status success"| smoke
 ```
 
-Agents own everything left of the `production` branch. An agent — acting as the machine account `chomamateusz-agent` — branches, opens PRs, merges to `main` once the four checks pass, dispatches workflows and drives preview + staging deployments freely. It may even **open** the `main → production` release PR. It cannot approve it.
+Agents own everything left of the `production` branch. An agent — acting as the machine account `chomamateusz-agent` — branches, opens PRs, merges to `main` once the five checks pass, dispatches workflows and drives preview + staging deployments freely. It may even **open** the `main → production` release PR. It cannot approve it.
 
 ## The wall
 
@@ -63,7 +63,7 @@ Both carry an **empty bypass list**, so no identity — Admin included — merge
 | `production-protection` | `production` | require a PR + **1 approval**, with stale approvals dismissed on push and the last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
 | `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
 
-One asymmetry is worth reading off that table rather than assuming: the **merge-method** restriction lives on `main`, not on `production`. `main-gates` allows a merge commit only; `production-protection` permits merge, squash and rebase, because on that branch the gate is the approval, not the button.
+Both rulesets restrict the merge method to a **merge commit only** — `main-gates` from the start, `production-protection` since 2026-07-26 — so history on both branches is append-only merges, never rewritten squashes or rebases.
 
 Four independent mechanisms have to hold simultaneously, and each closes a different hole:
 

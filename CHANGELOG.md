@@ -36,8 +36,9 @@ before that lives in the git history only.
 
 ### Fixed
 
-- Documentation accuracy pass: the `production-protection` ruleset does **not**
-  restrict the merge method — `main-gates` is the merge-only one — and the landing
+- Documentation accuracy pass: ruleset descriptions now mirror the live,
+  API-verified configuration (both rulesets merge-commit-only; `ai-review`
+  required on `main-gates` since 2026-07-26), and the landing
   page no longer claims that every capability is reachable through the public API
   (it exposes two read-only routes) or that the project carries no version number
   at all (`demo/package.json` is `0.1.0`, served by the health endpoints).

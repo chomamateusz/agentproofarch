@@ -195,7 +195,8 @@ is stable and index-backed.
 
 | Table | Legacy shape | Migrated? |
 |---|---|---|
-| `tenants`, `members`, `todos`, `cards`, `tenant_domains` | text `id`, text ISO `created_at` | **No** — deliberately. Nothing ranges or sorts across zones on them; converting is a routine expand→contract package the day a query needs index-backed time semantics |
+| `tenants`, `members`, `todos`, `cards` | text `id`, text ISO `created_at` | **No** — deliberately. Nothing ranges or sorts across zones on them; converting is a routine expand→contract package the day a query needs index-backed time semantics |
+| `tenant_domains` | text `id` (carries no timestamp column at all) | **No** — same reasoning |
 | generated Better Auth tables | naive `timestamp`, non-UUID ids | **No** — provider-owned |
 | `backfill_checkpoints` (migration `0007`) | `uuid` PK + `timestamptz` | this is the **first table built to the new convention** — the worked example |
 
