@@ -27,6 +27,12 @@ before that lives in the git history only.
   convention now requires a behaviour-visible change to update `website/docs` and
   add an entry here in the same PR.
 
+### Fixed
+
+- `doc-lint`'s dead-relative-link check no longer flags a **build-generated** doc as
+  missing. The generated targets are a literal path list (today just
+  `website/docs/changelog.md`), so a real typo still fails the gate.
+
 ## 2026-07-25
 
 ### Added

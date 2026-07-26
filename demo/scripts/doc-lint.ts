@@ -259,6 +259,13 @@ for (const key of declaredEnvKeys) {
 }
 
 // ── Dead relative-link check: every tracked `.md`. ──────────────────────────
+/**
+ * Build-generated docs are legitimate link targets that are absent from a clean
+ * checkout, so `existsSync` is the wrong question for them. Each entry must be
+ * produced by a `prebuild`/`prestart` hook and gitignored — never a file a human
+ * is expected to create — so a genuine typo still fails.
+ */
+const GENERATED_DOCS = new Set([resolve(repoRoot, 'website/docs/changelog.md')]);
 const LINK = /\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 for (const rel of trackedMarkdown) {
   const raw = readFileSync(join(repoRoot, rel), 'utf8');
@@ -268,7 +275,9 @@ for (const rel of trackedMarkdown) {
     if (/^(https?:|mailto:|tel:|\/\/|#)/.test(target)) continue;
     const path = target.split('#')[0];
     if (!path) continue;
-    if (!existsSync(resolve(dirname(join(repoRoot, rel)), path))) {
+    const resolved = resolve(dirname(join(repoRoot, rel)), path);
+    if (GENERATED_DOCS.has(resolved)) continue;
+    if (!existsSync(resolved)) {
       problems.push(`[link] ${rel}: relative link "${target}" points at a missing file.`);
     }
   }

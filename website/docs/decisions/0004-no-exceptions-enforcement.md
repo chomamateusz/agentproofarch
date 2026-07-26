@@ -42,6 +42,7 @@ flowchart TD
    - **docs → config**: an in-script manifest maps prose-promised guarantees (layer boundaries, `@vercel/*` and `@neondatabase/*` containment, "no `any`", "no `as`", "features are islands") to their concrete ESLint / dependency-cruiser entries, each with the doc section it is promised in. Any literal `agentproofarch/<rule>` id spelled in the docs is checked too.
    - **config → docs**: every custom rule in `eslint-plugin-agentproofarch/rules` must be documented **by name** somewhere under `docs/`, so an enforcer cannot be added in silence.
    - **leaked-delimiter scan**: every git-tracked `.md` is read and the check fails if a stray tool/XML delimiter survived into committed prose, so stray agent-output markup cannot ship in the docs.
+   - **dead relative links**: every git-tracked `.md` has its relative link targets resolved on disk. Build-generated docs are a named exception (today exactly one — `website/docs/changelog.md`, written by `prebuild`), because they are legitimately absent from a clean checkout; the exception is a literal path list, so a typo still fails.
 5. **Third-party actions are pinned by full commit SHA**, never a mutable tag — a tag can be force-moved onto malicious code under an unchanged CI config. A trailing `# vX.Y.Z` comment records the version the SHA resolved to; bumps come through the same dependency PRs and pass both gates.
 
 ## Alternatives considered
