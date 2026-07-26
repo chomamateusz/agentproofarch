@@ -7,6 +7,8 @@ description: An agent-first, strictly layered TypeScript foundation for multi-te
 
 # Agent-Proof Architecture
 
+![agentproofarch — agent-first · strictly layered · multi-tenant](/img/banner.png)
+
 **agentproofarch** — a strictly layered full-stack TypeScript foundation that
 keeps its structure no matter how much of the code an AI agent writes.
 
