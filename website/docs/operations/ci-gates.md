@@ -6,7 +6,7 @@ description: Which jobs run, which ones block a merge, which deliberately do not
 
 # CI gates
 
-This page exists because the foundation's central claim — *static-green is not done* — is only worth something if the gates actually run on every change and cannot be silently bypassed. Two historical failure classes forced that stance: five consecutive deploy-config failures (PRs #10–#15) that were all static-green while production was broken, and three stale-local-state incidents where a green local run reflected an out-of-date `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). So every gate runs from a clean `npm ci` in CI, and the enforcers themselves are enforced.
+Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `npm ci` in CI, on every change, and the enforcers themselves are enforced.
 
 :::info Sources
 The workflows in [`.github/workflows/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/workflows), the scripts in [`.github/scripts/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/scripts), and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) / [ADR-0008](../decisions/0008-visual-regression.md).
@@ -27,7 +27,7 @@ flowchart TD
     ci --> visual["visual — not required<br/>pixel comparison"]
     sh --> docker["docker-smoke — REQUIRED<br/>build image, boot compose, smoke:remote"]
     ai --> aireview["ai-review — not required yet<br/>fail-closed doctrine review"]
-    dci --> docsbuild["docs-build — not required<br/>Docusaurus build + typecheck"]
+    dci --> docsbuild["docs-build — not required<br/>Docusaurus build + typecheck<br/>+ mermaid parse check"]
 
     deploy["deployment_status success<br/>Production or Preview"] --> pds["post-deploy-smoke.yml<br/>smoke:remote + EXPECTED_SHA"]
     dispatch["workflow_dispatch"] --> vb["visual-baselines.yml<br/>re-render baselines in linux CI"]
@@ -41,7 +41,7 @@ flowchart TD
 | `ai-review.yml` | PRs to `main` (`opened` / `synchronize` / `ready_for_review`), non-draft | `ai-review` | not yet — see below |
 | `post-deploy-smoke.yml` | `deployment_status` | `smoke-remote` | n/a — runs after a deploy |
 | `visual-baselines.yml` | `workflow_dispatch` | `visual-baselines` | n/a — authoring tool |
-| `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` | no |
+| `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
 | `docs-deploy.yml` | `push` to `main`, path-filtered | `build`, `deploy` | n/a — publishes this site |
 
 ## The required set
@@ -283,9 +283,10 @@ Because this drives live production, it runs under the production smoke-account 
 
 ## Cross-cutting hardening
 
-- **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing `# vX.Y.Z` comment recording the human-readable version. A tag can be force-moved onto malicious code under an unchanged CI config.
+- **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing comment recording the human-readable version the SHA resolved to (`# v4.3.0` for `actions/checkout`, `# v4.4.0` for `actions/setup-node`, and `# v1` for `anthropics/claude-code-action`, whose pinned commit carries no release tag of its own, so the comment records the `v1` line it came from). A tag can be force-moved onto malicious code under an unchanged CI config.
 - **Every job is guarded** with `if: github.repository == 'chomamateusz/agentproofarch'`. The repo is public and therefore forkable; a fork must never spend Actions minutes or fail on missing secrets and services.
 - **Node 22 with `cache: npm`** and an explicit `cache-dependency-path`, so each workflow caches against the right lockfile (`demo/` or `website/`).
+- **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block — a malformed one would ship as a red error box with every check green, which is the exact "could not verify, reported green" shape this repo rejects. `npm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error. It runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
 - **The enforcers are enforced.** Config-regression probes feed a deliberately violating fixture to a lint or dependency-cruiser rule and assert the gate still goes red, so a rule cannot be quietly deleted while CI stays green ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md) §3).
 
 :::caution Honest caveats

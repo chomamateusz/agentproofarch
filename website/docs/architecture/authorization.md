@@ -6,9 +6,9 @@ description: A closed capability union, a wildcard-free grant table, and the tes
 
 # Authorization (default-deny)
 
-This page exists because "we check permissions in the handlers" is how
-cross-tenant data leaks happen. Authorization here is **one pure function over
-one closed table**, called as the first statement of every tenant-scoped
+"We check permissions in the handlers" is how cross-tenant data leaks happen:
+one handler forgets the check, and nothing above it notices. Authorization here
+is **one pure function over one closed table**, called as the first statement of every tenant-scoped
 use-case, with an exhaustive unit suite that asserts every capability × principal
 cell and a structural probe that fails the build when a new use-case forgets the
 call. Nothing is granted by wildcard: a principal absent from a capability's list

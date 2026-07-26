@@ -150,11 +150,9 @@ retry. The token travels only in the `Authorization` header, never into a log or
 an error detail, and every API response is zod-parsed at the boundary.
 
 :::caution `vercel` is proven against a stubbed `fetch` only
-The adapter has **never run against the live Domains API** — CI and the build
-machine hold no `VERCEL_TOKEN`, so its offline suite covers success, the
-idempotent `409`, `401`/`403`, `5xx`, a network failure and corrupted JSON, and
-nothing more. The owner supplying the token is what closes the gap; the first real
-add/check/remove is the acceptance run.
+The adapter has **never run against the live Domains API**. That caveat has one
+canonical home so it can be deleted in one place the day it stops being true:
+[US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
 :::
 
 The US-019 use-cases sit on top: `addDomain` provisions then writes an unverified
@@ -245,7 +243,7 @@ dependency-cruiser rules, not conventions:
 | `@vercel/*`, `@neondatabase/*` | `adapters/**`, plus the platform entry `api/index.ts` | `vercel-and-neon-only-in-adapters` |
 | `better-auth`, `@better-auth/*` | `adapters/auth` | `auth-provider-sdk-only-in-adapters-auth` |
 | `nodemailer`, `@aws-sdk/*` | `adapters/email` | `smtp-sdk-only-in-adapters-email` |
-| `@sentry/node`, `@sentry/react` | the server's and web's composition-root sink modules | contained by convention — an error sink is **config, not a port** (a `SentryPort` would be port theater) |
+| `@sentry/node`, `@sentry/react` | the server's and web's composition-root sink modules | contained by convention and review, **not** by a rule — an error sink is config, not a port (a `SentryPort` would be port theater); see [Observability](observability.md) |
 
 ## Deferred and not built
 

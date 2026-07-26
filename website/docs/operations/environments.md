@@ -6,7 +6,7 @@ description: Four environments from one commit, and an owner-only release gate e
 
 # Environments & promotion topology
 
-This page exists because "who can put code into production" becomes an architectural question once agents write most of the code. The answer here is not a policy an agent is asked to remember — it is a property of the environment: the same commit flows feature branch → preview → `main` (staging) → `production`, only environment variables differ, and the single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
+Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one. The answer here is nothing an agent is asked to remember — it is a property of the environment: the same commit flows feature branch → preview → `main` (staging) → `production`, only environment variables differ, and the single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
 
 :::info Sources
 Normative: [`docs/architecture.md` §Environments](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md).
@@ -60,8 +60,10 @@ Both carry an **empty bypass list**, so no identity — Admin included — merge
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
-| `main-gates` | `main` | require a PR + **0 approvals**; the same four required status checks **plus "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval**, with stale approvals dismissed on push and the last pusher's approval required; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
+
+One asymmetry is worth reading off that table rather than assuming: the **merge-method** restriction lives on `main`, not on `production`. `main-gates` allows a merge commit only; `production-protection` permits merge, squash and rebase, because on that branch the gate is the approval, not the button.
 
 Four independent mechanisms have to hold simultaneously, and each closes a different hole:
 

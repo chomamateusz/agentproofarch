@@ -6,9 +6,8 @@ description: The words this architecture uses precisely — including the two th
 
 # Glossary
 
-This page exists because two words in this architecture are routinely used as
-synonyms elsewhere and are **deliberately not** synonyms here: *domain* and
-*feature*. Getting those two right explains why `core/domain` is singular while
+Two words are routinely used as synonyms elsewhere and are **deliberately not**
+synonyms here: *domain* and *feature*. Getting those two right explains why `core/domain` is singular while
 `features/` is plural, and why one business subdomain can have three islands over
 it. The rest of the page is the same treatment for every other term the docs use
 precisely: each entry says what the word means *in this repo*, and where the thing
@@ -123,7 +122,7 @@ See [Data & transactions](../architecture/data-and-transactions.md).
 | **NORMATIVE WHEN TRIGGERED** | A decided rule that activates on a **named** trigger, and is honestly not built until then. |
 | **OUT OF SCOPE** | Deliberately not the foundation's problem, with the reason stated. |
 | **Deferred-work register** | [`docs/backlog.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md) — accepted-but-unbuilt work and accepted verification residuals, each with a named trigger, so the architecture doc never carries a silent gap. |
-| **Wide event** | One context-rich event per request per service hop: annotate the active span as context accrues, emit once. Never step-log. Observability, **not** an audit trail. |
+| **Wide event** | One context-rich event per request per service hop: annotate the active span as context accrues, emit once. Never step-log. Observability, **not** an audit trail — see [Observability](../architecture/observability.md). |
 | **TIMELINE-TRACE** | The security doctrine that every security claim must be justified by tracing the **actual** event order — who acts, when, with what privilege — not the intended order. A claim not walked step by step is a hypothesis, not a control. |
 | **CHEAP SECRETS** | The doctrine that every production secret must be least-privilege, revocable, and asymmetric-verify where possible — because a production build sees them all. |
 

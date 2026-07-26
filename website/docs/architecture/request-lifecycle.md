@@ -61,7 +61,7 @@ above the `/api/*` tenant middleware answers **without** an identity.
 |---|---|---|---|
 | 1 | `secureHeaders(...)` | `*` | CSP (`script-src 'self'`), `nosniff`, `Referrer-Policy`, `frame-ancestors 'none'` |
 | 2 | `bodyLimit(...)` | `/api/*` | 100 KB cap; over-limit returns a `validation` **envelope**, never a non-JSON body |
-| 3 | `telemetryMiddleware` | `*` | one wide span per request; continues an incoming `traceparent` |
+| 3 | `telemetryMiddleware` | `*` | one wide span per request; continues an incoming `traceparent` ([Observability](observability.md)) |
 | 4 | `app.onError` | — | the single normalization edge (see below) |
 | 5 | `/api/health/live`, `/api/health/ready`, `/api/health` | exact | liveness never touches the DB; all three carry the build attestation |
 | 6 | Better Auth handler | its own prefix | `GET`/`POST` delegated to `deps.auth.handler` |

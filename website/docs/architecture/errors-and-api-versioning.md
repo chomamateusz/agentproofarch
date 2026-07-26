@@ -91,7 +91,8 @@ app.onError((error, c) => {
 ```
 
 Both observers — the OTel span and the Sentry sink — attach to that single error,
-so there is exactly one capture path and never scattered `captureException` calls.
+so there is exactly one capture path and never scattered `captureException` calls
+([Observability](observability.md) has the full wiring, and what is not wired).
 This is a decided contract (owner ruling 2026-07-20, closing audit rider CP-4/F8):
 normalization stays at the single edge, and use-cases never grow per-call
 `try`/`catch` for infrastructure failures.

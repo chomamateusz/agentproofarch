@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
         'architecture/authorization',
         'architecture/data-and-transactions',
         'architecture/errors-and-api-versioning',
+        'architecture/observability',
         'architecture/client-state',
         'architecture/ports-and-adapters',
       ],

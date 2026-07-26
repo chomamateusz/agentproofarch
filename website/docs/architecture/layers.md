@@ -6,9 +6,8 @@ description: The allowed dependency directions, and the two independent enforcer
 
 # Layers
 
-This page exists because a layered architecture that lives in a README is a
-suggestion, and suggestions do not survive contact with an agent generating a
-hundred files. Here the layers are a **graph with machine-checked edges**: every
+A layered architecture that lives in a README is a suggestion, and suggestions do
+not survive contact with an agent generating a hundred files. Here the layers are a **graph with machine-checked edges**: every
 allowed dependency direction below is spelled out twice — once in
 `eslint.config.js` (`eslint-plugin-boundaries`, denying everything by default)
 and once in `.dependency-cruiser.cjs` — so a wrong import is a red

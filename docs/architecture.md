@@ -1379,8 +1379,8 @@ no identity — Admin included — merges past them.
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
-| `main-gates` | `main` | require a PR + **0 approvals**; the same four required status checks **plus "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval**, stale approvals dismissed on push, last pusher's approval required; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
 
 The `visual` job (pixel comparison,
 [ADR-0008](decisions/0008-visual-regression.md)) is deliberately **absent** from

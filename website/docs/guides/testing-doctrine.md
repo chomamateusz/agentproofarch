@@ -58,7 +58,9 @@ Static-green is not done; the app must actually run. And do not weaken a lint ru
 to make either gate green — that inverts the whole point of having one.
 :::
 
-## Four levels: where does my test go?
+## Where does my test go?
+
+Four levels carry the doctrine — unit, integration, e2e, smoke:
 
 | Level | Command | Environment | Count today | Where it runs |
 |---|---|---|---|---|
@@ -66,8 +68,14 @@ to make either gate green — that inverts the whole point of having one.
 | **integration** | `npm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | 48 tests | the CI `smoke` job — the only one with a database |
 | **e2e** | `npm run e2e` | real Chromium over the real stack | 15 tests / 6 specs | the CI `e2e` job |
 | **smoke** | `npm run smoke` | real server, driven through the CLI | the runtime gate | locally + the CI `smoke` job |
-| **remote smoke** | `npm run smoke:remote` | a deployed URL | same suite | `post-deploy-smoke`, after every deploy |
-| **pixel** | `npm run visual` | Chromium + CI-rendered baselines | own suite | the `visual` job — **not required** |
+
+…plus two suites that are not levels of their own, because neither is a place a
+new test gets written:
+
+| Suite | Command | Environment | What it is | Where it runs |
+|---|---|---|---|---|
+| **remote smoke** | `npm run smoke:remote` | a deployed URL | the **same** smoke suite pointed at a deploy, not a separate set of tests | `post-deploy-smoke`, after every deploy |
+| **pixel** | `npm run visual` | Chromium + CI-rendered baselines | screenshot comparison, deliberately **not a required check** ([ADR-0008](../decisions/0008-visual-regression.md)) | the `visual` job |
 
 The unit run is split into vitest **projects**, and which one your file lands in is
 decided by its path:

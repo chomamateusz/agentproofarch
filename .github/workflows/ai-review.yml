@@ -76,7 +76,7 @@ jobs:
         --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
         --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}}},"required":["verdict","summary"]}'
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           fetch-depth: 0
 

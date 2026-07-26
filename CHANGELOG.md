@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-This project carries **no version numbers**: a release is a branch promotion
+This project carries **no release version numbers**: a release is a branch promotion
 (`main` → `production`, owner-approved PR), so entries are grouped by the **UTC
 date their pull request merged** instead of by version.
 
@@ -26,9 +26,23 @@ before that lives in the git history only.
   build. The site's changelog page is generated from this file, and a standing
   convention now requires a behaviour-visible change to update `website/docs` and
   add an entry here in the same PR.
+- Mermaid parse gate for the docs site (`npm run check:mermaid`): mermaid renders
+  client-side, so a green Docusaurus build never parses a diagram. The check feeds
+  every fenced block to mermaid's own parser and fails on a syntax error; it runs in
+  `docs-ci.yml` beside `typecheck` and in `docs-deploy.yml` before the Pages upload.
+- Observability page on the docs site, condensed from the normative
+  `docs/observability.md`: the wide-event doctrine, the three instrumentation
+  chokepoints, and a matrix of what is wired today versus written down only.
 
 ### Fixed
 
+- Documentation accuracy pass: the `production-protection` ruleset does **not**
+  restrict the merge method — `main-gates` is the merge-only one — and the landing
+  page no longer claims that every capability is reachable through the public API
+  (it exposes two read-only routes) or that the project carries no version number
+  at all (`demo/package.json` is `0.1.0`, served by the health endpoints).
+- Every `actions/checkout` pin now carries the `# v4.3.0` version comment that
+  ADR-0004 §5 promises for every `uses:`.
 - `doc-lint`'s dead-relative-link check no longer flags a **build-generated** doc as
   missing. The generated targets are a literal path list (today just
   `website/docs/changelog.md`), so a real typo still fails the gate.

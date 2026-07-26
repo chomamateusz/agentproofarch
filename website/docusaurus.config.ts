@@ -78,6 +78,7 @@ const config: Config = {
       title: 'agentproofarch',
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
+        {to: '/start/quickstart', label: 'Quickstart', position: 'left'},
         {to: '/changelog', label: 'Changelog', position: 'left'},
         {
           href: 'https://agentproofarch.vercel.app',

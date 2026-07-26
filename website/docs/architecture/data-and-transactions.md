@@ -6,10 +6,9 @@ description: The neon-http single-statement doctrine, hard delete by default, an
 
 # Data & transactions
 
-This page exists because of one specific trap: the same
-`db.transaction(async tx => …)` that is perfectly atomic on `node-postgres`
-is **not atomic at all** on Neon's HTTP driver, and nothing in the type system
-tells you. A multi-row write that must never be observable half-done is
+The same `db.transaction(async tx => …)` that is perfectly atomic on
+`node-postgres` is **not atomic at all** on Neon's HTTP driver — same code, same
+types, silently different guarantee. Nothing in the type system tells you. A multi-row write that must never be observable half-done is
 "100% unacceptable in a transient state" (owner ruling, DECIDE C1) — so this page
 is how that is *enforced*, plus the cross-cutting data conventions that were
 settled deliberately, before the next aggregate copied whatever shape happened to

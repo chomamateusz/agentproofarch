@@ -77,8 +77,10 @@ green.
 5. **Third-party actions are pinned by full commit SHA.** Every `uses:` in every
    workflow (`ci`, `post-deploy-smoke`, `selfhost`) references an immutable commit
    SHA, never a mutable tag like `@v4` — a tag can be force-moved onto malicious
-   code under an unchanged CI config. A trailing `# vX.Y.Z` comment records the
-   human-readable version the SHA resolved to; bumps come through the same
+   code under an unchanged CI config. A trailing comment records the
+   human-readable version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; for an
+   action that publishes only a moving major tag the comment records that line,
+   `# v1`); bumps come through the same
    Dependabot/Renovate PRs as dependencies and pass both gates.
 
 Direction note (owner decision, 2026-07-20, DECIDE F1): the **REVIEW+AI** tier
@@ -96,8 +98,9 @@ cells name a commissioned gate, not a shipped one.
   GitHub rulesets are available at no cost, and two are in force with **empty
   bypass lists**: `main-gates` on `main` (require a PR + the four required status
   checks `check` / `smoke` / `e2e` / `docker-smoke` + "require branches up to
-  date", 0 approvals) and `production-protection` on `production` (the same four
-  checks + **1 required approval**, Merge-only). A merge is therefore **blocked**
+  date", 0 approvals, merge-commit only) and `production-protection` on
+  `production` (the same four checks + **1 required approval**, stale approvals
+  dismissed on push). A merge is therefore **blocked**
   on a failing or missing check, not merely marked red. This supersedes the
   earlier private-repo limitation, when the branch-protection API returned
   `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — going public

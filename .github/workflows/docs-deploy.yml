@@ -31,7 +31,7 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -40,6 +40,8 @@ jobs:
       - run: npm ci
       # No separate link-check step: onBrokenLinks/onBrokenAnchors are `throw`.
       - run: npm run build
+      # Diagrams render client-side, so the build cannot catch a malformed one.
+      - run: npm run check:mermaid
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: website/build

@@ -22,6 +22,30 @@ A free, open project by **Mateusz Choma**, developed privately in collaboration
 with **[CodeRoad.pl](https://coderoad.pl)** and
 **[AmazingDesign.eu](https://amazingdesign.eu)**.
 
+## Start here
+
+Four minutes of reading, or four commands:
+
+```bash
+git clone https://github.com/chomamateusz/agentproofarch.git
+cd agentproofarch/demo && npm ci
+npm run db:up && npm run db:migrate && npm run db:seed
+npm run smoke            # the runtime gate: boots the real server, drives the CLI
+```
+
+- **[Quickstart](./quickstart.md)** — the same path with every prerequisite,
+  seed value and sharp edge spelled out.
+- **[CLI walkthrough](../guides/cli-walkthrough.md)** — the agent feedback loop,
+  command by command.
+- **[Adding a feature](../guides/adding-a-feature.md)** — the scaffolder and the
+  12-step chain.
+- **[Layers](../architecture/layers.md)** and
+  **[Decisions](../decisions/index.md)** — why the seams sit where they do.
+- **[Agent workflow](../guides/agent-workflow.md)** — how this repository is
+  actually developed.
+
+The rest of this page is what you are looking at and why it is shaped this way.
+
 ## What it is, precisely
 
 A pure-TypeScript core — `core/domain` (entities, `Result`, the error taxonomy),
@@ -41,8 +65,8 @@ unless both of its env vars are set), foundation-owned tenants with flat
 `owner`/`admin` staff grants, tenant resolution by custom domain or subdomain,
 end-customer members with GDPR export and removal, todos, two exemplar boards (a
 personal one and a WIP-guarded team one), and a public unauthenticated read
-surface — each one flowing through *every* layer and reachable from all three
-drive surfaces.
+surface — each one flowing through *every* layer, and each one drivable from both
+the web app and the CLI.
 
 ## Who it is for
 
@@ -54,9 +78,14 @@ drive surfaces.
 | **Planning to self-host** | The same commit runs on Vercel + Neon and on a Docker stack (Node + Postgres + Caddy on-demand TLS), with a CI job that boots the container stack and smokes it. |
 
 :::note This is a reference implementation, not a package
-`demo/package.json` is `private: true`, nothing is published to npm, and the
-project carries no version numbers — a release is a branch promotion
-(`main` → `production`). You read it, fork it, or lift patterns out of it. CLI
+`demo/package.json` is `private: true` and nothing is published to npm. There is
+no release versioning either: a release is a branch promotion
+(`main` → `production`), the repository carries no version tags, and the
+[changelog](../changelog.md) groups entries by merge date rather than by version. The
+one version number that exists — `0.1.0` in `demo/package.json` — is the build's
+release identity, served as the `version` field of every health response
+([Health & attestation](../operations/health-and-attestation.md)); nothing bumps
+it on promotion. You read it, fork it, or lift patterns out of it. CLI
 distribution and a version handshake sit on the
 [deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
 with "first external CLI consumer" as the named trigger.
@@ -64,9 +93,13 @@ with "first external CLI consumer" as the named trigger.
 
 ## The feature map
 
-Every capability is reachable three ways, and the CLI path is the one an agent
-uses — because it is the only one with machine-readable output and a
-taxonomy-mapped exit code.
+Every capability is reachable two ways — the web app and the CLI — and the CLI
+path is the one an agent uses, because it is the only one with machine-readable
+output and a taxonomy-mapped exit code. The third surface is deliberately *not* a
+third door onto everything: the public API exposes two unauthenticated read-only
+routes over one tenant profile (`slug`, `displayName`, `contentVersion`) and
+nothing else, by construction rather than by exception
+([ADR-0006](../decisions/0006-public-read-only-surface.md)).
 
 ```mermaid
 graph LR
@@ -78,6 +111,7 @@ graph LR
 
   subgraph seam["core/contract — the one seam"]
     routes["API_ROUTES + zod schemas"]
+    publicRoutes["PUBLIC_API_ROUTES<br/>its own registry"]
   end
 
   subgraph caps["Capabilities in the walking skeleton"]
@@ -87,6 +121,7 @@ graph LR
     work["Todos + two boards<br/>personal · guarded team"]
     domains["Custom domains<br/>add · check · remove"]
     health["Health + attestation<br/>live · ready · commit SHA"]
+    profile["Public tenant profile<br/>read-only · 2 routes"]
   end
 
   subgraph gates["How it stays true"]
@@ -97,13 +132,14 @@ graph LR
 
   web --> routes
   cli --> routes
-  pub --> routes
+  pub --> publicRoutes
   routes --> auth
   routes --> tenants
   routes --> members
   routes --> work
   routes --> domains
   routes --> health
+  publicRoutes --> profile
 
   caps --> check
   caps --> smoke
@@ -177,11 +213,9 @@ stay fully multi-tenant via the `X-Tenant` header.
   with an `edge`-profiled Caddy for on-demand TLS, and migrations run by the
   container entrypoint.
 - **The Vercel Domains provisioning adapter (US-020) is built but has never run
-  against the live API.** Its behaviour is proven only against a stubbed `fetch`,
-  because neither CI nor the build machine holds a `VERCEL_TOKEN`. The owner
-  supplying that token is what closes the gap; the first real add/check/remove is
-  the acceptance run. Self-host needs no such adapter — Caddy issues per-tenant
-  TLS on demand.
+  against the live API** — proven against a stubbed `fetch` only, because no
+  `VERCEL_TOKEN` exists on CI or the build machine. Full statement:
+  [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
 - **Three CI jobs run but block nothing.** The `main-gates` and
   `production-protection` rulesets name `check`, `smoke`, `e2e` and
   `docker-smoke` only, so `visual` (pixel), `ai-review` (AI diff review) and
@@ -199,17 +233,7 @@ stay fully multi-tenant via the `X-Tenant` header.
   per-tenant SSO. When a trigger fires the entry graduates into an ADR or an
   implementation slice; it never gets built silently.
 
-## Where to start
-
-- **[Quickstart](./quickstart.md)** — clone to a green `smoke` in one sitting.
-- **[CLI walkthrough](../guides/cli-walkthrough.md)** — the agent feedback loop,
-  command by command.
-- **[Adding a feature](../guides/adding-a-feature.md)** — the scaffolder and the
-  12-step chain.
-- **[Layers](../architecture/layers.md)** and
-  **[Decisions](../decisions/index.md)** — why the seams sit where they do.
-- **[Agent workflow](../guides/agent-workflow.md)** — how this repository is
-  actually developed.
+## Where the truth lives
 
 The authoritative documents remain in the repository:
 [`docs/architecture.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md)

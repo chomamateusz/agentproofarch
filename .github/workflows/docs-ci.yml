@@ -24,7 +24,7 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -33,3 +33,6 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run typecheck
+      # Diagrams render client-side, so a green build proves nothing about them:
+      # this runs mermaid's own parser over every fenced block.
+      - run: npm run check:mermaid

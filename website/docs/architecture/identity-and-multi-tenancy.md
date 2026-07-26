@@ -203,8 +203,8 @@ The way out is a real owned base domain, or per-tenant custom domains:
 |---|---|---|
 | Wildcard cert | ACME DNS-01 → **NS delegation** to Vercel, or narrow `_acme-challenge` delegation | Caddy on-demand TLS, no wildcard needed |
 | Records-only DNS (no NS delegation) | individual non-wildcard per-tenant hosts (HTTP-01 via CNAME), each attached to the project by the US-020 adapter | n/a |
-| Domain provisioning port | `vercel` adapter (**built**, US-020): `provision`/`remove` attach and detach the host over the Domains API, `check` reads the domain and its config back — live run pending `VERCEL_TOKEN` | `caddy` adapter (**built**): `provision`/`remove` are no-ops, `check` is a DNS lookup against `SELF_HOST_TARGET_CNAME`/`_IP` |
-| Plan limits | Hobby caps at **50 custom domains per project**; a wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement) | none |
+| Domain provisioning port | `vercel` adapter (**built**, US-020): `provision`/`remove` attach and detach the host over the Domains API, `check` reads the domain and its config back — [live run still pending](../operations/self-host-and-domains.md#us-020-built-and-never-run-live) | `caddy` adapter (**built**): `provision`/`remove` are no-ops, `check` is a DNS lookup against `SELF_HOST_TARGET_CNAME`/`_IP` |
+| Plan limits | see [Wildcard vs per-host attach](../operations/self-host-and-domains.md#wildcard-base-domain-vs-per-host-attach) for the Vercel Hobby caps | none |
 
 The tenant-facing surface is built (US-019): `/app/settings/domains` and the
 matching CLI verbs list, attach, verify and detach domains through

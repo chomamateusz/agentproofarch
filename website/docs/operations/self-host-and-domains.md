@@ -251,6 +251,38 @@ npm run cli -- domain remove beta.acme.com
 
 A failed check reports why, not just that it failed — `shop.acme.com does not CNAME to apps.example.com (found: none)` — and with no target configured at all it says `No SELF_HOST_TARGET_CNAME or SELF_HOST_TARGET_IP configured`. The web settings page (`features/settings/DomainsPage.tsx`) renders the same model: the roster with verified status, an add form that shows the required DNS record derived from the configured target (*"Create a CNAME record pointing your domain at …"* / *"Create an A record …"*), a per-domain re-check, and remove with confirmation.
 
+## US-020: built, and never run live
+
+This is the single canonical statement of that gap; every other page links here
+rather than repeating it, because the day it closes, one paragraph has to be
+deleted and not six.
+
+**What exists.** `adapters/domain-provisioning/vercel.ts` implements the full
+`DomainPort`: `provision` attaches a host to the Vercel project, `remove`
+detaches it, `check` reads the domain and its DNS config back. Both writes are
+convergent — an already-attached host (`409`) and an unknown host on delete
+(`404`) are successes — so the use-case may retry. The token travels only in the
+`Authorization` header, never into a log or an error detail, and every response
+is zod-parsed at the boundary.
+
+**What proves it.** An offline suite against a stubbed `fetch`, 22 tests:
+success, team scoping, the convergent `409`/`404`, `401` and `403` (naming the
+misconfigured env, never echoing the token), `5xx`, transport failures, and
+corrupted payloads on both the domain and DNS-config reads.
+
+**What does not.** It has **never run against the live Vercel Domains API**.
+Neither CI nor the build machine holds a `VERCEL_TOKEN`, so nothing has ever
+exercised the real contract — the exact failure class that broke this project
+five times in a row before the runtime gate existed
+([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). The deployment
+therefore still runs `DOMAIN_PROVISIONER=noop`, whose `check` accepts every
+domain, so on that target the verify step is a formality rather than a
+verification.
+
+**What closes it.** The owner supplying `VERCEL_TOKEN`; the first real
+add / check / remove against the live API is the acceptance run. Self-host needs
+none of this — Caddy issues per-tenant certificates on demand.
+
 ## Wildcard base domain vs per-host attach
 
 These are two different features that solve two different customer requests, and conflating them is the usual source of confusion.
@@ -268,7 +300,7 @@ These are two different features that solve two different customer requests, and
 The practical reading: a wildcard covers `*.<base>` subdomain tenants for free, and per-host attach covers the tenant that wants its own non-subdomain domain. On self-host, both work today. On Vercel, the wildcard path is a DNS-delegation decision and the per-host path is what the `vercel` provisioner does.
 
 :::caution Honest caveats
-- **The `vercel` adapter is built but has never run against the live Domains API.** Its behaviour is proven only against a stubbed `fetch`, because neither CI nor the build machine holds a `VERCEL_TOKEN`. Until the owner supplies one, this deployment stays on the `noop` default, which means its `check` accepts every domain — on that target the verify step is a formality, not a verification. Self-host needs no platform API at all.
+- **The `vercel` adapter is built but has never run against the live Domains API** — the full statement is [above](#us-020-built-and-never-run-live).
 - **`noop` accepting everything is a real sharp edge**, not just a placeholder: on a `noop` deploy a `domain check` will flip a row to `verified` without proving any DNS. That is safe on Vercel only because nothing there consults the ask endpoint; do not run `noop` behind Caddy.
 - **`INTERNAL_PORT` unset means the internal endpoint does not start.** A Caddy edge pointed at a deploy without it will fail every ask and therefore issue no certificates.
 - **`domainNameSchema` accepts a raw IPv4 address** (e.g. `192.168.1.1`) as a custom domain — a recorded verification residual, with the next edit to the domain chain as its trigger.

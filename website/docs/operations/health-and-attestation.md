@@ -6,7 +6,7 @@ description: Liveness, readiness, and proving which deploy a smoke run actually 
 
 # Health & deploy attestation
 
-This page exists because two questions an operator asks — *is the process alive?* and *is it ready to serve traffic?* — have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
+*Is the process alive?* and *is it ready to serve traffic?* have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
 
 :::info Sources
 Normative: [`docs/architecture.md` §Health & deploy attestation](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md). Routes: `demo/apps/server/src/app.ts`. Schemas: `demo/core/contract/routes.ts`. Gate: [`post-deploy-smoke.yml`](https://github.com/chomamateusz/agentproofarch/blob/main/.github/workflows/post-deploy-smoke.yml).
