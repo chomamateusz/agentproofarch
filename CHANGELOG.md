@@ -17,7 +17,7 @@ before that lives in the git history only.
 
 - Project brand assets: layered-mark logo in the docs-site navbar, favicon
   refreshed to the slanted mark, social card for link previews and a README
-  banner (#TBD).
+  banner ([#72](https://github.com/chomamateusz/agentproofarch/pull/72)).
 - CodeRabbit as an advisory second reviewer: `.coderabbit.yaml` (chill
   profile, no request-changes, doctrine path instructions); comments on
   every non-draft PR without ever blocking one
