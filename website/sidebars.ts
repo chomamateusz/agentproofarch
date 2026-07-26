@@ -4,14 +4,15 @@ const sidebars: SidebarsConfig = {
   docs: [
     {
       type: 'category',
-      label: 'Start',
+      label: 'Start here 🚀',
       collapsed: false,
-      items: ['start/landing', 'start/quickstart', 'start/glossary'],
+      items: ['start/landing', 'start/quickstart'],
     },
     {
       type: 'category',
-      label: 'Architecture',
+      label: 'Full architecture 🏛️',
       items: [
+        'start/glossary',
         'architecture/layers',
         'architecture/request-lifecycle',
         'architecture/identity-and-multi-tenancy',
@@ -25,7 +26,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Guides',
+      label: 'Step-by-step guides 🧭',
       items: [
         'guides/cli-walkthrough',
         'guides/adding-a-feature',
@@ -35,7 +36,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Operations',
+      label: 'Infrastructure 🧱',
       items: [
         'operations/environments',
         'operations/ci-gates',
@@ -46,7 +47,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Decisions',
+      label: 'ADRs 📜',
       link: {type: 'doc', id: 'decisions/index'},
       items: [
         'decisions/0001-public-surface-embeds-over-pages',
@@ -57,6 +58,7 @@ const sidebars: SidebarsConfig = {
         'decisions/0006-public-read-only-surface',
         'decisions/0007-email-port-and-magic-link-transport',
         'decisions/0008-visual-regression',
+        'decisions/0010-tenant-creation-policy',
       ],
     },
     'changelog',

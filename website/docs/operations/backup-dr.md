@@ -1,18 +1,18 @@
 ---
 title: Backup & DR runbook
-sidebar_label: Backup & DR
+sidebar_label: Backup & DR 💾
 description: Hourly encrypted pg_dump on k3s, an offsite copy, and the Docker self-host stack as cold standby.
 ---
 
-# Backup & disaster recovery
+# Backup & disaster recovery 💾 \{#backup--disaster-recovery}
 
 The whole deployment topology assumes two vendors — Vercel and Neon — so the disaster to plan for is losing one of them entirely: account suspension, provider outage, or a destructive migration that outran its restore window. The backup package therefore lives **outside** both: it runs on the owner's k3s VPS, it does **not** run in GitHub Actions, and no production credential belongs in GitHub, this repository, a shell command or shell history. The cold standby is the repository's own Docker self-host stack, which means DR reuses a target that a required CI check already proves works.
 
-:::info Source of truth
+:::info[Source of truth]
 [`demo/ops/backup/README.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/README.md) plus the manifests beside it: [`namespace.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/namespace.yaml), [`secret.template.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/secret.template.yaml), [`pvc.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/pvc.yaml), [`cronjob.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/cronjob.yaml), [`restore.sh`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/restore.sh). Installed by hand on the VPS; part of no CI job.
 :::
 
-## The CronJob model
+## The CronJob model ⏰ \{#the-cronjob-model}
 
 One `CronJob` (`agentproofarch-postgres-backup`, schedule `7 * * * *`, `Etc/UTC`) runs two containers that hand off through a shared `emptyDir` at `/work`. The handshake is what makes "successful" mean *both* copies exist.
 
@@ -45,7 +45,7 @@ Five properties of that flow are the design, not incidentals:
 4. **Rotation runs before the upload wait.** Local rotation happens as soon as the local artifact is final, so a prolonged offsite outage cannot fill the PVC with an unbounded backlog while the run blocks on `rclone`.
 5. **The run is not green until both copies exist.** The backup container polls for `/work/uploaded` and exits `1` if it sees `/work/upload-failed`; the upload container polls for `/work/ready` and exits `1` on `/work/backup-failed`. Either half failing fails the Job.
 
-### Manifest facts
+### Manifest facts 📄 \{#manifest-facts}
 
 | Setting | Value | Where |
 |---|---|---|
@@ -58,7 +58,7 @@ Five properties of that flow are the design, not incidentals:
 | Images | `postgres:16-bookworm`, `rclone/rclone:1.71.0` | `cronjob.yaml` |
 | Namespace | `agentproofarch-backup` | `namespace.yaml` |
 
-### Security posture
+### Security posture 🔒 \{#security-posture}
 
 Both containers run with the same hardening, which is worth listing because a backup pod holds the most sensitive credential in the system:
 
@@ -68,7 +68,7 @@ Both containers run with the same hardening, which is worth listing because a ba
 - The upload container gets `RCLONE_CONFIG=/dev/null` and receives every credential as `RCLONE_CONFIG_OFFSITE_*` env from the Secret — there is no rclone config file to leak.
 - `rclone copyto --immutable` refuses to overwrite an existing object, so a re-run cannot silently replace an earlier artifact.
 
-## Retention
+## Retention 🗓️ \{#retention}
 
 | Tier | Window | Owned by |
 |---|---|---|
@@ -77,18 +77,18 @@ Both containers run with the same hardening, which is worth listing because a ba
 
 The bucket must sit in a **failure domain independent of both the VPS and Neon**; that independence is the entire point of the offsite copy. The default 20 GiB PVC only holds 14 days of hourly artifacts while each encrypted dump stays under roughly 60 MiB — read the real artifact size after the first run and either grow the PVC or shorten `RETENTION_DAYS` before the window closes.
 
-## RPO and RTO — as stated, with the conditions
+## RPO and RTO — as stated, with the conditions ⏱️ \{#rpo-and-rto--as-stated-with-the-conditions}
 
 The operating target is **roughly a one-hour RPO and a 30–60 minute RTO**, and the README is explicit that both numbers only hold under stated conditions:
 
 - **The RPO is the age of the newest *successful* run.** The honest worst case is therefore one schedule interval **plus one dump duration**, and everything written after that point is lost unless Neon itself survives and Neon PITR can be used instead.
 - **The RTO assumes the standby VPS already holds the production commit *and a pre-built application image*.** A cold `docker compose build` on an unprepared host adds several minutes and breaks the budget outright.
 
-:::warning Measure, don't trust the table
+:::warning[Measure, don't trust the table]
 The README's instruction is unambiguous: measure both numbers in the quarterly drill rather than trusting the table. A restore drill is the only evidence that the RPO/RTO pair is real.
 :::
 
-## Install (on the VPS)
+## Install (on the VPS) 🛠️ \{#install-on-the-vps}
 
 Generate the symmetric key on an owner-controlled machine and store a second copy in the owner's password manager or offline vault:
 
@@ -98,7 +98,7 @@ openssl rand -base64 48 > /root/agentproofarch-backup-passphrase
 chmod 600 /root/agentproofarch-backup-passphrase
 ```
 
-:::danger Losing both copies of the key makes every backup unrecoverable
+:::danger[Losing both copies of the key makes every backup unrecoverable]
 Rotating the key requires **keeping the old key** until every backup encrypted with it has expired.
 :::
 
@@ -139,11 +139,11 @@ kubectl logs --namespace agentproofarch-backup "job/$job" --container upload
 
 Both logs must name the **same** `.dump.gpg` artifact. Installation is finished only after downloading the first offsite object to an isolated location and completing the restore drill — **a successful upload alone does not prove recoverability.**
 
-### Monitoring
+### Monitoring 📈 \{#monitoring}
 
 Alert when no successful Job has completed for **two hours**, when a Job fails, when PVC use exceeds **80%**, or when the bucket rejects uploads. Kubernetes retains only a small Job history, so ship Job status and container logs to the owner's monitoring system rather than relying on `kubectl`.
 
-## The restore drill
+## The restore drill ♻️ \{#the-restore-drill}
 
 Run it on an isolated VPS or an isolated Compose project, on the exact production commit where possible, and never against production DNS.
 
@@ -187,7 +187,7 @@ docker compose -f docker-compose.prod.yml --profile edge up -d caddy
 
 Set `TMPDIR` to a root-only filesystem with enough free space for the decrypted dump when `/tmp` is too small. Record the artifact timestamp, restore start and finish, application-ready time, dump age, row-count checks and any manual intervention — then securely erase drill data.
 
-## Cold-standby failover
+## Cold-standby failover 🧊 \{#cold-standby-failover}
 
 "Prepared" has a precise meaning: the production commit is checked out, `.env` is filled in with **standby-only** values, and `docker compose -f docker-compose.prod.yml build app` has already produced the image. The RTO budget assumes all three. Set the production DNS TTL to **300 seconds or lower during normal operations** — lowering it after an outage does not expire records already cached.
 
@@ -218,7 +218,7 @@ sequenceDiagram
 
 Do **not** overwrite or delete the incident dump, its sidecar, the old DNS values, or the Neon recovery points until the owner explicitly closes the incident. **Failback is a separate migration**, not an undo: quiesce writes, take a fresh backup from the active VPS database, restore into a new managed target, verify, then flip DNS under another change window.
 
-## Quarterly failover test
+## Quarterly failover test ✅ \{#quarterly-failover-test}
 
 The README carries a 16-item checklist; its non-obvious items are the ones that catch real rot:
 
@@ -231,7 +231,7 @@ The README carries a 16-item checklist; its non-obvious items are the ones that 
 - **Measure the achieved RPO from the artifact time and the RTO from declaration to external readiness** — the numbers in the table above are targets, and this is where they are either confirmed or corrected.
 - **Treat any failed restore or missed hourly backup as an incident.**
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **This package is installed by hand and exercised by hand.** It is not part of any CI job, so nothing mechanically proves it is currently installed and healthy on the VPS — that is what the two-hour alert and the quarterly drill are for.
 - **The RPO/RTO figures are operating targets, not measured guarantees.** The README says so explicitly and instructs measuring them in the drill.
 - **The default 20 GiB PVC only fits 14 days of hourly artifacts while each dump stays under roughly 60 MiB.** Past that, the retention window silently shortens unless the PVC is grown — and reducing an existing PVC is not supported.

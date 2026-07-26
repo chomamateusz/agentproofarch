@@ -15,6 +15,11 @@ before that lives in the git history only.
 
 ### Added
 
+- Instance-wide `TENANT_CREATION=open|staff|closed` policy switch, defaulting to
+  open, controls who may create tenants ([#77](https://github.com/chomamateusz/agentproofarch/pull/77)).
+- Project brand assets: layered-mark logo in the docs-site navbar, favicon
+  refreshed to the slanted mark, social card for link previews and a README
+  banner ([#72](https://github.com/chomamateusz/agentproofarch/pull/72)).
 - CodeRabbit as an advisory second reviewer: `.coderabbit.yaml` (chill
   profile, no request-changes, doctrine path instructions); comments on
   every non-draft PR without ever blocking one
@@ -47,6 +52,30 @@ before that lives in the git history only.
   had been resolving `@opentelemetry/sdk-trace-base` through npm's hoisting, and
   it is now declared as the production dependency it always was
   (#TBD).
+- Owner round-5 docs notes: a meaning-matched trailing emoji on every heading
+  site-wide, with 🔷 codified as the official brand emoji ([#80](https://github.com/chomamateusz/agentproofarch/pull/80)).
+- Owner round-4 docs notes: sidebar categories relabelled (Start here, Full
+  architecture, Step-by-step guides, Infrastructure, ADRs), the glossary moves
+  to the head of Full architecture, and the three heaviest reference pages open
+  with a "you do not need this to start" on-ramp ([#79](https://github.com/chomamateusz/agentproofarch/pull/79)).
+- The docs-site landing page opens with the brand banner, the same asset the
+  README uses ([#78](https://github.com/chomamateusz/agentproofarch/pull/78)).
+- The docs-site landing title spells the name out — "Agent-Proof Architecture" —
+  with the `agentproofarch` slug demoted to the gloss line ([#76](https://github.com/chomamateusz/agentproofarch/pull/76)).
+- Owner round-3 docs notes: the landing page slims down — the four boot commands
+  now live only in the quickstart, the walking-skeleton capability list moves to
+  the top of the quickstart as "What you get after boot", and "The architecture,
+  in plain words" becomes the glossary's introduction ([#75](https://github.com/chomamateusz/agentproofarch/pull/75)).
+- Docs-site landing page rewritten for the mid-level-developer audience — name
+  gloss in the header, a problem→answer section up front, terms defined at first
+  use — and admonition titles across the site fixed to the `:::type[Title]`
+  bracket syntax ([#73](https://github.com/chomamateusz/agentproofarch/pull/73)).
+- Owner round-2 docs notes: quickstart env step now says plainly that local dev
+  needs no `.env`, the glossary merges Feature/Island, glosses seam and rung,
+  states that owner/admin are per-tenant grants with no platform super-admin,
+  and rewrites the foundation-lifecycle section around the fork scenario; the
+  authorization page gains a plain-words tenant-creation flow
+  ([#74](https://github.com/chomamateusz/agentproofarch/pull/74)).
 - Toolchain upgraded from Node.js 22 to Node.js 24 LTS across local pins, CI,
   Docker, engines and documentation, with npm 11 lockfile semantics
   ([#71](https://github.com/chomamateusz/agentproofarch/pull/71)).

@@ -1,10 +1,10 @@
 ---
 title: Identity & multi-tenancy
-sidebar_label: Identity & multi-tenancy
+sidebar_label: Identity & multi-tenancy 🏢
 description: Global authentication, tenant-owned relationship, and honest per-environment tenant addressing.
 ---
 
-# Identity & multi-tenancy
+# Identity & multi-tenancy 🏢 \{#identity--multi-tenancy}
 
 "Multi-tenant" is where most SaaS foundations quietly sell out: they let the
 auth provider own the organization model, and two years later swapping the
@@ -14,7 +14,7 @@ only; every relationship lives in foundation tables** — and the second half of
 the page is the part nobody writes down: what tenant addressing *actually* does
 in each environment, including the one place where it is impossible.
 
-## Who are you, versus who are you here
+## Who are you, versus who are you here 🪪 \{#who-are-you-versus-who-are-you-here}
 
 [ADR-0002](../decisions/0002-member-identity-and-idp.md) decides the split:
 
@@ -36,7 +36,7 @@ creation must never depend on the auth provider.
 
 `userId` is an **opaque string**. Foundation tables never FK provider tables.
 
-## The tables and their cascade posture
+## The tables and their cascade posture 🗄️ \{#the-tables-and-their-cascade-posture}
 
 ```mermaid
 graph TD
@@ -74,7 +74,7 @@ Two consequences worth naming:
   row before any auth account exists (a payment webhook can create a customer),
   and the account is claimed on that user's first authenticated tenant resolution.
 
-## The identity a use-case sees
+## The identity a use-case sees 👤 \{#the-identity-a-use-case-sees}
 
 `resolveIdentity` produces exactly one shape, and it is the whole input to
 authorization:
@@ -96,7 +96,7 @@ export interface Identity {
 or neither (the tenant-less **visitor**). The principal derivation and grant table
 live in [Authorization](authorization.md).
 
-## Tenant resolution order
+## Tenant resolution order 🧭 \{#tenant-resolution-order}
 
 One fixed order, implemented in `core/server/usecases/resolve-identity.ts`:
 
@@ -108,13 +108,13 @@ A request on the bare base domain with no header yields a tenant-less identity,
 which is a legitimate state (that is how the create-tenant onboarding works).
 Membership is **always** verified: resolving a tenant does not grant access to it.
 
-:::info The wildcard payoff
+:::info[The wildcard payoff]
 Because step 2 treats *any* subdomain label as a slug, a single wildcard domain
 makes every tenant resolve automatically — **no per-tenant registration needed**.
 `tenant_domains` exists for step 1, the custom-domain case.
 :::
 
-:::caution Existence-hiding is deliberate, do not "fix" it
+:::caution[Existence-hiding is deliberate, do not "fix" it]
 A caller who names a tenant by **slug or `X-Tenant`** and has no access gets
 `tenant_not_found` (HTTP 404, CLI exit 7) with the message
 `No tenant "<slug>" or you do not have access to it` — byte-identical to the
@@ -128,7 +128,7 @@ A caller who arrived by **custom domain** gets `forbidden` instead — the domai
 already proved the tenant exists, so hiding it would be theatre.
 :::
 
-## Slugs are a value object
+## Slugs are a value object 🔤 \{#slugs-are-a-value-object}
 
 A tenant slug becomes a subdomain, so it is normalized first and validated second
 (`core/domain/slug.ts`):
@@ -150,14 +150,14 @@ export const slugSchema = z.string().transform(normalizeSlug).pipe(canonicalSlug
 entries in total). The edge therefore accepts human input while only one canonical
 form is ever persisted or resolved.
 
-:::caution Known residual
+:::caution[Known residual]
 `normalizeSlug` **drops** diacritics rather than transliterating them, so a fully
 diacritic Polish tenant name yields a near-empty slug. Recorded as an accepted
 residual with a named trigger (the first real complaint, or the next edit to
 `slug.ts`).
 :::
 
-## Tenant addressing per environment
+## Tenant addressing per environment 🌐 \{#tenant-addressing-per-environment}
 
 This is the honest table. "Base domain" means something different in each
 environment, and the code handles each case explicitly rather than pretending.
@@ -170,7 +170,7 @@ environment, and the code handles each case explicitly rather than pretending.
 | **Custom domain** (`shop.acme.com`) | step 1 of resolution, once `verified` | **its own cookie world** — sign-in per domain, deliberate isolation | Vercel attaches each host through the US-020 Domains API adapter (built, `VERCEL_TOKEN` pending); self-host needs nothing |
 | **Docker self-host** | subdomain *and* custom domain both work | as configured | Caddy `on_demand_tls` asks an internal endpoint before minting a cert |
 
-### The `*.vercel.app` impossibility
+### The `*.vercel.app` impossibility 🚫 \{#the-vercelapp-impossibility}
 
 This is a platform restriction, confirmed live — not a configuration mistake:
 
@@ -195,7 +195,7 @@ web app is single-tenant per deployment URL while the API and CLI stay fully
 multi-tenant through `X-Tenant`. That is also how `pnpm run smoke:remote` drives a
 deployed environment.
 
-### The custom-domain path
+### The custom-domain path 🛣️ \{#the-custom-domain-path}
 
 The way out is a real owned base domain, or per-tenant custom domains:
 
@@ -214,7 +214,7 @@ matching CLI verbs list, attach, verify and detach domains through
 reachable. Operational detail lives in
 [Self-host & domains](../operations/self-host-and-domains.md).
 
-:::caution The demo's own setup is in progress
+:::caution[The demo's own setup is in progress]
 Two shapes are recorded in `architecture.md`, and neither is live yet:
 
 - a free **eu.org** domain, `agentproofarch.eu.org`, delegated to Vercel's
@@ -234,7 +234,7 @@ cross-subdomain session on a real base domain is documented but **not locally
 testable** — it gets verified live on the first custom base-domain deployment.
 :::
 
-## Sessions
+## Sessions 🍪 \{#sessions}
 
 - One session spans `APP_BASE_DOMAIN` subdomains when the base domain is real
   (`crossSubDomainCookies` on); off for `localhost`, because browsers reject
@@ -250,7 +250,7 @@ testable** — it gets verified live on the first custom base-domain deployment.
   `SECURE_COOKIES` (required outside local dev — the env schema **refuses to
   boot** without it once deployed).
 
-## Auth methods, as built
+## Auth methods, as built 🔐 \{#auth-methods-as-built}
 
 Every method is exposed **exclusively** through `AuthClientPort` — no client ever
 names a provider route or SDK, and dependency-cruiser proves it
@@ -267,14 +267,14 @@ names a provider route or SDK, and dependency-cruiser proves it
 `listPasskeys` is the one **read**-tagged method on the port, because the passkey
 roster lives on the provider surface rather than in the contract API.
 
-:::note The zod 4 migration was a prerequisite, not a whim
+:::note[The zod 4 migration was a prerequisite, not a whim]
 `@better-auth/passkey` pinned a `better-call` whose optional `zod@^4` peer
 conflicted with the tree's `zod@^3`. The migration to `zod@^4` was done **first**,
 gates green, before the plugin went in — recorded in the
 [changelog](../changelog.md) for 2026-07-21.
 :::
 
-## Tenant, not instance
+## Tenant, not instance 🏘️ \{#tenant-not-instance}
 
 One instance (one database) hosts many tenants over one shared account pool: a
 creator's unrelated brands should be **tenants**, not new deployments. New
@@ -283,7 +283,7 @@ evolution path (promote to a central OIDC IdP, swap the `AuthPort` adapter), nev
 a foundation feature. Self-hosted instances have independent account pools by
 construction.
 
-## Deletion is two operations
+## Deletion is two operations 🗑️ \{#deletion-is-two-operations}
 
 | Operation | Who | Removes | Leaves |
 |---|---|---|---|

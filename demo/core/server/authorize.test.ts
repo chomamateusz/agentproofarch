@@ -28,11 +28,11 @@ const visitor: Identity = {
 
 describe('authorize', () => {
   it('passes (null) when the principal holds the capability', () => {
-    expect(authorize({ identity: staff }, 'todo:write')).toBeNull();
+    expect(authorize({ identity: staff, tenantCreationMode: 'open' }, 'todo:write')).toBeNull();
   });
 
   it('returns a forbidden error carrying the deny reason', () => {
-    expect(authorize({ identity: member }, 'tenant:create')).toEqual({
+    expect(authorize({ identity: member, tenantCreationMode: 'open' }, 'tenant:create')).toEqual({
       code: 'forbidden',
       message: 'tenant:create is not permitted for member',
     });
@@ -41,12 +41,12 @@ describe('authorize', () => {
 
 describe('authorizeTenant', () => {
   it('returns the resolved tenantId for a permitted, tenant-bound principal', () => {
-    expect(authorizeTenant({ identity: staff }, 'card:read')).toEqual({ ok: true, value: 't-acme' });
-    expect(authorizeTenant({ identity: member }, 'card:read')).toEqual({ ok: true, value: 't-acme' });
+    expect(authorizeTenant({ identity: staff, tenantCreationMode: 'open' }, 'card:read')).toEqual({ ok: true, value: 't-acme' });
+    expect(authorizeTenant({ identity: member, tenantCreationMode: 'open' }, 'card:read')).toEqual({ ok: true, value: 't-acme' });
   });
 
   it('denies the tenant-less visitor with forbidden, before any tenant lookup', () => {
-    expect(authorizeTenant({ identity: visitor }, 'todo:read')).toMatchObject({
+    expect(authorizeTenant({ identity: visitor, tenantCreationMode: 'open' }, 'todo:read')).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -54,7 +54,7 @@ describe('authorizeTenant', () => {
 
   it('refuses a role carried without a resolved tenant (defensive tenant_not_found)', () => {
     const rootlessStaff: Identity = { ...staff, tenantId: null };
-    expect(authorizeTenant({ identity: rootlessStaff }, 'todo:read')).toMatchObject({
+    expect(authorizeTenant({ identity: rootlessStaff, tenantCreationMode: 'open' }, 'todo:read')).toMatchObject({
       ok: false,
       error: { code: 'tenant_not_found' },
     });

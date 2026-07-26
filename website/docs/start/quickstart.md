@@ -1,10 +1,10 @@
 ---
 title: Quickstart
-sidebar_label: Quickstart
+sidebar_label: Quickstart 🚀
 description: Clone the repository and get to a green runtime gate.
 ---
 
-# Quickstart
+# Quickstart 🚀 \{#quickstart}
 
 This page takes you from `git clone` to a green **runtime** gate — the point where
 the real server has booted, the CLI has driven a full multi-tenant flow through it,
@@ -14,7 +14,25 @@ account and a local mail sink, because every one of those is something the gates
 and the walkthroughs assume exists. Every command below is copied from
 `demo/package.json` and the repository READMEs.
 
-## Prerequisites
+## What you get after boot 📦 \{#what-you-get-after-boot}
+
+The demo is a **walking skeleton** — the thinnest version of the real system
+with every layer connected and actually working — not a scaffold of stubs.
+
+What walks through it, each capability flowing through *every* layer and
+drivable from both the web app and the CLI:
+
+- authentication: password, magic link, TOTP two-factor, passkeys, plus a
+  Google seam that stays dormant unless both of its env vars are set — password
+  and magic link from either surface; TOTP, passkeys and Google are web-only
+  (browser ceremonies the CLI ships no commands for);
+- foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
+  custom domain or subdomain;
+- end-customer members with GDPR export and removal;
+- todos and two exemplar boards (a personal one and a WIP-guarded team one);
+- a public unauthenticated read surface.
+
+## Prerequisites 🧰 \{#prerequisites}
 
 | Tool | Version | Why exactly this |
 |---|---|---|
@@ -25,7 +43,7 @@ and the walkthroughs assume exists. Every command below is copied from
 Everything runs from `demo/` — it has its own `package.json`. The repository root
 holds `docs/` (normative architecture + PRD) and `website/` (this site).
 
-## 1. Clone and install
+## 1. Clone and install 📥 \{#1-clone-and-install}
 
 ```bash
 git clone https://github.com/chomamateusz/agentproofarch.git
@@ -36,7 +54,7 @@ corepack prepare --activate
 pnpm install --frozen-lockfile
 ```
 
-:::warning Keep the lock and supply-chain policy intact
+:::warning[Keep the lock and supply-chain policy intact]
 `lock-lint` proves `pnpm-lock.yaml` matches `package.json` with
 `pnpm install --frozen-lockfile --lockfile-only`, the same frozen semantics used
 by CI and Docker. Add dependencies with `pnpm add <pkg>` and commit the settled
@@ -45,28 +63,37 @@ lockfile. Dependency build scripts are blocked unless explicitly allowlisted in
 three days.
 :::
 
-## 2. Environment: nothing to do (locally)
+## 2. Environment: nothing to do (locally) ⚙️ \{#2-environment-nothing-to-do-locally}
 
-There is no `.env` step for local development. Every key the server needs has a
-dev default in the single env schema (`core/server/config.ts`): `DATABASE_URL`
-defaults to
+For plain local development this step really is **nothing**: no `.env` file to
+create, no variable to export — skip straight to step 3. Every key a local boot
+needs has a dev default in the single env schema,
+[`demo/core/server/config.ts`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/core/server/config.ts):
+`DATABASE_URL` defaults to
 `postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch`,
 `DB_DRIVER` to `node-postgres` off Vercel, `APP_BASE_DOMAIN` to `localhost`,
-`PORT` to `47100`, and `SMTP_HOST`/`SMTP_PORT` to the dev Mailpit. The dev-only
-`BETTER_AUTH_SECRET` default is *refused* the moment the process looks deployed
-(`VERCEL` set, or `SECURE_COOKIES=true`), so the shortcut cannot leak into a
-deployment.
+`PORT` to `47100`, and `SMTP_HOST`/`SMTP_PORT` to the dev Mailpit.
 
-You want `.env.example` in two cases only:
+The dev-only `BETTER_AUTH_SECRET` default is *refused* the moment the process
+looks deployed (`VERCEL` set, or `SECURE_COOKIES=true`), so the shortcut cannot
+leak into a deployment.
 
-```bash
-cp .env.example .env     # for: Docker self-host, or overriding a dev default
-```
+You create a `.env` (`cp .env.example .env`) in three cases:
+
+1. **Docker self-host** — the compose stack reads keys the bare dev boot never
+   needs (`POSTGRES_*` for the database sidecar, `APP_PORT`, a real
+   `BETTER_AUTH_SECRET`, `SECURE_COOKIES=true`, …).
+2. **Overriding a dev default** — for example pointing `DATABASE_URL` at a
+   different Postgres, or moving a port.
+3. **Turning on an optional integration that ships off** — Google sign-in
+   (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`), Sentry, OTel, the SES email
+   transport, Vercel domain provisioning, the backfill route. Their keys have
+   no dev default because absent means the feature stays dormant.
 
 `.env.example` documents **names only**, and it is also the file `doc-lint` checks
 the env schema against — a new env key missing from it fails `check`.
 
-## 3. Database, mail sink, seed
+## 3. Database, mail sink, seed 🗄️ \{#3-database-mail-sink-seed}
 
 ```bash
 pnpm run db:up            # Postgres 16 on 47542 + Mailpit on 47925 (SMTP) / 47980 (UI)
@@ -98,7 +125,7 @@ CI and e2e all run the real SMTP adapter pointed at Mailpit, which captures send
 instead of delivering them. Read a magic link from its UI at
 `http://localhost:47980` — there is no in-app dev route for it.
 
-## 4. Run it
+## 4. Run it ▶️ \{#4-run-it}
 
 Two dev paths, and picking the wrong one is the most common first-run
 frustration:
@@ -112,7 +139,7 @@ pnpm run build:web        # …or a prod-like page: build the SPA first,
 pnpm run dev:server       # then the API + built bundle on http://acme.localhost:47100
 ```
 
-:::warning `dev:server` serves a gitignored build
+:::warning[`dev:server` serves a gitignored build]
 `dev:server` serves whatever `dist/web` currently holds. After a contract change a
 stale bundle fails **every** page with "response does not match the contract" (a
 real incident, 2026-07-12). The server warns at boot when `dist/web` is missing or
@@ -130,7 +157,7 @@ Browsers reject `Domain=.localhost` cookies, so in dev you sign in **per
 subdomain**. On a real base domain one session spans every tenant subdomain; the
 per-subdomain login is a localhost artefact, not the design.
 
-## 5. Say hello from the CLI
+## 5. Say hello from the CLI ⌨️ \{#5-say-hello-from-the-cli}
 
 The CLI is the reference client and the agent feedback loop. `--silent` keeps pnpm's
 own chatter off stdout, so `--json` really does emit one document:
@@ -159,7 +186,7 @@ parenthesis on a todo is the first 8 characters of its row id; the seed uses
 `crypto.randomUUID()`, so yours will differ. Full tour:
 [CLI walkthrough](../guides/cli-walkthrough.md).
 
-## 6. Run the gates
+## 6. Run the gates 🛡️ \{#6-run-the-gates}
 
 ```bash
 pnpm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
@@ -190,13 +217,13 @@ pnpm run build:web
 pnpm run e2e
 ```
 
-:::danger Static-green is not done
+:::danger[Static-green is not done]
 **Done = `check` green AND `smoke` green.** Do not weaken a lint rule to make
 either go green, and do not rerun a red job until it passes — a flake is a P1 bug
 ([Testing doctrine](../guides/testing-doctrine.md)).
 :::
 
-## The whole first run, in order
+## The whole first run, in order 🗺️ \{#the-whole-first-run-in-order}
 
 ```mermaid
 flowchart TD
@@ -215,7 +242,7 @@ flowchart TD
   gates["pnpm run check<br/>pnpm run smoke"] --> done["Done = both green"]
 ```
 
-## Ports
+## Ports 🔌 \{#ports}
 
 Nothing binds a common port, on purpose — 3000, 5432, 8080 and friends are all
 avoided so the stack never collides with whatever else you are running.
@@ -229,7 +256,7 @@ avoided so the stack never collides with whatever else you are running.
 | 47980 | Mailpit web UI + HTTP API (override with `MAILPIT_API_PORT`) |
 | 47101 | Self-host only: the internal domain-check control plane (`INTERNAL_PORT`, unset in dev) |
 
-## Troubleshooting
+## Troubleshooting 🚨 \{#troubleshooting}
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -242,7 +269,7 @@ avoided so the stack never collides with whatever else you are running.
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
 
-## Next
+## Next ➡️ \{#next}
 
 - [CLI walkthrough](../guides/cli-walkthrough.md) — every command group with real
   output and exit codes.

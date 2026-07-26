@@ -1,18 +1,18 @@
 ---
 title: 'ADR-0002 — Member identity: global authentication, tenant-owned relationship'
-sidebar_label: 0002 · Member identity
+sidebar_label: '0002 · Member identity 🔐'
 description: Why no auth-provider organization feature is used at all, and what replaces it.
 ---
 
-# ADR-0002 — Member identity: global authentication, tenant-owned relationship
+# ADR-0002 — Member identity: global authentication, tenant-owned relationship 🔐 \{#adr-0002--member-identity-global-authentication-tenant-owned-relationship}
 
 **2026-07-11 · accepted (owner-approved).** → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0002-member-identity-and-idp.md)
 
-## Summary
+## Summary 📋 \{#summary}
 
 Separate **"who are you"** from **"who are you here"**. The auth provider supplies authentication and nothing else, behind a narrow OIDC-shaped `AuthPort`. Every relationship — tenants, staff grants, members — lives in foundation-owned tables. **No auth-provider organization or team feature is used at all.**
 
-## The WHY
+## The WHY 🤔 \{#the-why}
 
 Two user populations exist, and only one of them fits an auth provider's organization model:
 
@@ -46,7 +46,7 @@ flowchart TB
     tenants --> domains
 ```
 
-## Decided
+## Decided ⚖️ \{#decided}
 
 1. **Global account = authentication only** — email + credentials, passwordless allowed, magic-link sign-in — managed by the provider behind a narrow, OIDC-shaped `AuthPort`. Provider swappability is a *requirement*; nothing but authentication may live on this account.
 2. **Members = a tenant-scoped aggregate in our database**, with no ports or adapters: plain core domain plus a repository. All relationship data lives here.
@@ -56,11 +56,11 @@ flowchart TB
 6. **The IdP topology is a composition-root decision**: embedded Better Auth (default, so self-host stays one `docker compose up`), a separate container acting as an OIDC provider, or a SaaS provider — all behind the same `AuthPort`. An adapter swap, not a plugin system.
 7. **Tenant, not instance**: one instance hosts many tenants over one account pool, so one customer account across a creator's unrelated brands is free *within* an instance. New instances are for hard isolation only; cross-instance SSO is an explicit non-goal of the foundation.
 
-### GDPR split
+### GDPR split 🔏 \{#gdpr-split}
 
 The creator is the **controller** of their tenant's member data (profile, tags, consents, progress). The platform operator is a **processor** for tenant data and the controller of the minimal global account. Marketing consents exist only per tenant, and per-tenant export (CSV/JSON including email) is a foundation capability.
 
-## Alternatives considered
+## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |
 |---|---|---|
@@ -70,7 +70,7 @@ The creator is the **controller** of their tenant's member data (profile, tags, 
 | **Instance-per-tenant isolation** | rejected as the default | One instance hosting many tenants over a shared account pool is what makes one customer account across a creator's brands free. Separate instances remain available for hard isolation. |
 | **A central OIDC provider from day one** | deferred | It is the answer for cross-instance/cross-app SSO, reachable by promoting the IdP and swapping adapters — with members aggregates untouched. Until then it would add a fleet-wide single point of failure for sign-in. |
 
-## Consequences
+## Consequences ⚡ \{#consequences}
 
 - **The provider-coupling debt is resolved.** The demo originally modelled tenants as Better Auth organizations. As of 2026-07-20 the P1 migration batch is complete: `demo/` ships foundation-owned `tenants`, `tenant_admins` and `members` tables (`demo/adapters/db/app-schema.ts`), the organization plugin is gone, and no provider table backs tenancy.
 - **The members aggregate is built** (2026-07-21): the `member` domain, `member:read` / `:write` / `:remove` / `:export` capabilities, use-cases `ensureMember` (the idempotent find-or-create entry point), `listMembers`, `updateMember`, `removeMember`, `exportMember`, contract routes, CLI `member` verbs and a staff-facing web island — with cross-tenant isolation and removal-cascade integration tests plus a smoke phase. Its recorded stances:
@@ -81,7 +81,7 @@ The creator is the **controller** of their tenant's member data (profile, tags, 
 - **We re-implement what the org plugin gave for free** — membership tables, invitation tokens. A few small tables and use-cases, judged cheaper than coupling every relationship to one provider's API.
 - **The foundation PRD was rewritten** (§3.4, FR-6/7 amended, FR-19..25 and US-025..028 added, US-007 redefined with no organization plugin).
 
-:::caution Risks acknowledged, and what is not built
+:::caution[Risks acknowledged, and what is not built]
 - **A future central IdP would be a single point of failure** for sign-in across a fleet, and account takeover would span contexts. Named mitigations: email verification, per-domain magic links, and passkeys — passkeys are now **built** ([ADR-0007](./0007-email-port-and-magic-link-transport.md) consequences).
 - **Self-hosted instances have independent account pools.** SSO across them is a hosted-operator feature, not a property of the architecture.
 - **Per-tenant IdP / enterprise SSO** (tenant-configured SAML/OIDC federation) is **not built**; it sits in the deferred-work register with the first enterprise customer ask as its trigger.

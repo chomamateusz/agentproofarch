@@ -82,7 +82,7 @@ const layout = async (
   tenantId: string,
   board: BoardId = 'personal',
 ): Promise<Record<string, string[]>> => {
-  const listed = await listCards({ identity: identity(tenantId) }, { board }, deps(repo));
+  const listed = await listCards({ identity: identity(tenantId), tenantCreationMode: 'open' }, { board }, deps(repo));
   const result: Record<string, string[]> = {};
   if (listed.ok) {
     for (const row of [...listed.value].sort((a, b) => a.position - b.position)) {
@@ -95,7 +95,7 @@ const layout = async (
 describe('cards use-cases — listing + adding', () => {
   it('scopes listing to the tenant in ctx', async () => {
     const { repo } = fakeRepo([card('a', 't-acme', 'todo', 0), card('b', 't-globex', 'todo', 0)]);
-    const result = await listCards({ identity: identity('t-acme') }, { board: 'personal' }, deps(repo));
+    const result = await listCards({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { board: 'personal' }, deps(repo));
     expect(result.ok && result.value.map((row) => row.id)).toEqual(['a']);
   });
 
@@ -104,9 +104,9 @@ describe('cards use-cases — listing + adding', () => {
       card('p', 't-acme', 'todo', 0, { board: 'personal' }),
       card('t', 't-acme', 'todo', 0, { board: 'team' }),
     ]);
-    const personal = await listCards({ identity: identity('t-acme') }, { board: 'personal' }, deps(repo));
+    const personal = await listCards({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { board: 'personal' }, deps(repo));
     expect(personal.ok && personal.value.map((row) => row.id)).toEqual(['p']);
-    const team = await listCards({ identity: identity('t-acme') }, { board: 'team' }, deps(repo));
+    const team = await listCards({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { board: 'team' }, deps(repo));
     expect(team.ok && team.value.map((row) => row.id)).toEqual(['t']);
   });
 
@@ -115,22 +115,22 @@ describe('cards use-cases — listing + adding', () => {
       card('p', 't-acme', 'todo', 0, { board: 'personal' }),
       card('t', 't-acme', 'todo', 0, { board: 'team' }),
     ]);
-    const result = await listCards({ identity: identity('t-acme') }, {}, deps(repo));
+    const result = await listCards({ identity: identity('t-acme'), tenantCreationMode: 'open' }, {}, deps(repo));
     expect(result.ok && result.value.map((row) => row.id)).toEqual(['p']);
   });
 
   it('denies a tenant-less caller with forbidden on every card use-case', async () => {
     const { repo } = fakeRepo();
-    expect(await listCards({ identity: identity(null) }, { board: 'personal' }, deps(repo))).toMatchObject({
+    expect(await listCards({ identity: identity(null), tenantCreationMode: 'open' }, { board: 'personal' }, deps(repo))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
     expect(
-      await addCard({ identity: identity(null) }, { title: 'x', column: 'todo' }, deps(repo)),
+      await addCard({ identity: identity(null), tenantCreationMode: 'open' }, { title: 'x', column: 'todo' }, deps(repo)),
     ).toMatchObject({ ok: false, error: { code: 'forbidden' } });
     expect(
       await moveCard(
-        { identity: identity(null) },
+        { identity: identity(null), tenantCreationMode: 'open' },
         { cardId: 'a', toColumn: 'todo', toIndex: 0 },
         deps(repo),
       ),
@@ -139,15 +139,15 @@ describe('cards use-cases — listing + adding', () => {
 
   it('allows a tenant member to list, add and move cards (collaborative boards)', async () => {
     const { repo } = fakeRepo([card('a', 't-acme', 'todo', 0), card('b', 't-acme', 'todo', 1)]);
-    expect(await listCards({ identity: memberIdentity }, { board: 'personal' }, deps(repo))).toMatchObject({
+    expect(await listCards({ identity: memberIdentity, tenantCreationMode: 'open' }, { board: 'personal' }, deps(repo))).toMatchObject({
       ok: true,
     });
     expect(
-      await addCard({ identity: memberIdentity }, { title: 'member card', column: 'todo' }, deps(repo)),
+      await addCard({ identity: memberIdentity, tenantCreationMode: 'open' }, { title: 'member card', column: 'todo' }, deps(repo)),
     ).toMatchObject({ ok: true, value: { tenantId: 't-acme', title: 'member card' } });
     expect(
       await moveCard(
-        { identity: memberIdentity },
+        { identity: memberIdentity, tenantCreationMode: 'open' },
         { cardId: 'a', toColumn: 'doing', toIndex: 0 },
         deps(repo),
       ),
@@ -157,14 +157,14 @@ describe('cards use-cases — listing + adding', () => {
   it('validates input and stamps tenant on create', async () => {
     const { repo, store } = fakeRepo();
     const blank = await addCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { title: '  ', column: 'todo' },
       deps(repo),
     );
     expect(blank).toMatchObject({ ok: false, error: { code: 'validation' } });
 
     const created = await addCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { title: 'Ship it', column: 'todo' },
       deps(repo),
     );
@@ -178,7 +178,7 @@ describe('cards use-cases — listing + adding', () => {
   it('rejects an unknown column with a validation error', async () => {
     const { repo } = fakeRepo();
     expect(
-      await addCard({ identity: identity('t-acme') }, { title: 'x', column: 'backlog' }, deps(repo)),
+      await addCard({ identity: identity('t-acme'), tenantCreationMode: 'open' }, { title: 'x', column: 'backlog' }, deps(repo)),
     ).toMatchObject({ ok: false, error: { code: 'validation' } });
   });
 
@@ -190,7 +190,7 @@ describe('cards use-cases — listing + adding', () => {
     ];
     const { repo } = fakeRepo(seed);
     const created = await addCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { title: 'third todo', column: 'todo' },
       deps(repo, 'card-new'),
     );
@@ -200,7 +200,7 @@ describe('cards use-cases — listing + adding', () => {
   it('adds to the team board with its own column set and starts visited history', async () => {
     const { repo } = fakeRepo();
     const created = await addCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { title: 'Team task', board: 'team', column: 'todo' },
       deps(repo),
     );
@@ -211,7 +211,7 @@ describe('cards use-cases — listing + adding', () => {
     // 'doing' is a personal column, not a team column.
     expect(
       await addCard(
-        { identity: identity('t-acme') },
+        { identity: identity('t-acme'), tenantCreationMode: 'open' },
         { title: 'x', board: 'team', column: 'doing' },
         deps(repo),
       ),
@@ -223,7 +223,7 @@ describe('cards use-cases — listing + adding', () => {
     for (const column of ['in-dev', 'review', 'done']) {
       expect(
         await addCard(
-          { identity: identity('t-acme') },
+          { identity: identity('t-acme'), tenantCreationMode: 'open' },
           { title: 'spawned late', board: 'team', column },
           deps(repo),
         ),
@@ -235,7 +235,7 @@ describe('cards use-cases — listing + adding', () => {
     // The personal board keeps free placement.
     expect(
       await addCard(
-        { identity: identity('t-acme') },
+        { identity: identity('t-acme'), tenantCreationMode: 'open' },
         { title: 'free', board: 'personal', column: 'done' },
         deps(repo),
       ),
@@ -254,7 +254,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
   it('reorders within a column and rewrites contiguous positions', async () => {
     const { repo } = fakeRepo(seed());
     const result = await moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId: 'c', toColumn: 'todo', toIndex: 0 },
       deps(repo),
     );
@@ -265,7 +265,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
   it('moves across columns and renumbers both source and target', async () => {
     const { repo } = fakeRepo(seed());
     const result = await moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId: 'a', toColumn: 'doing', toIndex: 0 },
       deps(repo),
     );
@@ -276,7 +276,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
   it('clamps an out-of-range toIndex to the end of the target column', async () => {
     const { repo } = fakeRepo(seed());
     const result = await moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId: 'a', toColumn: 'doing', toIndex: 999 },
       deps(repo),
     );
@@ -287,7 +287,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
   it('clamps a negative toIndex to the front of the target column', async () => {
     const { repo } = fakeRepo(seed());
     const result = await moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId: 'b', toColumn: 'todo', toIndex: -5 },
       deps(repo),
     );
@@ -299,7 +299,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
     const { repo } = fakeRepo(seed());
     expect(
       await moveCard(
-        { identity: identity('t-acme') },
+        { identity: identity('t-acme'), tenantCreationMode: 'open' },
         { cardId: 'a', toColumn: 'archive', toIndex: 0 },
         deps(repo),
       ),
@@ -309,7 +309,7 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
   it('returns not_found for a card the tenant does not own (cross-tenant denial)', async () => {
     const { repo } = fakeRepo([...seed(), card('other', 't-globex', 'todo', 0)]);
     const result = await moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId: 'other', toColumn: 'doing', toIndex: 0 },
       deps(repo),
     );
@@ -326,7 +326,7 @@ describe('cards use-cases — moveCard (team, guarded movement)', () => {
 
   const move = async (repo: CardRepository, cardId: string, toColumn: string, toIndex = 0) =>
     moveCard(
-      { identity: identity('t-acme') },
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
       { cardId, board: 'team', toColumn, toIndex },
       deps(repo),
     );

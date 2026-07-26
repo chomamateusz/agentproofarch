@@ -1,10 +1,10 @@
 ---
 title: Ports & adapters
-sidebar_label: Ports & adapters
+sidebar_label: Ports & adapters 🔌
 description: The complete built port set, the adapters behind each one, and the rule for when a port may exist at all.
 ---
 
-# Ports & adapters
+# Ports & adapters 🔌 \{#ports--adapters}
 
 Two questions, answered precisely: **what is actually behind a port in this
 repo today**, and **when are you allowed to add one**. The second
@@ -14,7 +14,7 @@ is blunt: *add a port only when a second implementation or a platform difference
 actually exists*, and everything below is either a port that clears that bar or an
 honest note that it does not exist yet.
 
-## How a port works here
+## How a port works here ⚙️ \{#how-a-port-works-here}
 
 A port is a plain TypeScript `interface` in `core/server` (or, for the one client
 port, in `core/client`). No decorators, no DI container, no registry.
@@ -43,12 +43,12 @@ Three conventions hold across all of them:
   Better Auth adapter sends through `EmailPort` (an adapter composing a port
   the composition root handed it).
 
-## The built port set
+## The built port set 🧰 \{#the-built-port-set}
 
 Distilled from `demo/core/server/ports.ts` (plus the one client port in
 `core/client/auth-port.ts`). Every entry below exists in the tree today.
 
-### Repository ports
+### Repository ports 🗄️ \{#repository-ports}
 
 | Port | Methods | Adapter |
 |---|---|---|
@@ -71,7 +71,7 @@ email → account **directory read**, needed because FR-8 grants admin access to
 account that must already exist (there are no invitations yet, so `grantAdmin`
 returns `not_found` for an unknown email).
 
-### Capability ports
+### Capability ports 🔑 \{#capability-ports}
 
 | Port | Shape | Adapters | Selected by |
 |---|---|---|---|
@@ -91,7 +91,7 @@ readiness pings the database, and **liveness never calls this port at all** (see
 and deterministic in tests — the cheapest ports in the repo and the ones that pay
 back the most.
 
-:::caution The normative §Ports list in `docs/architecture.md` is narrower than the code
+:::caution[The normative §Ports list in `docs/architecture.md` is narrower than the code]
 `docs/architecture.md` §Ports enumerates `TodoRepository`, `CardRepository`,
 `TenantDomainRepository`, `TenantRepository` and `TenantAccessReader` among the
 repository ports. The code additionally declares `MemberRepository`,
@@ -101,7 +101,7 @@ repository ports. The code additionally declares `MemberRepository`,
 gap as documentation lag, not as an undeclared port.
 :::
 
-### `AuthClientPort` details worth knowing
+### `AuthClientPort` details worth knowing 🔐 \{#authclientport-details-worth-knowing}
 
 - Every method is the **exclusive** surface for its flow: no client names a
   provider route or SDK. That is grep-proof and depcruise-proof
@@ -115,7 +115,7 @@ gap as documentation lag, not as an undeclared port.
   the login page reading a public `/api/config` flag to decide whether to render
   the button.
 
-### `EmailPort` details worth knowing
+### `EmailPort` details worth knowing 📧 \{#emailport-details-worth-knowing}
 
 `link` is the optional primary-action URL a transactional mail carries; a transport
 embeds it in the body and otherwise ignores the field. That keeps the magic link
@@ -127,7 +127,7 @@ embeds it in the body and otherwise ignores the field. That keeps the magic link
 | `smtp` (default) | any RFC SMTP relay via nodemailer — **Amazon SES SMTP credentials work unchanged** | `SMTP_HOST` is unset |
 | `ses` | Amazon SES **direct** over the SESv2 HTTP API, standard `AWS_*` credentials | any of `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` is missing |
 
-:::info There is deliberately no dev transport
+:::info[There is deliberately no dev transport]
 Dev, e2e and CI run the **real** `smtp` adapter pointed at a local **Mailpit**
 (`docker-compose.dev.yml`, SMTP on port 47925) that captures real sends instead of
 delivering. The magic-link smoke and e2e phases read the message back over
@@ -136,7 +136,7 @@ retrieval route** that would have to be kept off production. `EMAIL_FROM` is the
 single verified sender; per-tenant branded senders are a when-triggered extension.
 :::
 
-### `DomainPort` per target
+### `DomainPort` per target 🌐 \{#domainport-per-target}
 
 | Provisioner | Target | `provision` / `remove` | `check` |
 |---|---|---|---|
@@ -153,7 +153,7 @@ convergent: an already-attached host (`409`) is a success, so the use-case may
 retry. The token travels only in the `Authorization` header, never into a log or
 an error detail, and every API response is zod-parsed at the boundary.
 
-:::caution `vercel` is proven against a stubbed `fetch` only
+:::caution[`vercel` is proven against a stubbed `fetch` only]
 The adapter has **never run against the live Domains API**. That caveat has one
 canonical home so it can be deleted in one place the day it stops being true:
 [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
@@ -167,7 +167,7 @@ endpoint before minting a certificate — served by a *separate* Hono app on
 `INTERNAL_PORT`, never published outside the container network. Operational detail:
 [Self-host & domains](../operations/self-host-and-domains.md).
 
-## The composition root
+## The composition root 🌳 \{#the-composition-root}
 
 `apps/server/src/composition.ts` is the only place env decides which adapters run.
 Platform names may appear here and in adapters, never in core.
@@ -210,7 +210,7 @@ if (env.EMAIL_TRANSPORT === 'ses') {
 }
 ```
 
-### The env switches
+### The env switches 🎛️ \{#the-env-switches}
 
 Every key is defined once, in `core/server/config.ts` (DECIDE F4), so the runtime
 server and the migrate/seed entry points cannot drift on a default.
@@ -228,7 +228,7 @@ The last two share a design idea worth copying: **an unset secret means the surf
 does not exist**, so a deploy that forgot to configure it cannot expose an
 unauthenticated endpoint.
 
-### Two sanctioned exceptions to "adapters only in the composition root"
+### Two sanctioned exceptions to "adapters only in the composition root" ⚠️ \{#two-sanctioned-exceptions-to-adapters-only-in-the-composition-root}
 
 1. the **auth client adapter**, constructed in `apps/web/src/api.ts` for the web and
    in the CLI's context — clients need an auth client, and they have no server
@@ -237,7 +237,7 @@ unauthenticated endpoint.
    `DB_DRIVER`/`DATABASE_URL`/`VERCEL` itself, as a sanctioned composition point
    outside the server root.
 
-## Vendor containment
+## Vendor containment 📦 \{#vendor-containment}
 
 Every vendor SDK is fenced to the one directory that owns it — and the fences are
 dependency-cruiser rules, not conventions:
@@ -249,7 +249,7 @@ dependency-cruiser rules, not conventions:
 | `nodemailer`, `@aws-sdk/*` | `adapters/email` | `smtp-sdk-only-in-adapters-email` |
 | `@sentry/node`, `@sentry/react` | the server's and web's composition-root sink modules | contained by convention and review, **not** by a rule — an error sink is config, not a port (a `SentryPort` would be port theater); see [Observability](observability.md) |
 
-## Deferred and not built
+## Deferred and not built ⏭️ \{#deferred-and-not-built}
 
 Stated plainly, because an aspirational port is worse than no port:
 
@@ -266,7 +266,7 @@ path that escapes the prefix, so the key space is closed by construction); and
 **reads go through short-lived signed URLs** — objects are private, and the client
 never receives a bucket credential or a permanent public URL.
 
-## When to add a port
+## When to add a port ➕ \{#when-to-add-a-port}
 
 ```mermaid
 graph TD
@@ -278,7 +278,7 @@ graph TD
     plain --> theater["wrapping it anyway = port theater"]
 ```
 
-:::danger Port theater
+:::danger[Port theater]
 An interface with exactly one implementation forever re-states a library's API
 without buying replaceability. The named example: a `QueryPort` over TanStack Query
 would have to re-type `status`/`fetchStatus`, invalidation and optimistic-update

@@ -1,18 +1,18 @@
 ---
 title: ADR-0007 — EmailPort shape and the magic-link transport
-sidebar_label: 0007 · EmailPort & magic link
+sidebar_label: '0007 · EmailPort & magic link ✉️'
 description: SMTP by default, SES by key, and no dev transport at all — dev sends for real, into a local capture inbox.
 ---
 
-# ADR-0007 — `EmailPort` shape and the magic-link transport
+# ADR-0007 — `EmailPort` shape and the magic-link transport ✉️ \{#adr-0007--emailport-shape-and-the-magic-link-transport}
 
 **2026-07-21 · accepted (owner-approved).** → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0007-email-port-and-magic-link-transport.md)
 
-## Summary
+## Summary 📋 \{#summary}
 
 One minimal port — `sendMail({ to, subject, text, html?, link? })` — with two adapters selected by `EMAIL_TRANSPORT`: `smtp` (default, any RFC relay, SES SMTP credentials work unchanged) and `ses` (SESv2 HTTP API by access key). **There is no dev transport**: dev, e2e and CI run the *real* SMTP adapter against a local Mailpit that captures every send.
 
-## The WHY
+## The WHY 🤔 \{#the-why}
 
 US-026 — passwordless member provisioning plus magic-link sign-in — is the first feature that must send mail, so it is the trigger that turned the roadmap's deferred `EmailPort` into a built port. The roadmap had sketched `send({ to, subject, html, text })` with a Resend adapter on both targets and a `console` dev adapter. Two forces reshaped that sketch:
 
@@ -21,13 +21,13 @@ US-026 — passwordless member provisioning plus magic-link sign-in — is the f
 
 The second force is where the interesting decision lives. The obvious answer is a dev-only route or a `DevMailbox` that hands the link back — and that answer is rejected, because **anything dev-only in the app is something that must be kept off production forever.**
 
-## Decided
+## Decided ⚖️ \{#decided}
 
-### 1. Port shape: `sendMail({ to, subject, text, html?, link? })`
+### 1. Port shape: `sendMail({ to, subject, text, html?, link? })` 🔌 \{#1-port-shape-sendmail-to-subject-text-html-link-}
 
 Minimal and generic. The magic link is **one consumer** of `sendMail`, not the port's shape: the magic-link email is composed in `create-auth.ts` and passes the raw URL as the optional `link` field. `link` is a general transactional-mail concept — a primary call-to-action URL — not a dev hack; a transport embeds it in the body and otherwise ignores the field. No `tenantId`, because there is one verified sender domain (`EMAIL_FROM`).
 
-### 2. Two adapters, selected in the composition root
+### 2. Two adapters, selected in the composition root 🧩 \{#2-two-adapters-selected-in-the-composition-root}
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ flowchart LR
 
 nodemailer was chosen over a hand-rolled SMTP client: it is well maintained, handles STARTTLS, auth and encoding, and SES-SMTP compatibility is a first-class use case for it. Every email-vendor SDK (nodemailer and `@aws-sdk/*`) is contained to `adapters/email` by a single dependency-cruiser rule — the same containment pattern the layer doctrine applies everywhere.
 
-### 3. No dev transport — a real send to a local Mailpit
+### 3. No dev transport — a real send to a local Mailpit 📮 \{#3-no-dev-transport--a-real-send-to-a-local-mailpit}
 
 Dev, e2e and CI run the **real** `smtp` adapter pointed at a local **Mailpit** (a service in `docker-compose.dev.yml`, and a service container in the `smoke` / `e2e` / `visual` CI jobs). Mailpit captures every send instead of delivering it, and exposes an HTTP API on `:47980`.
 
@@ -56,11 +56,11 @@ The magic-link smoke and e2e phases therefore do the **same round-trip a human m
 
 **There is no `/api/dev/magic-link` route and no `DevMailbox`.** Nothing dev-only ships in the app, so nothing has to be kept off production.
 
-### 4. Member↔user binding on first sign-in
+### 4. Member↔user binding on first sign-in 🔗 \{#4-memberuser-binding-on-first-sign-in}
 
 A member provisioned by `ensureMember` has a **null `userId`** until they first authenticate. Binding happens in `resolveIdentity`: when no member is yet bound to the account, the (tenant, email) member row is claimed via `bindMemberOnSignIn`. It is tenant-aware (resolution already knows the tenant), **idempotent** (a bound account short-circuits before the bind read), and **safe** (a member already bound to a different account is never re-bound or granted). It carries no capability — a system step gated by an established session, like tenant resolution itself.
 
-## Alternatives considered
+## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |
 |---|---|---|
@@ -72,14 +72,14 @@ A member provisioned by `ensureMember` has a **null `userId`** until they first 
 | **Shaping the port around the magic link** | rejected | The magic link is *a consumer*, not the port's purpose. `link` stays a general "primary call-to-action URL" so an order receipt or export-ready notice reuses `sendMail` unchanged. |
 | **A hosted capture service (MailTrap-style SaaS)** | rejected | Mailpit is the self-hosted equivalent, so dev and CI need no third-party account or network dependency. |
 
-## Consequences
+## Consequences ⚡ \{#consequences}
 
 - **Better Auth's magic-link plugin delegates to `EmailPort.sendMail`** — one transport, one from-address policy, as the roadmap called for. The social (Google) and TOTP 2FA plugins ride the same auth adapter.
 - **Passkeys are built** (US-028a). The `@better-auth/passkey` package pinned a `better-call` whose optional `zod@^4` peer conflicted with this tree's former `zod@^3`, so **the migration to `zod@^4` was the named unblock** — landed first with all gates green, then the plugin was wired. The server plugin adds a `passkey` table (migration `0008_passkey`) scoped by `rpID = APP_BASE_DOMAIN`, so one credential spans every tenant subdomain; the register/list/remove/sign-in surface is exposed only through `AuthClientPort`, never a provider route in a client.
 - **The Resend/`console` split is superseded.** Future non-auth transactional mail (order receipt, export-ready notice) reuses `sendMail` from a use-case.
 - **CI gained a Mailpit service container** in the `smoke`, `e2e` and `visual` jobs, with `MP_SMTP_AUTH_ACCEPT_ANY` and `MP_SMTP_AUTH_ALLOW_INSECURE` set — see [CI gates](../operations/ci-gates.md).
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **`smoke:remote` skips the magic-link phase.** Against a real deployment a real relay delivers and there is no capture inbox to read the message back from, so that phase is not exercised there.
 - **Deliverability is unowned.** SPF/DKIM/DMARC alignment, bounce and complaint handling, and suppression lists are the operator's job on whichever relay is configured; the port has no view of them.
 - **Per-tenant branded senders are not built** — one verified `EMAIL_FROM` per deployment.

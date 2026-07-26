@@ -1,10 +1,10 @@
 ---
 title: Layers
-sidebar_label: Layers
+sidebar_label: Layers 🧱
 description: The allowed dependency directions, and the two independent enforcers that guarantee them.
 ---
 
-# Layers
+# Layers 🧱 \{#layers}
 
 A layered architecture that lives in a README is a suggestion, and suggestions do
 not survive contact with an agent generating a hundred files. Here the layers are a **graph with machine-checked edges**: every
@@ -13,7 +13,7 @@ allowed dependency direction below is spelled out twice — once in
 and once in `.dependency-cruiser.cjs` — so a wrong import is a red
 `pnpm run check`, not architectural drift somebody notices six months later.
 
-## The stack
+## The stack 🥞 \{#the-stack}
 
 The layer definition, from
 [`docs/architecture.md` §Layers](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md):
@@ -83,7 +83,7 @@ Two edges in that diagram are the ones people get wrong:
   themselves against the same zod schemas the server implements. Neither client
   can reach `core/server` or `adapters/db` at all.
 
-## The dependency-rule table
+## The dependency-rule table 📋 \{#the-dependency-rule-table}
 
 The ESLint element map (`boundaries/elements`) classifies every file, and
 `boundaries/element-types` runs with `default: 'disallow'` — so each row below is
@@ -113,7 +113,7 @@ enforced — see [Client state](client-state.md).
 `react-dom`, `hono`, `drizzle-orm`, `better-auth`, `pg` or `commander`;
 `core-client` gets the same list minus `commander`.
 
-## What dependency-cruiser enforces
+## What dependency-cruiser enforces 🚢 \{#what-dependency-cruiser-enforces}
 
 `pnpm run depcruise` runs over `core adapters apps scripts api` as a **second,
 independent** pass. It sees the same graph from a different angle — including
@@ -139,7 +139,7 @@ covers directories the ESLint element map does not classify.
 | `island-core-is-portable` | `features/<x>/core/**` → any `apps/web/src` path outside its own core dir |
 | `web-ui-is-presentational`, `web-lib-no-react`, `web-lib-has-no-app-internal-deps`, `web-routes-stay-thin`, `web-features-consume-bound-actions`, `web-features-are-islands`, `web-api-is-the-only-client-construction-site` | the intra-`apps/web` graph (see [Client state](client-state.md)) |
 
-:::info Two enforcers, deliberately not identical
+:::info[Two enforcers, deliberately not identical]
 The ESLint element map declares element types for `adapters/db`,
 `adapters/auth` and `adapters/domain-provisioning` — but **not** for
 `adapters/email`. That directory is held by dependency-cruiser
@@ -148,7 +148,7 @@ imperfect overlap between the two tools is the reason both run: each one catches
 things the other misses, and both sit in the same red gate.
 :::
 
-## What knip enforces
+## What knip enforces ✂️ \{#what-knip-enforces}
 
 `pnpm run knip` is the dead-weight gate — the reason a generated file that nothing
 imports cannot quietly accumulate. Its rule severities are a deliberate split
@@ -163,7 +163,7 @@ imports cannot quietly accumulate. Its rule severities are a deliberate split
 | `duplicates` | **error** | the same export exposed twice |
 | `exports` / `types` / `nsExports` / `nsTypes` / `enumMembers` | **warn** | reported, does **not** fail `check` |
 
-:::caution Honest caveat: unused *exports* are warnings, not errors
+:::caution[Honest caveat: unused *exports* are warnings, not errors]
 `exports` and `types` are `warn` on purpose. The foundation ships API surface
 ahead of its consumers (theme tokens, island-core interfaces, contract schemas,
 client query helpers) while the PRD build-out wires them in, so export-level
@@ -178,7 +178,7 @@ serverless entry, referenced from `vercel.json`),
 (codegen config, never imported), `scripts/*`, the Playwright specs under `e2e/`
 and `visual/`, and every `*.test.ts`.
 
-## Where the rules run
+## Where the rules run 🏃 \{#where-the-rules-run}
 
 ```bash
 pnpm run check
@@ -191,7 +191,7 @@ the real server against a real database and drives health, sign-in and todos
 through the CLI, asserting taxonomy exit codes. See
 [CI gates](../operations/ci-gates.md).
 
-## Dependency-free is not the goal
+## Dependency-free is not the goal 🎯 \{#dependency-free-is-not-the-goal}
 
 Replaceability is. Core bans **infrastructure** — anything with a plausible
 second implementation or a platform difference (frameworks, servers, drivers) —
@@ -200,7 +200,7 @@ the per-layer allow-list: `zod` in `core/domain`, `@tanstack/query-core` in
 `core/client`, and the `@opentelemetry/api` no-op facade for business
 annotations.
 
-:::danger Port theater
+:::danger[Port theater]
 Never wrap a vocabulary library in a port. An interface with exactly one
 implementation forever re-states the library's API without buying anything: a
 `QueryPort` over TanStack Query would have to re-type `status`/`fetchStatus`,
@@ -215,7 +215,7 @@ same slot, but it is a **foundation** decision, never an incremental one: it
 replaces zod + query-core wholesale and needs its own guardrails. The default
 stays zod + `@tanstack/query-core`.
 
-## The one sanctioned platform name
+## The one sanctioned platform name 🏷️ \{#the-one-sanctioned-platform-name}
 
 `@vercel/*` and `@neondatabase/*` are lint-contained to `adapters/`. This is
 dependency containment, not a ban on the vendor's *name*: the bare
@@ -229,7 +229,7 @@ Beyond imports, three strictness rules apply everywhere: **no `any`**, **no `as`
 turns a contract violation into a loud failure instead of corrupted state (see
 [Errors & API versioning](errors-and-api-versioning.md)).
 
-## Divergence cannot be silent
+## Divergence cannot be silent 📢 \{#divergence-cannot-be-silent}
 
 `pnpm run doc-lint` closes the loop from the other direction: removing an enforcer
 from config without updating the docs that promise it fails the gate

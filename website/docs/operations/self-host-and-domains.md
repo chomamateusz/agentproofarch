@@ -1,18 +1,18 @@
 ---
 title: Self-host & custom domains
-sidebar_label: Self-host & domains
+sidebar_label: Self-host & domains 🌐
 description: The Docker target from the same commit, and per-tenant TLS via Caddy on-demand certificates.
 ---
 
-# Self-host & custom domains
+# Self-host & custom domains 🌐 \{#self-host--custom-domains}
 
 This page exists because a foundation that only runs on one vendor is a foundation with a hostage clause. So the same commit that deploys to Vercel also builds a Docker image that serves the API and the SPA from one Node process — and that claim is a **required CI check** (`docker-smoke` builds the image, boots the compose stack and drives the same CLI smoke suite against the container), not a paragraph of intent. The second half of the page is the piece self-host does *better* than the serverless target today: a tenant custom domain gets a real certificate with **zero per-tenant configuration**.
 
-:::info Sources
+:::info[Sources]
 [`docs/architecture.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md) §Deployment matrix and §Self-host custom domains and TLS (US-021), [`demo/README.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/README.md), and the files themselves: [`Dockerfile`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/Dockerfile), [`docker-compose.prod.yml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/docker-compose.prod.yml), [`Caddyfile`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/Caddyfile), [`docker-entrypoint.sh`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/docker-entrypoint.sh).
 :::
 
-## The deployment matrix
+## The deployment matrix 📊 \{#the-deployment-matrix}
 
 Both columns are built. Vercel is live today; the Docker packaging ships in the tree.
 
@@ -32,7 +32,7 @@ Vercel is the **default** because it is the simplest for most applications. It i
 
 The single line of code that differs between targets is a driver name. `DB_DRIVER` defaults by platform (`neon-http` when Vercel injects `VERCEL=1`, `node-postgres` otherwise), and the compose file pins it explicitly for the sidecar.
 
-## Running it
+## Running it ▶️ \{#running-it}
 
 ```bash
 cd demo
@@ -65,7 +65,7 @@ flowchart LR
 
 Why Caddy is behind a **profile**: the default `up` needs no `Caddyfile` and binds no privileged ports, which is exactly what CI and a bare localhost demo want. Real TLS needs the config file and ports 80/443, so it is opt-in.
 
-### The image
+### The image 🐳 \{#the-image}
 
 ```mermaid
 flowchart LR
@@ -82,7 +82,7 @@ Three details are load-bearing:
 - **The compiled JS mirrors the source layout**, so `package.json`'s `imports` map (`#core/*`, `#adapters/*`) and `version.ts`'s `../../../package.json` read resolve exactly as they do from source.
 - **`find dist/web -exec touch {} +`** stamps the bundle as the newest artifact. The dist-freshness guard compares `dist/web` against the compiled contract/client sources by mtime and `COPY` preserves builder mtimes; in a sealed per-commit image the bundle is always current, so the `touch` keeps a false "STALE BUNDLE" warning off boot.
 
-### Startup
+### Startup 🚦 \{#startup}
 
 ```bash
 # docker-entrypoint.sh
@@ -93,7 +93,7 @@ exec node apps/server/src/entry.node.js
 
 The app never serves against an un-migrated schema, and the seed is off in production by design — it exists for the CI smoke stack and local demos.
 
-### Env keys that only matter here
+### Env keys that only matter here ⚙️ \{#env-keys-that-only-matter-here}
 
 | Key | Meaning |
 |---|---|
@@ -105,7 +105,7 @@ The app never serves against an un-migrated schema, and the seed is off in produ
 | `DOMAIN_PROVISIONER` | `caddy` on self-host; `vercel` on the Vercel target; `noop` (default) in dev. |
 | `SELF_HOST_TARGET_CNAME` / `_IP` | the public target tenants point a custom domain at. Set **one**, not both. |
 
-## Per-tenant TLS with zero per-tenant config
+## Per-tenant TLS with zero per-tenant config 🔒 \{#per-tenant-tls-with-zero-per-tenant-config}
 
 A tenant custom domain gets a real certificate through Caddy's on-demand TLS. The whole mechanism is one question Caddy asks the app before it mints a certificate:
 
@@ -155,11 +155,11 @@ http:// {
 
 No per-tenant site block is ever added: a newly verified custom domain starts terminating TLS the moment its first request passes the ask check. Caddy appends `?domain=<sni>` to the ask URL; a 2xx means "issue a cert", anything else means "refuse".
 
-:::note Local play vs a real deploy
+:::note[Local play vs a real deploy]
 With no ACME email configured, Caddy uses its internal CA and issues a locally trusted cert for localhost. Add an operator email in the global block (`email ops@example.com`) to switch on public ACME (Let's Encrypt).
 :::
 
-### Two properties make this safe
+### Two properties make this safe 🛡️ \{#two-properties-make-this-safe}
 
 **1. The ask endpoint is unreachable from the public internet.** It is served by a *separate* Hono app (`apps/server/src/internal-app.ts`), mounted only by the self-host entry (`entry.node.ts`) on its own port:
 
@@ -201,7 +201,7 @@ The internal app carries one other route — the backfill batch executor. That i
 | DNS precondition (the verify action) | `DomainPort.check` resolves the domain → `SELF_HOST_TARGET_CNAME`/`_IP` | `adapters/domain-provisioning/caddy.ts` |
 | Provisioner selection | `DOMAIN_PROVISIONER=caddy` / `vercel` / `noop` | `apps/server/src/composition.ts` |
 
-## The domain-management model (US-019, built)
+## The domain-management model (US-019, built) 🏷️ \{#the-domain-management-model-us-019-built}
 
 `DomainPort` has three methods and three built adapters, selected in the composition root exactly like `EMAIL_TRANSPORT`:
 
@@ -231,7 +231,7 @@ stateDiagram-v2
 
 Authorization is split deliberately: `domain:read` is `owner` **and** `admin` (staff-readable roster), while `domain:write` — add, check, remove — is **owner only**. Cross-tenant safety is structural rather than checked: the lookups behind check and remove are tenant-scoped, so another tenant's domain is a `not_found`, and a host already attached anywhere is a `conflict` (a domain belongs to at most one tenant globally).
 
-### Driving it from the CLI
+### Driving it from the CLI ⌨️ \{#driving-it-from-the-cli}
 
 ```bash
 pnpm run cli domain list
@@ -251,7 +251,7 @@ pnpm run cli domain remove beta.acme.com
 
 A failed check reports why, not just that it failed — `shop.acme.com does not CNAME to apps.example.com (found: none)` — and with no target configured at all it says `No SELF_HOST_TARGET_CNAME or SELF_HOST_TARGET_IP configured`. The web settings page (`features/settings/DomainsPage.tsx`) renders the same model: the roster with verified status, an add form that shows the required DNS record derived from the configured target (*"Create a CNAME record pointing your domain at …"* / *"Create an A record …"*), a per-domain re-check, and remove with confirmation.
 
-## US-020: built, and never run live
+## US-020: built, and never run live 🚧 \{#us-020-built-and-never-run-live}
 
 This is the single canonical statement of that gap; every other page links here
 rather than repeating it, because the day it closes, one paragraph has to be
@@ -283,7 +283,7 @@ verification.
 add / check / remove against the live API is the acceptance run. Self-host needs
 none of this — Caddy issues per-tenant certificates on demand.
 
-## Wildcard base domain vs per-host attach
+## Wildcard base domain vs per-host attach ✳️ \{#wildcard-base-domain-vs-per-host-attach}
 
 These are two different features that solve two different customer requests, and conflating them is the usual source of confusion.
 
@@ -299,7 +299,7 @@ These are two different features that solve two different customer requests, and
 
 The practical reading: a wildcard covers `*.<base>` subdomain tenants for free, and per-host attach covers the tenant that wants its own non-subdomain domain. On self-host, both work today. On Vercel, the wildcard path is a DNS-delegation decision and the per-host path is what the `vercel` provisioner does.
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **The `vercel` adapter is built but has never run against the live Domains API** — the full statement is [above](#us-020-built-and-never-run-live).
 - **`noop` accepting everything is a real sharp edge**, not just a placeholder: on a `noop` deploy a `domain check` will flip a row to `verified` without proving any DNS. That is safe on Vercel only because nothing there consults the ask endpoint; do not run `noop` behind Caddy.
 - **`INTERNAL_PORT` unset means the internal endpoint does not start.** A Caddy edge pointed at a deploy without it will fail every ask and therefore issue no certificates.

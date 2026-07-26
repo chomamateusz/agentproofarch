@@ -1,10 +1,10 @@
 ---
 title: Writing tests per the doctrine
-sidebar_label: Testing doctrine
+sidebar_label: Testing doctrine ✅
 description: Four levels, a coverage ratchet, and a flake is a P1 bug.
 ---
 
-# Writing tests per the doctrine
+# Writing tests per the doctrine ✅ \{#writing-tests-per-the-doctrine}
 
 Most test suites answer "does the happy path work". This one is built to answer a
 harder question: **can an agent's change break something quietly?** That reframes
@@ -20,7 +20,7 @@ Doctrine source:
 [`demo/CLAUDE.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/CLAUDE.md)
 and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md).
 
-## The two gates, and everything hanging off them
+## The two gates, and everything hanging off them 🛡️ \{#the-two-gates-and-everything-hanging-off-them}
 
 ```mermaid
 flowchart LR
@@ -53,12 +53,12 @@ flowchart LR
   done -->|"either red"| redGate["the commit is wrong<br/>or the gate is wrong"]
 ```
 
-:::danger Done = `check` green AND `smoke` green
+:::danger[Done = `check` green AND `smoke` green]
 Static-green is not done; the app must actually run. And do not weaken a lint rule
 to make either gate green — that inverts the whole point of having one.
 :::
 
-## Where does my test go?
+## Where does my test go? 🗂️ \{#where-does-my-test-go}
 
 Four levels carry the doctrine — unit, integration, e2e, smoke:
 
@@ -95,7 +95,7 @@ Pixel comparison lives in its own suite and its own config
 (`playwright.visual.config.ts`) so a moved screenshot can never redden `e2e`
 ([ADR-0008](../decisions/0008-visual-regression.md)).
 
-## Testing a port without a live adapter
+## Testing a port without a live adapter 🔌 \{#testing-a-port-without-a-live-adapter}
 
 Use-cases depend on **ports** — interfaces — so the unit level needs no fakes
 framework, no container, no mock library. A hand-written object that satisfies the
@@ -124,13 +124,13 @@ const deps = (repo: TodoRepository) => ({
 Returning `store` alongside `repo` is the trick that makes write assertions cheap:
 you assert on the *result* and on what actually reached the port.
 
-## The test classes you are expected to write
+## The test classes you are expected to write 🧪 \{#the-test-classes-you-are-expected-to-write}
 
 These are not stylistic suggestions — each one guards a failure mode this
 architecture claims to prevent, so a claim without its test class is an unbacked
 claim.
 
-### Denial tests (default-deny, at the unit level)
+### Denial tests (default-deny, at the unit level) ⛔ \{#denial-tests-default-deny-at-the-unit-level}
 
 Every tenant-scoped use-case authorizes **first**: its opening statement is the
 capability predicate. So every use-case needs a test proving the denial happens
@@ -151,7 +151,7 @@ The scaffolder ships three of these as **real** tests for every new resource
 (staff allowed, member per policy, tenant-less denied) — they start red and stay
 red until you name the capabilities and their grants.
 
-### Cross-tenant probes
+### Cross-tenant probes 🏢 \{#cross-tenant-probes}
 
 A tenant-scoped read must not merely filter — it must be *unable* to see another
 tenant's row, and the leak must surface as `not_found`, not `forbidden` (which
@@ -171,7 +171,7 @@ it('returns not_found for a card the tenant does not own (cross-tenant denial)',
 });
 ```
 
-### Corrupted-row tests (integration level)
+### Corrupted-row tests (integration level) 🗄️ \{#corrupted-row-tests-integration-level}
 
 Reading is a boundary, and boundaries are zod-parsed. The way to prove that is to
 plant a row the application could never have written — with raw SQL — and assert
@@ -192,7 +192,7 @@ The same suite has the mirror case for invariants a database *can* hold — a
 put the invariant in the database where the database can carry it, and at the zod
 read boundary where it cannot (jsonb columns admit no closed-set `CHECK`).
 
-### Config-regression probes
+### Config-regression probes ⚙️ \{#config-regression-probes}
 
 47 tests whose subject is the **enforcers**. Two shapes, and the difference is
 worth being honest about:
@@ -208,7 +208,7 @@ worth being honest about:
   every tenant-scoped use-case names the authorize predicate, that the public
   contract group keeps its stance.
 
-:::warning What the probes honestly do not prove
+:::warning[What the probes honestly do not prove]
 The structural probes state their own limits in the source. The authorization scan
 proves the `authorize`/`authorizeTenant` identifier appears in the function body —
 **not** that the call precedes repository access; that ordering stays a review
@@ -223,7 +223,7 @@ a proof that every guarantee or every boundary is covered.
 violating fixture and asserts the gate still goes red.** Otherwise the rule can be
 deleted silently and everything stays green.
 
-## Coverage is a ratchet, not a target
+## Coverage is a ratchet, not a target 📈 \{#coverage-is-a-ratchet-not-a-target}
 
 Thresholds in `vitest.config.ts` are a **floor set to the measured minimum**,
 per metric, rounded down — currently statements 76, branches 89, functions 82,
@@ -243,7 +243,7 @@ Two consequences to internalize:
   counting them as 0% would falsely depress the floor for everyone else. They are
   exercised by the `smoke` and `e2e` CI jobs instead.
 
-## A flake is a P1 bug
+## A flake is a P1 bug 🚨 \{#a-flake-is-a-p1-bug}
 
 Owner ruling, 2026-07-20 (DECIDE F3). **The gates are deterministic. A red gate
 means the commit is wrong or the gate is wrong — one of them gets fixed.**
@@ -267,7 +267,7 @@ Two things follow from taking that seriously:
   `AUTH_RATE_LIMIT: 'off'` because the specs replay many sign-ins from one bucket
   (the baseline is on everywhere else, including dev).
 
-## Checklist for a new test
+## Checklist for a new test 📋 \{#checklist-for-a-new-test}
 
 1. Pure logic? → unit, in the layer that owns it, with a hand-written port fake.
 2. Touches SQL, a constraint, or a read boundary? → `*.integration.test.ts`.

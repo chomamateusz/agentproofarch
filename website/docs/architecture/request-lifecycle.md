@@ -1,10 +1,10 @@
 ---
 title: Request lifecycle
-sidebar_label: Request lifecycle
+sidebar_label: Request lifecycle 🔄
 description: From HTTP in to envelope out — the fixed order of a request.
 ---
 
-# Request lifecycle
+# Request lifecycle 🔄 \{#request-lifecycle}
 
 This page exists because every security property in this architecture is really
 a claim about **order**: authentication before tenant resolution, tenant
@@ -13,7 +13,7 @@ and exactly one place where anything becomes an HTTP response. If you cannot
 point at the line where each of those happens, the properties are hypotheses.
 So here is the order, as `demo/apps/server/src/app.ts` actually registers it.
 
-## The happy path
+## The happy path 🛤️ \{#the-happy-path}
 
 ```mermaid
 sequenceDiagram
@@ -52,7 +52,7 @@ sequenceDiagram
     H-->>C: 200 with ok true and data, Cache-Control no-store
 ```
 
-## Registration order in `app.ts`
+## Registration order in `app.ts` 🔢 \{#registration-order-in-appts}
 
 Hono matches in registration order, so this list *is* the lifecycle. Everything
 above the `/api/*` tenant middleware answers **without** an identity.
@@ -73,7 +73,7 @@ above the `/api/*` tenant middleware answers **without** an identity.
 | 12 | `/api/me`, todos, cards, members, staff, domains | `/api/*` | tenant-scoped routes; every handler parses input with a contract schema |
 | 13 | `app.all('/api/*', ...)` | `/api/*` | totalizer: taxonomy `not_found` envelope for an unmatched path or wrong method |
 
-:::note Why three surfaces sit above identity resolution
+:::note[Why three surfaces sit above identity resolution]
 They are three different reasons, all deliberate:
 
 - **Health** must answer when the database is unreachable — that is the whole
@@ -94,7 +94,7 @@ generic `internal` "Non-JSON response". Routing it through `respond()` keeps the
 taxonomy honest — and the Better Auth prefix is explicitly carved out so a real
 auth route is never masked by our envelope.
 
-## Identity resolution
+## Identity resolution 🪪 \{#identity-resolution}
 
 `resolveIdentity` (`core/server/usecases/resolve-identity.ts`) is a pure
 use-case: it takes the authenticated user, the request's host and `X-Tenant`
@@ -146,7 +146,7 @@ Two details in that flowchart are load-bearing:
   `No tenant "<slug>" or you do not have access to it`. That is deliberate
   existence-hiding — see [Identity & multi-tenancy](identity-and-multi-tenancy.md).
 
-## Authorize, then touch data
+## Authorize, then touch data 🛡️ \{#authorize-then-touch-data}
 
 Every tenant-scoped use-case runs the capability predicate as its **first
 statement**. `authorizeTenant` both denies and hands back the resolved non-null
@@ -173,7 +173,7 @@ app.get(API_PATHS.todos, async (c) => {
 Full model, including the grant table and the tests that pin every cell:
 [Authorization](authorization.md).
 
-## The response seam
+## The response seam 📤 \{#the-response-seam}
 
 `respond()` in `apps/server/src/respond.ts` is the *only* place an envelope
 becomes a `Response` — the authenticated app and the public group both go through
@@ -205,7 +205,7 @@ Three properties fall out of that one function:
    the edge. A public 2xx opts into caching by passing `publicCacheControl(...)`,
    the one helper allowed to emit `s-maxage` / `stale-while-revalidate`.
 
-## The one normalization edge
+## The one normalization edge 🧹 \{#the-one-normalization-edge}
 
 Use-cases return `Result<T, AppError>` for **domain** errors and deliberately do
 **not** catch infrastructure rejections. A thrown port promise unwinds to
@@ -227,7 +227,7 @@ at the single edge, and use-cases never grow per-call `try`/`catch` for
 infrastructure failures. Details in
 [Errors & API versioning](errors-and-api-versioning.md).
 
-## The same lifecycle from the CLI
+## The same lifecycle from the CLI ⌨️ \{#the-same-lifecycle-from-the-cli}
 
 Nothing above is browser-specific, which is the point of the agent-first
 principle. The CLI builds the same `core/client` `ApiClient`, sends `X-Tenant`
@@ -242,7 +242,7 @@ So `forbidden` is HTTP 403 in a browser and exit code 4 in a shell — the same
 decision, two renderings. The walkthrough lives in
 [CLI walkthrough](../guides/cli-walkthrough.md).
 
-## What is not in this lifecycle
+## What is not in this lifecycle 🚫 \{#what-is-not-in-this-lifecycle}
 
 - **No resident process on the Vercel target.** No queue workers, schedulers or
   websockets — the invocation *is* the lifetime. Deferred work is a

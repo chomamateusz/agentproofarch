@@ -1,18 +1,18 @@
 ---
 title: CI gates
-sidebar_label: CI gates
+sidebar_label: CI gates 🛡️
 description: Which jobs run, which ones block a merge, which deliberately do not, and how the fail-closed AI review gate works.
 ---
 
-# CI gates
+# CI gates 🛡️ \{#ci-gates}
 
 Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `pnpm install --frozen-lockfile` in CI, on every change, and the enforcers themselves are enforced.
 
-:::info Sources
+:::info[Sources]
 The workflows in [`.github/workflows/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/workflows), the scripts in [`.github/scripts/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/scripts), and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) / [ADR-0008](../decisions/0008-visual-regression.md).
 :::
 
-## The pipeline
+## The pipeline ⚙️ \{#the-pipeline}
 
 ```mermaid
 flowchart TD
@@ -44,11 +44,11 @@ flowchart TD
 | `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
 | `docs-deploy.yml` | `push` to `main`, path-filtered | `build`, `deploy` | n/a — publishes this site |
 
-## The required set
+## The required set 📋 \{#the-required-set}
 
 `production-protection` names four status checks — **`check`**, **`smoke`**, **`e2e`**, **`docker-smoke`** — and `main-gates` names those four plus **`ai-review`**. A merge is *blocked* on a failing or missing one — not merely marked red.
 
-### `check` — the static gate
+### `check` — the static gate 🔍 \{#check--the-static-gate}
 
 ```bash
 pnpm install --frozen-lockfile
@@ -68,7 +68,7 @@ One step in the same job is deliberately **advisory**:
   continue-on-error: true
 ```
 
-### `smoke` — the runtime gate
+### `smoke` — the runtime gate 💨 \{#smoke--the-runtime-gate}
 
 Service containers: `postgres:16` and a **Mailpit** SMTP sink (`axllent/mailpit:v1.21`, SMTP on `47925`, HTTP API on `47980`). Mailpit exists because there is no dev email transport at all — dev, e2e and CI run the *real* `smtp` adapter against a sink that captures every send instead of delivering it ([ADR-0007](../decisions/0007-email-port-and-magic-link-transport.md)).
 
@@ -79,7 +79,7 @@ Service containers: `postgres:16` and a **Mailpit** SMTP sink (`axllent/mailpit:
 
 The integration tier lives here rather than in `check` because `check` is database-free, and rather than in the local `smoke` script because that must stay fast. `smoke.ts` creates and drops its own isolated `agentproofarch_smoke` database over the provided `DATABASE_URL`, so a bare `postgres:16` service is sufficient — no `docker compose` in CI.
 
-### `e2e` — a real browser over the real stack
+### `e2e` — a real browser over the real stack 🖱️ \{#e2e--a-real-browser-over-the-real-stack}
 
 ```yaml
 - run: pnpm exec playwright install --with-deps chromium
@@ -89,7 +89,7 @@ The integration tier lives here rather than in `check` because `check` is databa
 
 This is the only surface `smoke` cannot reach: `smoke` drives the CLI and never a browser. The e2e harness boots `entry.node.ts` against an isolated `agentproofarch_e2e` database and serves the built bundle.
 
-### `docker-smoke` — self-host, proven
+### `docker-smoke` — self-host, proven 🐳 \{#docker-smoke--self-host-proven}
 
 `selfhost.yml` proves the second deploy target for real, from the same commit:
 
@@ -107,7 +107,7 @@ This is the only surface `smoke` cannot reach: `smoke` drives the CLI and never 
 
 Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs, pointed at a container instead of a deployment — so "self-host works" is a required check rather than a claim. The default compose profile is `postgres` + `app` only (Caddy is the opt-in `edge` profile), and the job always tears the stack down with `down -v`, dumping `compose logs --no-color` first on failure.
 
-## Deliberately non-required
+## Deliberately non-required 🚫 \{#deliberately-non-required}
 
 Two jobs run and report without blocking (`ai-review` graduated to required on 2026-07-26), and one external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
 
@@ -120,11 +120,11 @@ Two jobs run and report without blocking (`ai-review` graduated to required on 2
 
 On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact (7-day retention), because a developer on macOS gets no local comparison at all: baselines are platform-scoped and `ignoreSnapshots` is on for every non-linux platform. New baselines come from the separate `visual-baselines` workflow (`workflow_dispatch`, `update: true`), which re-renders and then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs — so an authoring run that died before the harness booted cannot ship an empty or partial baseline set.
 
-## The `ai-review` gate
+## The `ai-review` gate 🤖 \{#the-ai-review-gate}
 
 The design goal is one sentence: **"could not verify" and "verified safe" must never collapse to the same colour.** A review check that cannot run — limits hit, tool unavailable, timeout — is **red**, exactly like a found defect. This is the implementation of the fail-closed bullet in the repo's operating hygiene (DECIDE F1).
 
-### Shape
+### Shape 🧱 \{#shape}
 
 `anthropics/claude-code-action` (pinned to a commit SHA) reviews **only the PR diff** — the prompt instructs the model to fetch `git diff origin/main...HEAD` itself rather than read the whole repository — against this repo's doctrine: layer boundaries, the comment doctrine (zero narration), no false claims in prose, no weakening of gates or lint rules to go green, authorize-first tenant-scoped use-cases, no `any`, no `as` except `as const`, and domain errors returned as `Result` rather than thrown. The model gets **read-only tools only**:
 
@@ -137,7 +137,7 @@ The design goal is one sentence: **"could not verify" and "verified safe" must n
 
 It never writes files, never posts, and never sets the exit code. The workflow does all three. The prompt's own instruction closes the ambiguity gap: *when a real doctrine violation is genuinely in doubt, FAIL.*
 
-### The slot ladder
+### The slot ladder 🪜 \{#the-slot-ladder}
 
 ```mermaid
 stateDiagram-v2
@@ -173,7 +173,7 @@ Slots are `CLAUDE_CODE_OAUTH_TOKEN_1` (present today) then the wired-but-optiona
 
 GitHub Actions has no native cross-step token failover; this ordered-attempt ladder is the smallest honest wrapper for it.
 
-### Verdict → exit code
+### Verdict → exit code ⚖️ \{#verdict--exit-code}
 
 `classify-review.sh` maps each attempt to `pass | fail | infra | skip`. Anything that is not an explicitly parsed verdict is `infra` — empty output, non-JSON, a missing `verdict` field, a crashed or rate-limited attempt:
 
@@ -214,7 +214,7 @@ Everything that is not a positive `PASS` exits non-zero.
 
 The fork row is the sharpest illustration of the doctrine: fork PRs are deliberately **not** skipped by the job guard, because a skipped *required* check would count as passing.
 
-### The cold-start retry
+### The cold-start retry 🔁 \{#the-cold-start-retry}
 
 There is exactly **one** exception to strict slot ordering: a single same-slot retry when an attempt matches the known cold-start signature of [claude-code#23265](https://github.com/anthropics/claude-code/issues/23265) — a `result` event that errored **while costing nothing**, meaning the model was never actually called. `detect-coldstart.sh` reads the CLI execution log:
 
@@ -234,7 +234,7 @@ Two design details are worth reading twice:
 - **The default is fail-safe `false`.** A missing, empty or unparsable log is *not* a cold start, so the gate behaves exactly as it would without this step.
 - **A rejected credential is excluded on purpose.** A dead token also produces an errored zero-cost result — the model is never reached — so the result text is tested for auth-rejection wording. Retrying a dead token in the same slot can only fail again, and would merely delay failover to slot 2.
 
-### The un-masking story
+### The un-masking story 🎭 \{#the-un-masking-story}
 
 This is the debugging story worth telling, because it changed what the workflow logs. The action masks **every** failed run that carried a `--json-schema` behind one message:
 
@@ -255,17 +255,17 @@ Three constraints shaped that short script:
 
 The same PR-controlled-text discipline runs throughout the gate: model output and attempt outcomes arrive as **environment variables** and are parsed with `jq`, never interpolated into the shell.
 
-### Posting
+### Posting 💬 \{#posting}
 
 `post-review.sh` posts a single **sticky** comment (`gh pr comment --edit-last`, falling back to create) so repeated pushes update one comment instead of spamming the PR. When no slot produced a verdict it says so explicitly — "RED (could not run)", with the reason and the remedy — rather than staying silent.
 
 Concurrency is one in-flight review per PR (`cancel-in-progress: true`), so a new push supersedes the previous run.
 
-:::note Token hygiene
+:::note[Token hygiene]
 The OAuth token is a subscription-scoped, rotatable, limited-value credential from `claude setup-token` — **not** a production secret, so keeping it as a repo Actions secret does not violate the "production secrets never in Actions" rule. The workflow never echoes it. Adding slots `_2`/`_3` later needs no workflow edit: create the secrets, and the already-wired slots start participating.
 :::
 
-## After the deploy
+## After the deploy 🚀 \{#after-the-deploy}
 
 `post-deploy-smoke.yml` listens for `deployment_status` and re-runs `smoke:remote` when the state is `success` and the environment is `Production` **or** `Preview` (staging deploys as a Preview, so it is covered too). The target URL depends on the environment, and this is the non-obvious part:
 
@@ -282,7 +282,7 @@ EXPECTED_SHA: ${{ github.event.deployment.sha }}
 
 Because this drives live production, it runs under the production smoke-account doctrine: a dedicated canary tenant, never `db:seed` against a real database, credentials from CI secrets, and a drive that does not poison itself. Its concurrency half is enforced in the workflow — a per-environment, per-SHA group with **`cancel-in-progress: false`**, because a running smoke is a live production verification that must finish rather than be pre-empted, and because two overlapping runs would race on the shared canary tenant.
 
-## Cross-cutting hardening
+## Cross-cutting hardening 🔒 \{#cross-cutting-hardening}
 
 - **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing comment recording the human-readable version the SHA resolved to (`# v4.3.0` for `actions/checkout`, `# v4` for `pnpm/action-setup`, `# v4.4.0` for `actions/setup-node`, and `# v1` for `anthropics/claude-code-action`, whose pinned commit is its `v1.0.181` release — the comment records the major line the pin tracks). A tag can be force-moved onto malicious code under an unchanged CI config.
 - **Every job is guarded** with `if: github.repository == 'chomamateusz/agentproofarch'`. The repo is public and therefore forkable; a fork must never spend Actions minutes or fail on missing secrets and services.
@@ -290,7 +290,7 @@ Because this drives live production, it runs under the production smoke-account 
 - **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block — a malformed one would ship as a red error box with every check green, which is the exact "could not verify, reported green" shape this repo rejects. `pnpm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error. It runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
 - **The enforcers are enforced.** Config-regression probes feed a deliberately violating fixture to a lint or dependency-cruiser rule and assert the gate still goes red, so a rule cannot be quietly deleted while CI stays green ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md) §3).
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **`ai-review` blocks merges to `main`.** It runs and posts on every non-draft PR to `main` and has been in the `main-gates` required-checks list since 2026-07-26; a PR without a PASS verdict cannot merge. It does not (and technically cannot) gate `production` PRs — the workflow triggers only on PRs to `main`, and every commit reaching a release PR has already been individually reviewed there.
 - **`visual` blocks nothing today** either, by design — and runner-image drift (a font package changing in `ubuntu-latest`) will one day redraw a baseline with no code change. That is the accepted cost of exactness at `maxDiffPixels: 0` *and* `threshold: 0`.
 - **`docs-build` cannot be made required as written**, because it is path-filtered.
