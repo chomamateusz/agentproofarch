@@ -1,6 +1,6 @@
 ---
 title: Self-host & custom domains
-sidebar_label: Self-host & domains 🌐
+sidebar_label: 🌐 Self-host & domains
 description: The Docker target from the same commit, and per-tenant TLS via Caddy on-demand certificates.
 ---
 

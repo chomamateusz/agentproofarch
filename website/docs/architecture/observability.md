@@ -1,6 +1,6 @@
 ---
 title: Observability
-sidebar_label: Observability 🔭
+sidebar_label: 🔭 Observability
 description: One wide event per request, three chokepoints, and an honest matrix of what is wired versus written down.
 ---
 

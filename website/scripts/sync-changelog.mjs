@@ -12,7 +12,7 @@ const target = resolve(websiteDir, 'docs', 'changelog.md');
 const frontmatter = [
   '---',
   'title: Changelog',
-  'sidebar_label: Changelog',
+  'sidebar_label: 📝 Changelog',
   'description: Every notable change, backfilled from merged pull-request history.',
   '---',
   '',

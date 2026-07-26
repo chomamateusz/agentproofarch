@@ -1,6 +1,6 @@
 ---
 title: Request lifecycle
-sidebar_label: Request lifecycle 🔄
+sidebar_label: 🔄 Request lifecycle
 description: From HTTP in to envelope out — the fixed order of a request.
 ---
 

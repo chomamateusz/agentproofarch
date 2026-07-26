@@ -1,6 +1,6 @@
 ---
 title: Authorization (default-deny)
-sidebar_label: Authorization 🛡️
+sidebar_label: 🛡️ Authorization
 description: A closed capability union, a wildcard-free grant table, and the tests that pin every cell.
 ---
 
