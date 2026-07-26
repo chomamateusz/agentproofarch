@@ -37,11 +37,11 @@ CLI stay fully multi-tenant via the `X-Tenant` header.
 
 ## Quickstart
 
-Run everything from `demo/` (its own `package.json`). Node 22.
+Run everything from `demo/` (its own `package.json`). Node 24 LTS.
 
 ```bash
 cd demo
-npm ci            # NOT npm install — lock-lint enforces npm-10 lockfile semantics
+npm ci            # lock-lint enforces npm 11 lockfile semantics
 npm run db:up     # Postgres 16 in Docker on port 47542
 npm run db:migrate
 npm run db:seed
