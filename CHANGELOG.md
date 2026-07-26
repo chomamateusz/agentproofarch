@@ -39,6 +39,13 @@ before that lives in the git history only.
   `docs/observability.md`: the wide-event doctrine, the three instrumentation
   chokepoints, and a matrix of what is wired today versus written down only.
 
+### Changed
+
+- Root README slimmed to a front door — attribution, the documentation
+  site, live demo, minimal quickstart and the repo map; the layer diagram,
+  gate details and environment matrix now live on the docs site
+  ([#70](https://github.com/chomamateusz/agentproofarch/pull/70)).
+
 ### Fixed
 
 - Documentation accuracy pass: ruleset descriptions now mirror the live,
