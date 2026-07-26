@@ -208,7 +208,7 @@ npm run e2e            # browser — required for any apps/web change
 The PR template is this checklist made explicit: `check` green, `smoke` green,
 `e2e` green for a web change, architecture docs updated *first* if you moved a
 boundary, `website/docs` and a `CHANGELOG.md` entry for a behaviour-visible change,
-new dependencies via `npx -y npm@10 install` only, work done in a git worktree, and
+new dependencies via `npx -y npm@11 install` only, work done in a git worktree, and
 a filed P1 linked if any gate run was flaky. CI re-runs `check`, `smoke` and `e2e`
 on a clean checkout, `docker-smoke` boots the container stack, and
 `post-deploy-smoke` re-verifies the deployed result. See

@@ -188,7 +188,7 @@ When all three are green, open a PR. The
 [template](../.github/pull_request_template.md) is the same checklist made
 explicit — `check` green, `smoke` green, `e2e` green for a web change,
 architecture docs updated first if you changed a boundary, new deps via
-`npx -y npm@10 install`, work done in a worktree. CI re-runs `check`, `smoke`
+`npx -y npm@11 install`, work done in a worktree. CI re-runs `check`, `smoke`
 and `e2e` on a clean checkout, and `post-deploy-smoke` verifies the deployed
 result against real production. Static-green is not done — but now you've proven
 it runs.

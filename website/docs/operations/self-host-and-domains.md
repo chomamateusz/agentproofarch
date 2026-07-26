@@ -69,9 +69,9 @@ Why Caddy is behind a **profile**: the default `up` needs no `Caddyfile` and bin
 
 ```mermaid
 flowchart LR
-    b["builder — node:22-bookworm<br/>npm ci, tsc -p tsconfig.docker.json,<br/>build:web, touch dist/web"]
-    p["prod-deps — node:22-bookworm<br/>npm ci --omit=dev"]
-    r["runtime — node:22-bookworm-slim<br/>USER node, EXPOSE 47100,<br/>HEALTHCHECK /api/health/live"]
+    b["builder — node:24-bookworm<br/>npm ci, tsc -p tsconfig.docker.json,<br/>build:web, touch dist/web"]
+    p["prod-deps — node:24-bookworm<br/>npm ci --omit=dev"]
+    r["runtime — node:24-bookworm-slim<br/>USER node, EXPOSE 47100,<br/>HEALTHCHECK /api/health/live"]
     b -->|"dist/server, dist/web, drizzle"| r
     p -->|"node_modules"| r
 ```

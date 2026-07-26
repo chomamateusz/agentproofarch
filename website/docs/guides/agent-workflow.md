@@ -76,9 +76,9 @@ sequenceDiagram
   and `e2e` for any `apps/web` change. The CLI is the loop because it is the only
   surface with a machine-readable envelope and a taxonomy exit code
   ([CLI walkthrough](./cli-walkthrough.md)).
-- **Dependencies via `npx -y npm@10 install`**, never a bare `npm install` — npm 11
-  prunes optional entries that npm 10's `npm ci` requires, which broke CI twice.
-  `lock-lint` inside `check` is what catches the mistake.
+- **Dependencies via `npx -y npm@11 install`**, never a bare `npm install` from
+  another npm major. `lock-lint` inside `check` verifies the same npm 11
+  semantics used by CI.
 - **Zero comment narration.** A comment is allowed *only* for a non-obvious WHY the
   code cannot express. What-narration, section headers and change-describing
   comments are blocking — that is written verbatim into the `ai-review` gate's

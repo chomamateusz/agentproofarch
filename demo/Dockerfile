@@ -4,7 +4,7 @@
 # image carries zero dev dependencies and no tsx runtime — only the compiled
 # output plus the production dependency tree.
 
-FROM node:22-bookworm AS builder
+FROM node:24-bookworm AS builder
 WORKDIR /build
 ENV CI=true
 COPY package.json package-lock.json ./
@@ -22,13 +22,13 @@ RUN npx tsc -p tsconfig.docker.json \
 # Production dependency tree only — the honest --omit=dev prune. The OTel
 # sdk-trace-base/core packages the server imports at runtime survive because
 # they are transitive dependencies of the prod @opentelemetry/sdk-trace-node.
-FROM node:22-bookworm AS prod-deps
+FROM node:24-bookworm AS prod-deps
 WORKDIR /build
 ENV CI=true
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     PORT=47100 \
     WEB_DIST_DIR=dist/web

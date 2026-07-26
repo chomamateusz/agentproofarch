@@ -5,9 +5,8 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 ## The two gates
 
 - `npm run check` = typecheck + ESLint (boundaries) + lock-lint (validates
-  package-lock.json under npm 10 semantics, exactly what `npm ci` on the
-  node-22 CI runner enforces — a local npm 11 `npm install` silently prunes
-  optional entries npm 10 requires, which broke CI twice) + dependency-cruiser +
+  package-lock.json under npm 11 semantics, exactly what `npm ci` on the
+  Node 24 CI runner enforces) + dependency-cruiser +
   knip (dead files + dependency hygiene; unused exports/types stay advisory
   during the PRD build-out — see `knip.jsonc`) +
   doc-lint (docs↔config enforcer coverage, injected count tokens, env-schema ⊆
@@ -28,10 +27,10 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 **Done = `check` green AND `smoke` green.** Static-green is not done; the app
 must actually run. Do not weaken lint rules to make either green.
 
-The toolchain is pinned to the CI runner: `.nvmrc` (Node 22), `engines.npm`
-(`>=10 <11`) and `packageManager` (`npm@10.9.2`) keep every install on npm 10
-semantics, so the npm-10-vs-11 lock drift that broke CI twice cannot recur —
-use `nvm use` (or Corepack) before `npm ci`, never a bare npm 11 `npm install`.
+The toolchain is pinned to the CI runner: `.nvmrc` (Node 24), `engines.npm`
+(`>=11 <12`) and `packageManager` (`npm@11.16.0`) keep every install on npm 11
+semantics, matching the npm major bundled with Node 24. Use `nvm use` (or
+Corepack) before `npm ci`; add dependencies with `npx -y npm@11 install`.
 
 **Flake doctrine (owner ruling 2026-07-20, DECIDE F3): the gates are
 deterministic; a flake is a P1 bug, never rerun-to-green.** A red gate means
