@@ -139,7 +139,7 @@ covers directories the ESLint element map does not classify.
 | `island-core-is-portable` | `features/<x>/core/**` → any `apps/web/src` path outside its own core dir |
 | `web-ui-is-presentational`, `web-lib-no-react`, `web-lib-has-no-app-internal-deps`, `web-routes-stay-thin`, `web-features-consume-bound-actions`, `web-features-are-islands`, `web-api-is-the-only-client-construction-site` | the intra-`apps/web` graph (see [Client state](client-state.md)) |
 
-:::info Two enforcers, deliberately not identical
+:::info[Two enforcers, deliberately not identical]
 The ESLint element map declares element types for `adapters/db`,
 `adapters/auth` and `adapters/domain-provisioning` — but **not** for
 `adapters/email`. That directory is held by dependency-cruiser
@@ -163,7 +163,7 @@ imports cannot quietly accumulate. Its rule severities are a deliberate split
 | `duplicates` | **error** | the same export exposed twice |
 | `exports` / `types` / `nsExports` / `nsTypes` / `enumMembers` | **warn** | reported, does **not** fail `check` |
 
-:::caution Honest caveat: unused *exports* are warnings, not errors
+:::caution[Honest caveat: unused *exports* are warnings, not errors]
 `exports` and `types` are `warn` on purpose. The foundation ships API surface
 ahead of its consumers (theme tokens, island-core interfaces, contract schemas,
 client query helpers) while the PRD build-out wires them in, so export-level
@@ -200,7 +200,7 @@ the per-layer allow-list: `zod` in `core/domain`, `@tanstack/query-core` in
 `core/client`, and the `@opentelemetry/api` no-op facade for business
 annotations.
 
-:::danger Port theater
+:::danger[Port theater]
 Never wrap a vocabulary library in a port. An interface with exactly one
 implementation forever re-states the library's API without buying anything: a
 `QueryPort` over TanStack Query would have to re-type `status`/`fetchStatus`,

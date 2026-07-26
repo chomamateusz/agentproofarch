@@ -73,7 +73,7 @@ above the `/api/*` tenant middleware answers **without** an identity.
 | 12 | `/api/me`, todos, cards, members, staff, domains | `/api/*` | tenant-scoped routes; every handler parses input with a contract schema |
 | 13 | `app.all('/api/*', ...)` | `/api/*` | totalizer: taxonomy `not_found` envelope for an unmatched path or wrong method |
 
-:::note Why three surfaces sit above identity resolution
+:::note[Why three surfaces sit above identity resolution]
 They are three different reasons, all deliberate:
 
 - **Health** must answer when the database is unreachable — that is the whole

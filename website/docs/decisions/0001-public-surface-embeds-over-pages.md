@@ -61,6 +61,6 @@ flowchart LR
 - **Public routes form a new contract group with their own rules** — no identity, open CORS, cache headers — enforced like every other boundary. [ADR-0006](./0006-public-read-only-surface.md) is where those rules became code.
 - **The downstream product's own PRD had to be rewritten**: public product pages → embeds + headless API + shareable checkout links. That PRD lives in the product repo, not this foundation repo.
 
-:::caution What is not built
+:::caution[What is not built]
 Points **3, 4 and 5** — shareable flow URLs, `/embed/*` widgets and the headless React SDK — are **not built today**. Only point 2, the public read-only surface, exists in the tree, and even there the shipped scope is two routes over a public tenant profile ([ADR-0006](./0006-public-read-only-surface.md)). The commerce-layer capabilities this ADR names as platform-owned — prices, promotions, A/B variants, buy flows — are product concerns and are not part of the foundation.
 :::

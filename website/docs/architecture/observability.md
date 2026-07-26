@@ -18,7 +18,7 @@ The second half of this page is the part most observability docs leave out —
 which of that is **wired today** and which is a written-down policy nobody has
 implemented yet.
 
-:::info Sources
+:::info[Sources]
 Normative: [`docs/observability.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/observability.md).
 Code: `demo/apps/server/src/telemetry.ts` (the middleware), `demo/apps/server/src/observability.ts` (the sinks), `demo/apps/web/src/observability.ts`, `demo/core/client/http.ts` (`traceparent` injection), `demo/api/index.ts` (the serverless flush).
 :::
@@ -103,7 +103,7 @@ vendor sits behind OTLP — Sentry's trace ingest, Axiom, a self-hosted ClickHou
 on the Docker target — is exporter config in the composition root, never a code
 change.
 
-:::note The serverless flush
+:::note[The serverless flush]
 On Vercel an invocation freezes the moment the response is returned, so a batched
 span or a queued Sentry event would simply be lost. `startServerObservability()`
 returns **one force-flush hook** that drains both pipelines, and `api/index.ts`
@@ -133,7 +133,7 @@ flushes normally — same seam, different lifetime.
 | **TEST** | `apps/server/src/observability.test.ts` drives `app.onError` with a fake DSN and an injected sink and asserts **exactly one** capture carrying the app-error, trace and tenant tags — and that everything no-ops when no DSN configured a client |
 | **REVIEW+AI** | a second `Sentry.captureException` anywhere but the seam, or a `@sentry/node` import outside the sink module, is rejected in review |
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **Sentry containment is convention plus review, not a dependency-cruiser rule.** `@vercel/*`, `@neondatabase/*`, `better-auth` and the SMTP SDKs each have a machine-checked fence; `@sentry/node` and `@sentry/react` do not ([Ports & adapters](ports-and-adapters.md)). Nothing but review stops a second import today.
 - **The SPA does not originate a trace id.** With no browser OTel provider registered, `traceparent` is never sent, so a browser error and its server-side wide event are not joined on one trace. Choosing the browser provider and sampler is an open decision, not shipped work.
 - **The tail-sampling policy is documented intent.** Nothing samples anything today; with no exporter configured, nothing is exported either.

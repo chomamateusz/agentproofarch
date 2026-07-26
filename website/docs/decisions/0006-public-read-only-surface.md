@@ -95,7 +95,7 @@ The profile is slug-addressed, so the same URL resolves identically on the apex 
 - **A public, no-session CLI command** (`public profile <tenant>`) exercises the discovery → profile flow; the CLI builds a header-less client for it. That command is also the reason the flow is smoke-covered without a browser.
 - **Shareable checkout flows, `/embed/*` widgets and the headless SDK remain unbuilt** (post-MVP, [ADR-0001](./0001-public-surface-embeds-over-pages.md)).
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **The demo's public surface is deliberately tiny** — one tenant profile over two routes. It is the *shape* the foundation commits to, not a feature-complete public API.
 - **The content version is a 32-bit hash.** Collisions are possible in principle, which is precisely why the ADR names the switch condition to a stored column rather than claiming the hash is sufficient forever. It is also **not monotonic** — you cannot order two versions in time.
 - **A consumer holding a stale version key gets current content**, not a `404` or a redirect. That is intended (the bust is visible in the body), but it means version keys are not durable identifiers.

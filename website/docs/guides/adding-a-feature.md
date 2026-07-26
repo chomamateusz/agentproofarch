@@ -43,7 +43,7 @@ must not collide with an existing file, and must not be one of the reserved name
 (`todo`, `tenant`, `health`, `me`, `auth`, `member`, `identity`). Add `--dry-run`
 to see the plan and the checklist without touching the tree.
 
-:::info Why a hand-rolled script and not Plop
+:::info[Why a hand-rolled script and not Plop]
 `scripts/new-resource.ts` needs no dependency and no template DSL — templates are
 plain text in `scripts/templates/*.tpl`, read at runtime. It is also repo-rule
 aware in a way no generic generator is: it knows `check` must stay red through the
@@ -81,7 +81,7 @@ flowchart TD
 Green steps are **type-forced**: skip one and `npm run check` cannot go green.
 Red steps are not.
 
-:::danger Three steps the compiler cannot hold
+:::danger[Three steps the compiler cannot hold]
 A hand-registered server route (step 7 — routes are wired against `API_PATHS` with
 no parity check), a missing CLI command (step 10) and an unregistered web route
 (step 12) all typecheck perfectly while unwired. `check` will go green with a
@@ -186,7 +186,7 @@ npm run dev:web        # Vite + hot reload on 47180
 Always `dev:web` for frontend work — `dev:server` serves a gitignored built bundle
 that goes stale after a contract change.
 
-:::note The generated page is rung 0, not an exemption
+:::note[The generated page is rung 0, not an exemption]
 The generated page reads server state directly through `actions`, exactly like the
 pre-existing todos page. That is a deliberate starting point, not a carve-out from
 [ADR-0005](../decisions/0005-client-application-state.md): the moment the feature

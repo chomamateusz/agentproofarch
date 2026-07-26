@@ -8,7 +8,7 @@ description: Hourly encrypted pg_dump on k3s, an offsite copy, and the Docker se
 
 The whole deployment topology assumes two vendors — Vercel and Neon — so the disaster to plan for is losing one of them entirely: account suspension, provider outage, or a destructive migration that outran its restore window. The backup package therefore lives **outside** both: it runs on the owner's k3s VPS, it does **not** run in GitHub Actions, and no production credential belongs in GitHub, this repository, a shell command or shell history. The cold standby is the repository's own Docker self-host stack, which means DR reuses a target that a required CI check already proves works.
 
-:::info Source of truth
+:::info[Source of truth]
 [`demo/ops/backup/README.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/README.md) plus the manifests beside it: [`namespace.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/namespace.yaml), [`secret.template.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/secret.template.yaml), [`pvc.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/pvc.yaml), [`cronjob.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/cronjob.yaml), [`restore.sh`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/restore.sh). Installed by hand on the VPS; part of no CI job.
 :::
 
@@ -84,7 +84,7 @@ The operating target is **roughly a one-hour RPO and a 30–60 minute RTO**, and
 - **The RPO is the age of the newest *successful* run.** The honest worst case is therefore one schedule interval **plus one dump duration**, and everything written after that point is lost unless Neon itself survives and Neon PITR can be used instead.
 - **The RTO assumes the standby VPS already holds the production commit *and a pre-built application image*.** A cold `docker compose build` on an unprepared host adds several minutes and breaks the budget outright.
 
-:::warning Measure, don't trust the table
+:::warning[Measure, don't trust the table]
 The README's instruction is unambiguous: measure both numbers in the quarterly drill rather than trusting the table. A restore drill is the only evidence that the RPO/RTO pair is real.
 :::
 
@@ -98,7 +98,7 @@ openssl rand -base64 48 > /root/agentproofarch-backup-passphrase
 chmod 600 /root/agentproofarch-backup-passphrase
 ```
 
-:::danger Losing both copies of the key makes every backup unrecoverable
+:::danger[Losing both copies of the key makes every backup unrecoverable]
 Rotating the key requires **keeping the old key** until every backup encrypted with it has expired.
 :::
 
@@ -231,7 +231,7 @@ The README carries a 16-item checklist; its non-obvious items are the ones that 
 - **Measure the achieved RPO from the artifact time and the RTO from declaration to external readiness** — the numbers in the table above are targets, and this is where they are either confirmed or corrected.
 - **Treat any failed restore or missed hourly backup as an incident.**
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **This package is installed by hand and exercised by hand.** It is not part of any CI job, so nothing mechanically proves it is currently installed and healthy on the VPS — that is what the two-hour alert and the quarterly drill are for.
 - **The RPO/RTO figures are operating targets, not measured guarantees.** The README says so explicitly and instructs measuring them in the drill.
 - **The default 20 GiB PVC only fits 14 days of hourly artifacts while each dump stays under roughly 60 MiB.** Past that, the retention window silently shortens unless the PVC is grown — and reducing an existing PVC is not supported.

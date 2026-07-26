@@ -91,7 +91,7 @@ readiness pings the database, and **liveness never calls this port at all** (see
 and deterministic in tests — the cheapest ports in the repo and the ones that pay
 back the most.
 
-:::caution The normative §Ports list in `docs/architecture.md` is narrower than the code
+:::caution[The normative §Ports list in `docs/architecture.md` is narrower than the code]
 `docs/architecture.md` §Ports enumerates `TodoRepository`, `CardRepository`,
 `TenantDomainRepository`, `TenantRepository` and `TenantAccessReader` among the
 repository ports. The code additionally declares `MemberRepository`,
@@ -127,7 +127,7 @@ embeds it in the body and otherwise ignores the field. That keeps the magic link
 | `smtp` (default) | any RFC SMTP relay via nodemailer — **Amazon SES SMTP credentials work unchanged** | `SMTP_HOST` is unset |
 | `ses` | Amazon SES **direct** over the SESv2 HTTP API, standard `AWS_*` credentials | any of `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` is missing |
 
-:::info There is deliberately no dev transport
+:::info[There is deliberately no dev transport]
 Dev, e2e and CI run the **real** `smtp` adapter pointed at a local **Mailpit**
 (`docker-compose.dev.yml`, SMTP on port 47925) that captures real sends instead of
 delivering. The magic-link smoke and e2e phases read the message back over
@@ -153,7 +153,7 @@ convergent: an already-attached host (`409`) is a success, so the use-case may
 retry. The token travels only in the `Authorization` header, never into a log or
 an error detail, and every API response is zod-parsed at the boundary.
 
-:::caution `vercel` is proven against a stubbed `fetch` only
+:::caution[`vercel` is proven against a stubbed `fetch` only]
 The adapter has **never run against the live Domains API**. That caveat has one
 canonical home so it can be deleted in one place the day it stops being true:
 [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
@@ -278,7 +278,7 @@ graph TD
     plain --> theater["wrapping it anyway = port theater"]
 ```
 
-:::danger Port theater
+:::danger[Port theater]
 An interface with exactly one implementation forever re-states a library's API
 without buying replaceability. The named example: a `QueryPort` over TanStack Query
 would have to re-type `status`/`fetchStatus`, invalidation and optimistic-update

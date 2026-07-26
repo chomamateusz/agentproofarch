@@ -209,7 +209,7 @@ payload does not match the contract, which the root error boundary renders toget
 with the request's trace id — the same failure the 2026-07-12 stale-`dist/web`
 incident exercised.
 
-:::info Fail-loud-and-refresh is the accepted foundation UX
+:::info[Fail-loud-and-refresh is the accepted foundation UX]
 An error card beats a wrong render or silent data loss. A "reload for the latest
 version" hint is a **recommended affordance, not a required mechanism**, and no
 push-based version check is prescribed — the Vercel target has no resident channel
@@ -228,7 +228,7 @@ zero disclosure cost.
 | the first **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | introduce explicit versioning — the compiled-contract argument no longer holds. Cheapest first: additive-only with a dated capability field; then a `/v1` URL prefix per major; then per-request `Accept-Version`. Internal `X-Tenant` clients do not count |
 | the first **webhook we emit** to creators or integrators | version the **payload**, not the URL: embed a `schemaVersion` in the event body, keep old fields additively, let subscribers pin. Delivery and idempotency reuse the inbound-webhook pattern; this covers only the payload contract |
 
-:::note Out of scope
+:::note[Out of scope]
 Per-tenant or per-product API variants, GraphQL-style field-level deprecation
 tooling, and consumer-driven contract testing against external partners. All three
 arrive with the external consumer that triggers real versioning — building them
@@ -259,7 +259,7 @@ A config-regression probe asserts the `s-maxage` and `stale-while-revalidate`
 tokens appear in that **one** helper and nowhere else, so no call site can
 hand-write a cache string.
 
-:::caution What the smoke gate can and cannot see behind Vercel
+:::caution[What the smoke gate can and cannot see behind Vercel]
 Vercel's CDN **consumes** `s-maxage`/`stale-while-revalidate` at the edge and
 strips them from the client-visible header, so behind Vercel the observable
 remainder is just `public, max-age=0`. `smoke:remote` therefore asserts that

@@ -53,7 +53,7 @@ flowchart LR
   done -->|"either red"| redGate["the commit is wrong<br/>or the gate is wrong"]
 ```
 
-:::danger Done = `check` green AND `smoke` green
+:::danger[Done = `check` green AND `smoke` green]
 Static-green is not done; the app must actually run. And do not weaken a lint rule
 to make either gate green — that inverts the whole point of having one.
 :::
@@ -208,7 +208,7 @@ worth being honest about:
   every tenant-scoped use-case names the authorize predicate, that the public
   contract group keeps its stance.
 
-:::warning What the probes honestly do not prove
+:::warning[What the probes honestly do not prove]
 The structural probes state their own limits in the source. The authorization scan
 proves the `authorize`/`authorizeTenant` identifier appears in the function body —
 **not** that the call precedes repository access; that ordering stays a review

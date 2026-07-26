@@ -81,7 +81,7 @@ The creator is the **controller** of their tenant's member data (profile, tags, 
 - **We re-implement what the org plugin gave for free** — membership tables, invitation tokens. A few small tables and use-cases, judged cheaper than coupling every relationship to one provider's API.
 - **The foundation PRD was rewritten** (§3.4, FR-6/7 amended, FR-19..25 and US-025..028 added, US-007 redefined with no organization plugin).
 
-:::caution Risks acknowledged, and what is not built
+:::caution[Risks acknowledged, and what is not built]
 - **A future central IdP would be a single point of failure** for sign-in across a fleet, and account takeover would span contexts. Named mitigations: email verification, per-domain magic links, and passkeys — passkeys are now **built** ([ADR-0007](./0007-email-port-and-magic-link-transport.md) consequences).
 - **Self-hosted instances have independent account pools.** SSO across them is a hosted-operator feature, not a property of the architecture.
 - **Per-tenant IdP / enterprise SSO** (tenant-configured SAML/OIDC federation) is **not built**; it sits in the deferred-work register with the first enterprise customer ask as its trigger.

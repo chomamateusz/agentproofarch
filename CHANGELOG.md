@@ -44,6 +44,10 @@ before that lives in the git history only.
 
 ### Changed
 
+- Docs-site landing page rewritten for the mid-level-developer audience — name
+  gloss in the header, a problem→answer section up front, terms defined at first
+  use — and admonition titles across the site fixed to the `:::type[Title]`
+  bracket syntax ([#73](https://github.com/chomamateusz/agentproofarch/pull/73)).
 - Toolchain upgraded from Node.js 22 to Node.js 24 LTS across local pins, CI,
   Docker, engines and documentation, with npm 11 lockfile semantics
   ([#71](https://github.com/chomamateusz/agentproofarch/pull/71)).

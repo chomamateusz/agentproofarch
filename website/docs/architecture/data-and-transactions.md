@@ -37,7 +37,7 @@ graph TD
     forbidden --> banned["FORBIDDEN: silently degrades to non-atomic on neon-http"]
 ```
 
-:::danger Interactive transactions are forbidden for atomic work
+:::danger[Interactive transactions are forbidden for atomic work]
 `db.transaction()` may be used **only** on self-host-only maintenance paths that
 never run on Vercel — and such a path must say so in code. Anywhere else it is a
 correctness bug that passes every local test.
@@ -86,7 +86,7 @@ The returned row count is the proof: `1` = revoked, `0` = refused as the last
 owner (or no such grant). The count-based guard is the **authoritative**
 enforcement; the use-case's `findGrant` read only shapes the error taxonomy.
 
-:::info The doc and the code cannot drift
+:::info[The doc and the code cannot drift]
 `config-regression/must-atomic.test.ts` parses the
 `<!-- MUST-ATOMIC:begin -->` block out of `docs/architecture.md` and asserts every
 entry names a **single** port method that actually exists in
@@ -155,7 +155,7 @@ the demo and explicitly insufficient for production personal data; a longer wind
 is a paid-plan flip made when the GDPR trigger fires. Self-host owns its own
 cadence. See [Backup & DR](../operations/backup-dr.md).
 
-:::note Out of scope: an audit trail
+:::note[Out of scope: an audit trail]
 There is no append-only audit log at the foundation level (trigger: a specific
 compliance or contractual requirement). Wide events are **observability**, not
 audit — sampled, short-retained, shaped for debugging. An audit trail is durable,
@@ -204,7 +204,7 @@ The grandfather list is **closed**: a migration adding a text PK or a naive/text
 time column to a *new* table is rejected in review unless it FK-chains to a legacy
 text key.
 
-:::caution Honest caveat — three of these conventions are prescriptions, not practice
+:::caution[Honest caveat — three of these conventions are prescriptions, not practice]
 Money, cursor pagination and `version` columns have **no implementation in the
 tree** — no aggregate carries money, the existing list endpoints (todos, cards)
 return the full tenant-scoped array as **exempt** small bounded lists, and every
@@ -240,7 +240,7 @@ ships with its `CHECK` in the same migration — a plain, immediately-validated
 `CHECK`, so existing rows must conform or the migration fails. Grandfather nothing
 silently.
 
-:::caution Constraint-adding migrations need a restore point first
+:::caution[Constraint-adding migrations need a restore point first]
 A migration adding a `CHECK`, `NOT NULL`, unique or FK constraint validates every
 existing row at `ALTER` time and **fails the deploy if any row violates** — that
 *is* the guarantee, but on production it means the deploy can abort mid-migration.

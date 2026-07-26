@@ -79,7 +79,7 @@ A member provisioned by `ensureMember` has a **null `userId`** until they first 
 - **The Resend/`console` split is superseded.** Future non-auth transactional mail (order receipt, export-ready notice) reuses `sendMail` from a use-case.
 - **CI gained a Mailpit service container** in the `smoke`, `e2e` and `visual` jobs, with `MP_SMTP_AUTH_ACCEPT_ANY` and `MP_SMTP_AUTH_ALLOW_INSECURE` set — see [CI gates](../operations/ci-gates.md).
 
-:::caution Honest caveats
+:::caution[Honest caveats]
 - **`smoke:remote` skips the magic-link phase.** Against a real deployment a real relay delivers and there is no capture inbox to read the message back from, so that phase is not exercised there.
 - **Deliverability is unowned.** SPF/DKIM/DMARC alignment, bounce and complaint handling, and suppression lists are the operator's job on whichever relay is configured; the port has no view of them.
 - **Per-tenant branded senders are not built** — one verified `EMAIL_FROM` per deployment.

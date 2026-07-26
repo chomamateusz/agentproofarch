@@ -21,3 +21,16 @@ here summarise them and link back. Where the two disagree, the repository wins.
 `onBrokenLinks` and `onBrokenAnchors` are `throw`, so a dead cross-reference fails
 `npm run build` — which is what `docs-ci.yml` runs on every PR touching `website/`
 or `CHANGELOG.md`.
+
+## Audience & style
+
+- **Target reader**: a mid-level developer who has never worked with
+  architecture at this rigor — precise enough that an architect still extracts
+  everything.
+- **Explain every term at first use**: a plain-language gloss inline, plus a
+  link to the deeper page. Never use a term before defining it.
+- **Short paragraphs**, generous line breaks — no walls of text.
+- **Sparse, gentle emoji**: at most one per H2 heading or key table cell, never
+  mid-sentence.
+- **No claim that is not verifiable in the repo.** Facts come from `docs/`,
+  the source tree or the gates — invented claims are a defect.
