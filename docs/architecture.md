@@ -619,7 +619,7 @@ where they diverge, so the split is honest rather than cosmetic. The policy is a
 principals that hold it and **nothing is granted by wildcard** — a principal
 absent from a capability's list is denied. The demo policy (staff-shared rows
 collapsed to one `owner+admin` column; only `staff:grant`/`staff:revoke` split
-them):
+them; `tenant:create` is the one row derived from an env-selected mode, below):
 
 | capability       | owner | admin | member | visitor (tenant-less) |
 | ---------------- | ----- | ----- | ------ | --------------------- |
@@ -633,7 +633,9 @@ them):
 | `staff:revoke`   | allow | deny  | deny   | deny                  |
 | `domain:read`    | allow | allow | deny   | deny                  |
 | `domain:write`   | allow | deny  | deny   | deny                  |
-| `tenant:create`  | allow | allow | deny   | allow                 |
+| `tenant:create` — `TENANT_CREATION=open` (default) | allow | allow | deny | allow |
+| `tenant:create` — `TENANT_CREATION=staff` | allow | allow | deny | deny |
+| `tenant:create` — `TENANT_CREATION=closed` | deny | deny | deny | deny |
 
 Members are full collaborators on the tenant's boards (todos and cards are
 collaborative aggregates) but may not administer tenants; owners and admins share
@@ -646,13 +648,28 @@ when the email has no account. Custom domains (US-019) follow the same
 owner/admin split: `domain:read` (the settings roster) is staff-readable, but
 `domain:write` — attaching, verifying and detaching a domain — is owner-only, so
 an admin runs the tenant without changing where it is reachable. `tenant:create` is
-tenant-less self-service (the caller becomes owner), so a visitor holds it while
-a member of one tenant may not provision others. The member-deny cell is
-**use-case-layer only**: over HTTP the create route deliberately sits above
-tenant resolution, every authenticated caller presents as visitor, and a member
-could in any case drop the tenant header and present as one legitimately — the
-cell exists as defense-in-depth for future callers that carry a member context,
-not as an HTTP-reachable barrier.
+tenant-less self-service (the caller becomes owner atomically —
+`createTenantWithOwner`), and its grant row is the one **mode-dependent** row in
+the table ([ADR-0010](decisions/0010-tenant-creation-policy.md)): the env key
+**`TENANT_CREATION`** (single env schema, `core/server/config.ts`) selects `open`
+(default — a visitor holds it, so any authenticated account addressing the base
+domain self-serves a tenant: the public-SaaS shape), `staff` (only existing
+owners/admins spawn further tenants; the first one comes from seed/operator) or
+`closed` (operator-only, via seed/ops). The policy stays data — the mode derives
+that row's principal list, `decide` gains no branch, no new principal exists and
+default-deny is unchanged, so `closed`'s empty list denies by the ordinary rule
+and a denied create surfaces as the existing `forbidden` error, with no new error
+code. Under every mode a member of one tenant may not provision others; the
+member-deny cell is **use-case-layer only**: over HTTP the create route
+deliberately sits above tenant resolution, every authenticated caller presents as
+visitor, and a member could in any case drop the tenant header and present as one
+legitimately — the cell exists as defense-in-depth for future callers that carry
+a member context, not as an HTTP-reachable barrier. That same property is what
+the `staff` mode has to overcome: because the create route builds a tenant-less
+identity, an owner or admin also arrives as a visitor there, so `staff` is only
+distinguishable from `closed` once the create path derives the principal from the
+caller's staff grants **across the instance** (`listTenantsForStaff`, the read
+behind `listMyTenants`) rather than from a resolved tenant.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
