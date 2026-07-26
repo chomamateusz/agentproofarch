@@ -44,7 +44,7 @@ before that lives in the git history only.
 - Docs-site landing page rewritten for the mid-level-developer audience — name
   gloss in the header, a problem→answer section up front, terms defined at first
   use — and admonition titles across the site fixed to the `:::type[Title]`
-  bracket syntax ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  bracket syntax ([#73](https://github.com/chomamateusz/agentproofarch/pull/73)).
 - Root README slimmed to a front door — attribution, the documentation
   site, live demo, minimal quickstart and the repo map; the layer diagram,
   gate details and environment matrix now live on the docs site
