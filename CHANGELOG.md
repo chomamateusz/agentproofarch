@@ -15,6 +15,9 @@ before that lives in the git history only.
 
 ### Added
 
+- Project brand assets: layered-mark logo in the docs-site navbar, favicon
+  refreshed to the slanted mark, social card for link previews and a README
+  banner (#TBD).
 - CodeRabbit as an advisory second reviewer: `.coderabbit.yaml` (chill
   profile, no request-changes, doctrine path instructions); comments on
   every non-draft PR without ever blocking one

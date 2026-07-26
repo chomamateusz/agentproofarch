@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/banner.png" alt="agentproofarch — agent-first · strictly layered · multi-tenant" width="720"></p>
+
 # agentproofarch
 
 **agentproofarch** — an agent-first, strictly-layered TypeScript foundation for
