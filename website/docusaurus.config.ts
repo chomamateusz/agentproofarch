@@ -70,12 +70,14 @@ const config: Config = {
   ],
 
   themeConfig: {
+    image: 'img/social-card.png',
     colorMode: {
       defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
     navbar: {
       title: 'agentproofarch',
+      logo: {alt: 'agentproofarch', src: 'img/logo.svg'},
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
         {to: '/start/quickstart', label: 'Quickstart', position: 'left'},
