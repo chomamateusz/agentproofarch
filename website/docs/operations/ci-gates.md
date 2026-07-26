@@ -22,7 +22,7 @@ flowchart TD
     pr --> dci["docs-ci.yml<br/>path-filtered on website/** + CHANGELOG.md"]
 
     ci --> check["check — REQUIRED<br/>pnpm install --frozen-lockfile + pnpm run check"]
-    ci --> smoke["smoke — REQUIRED<br/>postgres:16 + mailpit<br/>integration tests then runtime smoke"]
+    ci --> smoke["smoke — REQUIRED<br/>postgres:16 + mailpit<br/>integration tests, runtime smoke,<br/>quickstart probe"]
     ci --> e2e["e2e — REQUIRED<br/>Chromium over the real stack"]
     ci --> visual["visual — not required<br/>pixel comparison"]
     sh --> docker["docker-smoke — REQUIRED<br/>build image, boot compose, smoke:remote"]
@@ -75,9 +75,10 @@ Service containers: `postgres:16` and a **Mailpit** SMTP sink (`axllent/mailpit:
 ```yaml
 - run: pnpm run test:integration   # the tier that needs a real Postgres
 - run: pnpm run smoke              # boot the real server, drive the CLI
+- run: pnpm run quickstart:probe   # the quickstart's promises as assertions
 ```
 
-The integration tier lives here rather than in `check` because `check` is database-free, and rather than in the local `smoke` script because that must stay fast. `smoke.ts` creates and drops its own isolated `agentproofarch_smoke` database over the provided `DATABASE_URL`, so a bare `postgres:16` service is sufficient — no `docker compose` in CI.
+The integration tier lives here rather than in `check` because `check` is database-free, and rather than in the local `smoke` script because that must stay fast. `smoke.ts` creates and drops its own isolated `agentproofarch_smoke` database over the provided `DATABASE_URL`, so the databases both steps talk to come from the bare `postgres:16` service — CI never boots the Compose stack. The probe step does invoke the `docker compose` CLI, but only for `config` (parsing `docker-compose.dev.yml` to assert the pinned project name resolves identically from the checkout and from a copied clone); that parse needs the Compose plugin present on the runner, not a running daemon stack.
 
 ### `e2e` — a real browser over the real stack 🖱️ \{#e2e--a-real-browser-over-the-real-stack}
 
