@@ -19,8 +19,9 @@ domain went.
 
 agentproofarch is the answer to that specific failure. Every boundary is
 machine-enforced by lint, so structure cannot drift silently. Every capability
-is drivable from a CLI with machine-readable output, so work can be verified
-without a browser — by you or by the agent itself.
+short of the browser-bound sign-in ceremonies is drivable from a CLI with
+machine-readable output, so work can be verified without a browser — by you or
+by the agent itself.
 
 The architecture is written down first (`docs/architecture.md` is normative),
 the enforcers are written down next, and `demo/` is a running reference
@@ -38,7 +39,7 @@ If you have watched an AI-assisted codebase rot, you already know these:
 |---|---|
 | Generated code lands wherever it compiles; layering erodes PR by PR | Layer boundaries are lint rules (`eslint-plugin-boundaries` + dependency-cruiser). A misplaced import **fails the build**. |
 | Merged, typechecked — and does not boot | "Done" is two green gates: **`check`** (static — typecheck, lint, boundary rules, unit tests) **and** **`smoke`** (runtime — boots the real server on a real database and drives it through the CLI). |
-| The agent cannot verify its own work | Every capability is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop. |
+| The agent cannot verify its own work | Every capability short of the browser-bound sign-in ceremonies is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop. |
 | Multi-tenancy bolted on later, painfully | Tenants, subdomains and custom domains are in the skeleton from day one. |
 | Locked into one platform | Externals sit behind **ports and adapters**: the core declares the interfaces it needs (ports), thin replaceable modules (adapters) implement them. The same commit runs on Vercel and in Docker. |
 | Docs drift from the code | Docs-first rule (`docs/architecture.md` is normative) plus a `doc-lint` cross-check in CI that verifies docs against the enforcers and the source tree. |
@@ -93,8 +94,10 @@ A pure-TypeScript core in four layers, one line each:
   are returned, never thrown) and the **error taxonomy** (one closed list of
   error codes, mapped to HTTP statuses and CLI exit codes). Depends on zod
   alone.
-- **`core/contract`** — API routes plus zod schemas: the single **seam** the
-  server and every client agree on.
+- **`core/contract`** — API routes plus zod schemas: the **seam** the server
+  and every client agree on for everything the application owns. One carve-out:
+  authentication flows ride Better Auth's own `/api/auth/*` routes, spoken to
+  only through the auth adapters, not through `API_ROUTES`.
 - **`core/server`** — use-cases plus **ports**, the interfaces the core needs
   from the outside world (database, auth, email).
 - **`core/client`** — the **typed HTTP client**: it calls the contract routes
@@ -124,7 +127,9 @@ What walks through it, each capability flowing through *every* layer and
 drivable from both the web app and the CLI:
 
 - authentication: password, magic link, TOTP two-factor, passkeys, plus a
-  Google seam that stays dormant unless both of its env vars are set;
+  Google seam that stays dormant unless both of its env vars are set — password
+  and magic link from either surface; TOTP, passkeys and Google are web-only
+  (browser ceremonies the CLI ships no commands for);
 - foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
   custom domain or subdomain;
 - end-customer members with GDPR export and removal;
@@ -136,10 +141,12 @@ drivable from both the web app and the CLI:
 no release versioning either: a release is a branch promotion
 (`main` → `production`), the repository carries no version tags, and the
 [changelog](../changelog.md) groups entries by merge date rather than by version. The
-one version number that exists — `0.1.0` in `demo/package.json` — is the build's
-release identity, served as the `version` field of every health response
-([Health & attestation](../operations/health-and-attestation.md)); nothing bumps
-it on promotion. You read it, fork it, or lift patterns out of it. CLI
+one version number that carries meaning — `0.1.0` in `demo/package.json`; the
+website's `package.json` holds an inert `0.0.0` placeholder — is the build's
+release identity, served as the `version` field of every successful health
+response ([Health & attestation](../operations/health-and-attestation.md)); a
+failing readiness probe answers with a bare `unavailable` error envelope
+instead, and nothing bumps the number on promotion. You read it, fork it, or lift patterns out of it. CLI
 distribution and a version handshake sit on the
 [deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
 with "first external CLI consumer" as the named trigger.
@@ -147,9 +154,11 @@ with "first external CLI consumer" as the named trigger.
 
 ## The feature map 🗺️
 
-Every capability is reachable two ways — the web app and the CLI — and the CLI
-path is the one an agent uses, because it is the only one with machine-readable
-output and a taxonomy-mapped exit code.
+Every capability is reachable through the web app and, with three deliberate
+exceptions, through the CLI — and the CLI path is the one an agent uses,
+because it is the only one with machine-readable output and a taxonomy-mapped
+exit code. The exceptions are the browser-bound sign-in ceremonies — TOTP
+enrollment, passkeys, Google — which only the web app drives.
 
 The third surface is deliberately *not* a third door onto everything: the
 public API exposes two unauthenticated read-only routes over one tenant profile
@@ -165,10 +174,12 @@ graph LR
     pub["Public API<br/>no session · cacheable"]
   end
 
-  subgraph seam["core/contract — the one seam"]
+  subgraph seam["core/contract — the app seam"]
     routes["API_ROUTES + zod schemas"]
     publicRoutes["PUBLIC_API_ROUTES<br/>its own registry"]
   end
+
+  authRoutes["Better Auth /api/auth/*<br/>via the auth adapters"]
 
   subgraph caps["Capabilities in the walking skeleton"]
     auth["Auth: password · magic link<br/>TOTP · passkey · Google seam"]
@@ -188,8 +199,10 @@ graph LR
 
   web --> routes
   cli --> routes
+  web --> authRoutes
+  cli --> authRoutes
   pub --> publicRoutes
-  routes --> auth
+  authRoutes --> auth
   routes --> tenants
   routes --> members
   routes --> work
@@ -229,10 +242,12 @@ wrong, and one of them gets fixed.
 
 Underneath those gates: **84** test files in the database-free run, **48**
 integration tests against a real Postgres, **15** Playwright tests, and **47**
-config-regression probes that feed a deliberately illegal fixture to an enforcer
-and assert it still rejects it — so a silently weakened rule fails CI instead of
-passing quietly. Those counts are injected into the repository's own READMEs by
-`doc-lint` and re-verified against the source tree on every `check`. See
+config-regression probes that guard the enforcers themselves — most feed a
+deliberately illegal fixture and assert rejection; the rest are structural
+scans and non-vacuity guards over the real source — so a silently weakened rule
+fails CI instead of passing quietly. Those counts sit in the repository's own
+READMEs as machine-checked tokens that `doc-lint` re-verifies against the
+source tree on every `check`. See
 [Testing doctrine](../guides/testing-doctrine.md) and
 [CI gates](../operations/ci-gates.md).
 
