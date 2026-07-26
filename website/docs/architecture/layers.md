@@ -220,8 +220,8 @@ stays zod + `@tanstack/query-core`.
 `@vercel/*` and `@neondatabase/*` are lint-contained to `adapters/`. This is
 dependency containment, not a ban on the vendor's *name*: the bare
 platform-detection string `VERCEL` is legitimately read in
-`apps/server/src/env.ts`, `apps/server/src/composition.ts` and
-`adapters/db/migrate.ts` to select behaviour, and that is fine. What must never
+`apps/server/src/env.ts` and `core/server/config.ts` to select behaviour, and
+that is fine. What must never
 leak into core is coupling to a vendor **SDK**.
 
 Beyond imports, three strictness rules apply everywhere: **no `any`**, **no `as`**

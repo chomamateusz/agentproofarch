@@ -56,7 +56,7 @@ never carries silent gaps.
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
-  read in `env.ts`, `composition.ts` and `adapters/db/migrate.ts` to select
+  read in `apps/server/src/env.ts` and `core/server/config.ts` to select
   behavior, and that is fine; what must not leak into core is the coupling to a
   vendor SDK.
 
@@ -746,9 +746,10 @@ transitively: "delete everything for tenant X" is one
 guaranteeing no orphans. Global/shared tables (accounts, the shared account pool)
 are deliberately outside that chain: one account spans many tenants (§Identity and
 multi-tenancy), so it must never cascade from a single tenant's deletion. The
-invariant is mechanically checkable — a smoke/integration test seeds every
-aggregate for a throwaway tenant, deletes the tenant row, and asserts zero rows
-remain for that `tenantId` (pattern normative, demo implements on first need).
+invariant is mechanically checked — the offboarding-cascade integration test
+(`adapters/db/repositories.integration.test.ts`) seeds every aggregate for a
+throwaway tenant, deletes the tenant row, and asserts zero rows remain for that
+`tenantId` while a sibling tenant is untouched.
 
 **GDPR mechanics** (NORMATIVE WHEN TRIGGERED — trigger: first real end-user
 personal data in production, beyond the demo seed). Right to access/portability is

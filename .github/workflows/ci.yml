@@ -120,7 +120,7 @@ jobs:
       - run: npm run build:web
       - run: npm run e2e
 
-  # NON-REQUIRED (ADR-0008): the rulesets name check/smoke/e2e/docker-smoke, so
+  # NON-REQUIRED (ADR-0008): `visual` is in no ruleset's required list, so
   # this job reports a pixel regression without blocking a merge until the owner
   # arms it. Baselines are rendered by this same linux image, never on a mac.
   visual:

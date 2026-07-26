@@ -100,8 +100,8 @@ cells name a commissioned gate, not a shipped one.
   bypass lists**: `main-gates` on `main` (require a PR + the required status
   checks `check` / `smoke` / `e2e` / `docker-smoke` / `ai-review` + "require
   branches up to date", 0 approvals, merge-commit only) and `production-protection` on
-  `production` (the same four checks + **1 required approval**, stale approvals
-  dismissed on push, merge-commit only). A merge is therefore **blocked**
+  `production` (`check` / `smoke` / `e2e` / `docker-smoke` + **1 required
+  approval**, stale approvals dismissed on push, merge-commit only). A merge is therefore **blocked**
   on a failing or missing check, not merely marked red. This supersedes the
   earlier private-repo limitation, when the branch-protection API returned
   `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — going public

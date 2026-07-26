@@ -31,7 +31,8 @@ Do this once per Vercel project + GitHub repo.
    `docker-smoke`**, block force-pushes, restrict deletions, and an **empty
    bypass list** (no role, not even Admin, merges past it).
 4. **Create `main-gates`** targeting `main`: require a pull request, **0 required
-   approvals**, the same four required status checks **plus "require branches to
+   approvals**, the same four required status checks **plus `ai-review`** (the
+   fail-closed doctrine review, added 2026-07-26) **and "require branches to
    be up to date before merging"** (the concurrent-change / F2 guard), block
    force-pushes, restrict deletions, empty bypass list.
 5. **Identity split.** Confirm the agent account (`chomamateusz-agent`) is a
@@ -58,8 +59,9 @@ PR may be delegated to an agent; **approval and merge are not.**
    runs **before** the merge/build by construction — do not approve because the
    gates are green. Gates prove the code *runs*; the diff review proves it is
    *the code you meant to ship*.
-3. **Confirm the four required checks are green on the PR** (`check`, `smoke`,
-   `e2e`, `docker-smoke`). The `production-protection` ruleset already blocks the
+3. **Confirm the four required checks on `production` are green on the PR**
+   (`check`, `smoke`, `e2e`, `docker-smoke`; `ai-review` gates `main`, not this
+   PR). The `production-protection` ruleset already blocks the
    merge until they pass; a check that "could not run" is red, not mergeable.
 4. **If the diff includes a migration, take a Neon snapshot / PITR point first.**
    A constraint-adding or destructive migration can abort mid-`ALTER` against real

@@ -305,11 +305,11 @@ broad, note } }`.
   secret, so keeping it as a repo Actions secret does not violate the
   "production secrets never in Actions" rule above. The workflow never echoes it.
 
-**Adding it to `main-gates` (owner, one-time).** The gate ships **non-required**:
-it runs and posts on every PR but blocks nothing until the owner opts in. To make
-it blocking, add the status-check context **`ai-review`** (the job name) to the
-`main-gates` ruleset's required-checks list (repo → Settings → Rules → `main-gates`);
-this is Admin-only and is not done here. Existing open PRs keep merging until then.
+**Required on `main-gates` (since 2026-07-26).** The gate shipped non-required
+to accumulate a verdict track record; the owner has since added the
+status-check context **`ai-review`** (the job name) to the `main-gates`
+ruleset's required-checks list, so a PR without a PASS verdict cannot merge to
+`main`. Disarming it is the same Admin-only ruleset edit in reverse.
 
 **Adding slot `_2` / `_3` later.** Create repo Actions secrets
 `CLAUDE_CODE_OAUTH_TOKEN_2` / `_3` (each its own `claude setup-token`). No workflow

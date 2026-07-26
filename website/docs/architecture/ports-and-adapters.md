@@ -36,8 +36,12 @@ Three conventions hold across all of them:
   [Errors & API versioning](errors-and-api-versioning.md)).
 - **`tenantId` comes first** on every tenant-scoped repository method, so the type
   system will not let a query span tenants.
-- **Ports are called from use-cases only** — never from a route, never from another
-  adapter.
+- **Domain flows call ports through use-cases.** Three edge exceptions are
+  deliberate: readiness pings `HealthPort` and the auth middleware resolves the
+  session directly at the HTTP boundary (no domain decision is being made),
+  the internal Caddy `ask` route reads `tenant_domains` directly, and the
+  Better Auth adapter sends through `EmailPort` (an adapter composing a port
+  the composition root handed it).
 
 ## The built port set
 

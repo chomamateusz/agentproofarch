@@ -1,8 +1,8 @@
 name: ai-review
 
 # Fail-closed AI code-review gate (DECIDE F1). The status-check context is the
-# job name `ai-review`; the owner adds it to the `main-gates` ruleset to make it
-# required. Until then it runs and posts without blocking. The ONLY green path is
+# job name `ai-review`, a required check on the `main-gates` ruleset since
+# 2026-07-26 — a PR without a PASS verdict cannot merge. The ONLY green path is
 # a positive PASS verdict from a token slot; every other outcome — a FAIL verdict,
 # an infra failure (rate-limit / auth / network / timeout) on all available
 # slots, an empty/malformed model output, or a missing slot-1 secret — exits the

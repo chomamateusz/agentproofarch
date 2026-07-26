@@ -132,10 +132,10 @@ graph TD
 
 `deleteTenant` therefore issues no child deletes at all. Global/shared tables are
 outside the chain on purpose: one account spans many tenants, so it must never
-cascade from a single tenant's deletion. The invariant is mechanically checkable —
-seed every aggregate for a throwaway tenant, delete the tenant row, assert zero
-rows remain — and that pattern is normative with the demo implementing on first
-need.
+cascade from a single tenant's deletion. The invariant is mechanically checked:
+the offboarding-cascade integration test seeds every aggregate for a throwaway
+tenant, deletes the tenant row, and asserts zero rows remain while a sibling
+tenant is untouched (`repositories.integration.test.ts`).
 
 **GDPR mechanics** are **normative when triggered** (trigger: the first real
 end-user personal data in production, beyond the demo seed). Right to
