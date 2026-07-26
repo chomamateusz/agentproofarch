@@ -40,13 +40,12 @@ See [Layers](../architecture/layers.md) and
 
 | Term | Meaning |
 |---|---|
-| **Feature** | `apps/web/src/features/<name>/` — the vertical slice of a subdomain in the UI. |
-| **Island** | The same feature, seen from its isolation guarantee: lint forbids features to import each other. One word names the thing, the other names its property — "feature (island)". |
+| **Feature (island)** | `apps/web/src/features/<name>/` — the vertical slice of a subdomain in the UI. Only `features/` folders exist in the code; *island* is not a second thing but the same feature seen from its isolation guarantee: lint forbids features to import each other. |
 | **View** | A React component inside a feature; renders UI and talks exclusively to its **own** island's core. |
 | **Island core** | `features/<name>/core/` — a pure TS module: events in, selectors out, machine inside. A factory over its dependencies, DOM-free, node-runnable. |
-| **Seam** | The island core's public API: `send(event)` in, `subscribe(listener)` for change notification, selectors out. Identical on every rung. |
+| **Seam** (= the module's boundary) | The island core's public API: `send(event)` in, `subscribe(listener)` for change notification, selectors out. Identical on every rung. The term comes from Michael Feathers' *Working Effectively with Legacy Code*. |
 | **Machine** | The state implementation *inside* an island core, on a three-rung ladder. Never exported, so a view cannot type against it. |
-| **Rung** | 1 — descriptor re-exports (the CRUD default); 2 — island store (`@xstate/store`); 3 — statechart (XState) derived from a `core/domain` transition table. |
+| **Rung** (= a level on the state-management ladder) | 1 — descriptor re-exports (the CRUD default); 2 — island store (`@xstate/store`); 3 — statechart (XState) derived from a `core/domain` transition table. |
 | **Graduation trigger** | The measurable condition that licenses moving up a rung: state survives component unmount, multi-component coordination inside the island, optimistic writes spanning more than one entity, undo/redo, validation with dependencies. Enumerable states with transition-legality rules trigger rung 3. A graduating PR must name its trigger. |
 | **Descriptors** | The typed query/mutation definitions produced by `core/client` factories (`defineQuery`, `defineMutation`) and bound once in `api.ts`. The descriptor object is the server-state seam. |
 | **Bound action** | A descriptor after `api.ts` has bound it to its transport. Features import these; they never see an `ApiClient`, a port or an adapter. |
@@ -63,7 +62,7 @@ See [Client state](../architecture/client-state.md).
 |---|---|
 | **Tenant** | A foundation entity (`tenants`), never a provider object. One instance hosts many tenants over one shared account pool — a creator's unrelated brands should be tenants, not new deployments. |
 | **Instance** | One deployment with one database. New instances are for hard isolation only. |
-| **Staff** | The `tenant_admins` aggregate: flat `owner` / `admin` grants. Deliberately no teams or organizations concept — multiple admins are just multiple rows. |
+| **Staff** | The `tenant_admins` aggregate: flat `owner` / `admin` grants. Deliberately no teams or organizations concept — multiple admins are just multiple rows. `owner` and `admin` are **per-tenant grants, not platform roles**: each row ties one account to one tenant, so the same account can be owner of one tenant and admin of another (the seeded demo user is exactly that — owner of `acme`, admin of `globex`). There is **no platform super-admin**: no in-app role stands above tenants; the platform itself is operated through deploys and the database, not through an in-app role. |
 | **Member** | An end customer: a tenant-scoped aggregate of our own (profile, tags, GDPR consents, owned email snapshot, export). Not a provider object either. |
 | **Principal** | What an identity *acts as* for a decision, derived not stored: `owner`, `admin`, `member`, `visitor`. |
 | **Visitor** | An **authenticated** identity with neither a staff grant nor a membership — the tenant-less caller. Not the same as an unauthenticated public reader, which has no identity at all. |
@@ -131,8 +130,21 @@ See [CI gates](../operations/ci-gates.md) and
 
 ## Foundation lifecycle
 
+These three terms describe one scenario: you copy this repository as the
+starting point — the *foundation* — of your own app. The demo code (todos,
+cards, the seeded tenants) is not what you are taking; you replace it with your
+own domain. What you carry forward is the **enforcement configuration** — the
+lint rules, dependency-cruiser config, `tsconfig` strictness, gate scripts,
+config-regression probes and CI workflows — because that is what encodes the
+architecture *structurally* rather than describing it in prose. Your app then
+writes one provenance file, `FOUNDATION.md`, recording where it forked from, so
+that picking up a later foundation improvement (a security fix, a tightened
+rule) is a mechanical diff over the recorded paths instead of a guess. And if
+you ever knowingly weaken one of the structural rules, that is a legitimate
+choice — you are simply "off the foundation" and the guarantees no longer hold.
+
 | Term | Meaning |
 |---|---|
-| **The portable artifact** | The **enforcement configuration**, not the code: `eslint.config.js` + `eslint-plugin-agentproofarch/`, `.dependency-cruiser.cjs`, `tsconfig` strictness, the gate scripts, `config-regression/` and the CI workflows. It travels unchanged because it encodes the architecture structurally instead of describing it. |
-| **`FOUNDATION.md`** | The provenance file a consuming app writes at its root: upstream repo URL, forked commit SHA, fork date, and the foundation-owned paths — so a foundation update is a mechanical diff over those paths, never a guess. |
-| **Off the foundation** | Weakening a *structural* rule (a client importing `core/server`, a framework in `core/**`, dissolving the `core/contract` seam, throwing across a boundary, re-enabling `any`/`as`). A legitimate choice that forfeits the name and the guarantee — and `doc-lint` makes sure it cannot happen silently. |
+| **The portable artifact** | What actually travels from the foundation into your app: the enforcement configuration, not the code. Concretely `eslint.config.js` + `eslint-plugin-agentproofarch/`, `.dependency-cruiser.cjs`, `tsconfig` strictness, the gate scripts, `config-regression/` and the CI workflows. |
+| **`FOUNDATION.md`** | The provenance file your app writes at its root: upstream repo URL, forked commit SHA, fork date, and the foundation-owned paths. A foundation update is then `git diff <sha>..upstream` over exactly those paths. |
+| **Off the foundation** | Knowingly weakening a *structural* rule — a client importing `core/server`, a framework in `core/**`, dissolving the `core/contract` seam, throwing across a boundary, re-enabling `any`/`as`. Legitimate, but it forfeits the name and the guarantees — and `doc-lint` makes sure it cannot happen silently. |

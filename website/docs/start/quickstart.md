@@ -43,21 +43,26 @@ the same npm major as CI.
 
 ## 2. Environment: nothing to do (locally)
 
-There is no `.env` step for local development. Every key the server needs has a
-dev default in the single env schema (`core/server/config.ts`): `DATABASE_URL`
-defaults to
+For plain local development this step really is **nothing**: no `.env` file to
+create, no variable to export — skip straight to step 3. Every key the server
+reads has a dev default in the single env schema,
+[`demo/core/server/config.ts`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/core/server/config.ts):
+`DATABASE_URL` defaults to
 `postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch`,
 `DB_DRIVER` to `node-postgres` off Vercel, `APP_BASE_DOMAIN` to `localhost`,
-`PORT` to `47100`, and `SMTP_HOST`/`SMTP_PORT` to the dev Mailpit. The dev-only
-`BETTER_AUTH_SECRET` default is *refused* the moment the process looks deployed
-(`VERCEL` set, or `SECURE_COOKIES=true`), so the shortcut cannot leak into a
-deployment.
+`PORT` to `47100`, and `SMTP_HOST`/`SMTP_PORT` to the dev Mailpit.
 
-You want `.env.example` in two cases only:
+The dev-only `BETTER_AUTH_SECRET` default is *refused* the moment the process
+looks deployed (`VERCEL` set, or `SECURE_COOKIES=true`), so the shortcut cannot
+leak into a deployment.
 
-```bash
-cp .env.example .env     # for: Docker self-host, or overriding a dev default
-```
+You create a `.env` (`cp .env.example .env`) in exactly two cases:
+
+1. **Docker self-host** — the compose stack reads keys the bare dev boot never
+   needs (`POSTGRES_*` for the database sidecar, `APP_PORT`, a real
+   `BETTER_AUTH_SECRET`, `SECURE_COOKIES=true`, …).
+2. **Overriding a dev default** — for example pointing `DATABASE_URL` at a
+   different Postgres, or moving a port.
 
 `.env.example` documents **names only**, and it is also the file `doc-lint` checks
 the env schema against — a new env key missing from it fails `check`.
