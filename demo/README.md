@@ -267,7 +267,8 @@ skipped required check would count as passing. Sonnet reviews **only the PR diff
 doctrine (`CLAUDE.md`, the per-layer `CLAUDE.md`s, `architecture.md` §Layers/
 §Principles/§Authorization) and returns a machine-readable verdict via the
 action's `--json-schema` structured output: `{ verdict: PASS | FAIL, summary,
-blocking_issues }`.
+blocking_issues, safe_to_merge, blast_radius: { scope: isolated | contained |
+broad, note } }`.
 
 - **Verdict → exit code.** The action's `structured_output` is the only source of
   truth. `.github/scripts/classify-review.sh` maps each attempt to
@@ -292,7 +293,13 @@ blocking_issues }`.
   ladder is the smallest honest wrapper for it.
 - **Posting.** The verdict is posted back as a single sticky PR comment
   (`post-review.sh`, edit-last-else-create) — best-effort, so a comment-API hiccup
-  cannot flip a real `PASS` to RED.
+  cannot flip a real `PASS` to RED. The comment opens with the verdict
+  (`🤖 AI review: PASS ✅` / `FAIL ❌`), then the safe-to-merge call and the blast
+  radius, a `Summary` section, a `Blocking issues` list when non-empty, and a
+  footer read from the attempt's execution log: resolved model id, turns, token
+  totals and the API-equivalent cost. Safe-to-merge renders `no` on anything but
+  a `PASS` — the fail-closed doctrine decides what may merge, not the model's
+  self-assessment.
 - **Secrets hygiene.** The OAuth token is a subscription-scoped, rotatable,
   limited-value credential from `claude setup-token` — **not** a production
   secret, so keeping it as a repo Actions secret does not violate the
