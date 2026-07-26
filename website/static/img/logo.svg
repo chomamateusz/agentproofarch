@@ -1,7 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="agentproofarch">
-  <g transform="translate(4.5 0) skewX(-14)">
-    <rect x="7" y="6.5" width="17" height="5" rx="1.6" fill="#bfdbfe"/>
-    <rect x="7" y="13.5" width="17" height="5" rx="1.6" fill="#60a5fa"/>
-    <rect x="7" y="20.5" width="17" height="5" rx="1.6" fill="#2563eb"/>
+  <g transform="translate(4.19 0) skewX(-25)">
+    <rect x="8.5" y="6.5" width="15" height="5" rx="1" fill="#bfdbfe"/>
+  </g>
+  <g transform="translate(7.45 0) skewX(-25)">
+    <rect x="8.5" y="13.5" width="15" height="5" rx="1" fill="#60a5fa"/>
+  </g>
+  <g transform="translate(10.71 0) skewX(-25)">
+    <rect x="8.5" y="20.5" width="15" height="5" rx="1" fill="#2563eb"/>
   </g>
 </svg>
