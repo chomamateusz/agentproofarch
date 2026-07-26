@@ -46,6 +46,8 @@ before that lives in the git history only.
 
 ### Changed
 
+- Owner round-5 docs notes: a meaning-matched trailing emoji on every heading
+  site-wide, with 🔷 codified as the official brand emoji ([#80](https://github.com/chomamateusz/agentproofarch/pull/80)).
 - Owner round-4 docs notes: sidebar categories relabelled (Start here, Full
   architecture, Step-by-step guides, Infrastructure, ADRs), the glossary moves
   to the head of Full architecture, and the three heaviest reference pages open

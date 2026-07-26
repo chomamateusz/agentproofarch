@@ -1,11 +1,11 @@
 ---
 title: Agent-Proof Architecture
 slug: /
-sidebar_label: What & why
+sidebar_label: What & why 🔷
 description: An agent-first, strictly layered TypeScript foundation for multi-tenant SaaS.
 ---
 
-# Agent-Proof Architecture
+# Agent-Proof Architecture 🔷 \{#agent-proof-architecture}
 
 ![agentproofarch — agent-first · strictly layered · multi-tenant](../../static/img/banner.png)
 
@@ -32,7 +32,7 @@ A free, open project by **Mateusz Choma**, developed privately in collaboration
 with **[CodeRoad.pl](https://coderoad.pl)** and
 **[AmazingDesign.eu](https://amazingdesign.eu)**.
 
-## What problem does it solve 🎯
+## What problem does it solve 🎯 \{#what-problem-does-it-solve}
 
 If you have watched an AI-assisted codebase rot, you already know these:
 
@@ -60,7 +60,7 @@ Those answers roll up into the four promises the architecture makes
 4. **Everything is testable.** Cores are pure and test without frameworks; the
    rest is driven end-to-end by the gates — static, runtime, browser.
 
-## Start here 🚀
+## Start here 🚀 \{#start-here}
 
 Four commands boot a working demo on your machine, right now — multi-tenancy
 included, on localhost, with seeded data (a demo account and two tenants). The
@@ -88,7 +88,7 @@ Every term this site uses is defined in the [glossary](./glossary.md), which
 opens with the architecture in plain words; the full structural story is in
 [Layers](../architecture/layers.md).
 
-## The feature map 🗺️
+## The feature map 🗺️ \{#the-feature-map}
 
 Every capability is reachable through the web app and, with three deliberate
 exceptions, through the CLI — and the CLI path is the one an agent uses,
@@ -158,7 +158,7 @@ Read the structure top-down in [Layers](../architecture/layers.md), then follow 
 single request through it in
 [Request lifecycle](../architecture/request-lifecycle.md).
 
-## How it defends itself 🛡️
+## How it defends itself 🛡️ \{#how-it-defends-itself}
 
 | Gate | Command | What it proves | Required check? |
 |---|---|---|---|
@@ -187,7 +187,7 @@ source tree on every `check`. See
 [Testing doctrine](../guides/testing-doctrine.md) and
 [CI gates](../operations/ci-gates.md).
 
-## Live demo
+## Live demo 🖥️ \{#live-demo}
 
 [agentproofarch.vercel.app](https://agentproofarch.vercel.app) — sign in as
 `demo@agentproofarch.dev` / `demo1234`. The deployed web app is single-tenant on
@@ -196,7 +196,7 @@ source tree on every `check`. See
 code one — [ADR-0003](../decisions/0003-vercel-environments.md)); the API and CLI
 stay fully multi-tenant via the `X-Tenant` header.
 
-## Honest status
+## Honest status 🚦 \{#honest-status}
 
 - **Vercel target: live. Docker self-host: built** and proven on every PR and push
   to `main` by the `docker-smoke` job — a multi-stage `Dockerfile`, `docker-compose.prod.yml`
@@ -238,7 +238,7 @@ distribution and a version handshake sit on the
 with "first external CLI consumer" as the named trigger.
 :::
 
-## Where the truth lives
+## Where the truth lives 📚 \{#where-the-truth-lives}
 
 The authoritative documents remain in the repository:
 [`docs/architecture.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md)

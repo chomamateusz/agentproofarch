@@ -1,12 +1,12 @@
 ---
 title: Glossary
-sidebar_label: Glossary
+sidebar_label: Glossary 📖
 description: The words this architecture uses precisely — including the two that are deliberately not synonyms.
 ---
 
-# Glossary
+# Glossary 📖 \{#glossary}
 
-## The architecture, in plain words
+## The architecture, in plain words 🏛️ \{#the-architecture-in-plain-words}
 
 A pure-TypeScript core in four layers, one line each:
 
@@ -45,7 +45,7 @@ it names actually lives.
 The normative wording is
 [`docs/architecture.md` §Vocabulary](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md).
 
-## Structure and layers
+## Structure and layers 🧱 \{#structure-and-layers}
 
 | Term | Meaning |
 |---|---|
@@ -65,7 +65,7 @@ The normative wording is
 See [Layers](../architecture/layers.md) and
 [Ports & adapters](../architecture/ports-and-adapters.md).
 
-## Client state
+## Client state 🏝️ \{#client-state}
 
 | Term | Meaning |
 |---|---|
@@ -85,7 +85,7 @@ See [Layers](../architecture/layers.md) and
 
 See [Client state](../architecture/client-state.md).
 
-## Identity and authorization
+## Identity and authorization 🔐 \{#identity-and-authorization}
 
 | Term | Meaning |
 |---|---|
@@ -104,7 +104,7 @@ See [Client state](../architecture/client-state.md).
 See [Identity & multi-tenancy](../architecture/identity-and-multi-tenancy.md) and
 [Authorization](../architecture/authorization.md).
 
-## Errors and the contract
+## Errors and the contract 🚨 \{#errors-and-the-contract}
 
 | Term | Meaning |
 |---|---|
@@ -118,7 +118,7 @@ See [Identity & multi-tenancy](../architecture/identity-and-multi-tenancy.md) an
 
 See [Errors & API versioning](../architecture/errors-and-api-versioning.md).
 
-## Data
+## Data 🗄️ \{#data}
 
 | Term | Meaning |
 |---|---|
@@ -133,7 +133,7 @@ See [Errors & API versioning](../architecture/errors-and-api-versioning.md).
 
 See [Data & transactions](../architecture/data-and-transactions.md).
 
-## Gates, verification and doctrine
+## Gates, verification and doctrine 🛡️ \{#gates-verification-and-doctrine}
 
 | Term | Meaning |
 |---|---|
@@ -157,7 +157,7 @@ See [Data & transactions](../architecture/data-and-transactions.md).
 See [CI gates](../operations/ci-gates.md) and
 [Health & attestation](../operations/health-and-attestation.md).
 
-## Foundation lifecycle
+## Foundation lifecycle 🌱 \{#foundation-lifecycle}
 
 These three terms describe one scenario: you copy this repository's `demo/`
 directory as the starting point — the *foundation* — of your own app. The demo code (todos,

@@ -1,10 +1,10 @@
 ---
 title: Adding a feature
-sidebar_label: Adding a feature
+sidebar_label: Adding a feature ✨
 description: Start with the scaffolder; let the type system drive the chain.
 ---
 
-# Adding a feature
+# Adding a feature ✨ \{#adding-a-feature}
 
 Adding a resource to a strictly layered stack touches twelve files, and the
 tempting fix — a generator that writes all twelve — is the wrong one: generated
@@ -20,7 +20,7 @@ The long-form narration lives in the repository as
 [`docs/first-feature.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/first-feature.md)
 ("your first feature in 30 minutes"). This page is the condensed working version.
 
-## 1. Scaffold
+## 1. Scaffold 🏗️ \{#1-scaffold}
 
 ```bash
 cd demo
@@ -54,7 +54,7 @@ builtins and their own templates only — so extracting them into a package late
 mechanical.
 :::
 
-## 2. The 12-step chain
+## 2. The 12-step chain 🔗 \{#2-the-12-step-chain}
 
 ```mermaid
 flowchart TD
@@ -89,7 +89,7 @@ feature that has no HTTP route and no CLI command. For those three the printed
 checklist — not the compiler — is what guarantees completion. Finish the list.
 :::
 
-## 3. Let the red check drive you
+## 3. Let the red check drive you 🔴 \{#3-let-the-red-check-drive-you}
 
 This is the whole rhythm. Run the gate, read the *first* error, do the step it
 names, run it again.
@@ -142,7 +142,7 @@ npm run db:migrate      # applies it to your dev database
 Commit the generated migration. Never hand-edit an applied one — add a new
 migration instead; deployed migrations are forward-only, expand then contract.
 
-## 4. Tests at the core, first
+## 4. Tests at the core, first ✅ \{#4-tests-at-the-core-first}
 
 Behaviour lives in the use-case layer, and that layer is pure: no server, no
 database, no React. Fill in the generated test file before you wire any UI.
@@ -158,7 +158,7 @@ Turn the placeholders into real tests: the happy path (`addNote` returns `ok`,
 title → `validation`). Getting these green first means the hard part is verified
 independently of Hono and React.
 
-## 5. Verify through the CLI
+## 5. Verify through the CLI ⌨️ \{#5-verify-through-the-cli}
 
 Once the chain compiles, the CLI is the fastest proof the feature is really wired
 end to end:
@@ -174,7 +174,7 @@ If that round-trips, every layer from contract to repository is connected. This 
 the same loop `npm run smoke` automates and the same loop an agent uses — see
 [CLI walkthrough](./cli-walkthrough.md).
 
-## 6. The web page
+## 6. The web page 🖥️ \{#6-the-web-page}
 
 `NotesPage.tsx` and its route module are already generated; steps 11–12 bind them
 to the query client and register the route.
@@ -197,7 +197,7 @@ the server/data slice; `new:island` owns the client feature and its rung-1
 events-in / selectors-out seam. See [Client state](../architecture/client-state.md).
 :::
 
-## 7. Green, then a PR
+## 7. Green, then a PR 🔀 \{#7-green-then-a-pr}
 
 ```bash
 npm run check          # static
@@ -214,7 +214,7 @@ on a clean checkout, `docker-smoke` boots the container stack, and
 `post-deploy-smoke` re-verifies the deployed result. See
 [Agent workflow](./agent-workflow.md) and [CI gates](../operations/ci-gates.md).
 
-## Where to look next
+## Where to look next 📚 \{#where-to-look-next}
 
 - [Layers](../architecture/layers.md) — what each step of the chain is *for*.
 - [Authorization](../architecture/authorization.md) — the capability model behind

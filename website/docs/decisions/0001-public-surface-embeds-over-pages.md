@@ -1,18 +1,18 @@
 ---
 title: 'ADR-0001 — Public surface: headless API and embeds over hosted pages'
-sidebar_label: 0001 · Public surface
+sidebar_label: '0001 · Public surface 🧩'
 description: Why the foundation ships no public marketing pages, and owns the commerce layer instead.
 ---
 
-# ADR-0001 — Public surface: headless API and embeds instead of hosted pages
+# ADR-0001 — Public surface: headless API and embeds instead of hosted pages 🧩 \{#adr-0001--public-surface-headless-api-and-embeds-instead-of-hosted-pages}
 
 **2026-07-11 · accepted (owner-approved).** Supersedes the earlier in-discussion proposal of SSR'd public pages in Hono. → [full ADR on GitHub](https://github.com/chomamateusz/agentproofarch/blob/main/docs/decisions/0001-public-surface-embeds-over-pages.md)
 
-## Summary
+## Summary 📋 \{#summary}
 
 Products on this foundation render **no public marketing or landing pages**. The public surface is a headless JSON API plus — post-MVP — iframe embed widgets and shareable flow URLs. SEO is the creator's own site's job; what the platform owns is the commerce layer.
 
-## The WHY
+## The WHY 🤔 \{#the-why}
 
 The question that started this was technical: how do you render public, SEO-relevant creator pages under the foundation's "static SPA, no SSR, no Next.js" rule? During review the product owner **redefined the problem** instead of answering it.
 
@@ -20,7 +20,7 @@ Creators already have excellent tools for building sites — Astro, Next, Webflo
 
 Stated that way, the SSR question dissolves — there are no pages to render.
 
-## Decided
+## Decided ⚖️ \{#decided}
 
 1. **No public marketing/landing pages.** A hosted-pages/template system is at most a distant nice-to-have.
 2. **Public read-only contract routes** (headless JSON): unauthenticated GET, open CORS, cacheable with tenant-content versioning. This is the base layer every other consumer builds on, and in PoC/MVP the only consumer interface. Its built shape is [ADR-0006](./0006-public-read-only-surface.md).
@@ -46,7 +46,7 @@ flowchart LR
     admin --> api
 ```
 
-## Alternatives considered
+## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |
 |---|---|---|
@@ -54,7 +54,7 @@ flowchart LR
 | **Next.js** | rejected | It buys page-rendering features for a product that no longer renders pages. The cost is a second framework, its platform idioms, a heavier self-host story and blurred layer boundaries. |
 | **A hosted page/template system** | at most a distant nice-to-have | It competes with tools creators already use — and use better — while locking them into platform templates. |
 
-## Consequences
+## Consequences ⚡ \{#consequences}
 
 - **The SSR design shrinks to embeds.** No SEO/meta machinery, no page cache strategy.
 - **A/B assignment happens server-side per widget impression**, and conversion attribution flows through checkout metadata (a variant id) back via the payment webhook.

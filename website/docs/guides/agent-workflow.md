@@ -1,10 +1,10 @@
 ---
 title: Agent workflow
-sidebar_label: Agent workflow
+sidebar_label: Agent workflow 🤖
 description: How this repository is actually built — worktrees, gates, audits, identity.
 ---
 
-# Agent workflow
+# Agent workflow 🤖 \{#agent-workflow}
 
 This repository is written by AI agents, and that is not a footnote — it is the
 design constraint the whole architecture answers. So the workflow is documented
@@ -24,7 +24,7 @@ the per-layer `CLAUDE.md` files under `demo/core`, `demo/adapters` and `demo/app
 and the
 [PR template](https://github.com/chomamateusz/agentproofarch/blob/main/.github/pull_request_template.md).
 
-## One rulebook, two readers
+## One rulebook, two readers 📖 \{#one-rulebook-two-readers}
 
 `AGENTS.md` is a **symlink** to `CLAUDE.md` — at the repository root and in every
 layer directory. That is the whole trick: an agent and a human open the same file,
@@ -38,7 +38,7 @@ means changing `docs/` first, then the code.** The document moves first; the cod
 follows. A PR that quietly moves a boundary without moving the prose is a PR that
 review rejects.
 
-## The lifecycle of a change
+## The lifecycle of a change 🔄 \{#the-lifecycle-of-a-change}
 
 ```mermaid
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     Prod->>CI: post-deploy-smoke asserts the live commit SHA
 ```
 
-## The rules an agent works under
+## The rules an agent works under 📜 \{#the-rules-an-agent-works-under}
 
 - **Worktrees, never the main checkout.** Concurrent sessions must not collide, and
   the PR template has a checkbox for it.
@@ -91,7 +91,7 @@ sequenceDiagram
   one of them gets fixed. A run that went green only via the Playwright retry needs
   a filed P1 linked in the PR ([Testing doctrine](./testing-doctrine.md)).
 
-## The identity split
+## The identity split 🪪 \{#the-identity-split}
 
 Two identities do two different jobs, and the split is visible in the public
 history of every PR.
@@ -128,7 +128,7 @@ bypass list is what stops anyone else. The owner's diff review therefore lands
 See [Environments and promotion](../operations/environments.md).
 :::
 
-## The `ai-review` gate: "could not verify" is not green
+## The `ai-review` gate: "could not verify" is not green 🛡️ \{#the-ai-review-gate-could-not-verify-is-not-green}
 
 The most agent-specific piece of CI. `ai-review.yml` runs
 `anthropics/claude-code-action` (pinned to a commit SHA) on `pull_request`
@@ -189,7 +189,7 @@ cleanly while absent. And a `timeout-minutes: 15` bound exists because of a know
 `--json-schema` CLI hang; a timeout is a RED could-not-run, never a silent pass.
 :::
 
-## Secrets hygiene, and why the review token is not an exception
+## Secrets hygiene, and why the review token is not an exception 🔑 \{#secrets-hygiene-and-why-the-review-token-is-not-an-exception}
 
 The stance (`demo/README.md`, "Operating hygiene for agent-driven repos") is that
 safety is an operating property of the environment, not a policy list an agent is
@@ -208,7 +208,7 @@ asked to remember (DECIDE B5):
   a repo Actions secret does not violate the rule above. The workflow never echoes
   it.
 
-## Attestation: proving the running code is the reviewed code
+## Attestation: proving the running code is the reviewed code 🧾 \{#attestation-proving-the-running-code-is-the-reviewed-code}
 
 Every deploy exposes its build commit SHA on `/api/health*`, and `smoke:remote`
 asserts the live SHA equals the SHA that was reviewed and promoted. That
@@ -217,7 +217,7 @@ code that passed the gates. `post-deploy-smoke` re-runs it on every successful
 Production or Preview deployment. See
 [Health and attestation](../operations/health-and-attestation.md).
 
-## Audits, and writing down what was *not* built
+## Audits, and writing down what was *not* built 🕵️ \{#audits-and-writing-down-what-was-not-built}
 
 Periodic audit packages review the repository against its own doctrine and produce
 two artefacts: **DEFER lists** (accepted as real, deliberately not built) and
@@ -244,7 +244,7 @@ column 0 was executed as workflow commands, and making the visual gate's
 `threshold: 0` match what [ADR-0008](../decisions/0008-visual-regression.md)
 already claimed.
 
-## Reading list for an agent joining this repository
+## Reading list for an agent joining this repository 📚 \{#reading-list-for-an-agent-joining-this-repository}
 
 1. `CLAUDE.md` (root) — the map, and the docs-first rule.
 2. `docs/architecture.md` — normative. PRD §3 is the original contract.

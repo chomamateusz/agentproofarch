@@ -1,10 +1,10 @@
 ---
 title: Observability
-sidebar_label: Observability
+sidebar_label: Observability 🔭
 description: One wide event per request, three chokepoints, and an honest matrix of what is wired versus written down.
 ---
 
-# Observability
+# Observability 🔭 \{#observability}
 
 A production request fails at 03:00 and you have one question: *what was true
 during it?* Step logs answer a different question — what the code was doing —
@@ -23,7 +23,7 @@ Normative: [`docs/observability.md`](https://github.com/chomamateusz/agentproofa
 Code: `demo/apps/server/src/telemetry.ts` (the middleware), `demo/apps/server/src/observability.ts` (the sinks), `demo/apps/web/src/observability.ts`, `demo/core/client/http.ts` (`traceparent` injection), `demo/api/index.ts` (the serverless flush).
 :::
 
-## The standard, and why it is not a port
+## The standard, and why it is not a port 📐 \{#the-standard-and-why-it-is-not-a-port}
 
 Instrumentation is **OpenTelemetry**, through `@opentelemetry/api` — a
 dependency-free facade that no-ops until an SDK is registered in the composition
@@ -37,7 +37,7 @@ a second implementation or a platform difference actually exists
 industry's port, and an error sink is configuration, not a replaceable domain
 dependency. Wrapping either would be port theater.
 
-## Three chokepoints, zero feature changes
+## Three chokepoints, zero feature changes 🚦 \{#three-chokepoints-zero-feature-changes}
 
 Errors and traces already funnel through single points, so instrumentation
 attaches *there* — never inside a use-case, never in a feature.
@@ -75,7 +75,7 @@ and to control cost with tail sampling instead — always keep errors and slow
 requests (>p99), sample the happy path at 1–5%. Read that as written intent: see
 the matrix below for what actually runs.
 
-## What is wired today
+## What is wired today 🔌 \{#what-is-wired-today}
 
 | Piece | Status | Detail |
 |---|---|---|
@@ -111,7 +111,7 @@ calls it in a `finally` around every request. On Docker the long-lived process
 flushes normally — same seam, different lifetime.
 :::
 
-## Where you add instrumentation
+## Where you add instrumentation 🎚️ \{#where-you-add-instrumentation}
 
 - **Business context on the current request** → annotate the active span through
   the `@opentelemetry/api` facade from the use-case. That is allowlisted
@@ -124,7 +124,7 @@ flushes normally — same seam, different lifetime.
   nothing else.
 - **Step logs** → never. Emission belongs to the middleware, exactly once.
 
-## Enforcement
+## Enforcement 🛡️ \{#enforcement}
 
 | Tier | What holds the line |
 |---|---|
