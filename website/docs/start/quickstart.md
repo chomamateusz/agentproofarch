@@ -14,6 +14,24 @@ account and a local mail sink, because every one of those is something the gates
 and the walkthroughs assume exists. Every command below is copied from
 `demo/package.json` and the repository READMEs.
 
+## What you get after boot
+
+The demo is a **walking skeleton** — the thinnest version of the real system
+with every layer connected and actually working — not a scaffold of stubs.
+
+What walks through it, each capability flowing through *every* layer and
+drivable from both the web app and the CLI:
+
+- authentication: password, magic link, TOTP two-factor, passkeys, plus a
+  Google seam that stays dormant unless both of its env vars are set — password
+  and magic link from either surface; TOTP, passkeys and Google are web-only
+  (browser ceremonies the CLI ships no commands for);
+- foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
+  custom domain or subdomain;
+- end-customer members with GDPR export and removal;
+- todos and two exemplar boards (a personal one and a WIP-guarded team one);
+- a public unauthenticated read surface.
+
 ## Prerequisites
 
 | Tool | Version | Why exactly this |

@@ -44,6 +44,10 @@ before that lives in the git history only.
 
 ### Changed
 
+- Owner round-3 docs notes: the landing page slims down — the four boot commands
+  now live only in the quickstart, the walking-skeleton capability list moves to
+  the top of the quickstart as "What you get after boot", and "The architecture,
+  in plain words" becomes the glossary's introduction ([#75](https://github.com/chomamateusz/agentproofarch/pull/75)).
 - Docs-site landing page rewritten for the mid-level-developer audience — name
   gloss in the header, a problem→answer section up front, terms defined at first
   use — and admonition titles across the site fixed to the `:::type[Title]`

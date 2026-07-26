@@ -61,19 +61,19 @@ Those answers roll up into the four promises the architecture makes
 
 ## Start here 🚀
 
-These four commands boot a working demo on your machine, right now —
-multi-tenancy included, on localhost, with seeded data (a demo account and two
-tenants):
+Four commands boot a working demo on your machine, right now — multi-tenancy
+included, on localhost, with seeded data (a demo account and two tenants). The
+[Quickstart](./quickstart.md) has the commands, with every prerequisite, seed
+value and sharp edge spelled out.
 
-```bash
-git clone https://github.com/chomamateusz/agentproofarch.git
-cd agentproofarch/demo && npm ci
-npm run db:up && npm run db:migrate && npm run db:seed
-npm run smoke            # the runtime gate: boots the real server, drives the CLI
-```
+What boots is a **walking skeleton** — the thinnest version of the real system
+with every layer connected and actually working — not a scaffold of stubs. Each
+capability flows through *every* layer and is drivable from both the web app
+and the CLI; the [top of the Quickstart](./quickstart.md#what-you-get-after-boot)
+lists them all.
 
-- **[Quickstart](./quickstart.md)** — the same path with every prerequisite,
-  seed value and sharp edge spelled out.
+From there:
+
 - **[CLI walkthrough](../guides/cli-walkthrough.md)** — the agent feedback loop,
   command by command.
 - **[Adding a feature](../guides/adding-a-feature.md)** — the scaffolder (a
@@ -83,74 +83,9 @@ npm run smoke            # the runtime gate: boots the real server, drives the C
 - **[Agent workflow](../guides/agent-workflow.md)** — how this repository is
   actually developed.
 
-Every term this site uses is also defined in the [glossary](./glossary.md).
-
-## The architecture, in plain words
-
-A pure-TypeScript core in four layers, one line each:
-
-- **`core/domain`** — entities and business rules. Home of **`Result`** (a
-  return value that is explicitly success *or* a typed error — domain failures
-  are returned, never thrown) and the **error taxonomy** (one closed list of
-  error codes, mapped to HTTP statuses and CLI exit codes). Depends on zod
-  alone.
-- **`core/contract`** — API routes plus zod schemas: the **seam** the server
-  and every client agree on for everything the application owns. One carve-out:
-  authentication flows ride Better Auth's own `/api/auth/*` routes, spoken to
-  only through the auth adapters, not through `API_ROUTES`.
-- **`core/server`** — use-cases plus **ports**, the interfaces the core needs
-  from the outside world (database, auth, email).
-- **`core/client`** — the **typed HTTP client**: it calls the contract routes
-  with request and response types checked at compile time.
-
-Around the core sit thin **adapters** implementing the ports (Drizzle database,
-Better Auth, email, domain provisioning) and thin apps (a Hono HTTP server, a
-React SPA, a commander CLI).
-
-`core/**` may not import hono, react, drizzle, better-auth, pg or commander;
-`core/domain` depends on zod alone. A *server* adapter is instantiated in
-exactly one place — `apps/server/src/composition.ts`, the **composition root**.
-None of that is a convention you are asked to remember: it is
-`eslint-plugin-boundaries` plus dependency-cruiser, and violating it fails the
-build.
-
-Deeper: [Layers](../architecture/layers.md),
-[Ports and adapters](../architecture/ports-and-adapters.md),
-[Errors](../architecture/errors-and-api-versioning.md).
-
-### The demo: a walking skeleton
-
-The demo is a **walking skeleton** — the thinnest version of the real system
-with every layer connected and actually working — not a scaffold of stubs.
-
-What walks through it, each capability flowing through *every* layer and
-drivable from both the web app and the CLI:
-
-- authentication: password, magic link, TOTP two-factor, passkeys, plus a
-  Google seam that stays dormant unless both of its env vars are set — password
-  and magic link from either surface; TOTP, passkeys and Google are web-only
-  (browser ceremonies the CLI ships no commands for);
-- foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
-  custom domain or subdomain;
-- end-customer members with GDPR export and removal;
-- todos and two exemplar boards (a personal one and a WIP-guarded team one);
-- a public unauthenticated read surface.
-
-:::note[This is a reference implementation, not a package]
-`demo/package.json` is `private: true` and nothing is published to npm. There is
-no release versioning either: a release is a branch promotion
-(`main` → `production`), the repository carries no version tags, and the
-[changelog](../changelog.md) groups entries by merge date rather than by version. The
-one version number that carries meaning — `0.1.0` in `demo/package.json`; the
-website's `package.json` holds an inert `0.0.0` placeholder — is the build's
-release identity, served as the `version` field of every successful health
-response ([Health & attestation](../operations/health-and-attestation.md)); a
-failing readiness probe answers with a bare `unavailable` error envelope
-instead, and nothing bumps the number on promotion. You read it, fork it, or lift patterns out of it. CLI
-distribution and a version handshake sit on the
-[deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
-with "first external CLI consumer" as the named trigger.
-:::
+Every term this site uses is defined in the [glossary](./glossary.md), which
+opens with the architecture in plain words; the full structural story is in
+[Layers](../architecture/layers.md).
 
 ## The feature map 🗺️
 
@@ -285,6 +220,22 @@ stay fully multi-tenant via the `X-Tenant` header.
   — day-2 operations, threat model, feature flags, forms doctrine, a11y, i18n,
   per-tenant SSO. When a trigger fires the entry graduates into an ADR or an
   implementation slice; it never gets built silently.
+
+:::note[This is a reference implementation, not a package]
+`demo/package.json` is `private: true` and nothing is published to npm. There is
+no release versioning either: a release is a branch promotion
+(`main` → `production`), the repository carries no version tags, and the
+[changelog](../changelog.md) groups entries by merge date rather than by version. The
+one version number that carries meaning — `0.1.0` in `demo/package.json`; the
+website's `package.json` holds an inert `0.0.0` placeholder — is the build's
+release identity, served as the `version` field of every successful health
+response ([Health & attestation](../operations/health-and-attestation.md)); a
+failing readiness probe answers with a bare `unavailable` error envelope
+instead, and nothing bumps the number on promotion. You read it, fork it, or lift patterns out of it. CLI
+distribution and a version handshake sit on the
+[deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
+with "first external CLI consumer" as the named trigger.
+:::
 
 ## Where the truth lives
 
