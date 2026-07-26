@@ -98,7 +98,7 @@ before that lives in the git history only.
   on the port, the CLI section documents the tenant-switch step and the API the
   CLI needs, and a new `pnpm run quickstart:probe` — wired into the required
   smoke job — asserts those promises against a fresh database
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  ([#83](https://github.com/chomamateusz/agentproofarch/pull/83)).
 - Documentation accuracy pass: ruleset descriptions now mirror the live,
   API-verified configuration (both rulesets merge-commit-only; `ai-review`
   required on `main-gates` since 2026-07-26), and the landing
