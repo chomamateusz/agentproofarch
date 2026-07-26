@@ -84,7 +84,9 @@ jobs:
         out of turns without a verdict.
       # Read-only inspection tools only — the model never writes files or posts;
       # the workflow posts the verdict comment itself (deterministic, decoupled
-      # from the model's tool use).
+      # from the model's tool use). Task permits delegating reads to subagents
+      # (they inherit this same allowlist) — without it a large diff burns the
+      # turn budget on sequential file reads (observed: 12 denials on PR #63).
       # Owner cost knobs, all Admin-only repository variables (Settings →
       # Secrets and variables → Actions → Variables), all with safe fallbacks:
       # AI_REVIEW_MODEL (model), AI_REVIEW_MAX_TURNS (investigation depth),
@@ -94,7 +96,7 @@ jobs:
       CLAUDE_ARGS: >-
         --model ${{ vars.AI_REVIEW_MODEL || 'sonnet' }}
         --max-turns ${{ vars.AI_REVIEW_MAX_TURNS || 40 }}
-        --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
+        --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
         --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}},"safe_to_merge":{"type":"boolean"},"blast_radius":{"type":"object","properties":{"scope":{"type":"string","enum":["isolated","contained","broad"]},"note":{"type":"string"}},"required":["scope","note"]}},"required":["verdict","summary","safe_to_merge","blast_radius"]}'
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
