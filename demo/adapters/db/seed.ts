@@ -41,7 +41,8 @@ const seededUsers = await db.select().from(user).where(eq(user.email, DEMO_EMAIL
 const demoUser = seededUsers[0];
 if (!demoUser) throw new Error('Seeded user not found');
 
-const nowIso = new Date().toISOString();
+const seededAt = Date.now();
+const nowIso = new Date(seededAt).toISOString();
 
 const tenantRows = [
   { id: 'tenant-acme', slug: 'acme', name: 'Acme Sp. z o.o.' },
@@ -110,29 +111,33 @@ await db.insert(tenantDomains).values(
   })),
 ).onConflictDoNothing();
 
-await db.insert(todos).values([
+const todoRows = [
   {
-    id: crypto.randomUUID(),
+    id: 'todo-walking-skeleton',
     tenantId: 'tenant-acme',
     title: 'Wdrożyć walking skeleton na produkcję',
-    createdBy: demoUser.id,
-    createdAt: nowIso,
   },
   {
-    id: crypto.randomUUID(),
+    id: 'todo-tenant-isolation',
     tenantId: 'tenant-acme',
     title: 'Sprawdzić izolację danych między tenantami',
-    createdBy: demoUser.id,
-    createdAt: nowIso,
   },
   {
-    id: crypto.randomUUID(),
+    id: 'todo-globex-architecture',
     tenantId: 'tenant-globex',
     title: 'Globex: przygotować prezentację architektury',
-    createdBy: demoUser.id,
-    createdAt: nowIso,
   },
-]).onConflictDoNothing();
+];
+
+// Todos list by ascending `createdAt`, so one shared timestamp would leave the
+// documented order down to Postgres; a second apart makes the listing stable.
+await db.insert(todos).values(
+  todoRows.map((todo, index) => ({
+    ...todo,
+    createdBy: demoUser.id,
+    createdAt: new Date(seededAt + index * 1000).toISOString(),
+  })),
+).onConflictDoNothing();
 
 console.log('Seed applied:');
 console.log(`  user     ${DEMO_EMAIL} / demo1234`);

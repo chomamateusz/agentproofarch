@@ -34,12 +34,15 @@ export default defineConfig({
         // depress the database-free ratchet floor below.
         'scripts/e2e-server.ts',
         // Smoke-gate orchestration, same rationale: these boot the real server /
-        // drive a real deploy through the CLI (`pnpm run smoke` / `smoke:remote`),
-        // so they have no database-free unit surface and are exercised by the
-        // smoke CI job — counting them as 0% would falsely depress the floor.
+        // drive a real deploy through the CLI (`pnpm run smoke`, `smoke:remote`,
+        // `quickstart:probe`), so they have no database-free unit surface and are
+        // exercised by the smoke CI job — counting them as 0% would falsely
+        // depress the floor.
         'scripts/smoke.ts',
         'scripts/smoke-cli.ts',
         'scripts/smoke-remote.ts',
+        'scripts/server-harness.ts',
+        'scripts/quickstart-probe.ts',
         // Mailpit HTTP-API client used by the smoke/e2e harness (recover the
         // captured magic link): a network helper with no database-free unit
         // surface, exercised by the smoke + e2e CI jobs — excluded for the same

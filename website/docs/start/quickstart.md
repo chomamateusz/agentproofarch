@@ -159,31 +159,51 @@ per-subdomain login is a localhost artefact, not the design.
 
 ## 5. Say hello from the CLI ⌨️ \{#5-say-hello-from-the-cli}
 
-The CLI is the reference client and the agent feedback loop. `--silent` keeps pnpm's
-own chatter off stdout, so `--json` really does emit one document:
+The CLI is the reference client and the agent feedback loop. It talks to the API
+over HTTP and defaults to `http://localhost:47100`, so **`pnpm run dev:server`
+has to be running** (`dev:web` on 47180 is not it, and `smoke` boots its own
+throwaway port). `--silent` keeps pnpm's own chatter off stdout, so `--json`
+really does emit one document:
 
 ```bash
 pnpm --silent run cli --json health
 pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
 pnpm --silent run cli whoami
-pnpm --silent run cli --tenant acme todo list
+pnpm --silent run cli tenant switch acme
+pnpm --silent run cli whoami
+pnpm --silent run cli todo list
 ```
 
-Human output of that flow against a fresh seed:
+The first command is machine-readable and prints one JSON envelope:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "status": "ok",
+    "database": "up",
+    "version": "0.1.0",
+    "sha": "unknown"
+  }
+}
+```
+
+The remaining commands use human output. A fresh CLI has no selected tenant until
+`tenant switch acme` persists one:
 
 ```text
-status=ok db=up v0.1.0 sha=unknown
 signed in as demo@agentproofarch.dev
+demo@agentproofarch.dev (no tenant selected)
+active tenant: Acme Sp. z o.o. (acme)
 demo@agentproofarch.dev @ Acme Sp. z o.o. (acme, staff: owner)
-- Wdrożyć walking skeleton na produkcję  (3f8a1c02)
-- Sprawdzić izolację danych między tenantami  (b17d94ee)
+- Wdrożyć walking skeleton na produkcję  (todo-wal)
+- Sprawdzić izolację danych między tenantami  (todo-ten)
 ```
 
 `v0.1.0` is `package.json`'s version (the single release-identity source) and
 `sha=unknown` is the honest local answer — `APP_COMMIT_SHA` is only set by a
 deploy, where `smoke:remote` asserts it equals the promoted commit. The trailing
-parenthesis on a todo is the first 8 characters of its row id; the seed uses
-`crypto.randomUUID()`, so yours will differ. Full tour:
+parenthesis on a todo is the first 8 characters of its stable seed row id. Full tour:
 [CLI walkthrough](../guides/cli-walkthrough.md).
 
 ## 6. Run the gates 🛡️ \{#6-run-the-gates}
@@ -191,6 +211,7 @@ parenthesis on a todo is the first 8 characters of its row id; the seed uses
 ```bash
 pnpm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
 pnpm run smoke            # runtime: isolated DB, real server, CLI flow — ~5s
+pnpm run quickstart:probe # fresh-state promises: repeat seed, two clones, CLI hello
 ```
 
 `smoke` assumes `pnpm run db:up` is running. It does **not** touch your dev-seeded
@@ -207,6 +228,15 @@ smoke: driving the CLI...
 
 smoke: PASS (5.1s)
 ```
+
+`quickstart:probe` is this page's own gate — it makes every promise above
+executable. Like `smoke` it assumes `pnpm run db:up` and stays off your dev data
+(its throwaway database is `agentproofarch_quickstart`), so it reproduces a
+fresh-clone volume: it seeds it, asserts the seed table above row for row, seeds
+again and asserts nothing moved, copies the checkout into a differently named
+directory and asserts that second clone still resolves the `agentproofarch-dev`
+Compose project and re-seeds to the same rows, then boots a server and asserts
+step 5's block line for line.
 
 The browser gate needs Chromium and a built bundle, so it is a separate command
 (and a separate CI job) — run it for any `apps/web` change:
@@ -235,7 +265,8 @@ flowchart TD
   choose -->|"frontend work"| devweb["pnpm run dev:web<br/>Vite on 47180"]
   choose -->|"prod-like page"| build["pnpm run build:web"]
   build --> devserver["pnpm run dev:server<br/>API + SPA on 47100"]
-  choose -->|"verify a capability"| clihello["pnpm --silent run cli --json health"]
+  choose -->|"verify a capability"| cliserver["pnpm run dev:server<br/>API on 47100"]
+  cliserver --> clihello["pnpm --silent run cli --json health<br/>login · tenant switch acme · whoami · todo list"]
   devweb --> gates
   devserver --> gates
   clihello --> gates
@@ -266,6 +297,8 @@ avoided so the stack never collides with whatever else you are running.
 | Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
 | Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
 | `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `pnpm run db:up`, then wait for its healthcheck |
+| A second clone attaches to the first clone's database and Mailpit | `docker-compose.dev.yml` deliberately names one shared machine-wide stack, `agentproofarch-dev` | this is the default design; for per-clone isolation set a unique `COMPOSE_PROJECT_NAME` and non-conflicting `DB_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_API_PORT`, and matching `DATABASE_URL` |
+| Your dev database holds duplicated seed rows (four Acme todos, say) | the volume predates the idempotent seed and accumulated a set per `db:seed` run | reset it with `docker compose -f docker-compose.dev.yml down -v` — **this deletes the dev database volume** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
 
