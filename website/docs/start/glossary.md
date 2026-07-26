@@ -6,11 +6,40 @@ description: The words this architecture uses precisely — including the two th
 
 # Glossary
 
-Two words are routinely used as synonyms elsewhere and are **deliberately not**
+## The architecture, in plain words
+
+A pure-TypeScript core in four layers, one line each:
+
+- **`core/domain`** — entities and business rules. Home of **`Result`** (a
+  return value that is explicitly success *or* a typed error — domain failures
+  are returned, never thrown) and the **error taxonomy** (one closed list of
+  error codes, mapped to HTTP statuses and CLI exit codes). Depends on zod
+  alone.
+- **`core/contract`** — API routes plus zod schemas: the **seam** the server
+  and every client agree on for everything the application owns. One carve-out:
+  authentication flows ride Better Auth's own `/api/auth/*` routes, spoken to
+  only through the auth adapters, not through `API_ROUTES`.
+- **`core/server`** — use-cases plus **ports**, the interfaces the core needs
+  from the outside world (database, auth, email).
+- **`core/client`** — the **typed HTTP client**: it calls the contract routes
+  with request and response types checked at compile time.
+
+Around the core sit thin **adapters** implementing the ports (Drizzle database,
+Better Auth, email, domain provisioning) and thin apps (a Hono HTTP server, a
+React SPA, a commander CLI).
+
+`core/**` may not import hono, react, drizzle, better-auth, pg or commander;
+`core/domain` depends on zod alone. A *server* adapter is instantiated in
+exactly one place — `apps/server/src/composition.ts`, the **composition root**.
+None of that is a convention you are asked to remember: it is
+`eslint-plugin-boundaries` plus dependency-cruiser, and violating it fails the
+build.
+
+The rest of this page pins that vocabulary down, term by term. Two words are
+routinely used as synonyms elsewhere and are **deliberately not**
 synonyms here: *domain* and *feature*. Getting those two right explains why `core/domain` is singular while
 `features/` is plural, and why one business subdomain can have three islands over
-it. The rest of the page is the same treatment for every other term the docs use
-precisely: each entry says what the word means *in this repo*, and where the thing
+it. Each entry says what the word means *in this repo*, and where the thing
 it names actually lives.
 
 The normative wording is
