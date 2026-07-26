@@ -1,7 +1,9 @@
 /**
- * The quickstart's fresh-clone promises, executable: seeding twice is a no-op,
- * a second clone drives the same named dev stack, and the documented CLI hello
- * prints exactly what `website/docs/start/quickstart.md` shows.
+ * The quickstart's fresh-clone promises, executable: the documented seed-table
+ * counts and specifics (member emails/tags/binding, the demo user's grants,
+ * the tenant domains), seeding twice as a no-op, a second clone driving the
+ * same named dev stack, and the documented CLI hello printing exactly what
+ * `website/docs/start/quickstart.md` shows.
  */
 import { type ChildProcess } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -104,6 +106,85 @@ const assertDocumentedCounts = (counts: Counts): void => {
       counts[table] === expected,
       `Quickstart documents ${String(expected)} seeded ${table} row(s), the fresh seed produced ${String(counts[table])}`,
     );
+  }
+};
+
+const memberRowsSchema = z.array(
+  z.object({
+    email: z.string(),
+    slug: z.string(),
+    user_id: z.string().nullable(),
+    tags: z.array(z.string()),
+  }),
+);
+const staffRowsSchema = z.array(z.object({ slug: z.string(), role: z.string() }));
+const domainRowsSchema = z.array(z.object({ slug: z.string(), domain: z.string() }));
+
+// The seed-table specifics the quickstart documents beyond bare counts.
+const assertDocumentedSeedDetails = async (): Promise<void> => {
+  const client = new pg.Client({ connectionString: probeDatabaseUrl });
+  await client.connect();
+  try {
+    const memberRows = memberRowsSchema.parse(
+      (
+        await client.query(
+          'SELECT m.email, t.slug, m.user_id, m.tags FROM members m JOIN tenants t ON t.id = m.tenant_id ORDER BY m.email',
+        )
+      ).rows,
+    );
+    const membersByEmail = new Map(memberRows.map((row) => [row.email, row]));
+
+    const alice = membersByEmail.get('alice@example.com');
+    assert(
+      alice !== undefined && alice.slug === 'acme',
+      `Quickstart documents alice@example.com as an acme member, got ${JSON.stringify(memberRows)}`,
+    );
+    assert(
+      alice.tags.join(',') === 'vip,early-adopter',
+      `Quickstart documents alice@example.com tagged vip, early-adopter, got ${JSON.stringify(alice.tags)}`,
+    );
+    const mag = membersByEmail.get('mag@example.com');
+    assert(
+      mag !== undefined && mag.slug === 'acme',
+      `Quickstart documents mag@example.com as an acme member, got ${JSON.stringify(memberRows)}`,
+    );
+    assert(
+      mag.user_id === null,
+      `Quickstart documents mag@example.com as provisioned with no account yet, got user_id=${JSON.stringify(mag.user_id)}`,
+    );
+    const bob = membersByEmail.get('bob@example.com');
+    assert(
+      bob !== undefined && bob.slug === 'globex',
+      `Quickstart documents bob@example.com as a globex member, got ${JSON.stringify(memberRows)}`,
+    );
+
+    const staffRows = staffRowsSchema.parse(
+      (
+        await client.query(
+          `SELECT t.slug, ta.role FROM tenant_admins ta JOIN tenants t ON t.id = ta.tenant_id JOIN "user" u ON u.id = ta.user_id WHERE u.email = 'demo@agentproofarch.dev' ORDER BY t.slug`,
+        )
+      ).rows,
+    );
+    const staff = staffRows.map((row) => `${row.slug}=${row.role}`).join(' ');
+    assert(
+      staff === 'acme=owner globex=admin',
+      `Quickstart documents the demo user as owner in acme and admin in globex, got "${staff}"`,
+    );
+
+    const domainRows = domainRowsSchema.parse(
+      (
+        await client.query(
+          'SELECT t.slug, td.domain FROM tenant_domains td JOIN tenants t ON t.id = td.tenant_id ORDER BY td.domain',
+        )
+      ).rows,
+    );
+    const domains = domainRows.map((row) => `${row.slug}=${row.domain}`).join(' ');
+    assert(
+      domains === 'acme=acme.localhost globex=globex.localhost',
+      `Quickstart documents domains acme.localhost and globex.localhost, got "${domains}"`,
+    );
+  } finally {
+    await client.end();
   }
 };
 
@@ -226,6 +307,7 @@ try {
   await seed(rootDir);
   const seeded = await readCounts();
   assertDocumentedCounts(seeded);
+  await assertDocumentedSeedDetails();
 
   console.log('quickstart:probe: seeding again (the documented no-op)...');
   await seed(rootDir);

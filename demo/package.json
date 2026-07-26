@@ -24,7 +24,7 @@
     "knip": "knip",
     "doc-lint": "tsx scripts/doc-lint.ts",
     "check": "pnpm run typecheck && pnpm run typecheck:islands && pnpm run lint && pnpm run lock-lint && pnpm run depcruise && pnpm run knip && pnpm run doc-lint && pnpm run test:coverage",
-    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:up": "tsx scripts/db-up-preflight.ts && docker compose -f docker-compose.dev.yml up -d",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx adapters/db/migrate.ts",
     "db:seed": "tsx adapters/db/seed.ts",

@@ -43,6 +43,9 @@ export default defineConfig({
         'scripts/smoke-remote.ts',
         'scripts/server-harness.ts',
         'scripts/quickstart-probe.ts',
+        // Gate-adjacent orchestration too: it shells out to `docker ps` and
+        // process.exit()s, so it has no database-free unit surface either.
+        'scripts/db-up-preflight.ts',
         // Mailpit HTTP-API client used by the smoke/e2e harness (recover the
         // captured magic link): a network helper with no database-free unit
         // surface, exercised by the smoke + e2e CI jobs — excluded for the same

@@ -229,14 +229,19 @@ smoke: driving the CLI...
 smoke: PASS (5.1s)
 ```
 
-`quickstart:probe` is this page's own gate — it makes every promise above
-executable. Like `smoke` it assumes `pnpm run db:up` and stays off your dev data
-(its throwaway database is `agentproofarch_quickstart`), so it reproduces a
-fresh-clone volume: it seeds it, asserts the seed table above row for row, seeds
-again and asserts nothing moved, copies the checkout into a differently named
-directory and asserts that second clone still resolves the `agentproofarch-dev`
-Compose project and re-seeds to the same rows, then boots a server and asserts
-step 5's block line for line.
+`quickstart:probe` is this page's own gate. Like `smoke` it assumes `pnpm run
+db:up` and stays off your dev data (its throwaway database is
+`agentproofarch_quickstart`), so it reproduces a fresh-clone volume. What it
+asserts, exactly: the per-table row counts behind the seed table above (1 user,
+2 tenants, 2 staff grants, 2 domains, 3 members, 3 todos); the seed table's
+cheap specifics — the three member emails with their tenants, alice's
+`vip`/`early-adopter` tags, mag's not-yet-bound account, the demo user's
+owner-in-acme / admin-in-globex grants, and the `acme.localhost` /
+`globex.localhost` domain rows; that seeding again changes no row count; that a
+copy of the checkout under a different directory name still resolves the shared
+`agentproofarch-dev` Compose project and re-seeds to the same counts; and that
+a freshly booted server answers step 5's CLI block line for line. It does not
+diff full rows beyond those fields, and it does not replay steps 1–4.
 
 The browser gate needs Chromium and a built bundle, so it is a separate command
 (and a separate CI job) — run it for any `apps/web` change:
@@ -298,7 +303,8 @@ avoided so the stack never collides with whatever else you are running.
 | Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
 | `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `pnpm run db:up`, then wait for its healthcheck |
 | A second clone attaches to the first clone's database and Mailpit | `docker-compose.dev.yml` deliberately names one shared machine-wide stack, `agentproofarch-dev` | this is the default design; for per-clone isolation set a unique `COMPOSE_PROJECT_NAME` and non-conflicting `DB_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_API_PORT`, and matching `DATABASE_URL` |
-| Your dev database holds duplicated seed rows (four Acme todos, say) | the volume predates the idempotent seed and accumulated a set per `db:seed` run | reset it with `docker compose -f docker-compose.dev.yml down -v` — **this deletes the dev database volume** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
+| `pnpm run db:up` refuses to start (or Docker reports port 47542 already allocated), and `docker ps` shows a `demo-db-1` container | your checkout predates the `agentproofarch-dev` project name, so Docker still runs the old directory-derived project `demo`, which owns port 47542 and the volume `demo_agentproofarch-pgdata`; the renamed stack cannot start next to it | retire the **old** project by name: `docker compose -p demo down -v` — **this deletes the old dev volume; its seed data is disposable** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
+| Your dev database holds duplicated seed rows (four Acme todos, say) | the volume predates the idempotent seed and accumulated a set per `db:seed` run | reset the **current** `agentproofarch-dev` stack from `demo/` with `docker compose -f docker-compose.dev.yml down -v` — **this deletes the dev database volume** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
 

@@ -94,7 +94,11 @@ before that lives in the git history only.
   instead of fresh UUIDs, which duplicated the todo set on every re-run) and
   orders its todos deterministically, `docker-compose.dev.yml` names one shared
   `agentproofarch-dev` stack so a second clone stops silently forking the dev
-  database, `smoke` reaps a server that misses readiness instead of orphaning it
+  database — existing checkouts still running the old directory-derived `demo`
+  project retire it with `docker compose -p demo down -v` (deletes the old,
+  disposable dev volume) before the next `pnpm run db:up`, which now detects the
+  legacy stack holding the port and refuses with that remedy —
+  `smoke` reaps a server that misses readiness instead of orphaning it
   on the port, the CLI section documents the tenant-switch step and the API the
   CLI needs, and a new `pnpm run quickstart:probe` — wired into the required
   smoke job — asserts those promises against a fresh database
