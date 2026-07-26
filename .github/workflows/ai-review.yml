@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     # Bounds the known `--json-schema` CLI-hang failure mode (claude-code#27926);
     # a timeout is a RED could-not-run, never a silent pass.
-    timeout-minutes: 15
+    timeout-minutes: ${{ fromJSON(vars.AI_REVIEW_TIMEOUT_MINUTES || '15') }}
     env:
       REVIEW_PROMPT: |
         You are the fail-closed AI review gate for the agentproofarch repository.
@@ -66,15 +66,36 @@ jobs:
         Be strict: when a real doctrine violation is genuinely in doubt, FAIL.
         Do not modify any files. Conclude by calling the StructuredOutput tool
         with: verdict (PASS if mergeable, FAIL if there are blocking issues), a
-        concise summary, and blocking_issues (empty when PASS).
+        concise summary, blocking_issues (empty when PASS), safe_to_merge (true
+        ONLY together with verdict PASS — a FAIL is never safe to merge), and
+        blast_radius judged from the diff alone: scope is `isolated` when the
+        effects stay inside the touched files (config-only, docs, a leaf
+        module), `contained` when one layer or feature reacts to them, `broad`
+        when core layers, the gates/CI or data/migrations are touched; note is
+        one sentence naming what is affected — which layers, gates or runtime
+        paths.
+
+        You run under a hard turn cap. Budget it: read the full diff first;
+        on a large diff, triage — inspect closely only the files where the
+        doctrine above is at risk. Always leave your last turn for the
+        StructuredOutput call. If the cap is near and you have not finished a
+        confident review, call StructuredOutput with verdict FAIL and say in
+        the summary what remained unreviewed — an explicit FAIL beats running
+        out of turns without a verdict.
       # Read-only inspection tools only — the model never writes files or posts;
       # the workflow posts the verdict comment itself (deterministic, decoupled
       # from the model's tool use).
+      # Owner cost knobs, all Admin-only repository variables (Settings →
+      # Secrets and variables → Actions → Variables), all with safe fallbacks:
+      # AI_REVIEW_MODEL (model), AI_REVIEW_MAX_TURNS (investigation depth),
+      # AI_REVIEW_TIMEOUT_MINUTES (job bound above). They tune cost/depth only —
+      # allowedTools and the verdict schema are the gate's security/contract
+      # surface and stay hardcoded.
       CLAUDE_ARGS: >-
-        --model sonnet
-        --max-turns 20
+        --model ${{ vars.AI_REVIEW_MODEL || 'sonnet' }}
+        --max-turns ${{ vars.AI_REVIEW_MAX_TURNS || 40 }}
         --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git fetch:*),Bash(git log:*),Bash(git show:*)"
-        --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}}},"required":["verdict","summary"]}'
+        --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"summary":{"type":"string"},"blocking_issues":{"type":"array","items":{"type":"string"}},"safe_to_merge":{"type":"boolean"},"blast_radius":{"type":"object","properties":{"scope":{"type":"string","enum":["isolated","contained","broad"]},"note":{"type":"string"}},"required":["scope","note"]}},"required":["verdict","summary","safe_to_merge","blast_radius"]}'
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
@@ -223,6 +244,8 @@ jobs:
           OUT1R: ${{ steps.try1r.outputs.structured_output }}
           OUT2: ${{ steps.try2.outputs.structured_output }}
           OUT3: ${{ steps.try3.outputs.structured_output }}
+          EXEC_LOG: ${{ runner.temp }}/claude-execution-output.json
+          MODEL_ARG: ${{ vars.AI_REVIEW_MODEL || 'sonnet' }}
         run: bash "$GITHUB_WORKSPACE/.github/scripts/post-review.sh"
 
       - name: Gate — fail-closed verdict
