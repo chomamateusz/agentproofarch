@@ -44,8 +44,8 @@ the same npm major as CI.
 ## 2. Environment: nothing to do (locally)
 
 For plain local development this step really is **nothing**: no `.env` file to
-create, no variable to export — skip straight to step 3. Every key the server
-reads has a dev default in the single env schema,
+create, no variable to export — skip straight to step 3. Every key a local boot
+needs has a dev default in the single env schema,
 [`demo/core/server/config.ts`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/core/server/config.ts):
 `DATABASE_URL` defaults to
 `postgresql://agentproofarch:agentproofarch@localhost:47542/agentproofarch`,
@@ -56,13 +56,17 @@ The dev-only `BETTER_AUTH_SECRET` default is *refused* the moment the process
 looks deployed (`VERCEL` set, or `SECURE_COOKIES=true`), so the shortcut cannot
 leak into a deployment.
 
-You create a `.env` (`cp .env.example .env`) in exactly two cases:
+You create a `.env` (`cp .env.example .env`) in three cases:
 
 1. **Docker self-host** — the compose stack reads keys the bare dev boot never
    needs (`POSTGRES_*` for the database sidecar, `APP_PORT`, a real
    `BETTER_AUTH_SECRET`, `SECURE_COOKIES=true`, …).
 2. **Overriding a dev default** — for example pointing `DATABASE_URL` at a
    different Postgres, or moving a port.
+3. **Turning on an optional integration that ships off** — Google sign-in
+   (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`), Sentry, OTel, the SES email
+   transport, Vercel domain provisioning, the backfill route. Their keys have
+   no dev default because absent means the feature stays dormant.
 
 `.env.example` documents **names only**, and it is also the file `doc-lint` checks
 the env schema against — a new env key missing from it fails `check`.

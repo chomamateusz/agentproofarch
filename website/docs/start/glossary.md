@@ -130,8 +130,8 @@ See [CI gates](../operations/ci-gates.md) and
 
 ## Foundation lifecycle
 
-These three terms describe one scenario: you copy this repository as the
-starting point — the *foundation* — of your own app. The demo code (todos,
+These three terms describe one scenario: you copy this repository's `demo/`
+directory as the starting point — the *foundation* — of your own app. The demo code (todos,
 cards, the seeded tenants) is not what you are taking; you replace it with your
 own domain. What you carry forward is the **enforcement configuration** — the
 lint rules, dependency-cruiser config, `tsconfig` strictness, gate scripts,
