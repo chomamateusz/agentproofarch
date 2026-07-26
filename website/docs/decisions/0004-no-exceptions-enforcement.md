@@ -59,7 +59,7 @@ flowchart TD
 ## Consequences
 
 - **Every PR is red until both gates pass**, and every production deploy is independently re-verified end to end. Both historical failure classes are structurally caught.
-- **Branch protection is server-enforced.** The repository is **public**, so GitHub rulesets are available at no cost, and two are in force with **empty bypass lists**: `main-gates` on `main` (PR + the four required checks `check` / `smoke` / `e2e` / `docker-smoke` + "require branches up to date", 0 approvals, merge-commit only) and `production-protection` on `production` (the same four checks + **1 required approval**, stale approvals dismissed on push). A merge is therefore *blocked*, not merely marked red. This supersedes the earlier private-repo limitation, when the branch-protection API returned `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — **going public was the resolution.**
+- **Branch protection is server-enforced.** The repository is **public**, so GitHub rulesets are available at no cost, and two are in force with **empty bypass lists**: `main-gates` on `main` (PR + the required checks `check` / `smoke` / `e2e` / `docker-smoke` / `ai-review` + "require branches up to date", 0 approvals, merge-commit only) and `production-protection` on `production` (the same four checks + **1 required approval**, stale approvals dismissed on push, merge-commit only). A merge is therefore *blocked*, not merely marked red. This supersedes the earlier private-repo limitation, when the branch-protection API returned `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — **going public was the resolution.**
 - **CI runs only on the canonical repo.** Every job is guarded with `if: github.repository == 'chomamateusz/agentproofarch'`, so a fork never spends Actions minutes or fails on missing secrets and services.
 - **Probes and doc-lint add maintenance surface** — fixtures must track the rules they guard — accepted as the price of turning "you cannot silently disable a rule" from a hope into a mechanical guarantee.
 
@@ -74,6 +74,6 @@ Decision point 2 described the narrowest form of the gate. The shipped workflow 
 :::caution Honest caveats
 - **Doc-lint is a named-manifest check**, not a proof that every prose-promised guarantee or boundary is covered by an enforcer.
 - **Some config-regression tests are structural rule-presence checks** rather than fixture-feeding probes.
-- **The AI-review gate that fulfils the REVIEW+AI tier is built but not yet required.** It ships non-required until the owner adds the `ai-review` context to `main-gates` — see [CI gates](../operations/ci-gates.md).
+- **The AI-review gate that fulfils the REVIEW+AI tier is built and, since 2026-07-26, a required check on `main-gates`** — armed after it accumulated a verdict track record. See [CI gates](../operations/ci-gates.md).
 - **The required set is exactly four checks.** `visual` ([ADR-0008](./0008-visual-regression.md)), `ai-review` and `docs-build` all run and report without blocking, each for a stated reason.
 :::

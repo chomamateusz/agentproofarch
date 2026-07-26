@@ -75,7 +75,7 @@ green.
    to fix.
 
 5. **Third-party actions are pinned by full commit SHA.** Every `uses:` in every
-   workflow (`ci`, `post-deploy-smoke`, `selfhost`) references an immutable commit
+   workflow under `.github/workflows/` references an immutable commit
    SHA, never a mutable tag like `@v4` — a tag can be force-moved onto malicious
    code under an unchanged CI config. A trailing comment records the
    human-readable version the SHA resolved to (`# v4.3.0`, `# v4.4.0`; a
@@ -97,11 +97,11 @@ cells name a commissioned gate, not a shipped one.
   runtime-only breakage and stale local state — are both structurally caught.
 - **Branch protection is now server-enforced.** The repository is **public**, so
   GitHub rulesets are available at no cost, and two are in force with **empty
-  bypass lists**: `main-gates` on `main` (require a PR + the four required status
-  checks `check` / `smoke` / `e2e` / `docker-smoke` + "require branches up to
-  date", 0 approvals, merge-commit only) and `production-protection` on
+  bypass lists**: `main-gates` on `main` (require a PR + the required status
+  checks `check` / `smoke` / `e2e` / `docker-smoke` / `ai-review` + "require
+  branches up to date", 0 approvals, merge-commit only) and `production-protection` on
   `production` (the same four checks + **1 required approval**, stale approvals
-  dismissed on push). A merge is therefore **blocked**
+  dismissed on push, merge-commit only). A merge is therefore **blocked**
   on a failing or missing check, not merely marked red. This supersedes the
   earlier private-repo limitation, when the branch-protection API returned
   `403 "Upgrade to GitHub Pro"` and enforcement was discipline-only — going public

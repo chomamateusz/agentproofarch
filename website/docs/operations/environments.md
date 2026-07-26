@@ -60,8 +60,8 @@ Both carry an **empty bypass list**, so no identity — Admin included — merge
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**, with stale approvals dismissed on push and the last pusher's approval required; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
-| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval**, with stale approvals dismissed on push and the last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
 
 One asymmetry is worth reading off that table rather than assuming: the **merge-method** restriction lives on `main`, not on `production`. `main-gates` allows a merge commit only; `production-protection` permits merge, squash and rebase, because on that branch the gate is the approval, not the button.
 
@@ -147,7 +147,7 @@ Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant
 - **No base-domain shape is live yet.** Both recorded plans — the delegated `agentproofarch.eu.org` and the company-DNS wildcard CNAME bridge — are pending, so the deployed web stays single-tenant on `*.vercel.app` and the CLI's `X-Tenant` carries multi-tenancy.
 - **ADR-0003 is superseded in part.** Its point 1 described `main` as production plus a long-lived `staging` branch. That mapping is gone and the branch relic is deleted; points 2–7 stand.
 - **Browser multi-tenancy is unexercised on previews** until a wildcard domain exists. `smoke:remote` covers the CLI/`X-Tenant` path meanwhile.
-- **Two CI jobs deliberately do not block a merge** (`visual`, `ai-review`) — the required set is exactly four checks. See [CI gates](./ci-gates.md).
+- **One CI job deliberately does not block a merge** (`visual`) — on `main` the required set is the four platform checks plus `ai-review`, armed 2026-07-26 after a verdict track record. See [CI gates](./ci-gates.md).
 - **A cross-subdomain session on a real base domain is documented but not locally testable** — it is recorded as a verification residual to be confirmed live on the first custom base-domain deployment.
 :::
 

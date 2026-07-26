@@ -26,7 +26,7 @@ flowchart TD
     ci --> e2e["e2e — REQUIRED<br/>Chromium over the real stack"]
     ci --> visual["visual — not required<br/>pixel comparison"]
     sh --> docker["docker-smoke — REQUIRED<br/>build image, boot compose, smoke:remote"]
-    ai --> aireview["ai-review — not required yet<br/>fail-closed doctrine review"]
+    ai --> aireview["ai-review — required on main<br/>fail-closed doctrine review"]
     dci --> docsbuild["docs-build — not required<br/>Docusaurus build + typecheck<br/>+ mermaid parse check"]
 
     deploy["deployment_status success<br/>Production or Preview"] --> pds["post-deploy-smoke.yml<br/>smoke:remote + EXPECTED_SHA"]
@@ -38,7 +38,7 @@ flowchart TD
 |---|---|---|---|
 | `ci.yml` | `pull_request`, `push` to `main` | `check`, `smoke`, `e2e`, `visual` | first three **yes**; `visual` no |
 | `selfhost.yml` | `pull_request`, `push` to `main` | `docker-smoke` | **yes** |
-| `ai-review.yml` | PRs to `main` (`opened` / `synchronize` / `ready_for_review`), non-draft | `ai-review` | not yet — see below |
+| `ai-review.yml` | PRs to `main` (`opened` / `synchronize` / `ready_for_review`), non-draft | `ai-review` | **yes**, on `main-gates` (since 2026-07-26) |
 | `post-deploy-smoke.yml` | `deployment_status` | `smoke-remote` | n/a — runs after a deploy |
 | `visual-baselines.yml` | `workflow_dispatch` | `visual-baselines` | n/a — authoring tool |
 | `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
@@ -46,7 +46,7 @@ flowchart TD
 
 ## The required set
 
-The `main-gates` and `production-protection` rulesets name exactly four status checks: **`check`**, **`smoke`**, **`e2e`**, **`docker-smoke`**. A merge is *blocked* on a failing or missing one — not merely marked red.
+`production-protection` names four status checks — **`check`**, **`smoke`**, **`e2e`**, **`docker-smoke`** — and `main-gates` names those four plus **`ai-review`**. A merge is *blocked* on a failing or missing one — not merely marked red.
 
 ### `check` — the static gate
 
@@ -109,12 +109,12 @@ Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs
 
 ## Deliberately non-required
 
-Three jobs run and report without blocking. Each non-required status is a stated design decision, not an oversight.
+Two jobs run and report without blocking (`ai-review` graduated to required on 2026-07-26). Each non-required status is a stated design decision, not an oversight.
 
 | Job | Why it does not block | How it becomes blocking |
 |---|---|---|
 | `visual` | Pixel comparison is the classic rerun-to-green offender, and the flake doctrine treats a flake as a P1 bug. The check earns arming only after a run history of green comparisons ([ADR-0008](../decisions/0008-visual-regression.md) §4). | The owner adds `visual` to `main-gates`' required list — and takes it back out the moment it flakes. |
-| `ai-review` | It ships non-required so the gate can accumulate a track record before it can block anyone. | The owner adds the status-check context **`ai-review`** (the job name) to `main-gates`. Admin-only. |
+| `ai-review` | Shipped non-required to accumulate a verdict track record first; **armed as a required `main-gates` check on 2026-07-26**. | Done — the owner added the **`ai-review`** context (the job name) to `main-gates`. Admin-only. |
 | `docs-build` | It is **path-filtered** on `website/**` and `CHANGELOG.md`, so on a PR that leaves both alone it never runs — and a required check that never runs is unmergeable. | Not possible as written; the path filter would have to go first. |
 
 On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact (7-day retention), because a developer on macOS gets no local comparison at all: baselines are platform-scoped and `ignoreSnapshots` is on for every non-linux platform. New baselines come from the separate `visual-baselines` workflow (`workflow_dispatch`, `update: true`), which re-renders and then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs — so an authoring run that died before the harness booted cannot ship an empty or partial baseline set.
@@ -290,7 +290,7 @@ Because this drives live production, it runs under the production smoke-account 
 - **The enforcers are enforced.** Config-regression probes feed a deliberately violating fixture to a lint or dependency-cruiser rule and assert the gate still goes red, so a rule cannot be quietly deleted while CI stays green ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md) §3).
 
 :::caution Honest caveats
-- **`ai-review` blocks nothing today.** It runs and posts on every non-draft PR to `main`, but it is not in the `main-gates` required-checks list. Arming it is a one-line, Admin-only ruleset edit that has not been made.
+- **`ai-review` blocks merges to `main`.** It runs and posts on every non-draft PR to `main` and has been in the `main-gates` required-checks list since 2026-07-26; a PR without a PASS verdict cannot merge. It does not (and technically cannot) gate `production` PRs — the workflow triggers only on PRs to `main`, and every commit reaching a release PR has already been individually reviewed there.
 - **`visual` blocks nothing today** either, by design — and runner-image drift (a font package changing in `ubuntu-latest`) will one day redraw a baseline with no code change. That is the accepted cost of exactness at `maxDiffPixels: 0` *and* `threshold: 0`.
 - **`docs-build` cannot be made required as written**, because it is path-filtered.
 - **`doc-lint` is a named-manifest check**, not proof that every prose-promised guarantee has an enforcer. Some config-regression tests are rule-presence checks rather than fixture-feeding probes.
