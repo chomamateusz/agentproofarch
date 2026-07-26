@@ -22,8 +22,8 @@ before that lives in the git history only.
   stubbed `fetch` only; the first live add/check/remove is the acceptance run
   ([#62](https://github.com/chomamateusz/agentproofarch/pull/62)).
 - Documentation site: Docusaurus 3 under `website/`, published to GitHub Pages by
-  `docs-deploy.yml`, with `docs-ci.yml` failing a PR on a broken link or a broken
-  build. The site's changelog page is generated from this file, and a standing
+  `docs-deploy.yml`, with `docs-ci.yml` reporting a broken link or build on PRs
+  (a non-required check). The site's changelog page is generated from this file, and a standing
   convention now requires a behaviour-visible change to update `website/docs` and
   add an entry here in the same PR.
 - Mermaid parse gate for the docs site (`npm run check:mermaid`): mermaid renders
