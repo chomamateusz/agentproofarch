@@ -114,15 +114,14 @@ enterprise customer questionnaire)
   `deployment_status`) does not apply to the PR-merge model
   ([deploy-promotion.md](deploy-promotion.md) §b step 6).
 
-## Optional second reviewer (trigger: owner wants a deterministic-lint second opinion)
+## Optional second reviewer (shipped 2026-07-26)
 
-- **CodeRabbit as an optional second reviewer.** Now that the repo is public,
-  CodeRabbit is free for open-source and could run alongside the `ai-review` gate
-  as a non-blocking second opinion (it comments; it does not replace the
-  fail-closed gate). Not built: the doctrine-scoped `ai-review` gate is the
-  enforcement tier and a second AI commenter adds noise, not enforcement. Add it
-  only if the owner wants the extra perspective; if added, it stays advisory
-  (never a required check), so it can never turn a real `FAIL` green.
+- **CodeRabbit runs as the optional second reviewer.** The owner installed the
+  GitHub App and `.coderabbit.yaml` configures it: chill profile, no
+  request-changes, doctrine-pointing path instructions, noise exclusions. It is
+  **advisory only** — it comments and posts a non-required `CodeRabbit` status;
+  the fail-closed `ai-review` gate remains the sole enforcement tier, so
+  CodeRabbit can never turn a real `FAIL` green nor block a merge itself.
 
 ## Open owner decisions (not deferred — awaiting answers)
 

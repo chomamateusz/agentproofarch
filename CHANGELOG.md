@@ -15,6 +15,11 @@ before that lives in the git history only.
 
 ### Added
 
+- CodeRabbit as an advisory second reviewer: `.coderabbit.yaml` (chill
+  profile, no request-changes, doctrine path instructions); comments on
+  every non-draft PR without ever blocking one
+  ([#69](https://github.com/chomamateusz/agentproofarch/pull/69)).
+
 - Vercel domain-provisioning adapter (US-020): `DOMAIN_PROVISIONER=vercel` attaches
   each tenant host to the Vercel project over the Domains API for a per-host HTTP-01
   certificate, selected explicitly with `VERCEL_TOKEN` + `VERCEL_PROJECT_ID`
