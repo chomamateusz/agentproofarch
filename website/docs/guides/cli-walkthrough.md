@@ -8,11 +8,13 @@ description: The agent feedback loop — the invocation model, the envelope, and
 
 *Read this if you are driving the system from the CLI — by hand, or as an agent. Per-command transcripts live in the [CLI command reference](./cli-reference.md).*
 
-An agent cannot read a screenshot to decide whether it wired a feature correctly.
-The CLI is the closed verification loop that answers instead. Three properties
-make it one: every capability has a command, `--json` prints exactly **one** JSON
-document on stdout, and the process exit code is mapped from the error taxonomy
-rather than chosen ad hoc.
+An agent *can* read a screenshot to decide whether it wired a feature correctly —
+vision-loop verification works. It is just a poor default: probabilistic where an
+exit code is exact, and one to two orders of magnitude more tokens and latency
+per check. The CLI is the closed verification loop that answers cheaply and
+exactly instead. Three properties make it one: every capability has a command,
+`--json` prints exactly **one** JSON document on stdout, and the process exit
+code is mapped from the error taxonomy rather than chosen ad hoc.
 
 It is also the reference client. It goes through `core/client` exactly like the
 web app does, never hand-writing a URL, so a CLI round-trip proves every layer
@@ -71,22 +73,51 @@ Three properties fall out of that shape and matter to anyone scripting it:
 | `--api-url <url>` | API base URL for this invocation; must parse as a URL |
 | `--tenant <slug>` | tenant slug for this invocation; must parse as a canonical slug |
 
-Both `--api-url` and `--tenant` **override** the stored config for that
-invocation. The config lives at `~/.config/agentproofarch/config.json`, is written
-with mode `0600`, and holds three keys:
+The config lives at `~/.config/agentproofarch/config.json`, is written
+atomically with mode `0600`, and keeps one session profile per canonical API
+origin:
 
 ```json
 {
-  "apiUrl": "http://localhost:47100",
-  "token": null,
-  "tenant": null
+  "version": 2,
+  "currentOrigin": "http://localhost:47100",
+  "profiles": {
+    "http://localhost:47100": {
+      "token": "…",
+      "tenant": "acme"
+    },
+    "https://agentproofarch.vercel.app": {
+      "token": "…",
+      "tenant": null
+    }
+  }
 }
 ```
 
-`login` / `register` / `login-link --link` store the session token there,
-`tenant switch` stores the active tenant, and `logout` sets the token back to
-`null` — after revoking the session server-side first, because a bearer-authenticated
-CLI that only cleared its local copy would leave the session valid.
+API URL precedence is `--api-url` → `APP_CLI_API_URL` → the local dev default
+when running inside this repo → `currentOrigin`. Tenant precedence is
+`--tenant` → `APP_CLI_TENANT` → the selected origin profile. The token always
+comes from that profile; there is no token environment variable.
+
+`login` / `register` / `login-link --link` store the session token under the
+active origin only, `tenant switch` stores that origin's tenant, and `logout`
+sets that origin's token back to `null` — after revoking the session server-side
+first, because a bearer-authenticated CLI that only cleared its local copy would
+leave the session valid.
+
+A deliberate context switch keeps both sessions:
+
+```bash
+pnpm --silent run cli origin use http://localhost:47100
+pnpm --silent run cli --api-url https://agentproofarch.vercel.app login --email you@example.com --password '…'
+pnpm --silent run cli origin list
+pnpm --silent run cli origin use http://localhost:47100
+```
+
+`origin list` marks `currentOrigin` and reports only whether each profile has a
+token, never the token itself. Inside this checkout, repo detection still
+defaults ordinary invocations to localhost; use `--api-url` or
+`APP_CLI_API_URL` when deliberately targeting a deployment from here.
 
 :::note[Position does not matter]
 Global options are declared on the root program and commander collects them onto
@@ -106,10 +137,10 @@ spaces:
 {
   "ok": true,
   "data": {
-    "status": "ok",
-    "database": "up",
     "version": "0.1.0",
-    "sha": "unknown"
+    "sha": "unknown",
+    "status": "ok",
+    "database": "up"
   }
 }
 ```

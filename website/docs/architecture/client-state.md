@@ -367,9 +367,9 @@ been written, so the module — and the lint rule confining it to
 decision and its shape.
 
 There is also **no stringly-typed event bus**, ever: an untyped bus hides coupling
-from the dependency graph, the enforcers stop telling the truth, and agents cannot
-trace control flow. And two features that constantly coordinate are still one
-feature.
+from the dependency graph, makes the enforcers incomplete, and makes control flow
+slower and less reliable for agents to trace. And two features that constantly
+coordinate are still one feature.
 :::
 
 A screen spanning two subdomains has exactly three legal routes: **(a)**

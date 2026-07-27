@@ -83,8 +83,42 @@ pnpm --silent run cli login-link --email mag@example.com --link 'http://localhos
 ### `logout` 🚪 \{#logout}
 
 ```bash
-pnpm --silent run cli logout        # revokes server-side, then drops the token
+pnpm --silent run cli logout        # revokes server-side, then drops the active origin's token
 ```
+
+The token is revoked server-side *first* — a bearer-authenticated CLI that only
+cleared its local copy would leave the session valid — and only the active
+origin's profile is touched; sessions stored for other origins stay signed in.
+
+## `origin`: `list`, `use` 🌍 \{#origin-list-use}
+
+The CLI keeps one session profile — token and selected tenant — per canonical
+API origin in `~/.config/agentproofarch/config.json`; precedence and the config
+shape are on the
+[CLI walkthrough](./cli-walkthrough.md#global-options-and-stored-config).
+
+```bash
+pnpm --silent run cli origin list
+```
+
+```text
+* http://localhost:47100	token=present	tenant=acme
+  https://agentproofarch.vercel.app	token=absent
+```
+
+The `*` marks `currentOrigin`; each line reports only whether a token is stored
+(`present`/`absent`), never the token itself. With nothing stored yet it prints
+`no configured origins`.
+
+```bash
+pnpm --silent run cli origin use https://agentproofarch.vercel.app
+# → active origin: https://agentproofarch.vercel.app
+```
+
+`origin use` selects the stored default without making a network call, so
+switching context never costs a request. Inside this checkout, repo detection
+still points ordinary invocations at the local dev server; `--api-url` or
+`APP_CLI_API_URL` override it for one invocation or one shell.
 
 ## `tenant`: `list`, `create`, `switch` 🏢 \{#tenant-list-create-switch}
 
@@ -111,7 +145,8 @@ pnpm --silent run cli tenant switch globex
 pass `--slug`, and makes you its owner. `tenant switch` first checks the slug
 against your staff memberships and refuses locally with `not_found` (exit 5) —
 "You do not administer any tenant with slug …" — before writing anything to
-config.
+config; the selection lands in the active origin's profile, so each origin
+remembers its own tenant.
 
 ## `todo`: `list`, `add` 📝 \{#todo-list-add}
 
@@ -345,6 +380,7 @@ sample. Rationale:
 | Group | Commands |
 |---|---|
 | session | `health`, `register`, `login`, `login-link`, `logout`, `whoami` |
+| `origin` | `list`, `use <url>` |
 | `tenant` | `list`, `create <name...>` `[--slug]`, `switch <slug>` |
 | `todo` | `list`, `add <title...>` |
 | `card` | `list` `[--board]`, `add <title...>` `[--board] [--column]`, `move <id> --to <column>` `[--board] [--index]` |

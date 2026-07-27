@@ -15,6 +15,16 @@ before that lives in the git history only.
 
 ### Added
 
+- ADR-0012 scopes CLI client state per API origin like browser cookies: the
+  config file keeps its XDG location but becomes an origin-keyed profile map
+  with a `currentOrigin` pointer, `APP_CLI_API_URL`/`APP_CLI_TENANT` override it
+  for agents and CI (no token env var by design), a checkout of this repo
+  defaults to the local dev server ahead of any stored origin, and a legacy
+  single-profile file migrates itself losslessly on first run. `cli origin list`
+  and `cli origin use <url>` inspect and switch the active origin without a
+  network call, and the config file is now written atomically at mode `0600`
+  ([#91](https://github.com/chomamateusz/agentproofarch/pull/91)).
+
 - ADR-0011 makes page skeletons a named structural element: `components/layout/`
   enters the frontend structure with two import rules (the layout-import rule
   mechanical, the "features do not define layouts" mirror honestly review-tier),
@@ -29,6 +39,13 @@ before that lives in the git history only.
   rejects combining `--from-env-file` with `--from-file`, so the workflow and
   the backup README now create the Secret from one combined env file
   ([#85](https://github.com/chomamateusz/agentproofarch/pull/85)).
+
+### Changed
+
+- Agent-capability claims in the docs corrected to current reality: agents can
+  verify rendered UI through vision loops, so the CLI-first stance is stated as
+  a determinism/cost/speed choice rather than agent blindness
+  ([#90](https://github.com/chomamateusz/agentproofarch/pull/90)).
 
 ### Fixed
 
@@ -75,13 +92,18 @@ before that lives in the git history only.
 
 ### Changed
 
-- Documentation-site readability pass, variant C (preview PR — variant A's
-  text carried unchanged onto variant B's structure): the journey sidebar
+- Documentation-site readability pass, variant C (variant A's text carried
+  onto variant B's structure): the journey sidebar
   (Start here → Build a feature → Run and ship → Productionize → Architecture reference →
   ADRs, with generated-index hubs) and B's four page splits — CLI command
   reference, the `ai-review` gate runbook, Self-host (the Docker target), and
   Troubleshooting first run — each split page carrying variant A's prose, old
-  URLs kept on the anchor-bearing halves — no factual claim changed (#TBD-C).
+  URLs kept on the anchor-bearing halves; factual content reconciled with the
+  per-origin CLI profiles
+  ([#91](https://github.com/chomamateusz/agentproofarch/pull/91)) and the
+  agent-capability corrections
+  ([#90](https://github.com/chomamateusz/agentproofarch/pull/90)) that landed on
+  main ([#89](https://github.com/chomamateusz/agentproofarch/pull/89)).
 - Package management migrated from npm to pnpm with frozen-lockfile gates,
   blocked dependency build scripts, and a three-day release cooldown; the strict
   non-hoisted layout surfaced one phantom dependency — the Docker runtime image

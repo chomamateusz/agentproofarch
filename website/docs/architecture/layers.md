@@ -24,7 +24,7 @@ The layer definition, from
 |---|---|---|
 | `core/domain` | entities, `Result`, error taxonomy, zod schemas | zod only |
 | `core/contract` | API routes, I/O schemas, error envelope | `core/domain` |
-| `core/server` | use-cases + ports (interfaces) | `core/domain` |
+| `core/server` | use-cases + ports (interfaces) | `core/domain`, `core/contract` |
 | `core/client` | typed HTTP client + query/mutation definitions | `core/contract` |
 | `adapters/*` | implementations of ports (db, auth, email, domain provisioning) | `core` |
 | `apps/server` | HTTP wiring + composition root | everything server-side |
@@ -62,6 +62,7 @@ graph TD
     client --> contract
     contract --> domain
     server --> domain
+    server --> contract
     srv --> server
     srv --> contract
     srv -->|instantiates| db
@@ -96,7 +97,7 @@ an *explicit permission*, and anything not listed fails with the message
 |---|---|
 | `core-domain` (`core/domain/**`) | `core-domain` |
 | `core-contract` (`core/contract/**`) | `core-domain`, `core-contract` |
-| `core-server` (`core/server/**`) | `core-domain`, `core-server` |
+| `core-server` (`core/server/**`) | `core-domain`, `core-contract`, `core-server` |
 | `core-client` (`core/client/**`) | `core-domain`, `core-contract`, `core-client` |
 | `adapter-db` / `adapter-auth` / `adapter-domains` | `core-domain`, `core-server`, `core-client`, and each other |
 | `app-server` (`apps/server/**`) | `core-domain`, `core-contract`, `core-server`, the three adapter types, `app-server` |
@@ -140,7 +141,7 @@ covers directories the ESLint element map does not classify.
 | `no-circular` | any circular dependency, anywhere |
 | `core-domain-depends-on-nothing` | `core/domain` → `core/contract`, `core/server`, `core/client`, `adapters`, `apps` |
 | `core-domain-only-zod` | `core/domain` → any package except `zod` (an allow-list; `*.test.ts` exempt for vitest) |
-| `core-server-pure` | `core/server` → `core/contract`, `core/client`, `adapters`, `apps` |
+| `core-server-pure` | `core/server` → `core/client`, `adapters`, `apps` |
 | `core-contract-only-domain` | `core/contract` → `core/server`, `core/client`, `adapters`, `apps` |
 | `core-client-never-server-side` | `core/client` → `core/server`, `adapters`, `apps` |
 | `no-frameworks-in-core` | `core/**` → `hono`, `react`, `react-dom`, `drizzle-orm`, `better-auth`, `pg`, `commander` |

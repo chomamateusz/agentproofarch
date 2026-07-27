@@ -198,33 +198,20 @@ has to be running** (`dev:web` on 47180 is not it, and `smoke` boots its own
 throwaway port). `--silent` keeps pnpm's own chatter off stdout, so `--json`
 really does emit one document:
 
-:::warning[The CLI keeps one global profile per machine]
-**First time using this CLI on this machine? Nothing to do — skip this.**
+:::note[The CLI keeps a profile per API origin]
+**Nothing to do here — this is context, not a setup step.**
 
-CLI state — API URL, session token, selected tenant — lives in
-`~/.config/agentproofarch/config.json`, keyed off the home directory, so it
-survives across clones **and** deployments. If this machine ever pointed the
-CLI at another instance, the block below talks to *that* API, not your local
-server.
-
-The one-line remedy is to pin the URL with the global `--api-url` flag on the
-first command:
+CLI state — session token and selected tenant — lives in
+`~/.config/agentproofarch/config.json`, keyed by API origin the way a browser
+keys cookies by site. Each origin has its own token and tenant, and inside this
+checkout the CLI targets the local dev server (`http://localhost:47100`) by
+default, so a session stored against a deployment cannot bleed into the block
+below. Deliberately talking to another instance is an explicit switch:
 
 ```bash
-pnpm --silent run cli --api-url http://localhost:47100 --json health
+pnpm --silent run cli --api-url https://agentproofarch.vercel.app whoami
+pnpm --silent run cli origin list        # * marks the stored default origin
 ```
-
-It persists `http://localhost:47100` for every command after it, so add it to
-whichever command you run first.
-
-<details>
-<summary>Or start from a genuinely clean profile</summary>
-
-Run the whole block in a throwaway shell whose home is a fresh directory —
-`export HOME="$(mktemp -d)"` first, in that shell only. That leaves your real
-profile untouched and guarantees no stored API URL, token or tenant is in play.
-
-</details>
 :::
 
 ```bash
