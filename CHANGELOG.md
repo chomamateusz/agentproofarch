@@ -21,7 +21,7 @@ before that lives in the git history only.
   the app shell splits into a stateless `AppShell` plus a thin stateful
   composition, layout skeletons get visual specs on the existing ADR-0008
   harness, and the structural `sx` tier is recorded as normative-when-triggered
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  ([#86](https://github.com/chomamateusz/agentproofarch/pull/86)).
 
 - Non-required `dr-acceptance` CI workflow exercises the backup/DR package on
   k3d with PostgreSQL 16, MinIO, encrypted backup rotation, byte-identical
