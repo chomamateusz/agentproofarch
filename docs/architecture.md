@@ -1470,6 +1470,12 @@ The `visual` job (pixel comparison,
 [ADR-0008](decisions/0008-visual-regression.md)) is deliberately **absent** from
 both lists: it reports a screenshot regression without blocking a merge until the
 owner adds it to the required set, and it comes back out the moment it flakes.
+How that report is read and answered is the review loop
+([ADR-0013](decisions/0013-visual-review-loop.md), decided and not yet wired):
+CI posts the before/after/diff gallery into the pull request, and an
+owner-only `/approve-visuals` comment re-renders the baselines and **commits**
+them onto the PR branch — the approval is a commit here, never a click in a
+vendor's UI.
 
 Agents have full `main` freedom (0 approvals, gated only by the five green checks
 and up-to-date-ness); `production` needs an approval the agent cannot supply for

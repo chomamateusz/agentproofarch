@@ -134,6 +134,16 @@ On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact, kep
 
 Generate baselines only through the `visual-baselines` workflow (`workflow_dispatch`, `update: true`). It re-renders them, then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs. An authoring run that died before the harness booted therefore cannot ship an empty or partial baseline set.
 
+### The review loop 🔁 \{#the-review-loop}
+
+**Decided 2026-07-27, not yet wired** — [ADR-0013](../decisions/0013-visual-review-loop.md) records the loop below; until its workflows land, a red `visual` is still read from the artifact above.
+
+A second job, `visual-report`, publishes Playwright's own **expected / actual / diff** PNGs to the unprotected `visual-reports` branch under `pr-<number>/<head-sha-7>/` and upserts **one** pull-request comment holding them inline (plus a link to the full Playwright HTML report artifact). It downloads the artifact rather than checking out the pull request, so the only job with `contents: write` + `pull-requests: write` never executes PR-authored code.
+
+Approval is a commit, not a click. A maintainer comments **`/approve-visuals`**; `visual-approve.yml` accepts it only when the comment is `created` (never `edited`) on a pull request and its `author_association` is **`OWNER`** — or the login is listed in the repository variable `VISUAL_APPROVERS`, which is empty by default, so today the command is owner-only. `COLLABORATOR` and `MEMBER` are deliberately refused: an agent that wants a re-baseline dispatches `visual-baselines` itself. The workflow then dispatches that workflow against the PR branch with `update: true` and `commit: true`, and the new baselines land as a commit — after which **GitHub's native 2-up / swipe / onion-skin PNG diff on the Files tab is the final review**.
+
+Because `issue_comment` always runs the **default-branch** copy of a workflow, a pull request cannot alter the rule that guards it. **Fork pull requests get neither half of the loop**: their `GITHUB_TOKEN` is read-only and has no access to the fork, so the gallery job skips and baselines cannot be pushed — the artifact plus a documented manual path is the fork story, spelled out in the ADR.
+
 `dr-acceptance` is a hard-failing acceptance scenario inside its own run: every poll has a timeout and every completion, encrypted artifact, checksum, offsite copy, rotation result, restored row and corruption refusal is asserted. Its non-required status says only that the path-filtered job is outside the rulesets; a red run still means the package or its acceptance harness is wrong and must not be rerun to green.
 
 ## The `ai-review` gate, in brief 🤖 \{#the-ai-review-gate}
