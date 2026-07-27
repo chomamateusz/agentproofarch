@@ -264,8 +264,8 @@ State rules:
   other or sharing client state. Shared code extracts downward
   (`components/ui`, `lib`, `core/client`), never sideways.
 - **No stringly-typed client event bus.** An untyped bus hides coupling from
-  the dependency graph — the enforcers stop telling the truth and agents
-  cannot trace control flow. The sanctioned shape — a closed union of typed
+  the dependency graph — the enforcers go incomplete and control flow becomes
+  slower and less reliable for agents to trace. The sanctioned shape — a closed union of typed
   events in one module (like `ErrorCode`) that both sides import — was
   reserved "at first proven need"; ADR-0005 declares that need proven and
   defines the bus channel below. Two features that constantly coordinate are

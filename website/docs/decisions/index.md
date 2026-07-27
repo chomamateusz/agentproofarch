@@ -35,7 +35,7 @@ Normative rules in `architecture.md` ship an explicit matrix over four tiers, an
 | **TYPE** | zod schemas in `core/contract`, branded client call surfaces, exhaustive `Record`s | strongest — the wrong shape does not compile |
 | **LINT** | ESLint (including custom `agentproofarch/*` rules), dependency-cruiser, knip | mechanical, and probe-guarded |
 | **TEST** | unit, integration against real Postgres, `smoke`, `e2e`, `smoke:remote`, config-regression probes | behavioural evidence from a clean checkout |
-| **REVIEW+AI** | human review plus the fail-closed [`ai-review`](../operations/ci-gates.md) gate | the honest home of rules a machine cannot check — semantics, intent, dishonest prose |
+| **REVIEW+AI** | human review plus the fail-closed [`ai-review`](../operations/ci-gates.md) gate | the honest home of rules deterministic lint, types and tests cannot fully check — semantics, intent and dishonest prose remain probabilistic review judgments |
 
 A rule whose only tier is REVIEW+AI is documented as such rather than presented as guaranteed. That is deliberate: several ADRs here name a residual risk that stays review-tier (copying a server response's *shape* into a client store, for instance).
 

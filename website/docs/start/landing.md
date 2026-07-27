@@ -40,7 +40,7 @@ If you have watched an AI-assisted codebase rot, you already know these:
 |---|---|
 | Generated code lands wherever it compiles; layering erodes PR by PR | Layer boundaries are lint rules (`eslint-plugin-boundaries` + dependency-cruiser). A misplaced import **fails the build**. |
 | Merged, typechecked — and does not boot | "Done" is two green gates: **`check`** (static — typecheck, lint, boundary rules, unit tests) **and** **`smoke`** (runtime — boots the real server on a real database and drives it through the CLI). |
-| The agent cannot verify its own work | Every capability short of the browser-bound sign-in ceremonies is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop. |
+| The agent verifying its own work through a browser is slow, token-hungry and probabilistic | Every capability short of the browser-bound sign-in ceremonies is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop. |
 | Multi-tenancy bolted on later, painfully | Tenants, subdomains and custom domains are in the skeleton from day one. |
 | Locked into one platform | Externals sit behind **ports and adapters**: the core declares the interfaces it needs (ports), thin replaceable modules (adapters) implement them. The same commit runs on Vercel and in Docker. |
 | Docs drift from the code | Docs-first rule (`docs/architecture.md` is normative) plus a `doc-lint` cross-check in CI that verifies docs against the enforcers and the source tree. |
