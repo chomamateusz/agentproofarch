@@ -98,6 +98,7 @@ const sidebars: SidebarsConfig = {
         'decisions/0009-package-manager-pnpm',
         'decisions/0010-tenant-creation-policy',
         'decisions/0011-layout-layer',
+        'decisions/0013-visual-review-loop',
       ],
     },
     'changelog',
