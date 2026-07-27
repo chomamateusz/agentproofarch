@@ -77,7 +77,7 @@ before that lives in the git history only.
 
 - Documentation-site readability pass, variant C (preview PR — variant A's
   text carried unchanged onto variant B's structure): the journey sidebar
-  (Start here → Build something → Ship it → Run it → Architecture reference →
+  (Start here → Build a feature → Run and ship → Productionize → Architecture reference →
   ADRs, with generated-index hubs) and B's four page splits — CLI command
   reference, the `ai-review` gate runbook, Self-host (the Docker target), and
   Troubleshooting first run — each split page carrying variant A's prose, old

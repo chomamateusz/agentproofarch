@@ -15,10 +15,10 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🧭 Build something',
+      label: '🧭 Build a feature',
       link: {
         type: 'generated-index',
-        title: 'Build something',
+        title: 'Build a feature',
         description:
           'The working loop: drive the stack from the CLI, then add a feature the type-forced way. If you just booted the demo, start with the CLI walkthrough.',
       },
@@ -30,10 +30,10 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '✅ Ship it',
+      label: '✅ Run and ship',
       link: {
         type: 'generated-index',
-        title: 'Ship it',
+        title: 'Run and ship',
         description:
           'What "done" means here and how a change reaches main: the testing doctrine, the CI gates, the fail-closed AI review, and the agent workflow around them.',
       },
@@ -46,10 +46,10 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🧱 Run it',
+      label: '🧱 Productionize',
       link: {
         type: 'generated-index',
-        title: 'Run it',
+        title: 'Productionize',
         description:
           'Operating the deployed thing: environments and promotion, health probes and deploy attestation, backup and DR, the Docker self-host target, and per-tenant custom domains with TLS.',
       },
