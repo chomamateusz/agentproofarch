@@ -105,7 +105,7 @@ export const LoginPage = () => {
             variant="contained"
             fullWidth
             disabled={signIn.isPending}
-            sx={{ mt: '0.4rem' }}
+            sx={{ mt: '1.2rem' }}
           >
             {signIn.isPending ? 'signing in…' : 'sign in'}
           </Button>
