@@ -13,6 +13,12 @@ before that lives in the git history only.
 
 ## 2026-07-27
 
+### Changed
+
+- Agent-capability claims in the docs corrected to current reality: agents can
+  verify rendered UI through vision loops, so the CLI-first stance is stated as
+  a determinism/cost/speed choice rather than agent blindness (#TBD).
+
 ### Added
 
 - ADR-0011 makes page skeletons a named structural element: `components/layout/`

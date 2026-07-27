@@ -16,7 +16,7 @@ Every feature (island) exposes exactly one seam: **events in, selectors out**. W
 
 The server-state seam was fully regulated — descriptors, the CQRS partition, the QueryClient policy, optimistic updates. Client *application* state was one paragraph: `useState`/`useReducer` local to the feature, context for cross-cutting concerns, no global state libraries.
 
-That paragraph holds for CRUD lists and says nothing about multi-step edits, drag lifecycles, or optimistic sequences with undo. Without a rule, **every agent facing such a feature invents its own topology** — exactly the "two paths without a selection rule" failure this architecture exists to prevent.
+That paragraph holds for CRUD lists and says nothing about multi-step edits, drag lifecycles, or optimistic sequences with undo. Without a rule, **agents facing such a feature are likely to improvise inconsistent topologies** — exactly the "two paths without a selection rule" failure this architecture exists to prevent.
 
 The gap surfaced while auditing an external (anonymized) frontend-guidelines document. Most of it did not survive adversarial review: strict assumptions with zero enforcement, a hand-rolled view factory reimplementing what React context provides, reads and writes mixed on one channel. Its strongest concept *did* survive — **a framework-agnostic client core that views talk to through events in and subscriptions out, with the state machinery invisible behind that seam** — and five negotiation rounds hardened it into this architecture's idioms.
 
