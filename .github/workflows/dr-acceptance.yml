@@ -420,15 +420,11 @@ jobs:
             wc -l)"
           test "$offsite_count" -eq 2
           kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
-            mc cp "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact" "/tmp/$artifact"
+            mc cat "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact" \
+            >"$RUNNER_TEMP/offsite-$artifact"
           kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
-            mc cp "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact.sha256" "/tmp/$artifact.sha256"
-          kubectl cp \
-            "$TEST_NAMESPACE/minio-inspector:/tmp/$artifact" \
-            "$RUNNER_TEMP/offsite-$artifact"
-          kubectl cp \
-            "$TEST_NAMESPACE/minio-inspector:/tmp/$artifact.sha256" \
-            "$RUNNER_TEMP/offsite-$artifact.sha256"
+            mc cat "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact.sha256" \
+            >"$RUNNER_TEMP/offsite-$artifact.sha256"
           cmp "$RUNNER_TEMP/$artifact" "$RUNNER_TEMP/offsite-$artifact"
           cmp "$RUNNER_TEMP/$artifact.sha256" "$RUNNER_TEMP/offsite-$artifact.sha256"
           printf '%s\n' "$artifact" >"$RUNNER_TEMP/latest-artifact"
