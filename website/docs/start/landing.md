@@ -176,8 +176,8 @@ red commit. And a red gate is never rerun to green: **a flake is a P1 bug**
 wrong, and one of them gets fixed.
 :::
 
-Underneath those gates: **84** test files in the database-free run, **48**
-integration tests against a real Postgres, **15** Playwright tests, and **47**
+Underneath those gates: **88** test files in the database-free run, **48**
+integration tests against a real Postgres, **15** Playwright tests, and **48**
 config-regression probes that guard the enforcers themselves — most feed a
 deliberately illegal fixture and assert rejection; the rest are structural
 scans and non-vacuity guards over the real source — so a silently weakened rule

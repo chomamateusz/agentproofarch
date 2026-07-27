@@ -10,8 +10,8 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 
-import { renderWithProviders } from '../../test/render.js';
-import { server } from '../../test/server.js';
+import { renderWithProviders } from './test/render.js';
+import { server } from './test/server.js';
 import { AppLayout } from './AppLayout.js';
 
 const meAcme = {

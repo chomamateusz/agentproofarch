@@ -64,7 +64,7 @@ Four levels carry the doctrine — unit, integration, e2e, smoke:
 
 | Level | Command | Environment | Count today | Where it runs |
 |---|---|---|---|---|
-| **unit** | `pnpm run test` (inside `check`) | node + jsdom, **no database** | 84 test files | every `check`, locally and in CI |
+| **unit** | `pnpm run test` (inside `check`) | node + jsdom, **no database** | 88 test files | every `check`, locally and in CI |
 | **integration** | `pnpm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | 48 tests | the CI `smoke` job — the only one with a database |
 | **e2e** | `pnpm run e2e` | real Chromium over the real stack | 15 tests / 6 specs | the CI `e2e` job |
 | **smoke** | `pnpm run smoke` | real server, driven through the CLI | the runtime gate | locally + the CI `smoke` job |
@@ -194,7 +194,7 @@ read boundary where it cannot (jsonb columns admit no closed-set `CHECK`).
 
 ### Config-regression probes ⚙️ \{#config-regression-probes}
 
-47 tests whose subject is the **enforcers**. Two shapes, and the difference is
+48 tests whose subject is the **enforcers**. Two shapes, and the difference is
 worth being honest about:
 
 - **Fixture-fed probes** (most of them) write a deliberately illegal file into the

@@ -103,10 +103,15 @@ an *explicit permission*, and anything not listed fails with the message
 | `app-cli` (`apps/cli/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-cli` |
 
 Inside `apps/web` the same mechanism continues at a finer grain: `web-main`,
-`web-api`, `web-routes`, `web-features`, `web-ui`, `web-lib`, `web-theme` are
+`web-api`, `web-shell` (the stateful shell composition `AppLayout.tsx` beside
+`main.tsx`, per [ADR-0011](../decisions/0011-layout-layer.md)), `web-routes`,
+`web-features`, `web-ui`, `web-lib`, `web-theme` are
 separate element types, and the `web-features` pattern captures the feature name
 so a feature may only import itself. That is how "features are islands" is
-enforced — see [Client state](client-state.md).
+enforced — see [Client state](client-state.md). `components/layout/` joins them
+as the page-skeleton element decided in
+[ADR-0011](../decisions/0011-layout-layer.md); its element type and dependency
+rule land with the enforcer slice of that change.
 
 `boundaries/external` adds the package-level half of the same rule:
 `core-domain`, `core-contract` and `core-server` may not import `react`,
@@ -138,6 +143,7 @@ covers directories the ESLint element map does not classify.
 | `island-core-is-framework-agnostic` | `features/*/core/**` → `react`, `react-dom`, `@tanstack/react-query`, `@xstate/store/react`, `@xstate/react` |
 | `island-core-is-portable` | `features/<x>/core/**` → any `apps/web/src` path outside its own core dir |
 | `web-ui-is-presentational`, `web-lib-no-react`, `web-lib-has-no-app-internal-deps`, `web-routes-stay-thin`, `web-features-consume-bound-actions`, `web-features-are-islands`, `web-api-is-the-only-client-construction-site` | the intra-`apps/web` graph (see [Client state](client-state.md)) |
+| `web-layouts-are-structure-only` (lands with the ADR-0011 enforcer slice) | `components/layout/**` → `core`, `adapters`, `features`, `routes`, `api.ts`, TanStack |
 
 :::info[Two enforcers, deliberately not identical]
 The ESLint element map declares element types for `adapters/db`,
