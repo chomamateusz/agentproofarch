@@ -17,7 +17,7 @@ account and a local mail sink, because every one of those is something the gates
 and the walkthroughs assume exists. Every command below is copied from
 `demo/package.json` and the repository READMEs.
 
-## The four commands 🏁 \{#the-four-commands}
+## The five commands 🏁 \{#the-five-commands}
 
 After the clone and install of [step 1](#1-clone-and-install), this is the whole
 boot — run from `demo/`:
@@ -26,8 +26,12 @@ boot — run from `demo/`:
 pnpm run db:up            # Postgres + Mailpit in Docker
 pnpm run db:migrate       # apply the migrations
 pnpm run db:seed          # a demo account, two tenants, some todos
-pnpm run dev:web          # the app on http://acme.localhost:47180
+pnpm run dev:server       # the API on http://localhost:47100 — its own terminal
+pnpm run dev:web          # the app on http://acme.localhost:47180 — its own terminal
 ```
+
+The last two run side by side: Vite serves the app on 47180 and proxies `/api`
+to the API on 47100, so every API-backed flow (sign-in included) needs both.
 
 The numbered sections below are the same run with every prerequisite, seed value
 and sharp edge annotated. Read them if anything above does not go green.

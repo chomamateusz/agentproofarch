@@ -64,7 +64,7 @@ Those answers roll up into the four promises the architecture makes
 
 ## Start here 🚀 \{#start-here}
 
-After the install step, [four commands](./quickstart.md#the-four-commands) boot a
+After the install step, [five commands](./quickstart.md#the-five-commands) boot a
 working demo on your machine — multi-tenancy included, on localhost, with seeded
 data (a demo account and two tenants). The [Quickstart](./quickstart.md) has
 them, with every prerequisite, seed value and sharp edge spelled out.

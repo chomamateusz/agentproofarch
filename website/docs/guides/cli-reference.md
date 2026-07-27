@@ -335,22 +335,25 @@ pnpm --silent run cli --tenant acme domain list
 (no DNS target configured)
 ```
 
-The target line is what the web add-flow renders as the DNS record to create. It
-reports `no DNS target configured` under the `noop` provisioner — dev and Vercel —
-because that provisioner sets neither a CNAME nor an IP; the `caddy` self-host
-provisioner sets exactly one.
+The target line is what the web add-flow renders as the DNS record to create.
+The target comes from the `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP` env
+vars, not from the provisioner — dev and Vercel leave both unset, so it reports
+`no DNS target configured`; a self-host deployment sets exactly one, and the
+`caddy` provisioner's check verifies DNS resolves to it.
 
 ```bash
 pnpm --silent run cli domain add shop.example.com
 # → attached: shop.example.com (pending)
 pnpm --silent run cli domain check shop.example.com
-# → shop.example.com: pending — <detail from the DNS check>
+# → shop.example.com: verified — shop.example.com accepted (noop provisioner)
 pnpm --silent run cli domain remove shop.example.com
 # → removed: shop.example.com (rows: 1)
 ```
 
-A newly added domain is **unverified** until `domain check` confirms DNS points at
-the deploy target. See
+A newly added domain starts **unverified**; `domain check` asks the provisioner
+and persists the answer. The `noop` provisioner accepts every domain without a
+DNS lookup — only `caddy` performs a real check that DNS points at the
+configured target. See
 [Self-host and domains](../operations/self-host-and-domains.md) for the two
 provisioning paths.
 
