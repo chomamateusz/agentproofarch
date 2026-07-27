@@ -295,6 +295,7 @@ export default tseslint.config(
           capture: ['feature'],
         },
         { type: 'web-ui', pattern: 'apps/web/src/components/ui/**', mode: 'full' },
+        { type: 'web-layout', pattern: 'apps/web/src/components/layout/**', mode: 'full' },
         { type: 'web-lib', pattern: 'apps/web/src/lib/**', mode: 'full' },
         { type: 'web-test', pattern: 'apps/web/src/test/**', mode: 'full' },
         { type: 'web-theme', pattern: 'apps/web/src/theme*', mode: 'full' },
@@ -366,6 +367,7 @@ export default tseslint.config(
                 'web-routes',
                 'web-features',
                 'web-ui',
+                'web-layout',
                 'web-lib',
                 'web-theme',
                 'app-web',
@@ -389,6 +391,7 @@ export default tseslint.config(
                 ['web-features', { feature: '${from.feature}' }],
                 'web-api',
                 'web-ui',
+                'web-layout',
                 'web-lib',
                 'web-theme',
                 'web-test',
@@ -404,6 +407,10 @@ export default tseslint.config(
             {
               from: ['web-ui'],
               allow: ['web-ui', 'web-lib', 'web-theme'],
+            },
+            {
+              from: ['web-layout'],
+              allow: ['web-layout', 'web-ui', 'web-lib', 'web-theme'],
             },
             {
               from: ['web-lib'],
@@ -445,6 +452,11 @@ export default tseslint.config(
               disallow: ['@tanstack/react-query', '@tanstack/react-router'],
               message:
                 'components/ui is presentational: no TanStack Query/Router (frontend-lint-plan Phase 2)',
+            },
+            {
+              from: ['web-layout'],
+              disallow: ['@tanstack/react-query', '@tanstack/react-router'],
+              message: 'components/layout is structure-only: no TanStack Query/Router (ADR-0011)',
             },
           ],
         },
