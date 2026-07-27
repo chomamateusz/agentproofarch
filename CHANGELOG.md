@@ -18,7 +18,7 @@ before that lives in the git history only.
 - Non-required `dr-acceptance` CI workflow exercises the backup/DR package on
   k3d with PostgreSQL 16, MinIO, encrypted backup rotation, byte-identical
   Compose restore, and corrupted-dump refusal
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+  ([#85](https://github.com/chomamateusz/agentproofarch/pull/85)).
 
 ### Fixed
 
