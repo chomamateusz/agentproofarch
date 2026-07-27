@@ -6,11 +6,17 @@ description: Hourly encrypted pg_dump on k3s, an offsite copy, and the Docker se
 
 # Backup & disaster recovery 💾 \{#backup--disaster-recovery}
 
-The whole deployment topology assumes two vendors — Vercel and Neon — so the disaster to plan for is losing one of them entirely: account suspension, provider outage, or a destructive migration that outran its restore window. The backup package therefore lives **outside** both: it runs on the owner's k3s VPS, it does **not** run in GitHub Actions, and no production credential belongs in GitHub, this repository, a shell command or shell history. The cold standby is the repository's own Docker self-host stack, which means DR reuses a target that a required CI check already proves works.
+The whole deployment topology assumes two vendors — Vercel and Neon — so the disaster to plan for is losing one of them entirely: account suspension, provider outage, or a destructive migration that outran its restore window. The production backup package therefore lives **outside** both: it runs on the owner's k3s VPS, while GitHub Actions exercises it only against disposable services and throwaway credentials. No production credential belongs in GitHub, this repository, a shell command or shell history. The cold standby is the repository's own Docker self-host stack, which means DR reuses a target that a required CI check already proves works.
 
 :::info[Source of truth]
-[`demo/ops/backup/README.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/README.md) plus the manifests beside it: [`namespace.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/namespace.yaml), [`secret.template.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/secret.template.yaml), [`pvc.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/pvc.yaml), [`cronjob.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/cronjob.yaml), [`restore.sh`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/restore.sh). Installed by hand on the VPS; part of no CI job.
+[`demo/ops/backup/README.md`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/README.md) plus the manifests beside it: [`namespace.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/namespace.yaml), [`secret.template.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/secret.template.yaml), [`pvc.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/pvc.yaml), [`cronjob.yaml`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/cronjob.yaml), [`restore.sh`](https://github.com/chomamateusz/agentproofarch/blob/main/demo/ops/backup/restore.sh). Installed by hand on the VPS; acceptance-tested by [`.github/workflows/dr-acceptance.yml`](https://github.com/chomamateusz/agentproofarch/blob/main/.github/workflows/dr-acceptance.yml).
 :::
+
+## CI acceptance scope 🧪 \{#ci-acceptance-scope}
+
+The non-required `dr-acceptance` job creates a disposable k3d cluster with PostgreSQL 16 and MinIO, deploys the checked-in package, and runs two CronJob-derived backups. It proves Job completion, local rotation, an encrypted non-plaintext artifact, its SHA-256 sidecar, an identical offsite copy, restoration through the checked-in `restore.sh` into a scratch Docker Compose database, byte-identical known rows, and refusal of a one-byte-corrupted dump. It also creates the Secret with the README's documented single-env-file `kubectl create secret` form and asserts that every key the CronJob consumes is present.
+
+That job is package acceptance, not a production DR drill. k3d cannot prove real k3s node storage and restart behavior, a real offsite failure domain or lifecycle policy, Neon compatibility and production-scale dump time, real provider credentials, recovery-key custody, DNS failover, or the stated RPO/RTO. Those remain VPS installation and quarterly-drill evidence.
 
 ## The CronJob model ⏰ \{#the-cronjob-model}
 
@@ -110,20 +116,22 @@ install -m 600 /dev/null /root/agentproofarch-backup.env
 # edit that file in a local editor; it holds exactly these keys:
 #   DATABASE_URL, S3_PROVIDER, S3_ENDPOINT, S3_REGION,
 #   S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PREFIX
+printf 'backup-passphrase=%s\n' "$(cat /root/agentproofarch-backup-passphrase)" \
+  >> /root/agentproofarch-backup.env
 
 kubectl create secret generic agentproofarch-backup-secrets \
   --namespace agentproofarch-backup \
   --from-env-file=/root/agentproofarch-backup.env \
-  --from-file=backup-passphrase=/root/agentproofarch-backup-passphrase \
   --dry-run=client \
   --output yaml |
   kubectl apply -f -
+shred -u /root/agentproofarch-backup.env
 kubectl apply -f pvc.yaml
 kubectl apply -f cronjob.yaml
 kubectl get cronjob,pvc -n agentproofarch-backup
 ```
 
-The `--dry-run=client | kubectl apply -f -` flow exists so **no secret value ever reaches a command line** or shell history. Two constraints on the values: use Neon's **direct** endpoint, not its pooled one, and keep the prefix free of a leading slash. `secret.template.yaml` is a reference containing placeholders only — never apply it unedited, never commit a populated copy.
+The passphrase joins the same env file because kubectl refuses to combine `--from-env-file` with `--from-file` in a single `create secret` call, and the file is shredded once the Secret exists. The `--dry-run=client | kubectl apply -f -` flow exists so **no secret value ever reaches a command line** or shell history. Two constraints on the values: use Neon's **direct** endpoint, not its pooled one, and keep the prefix free of a leading slash. `secret.template.yaml` is a reference containing placeholders only — never apply it unedited, never commit a populated copy.
 
 Then force one run immediately and read **both** container logs:
 

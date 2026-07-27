@@ -13,6 +13,15 @@ before that lives in the git history only.
 
 ## 2026-07-27
 
+### Added
+
+- Non-required `dr-acceptance` CI workflow exercises the backup/DR package on
+  k3d with PostgreSQL 16, MinIO, encrypted backup rotation, byte-identical
+  Compose restore, and corrupted-dump refusal; its first run proved kubectl
+  rejects combining `--from-env-file` with `--from-file`, so the workflow and
+  the backup README now create the Secret from one combined env file
+  ([#85](https://github.com/chomamateusz/agentproofarch/pull/85)).
+
 ### Fixed
 
 - Quickstart accuracy pass from a fresh-clone retest: nvm listed as a
