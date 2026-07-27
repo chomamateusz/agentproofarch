@@ -240,7 +240,22 @@ jobs:
         with:
           name: visual-diff
           path: ${{ runner.temp }}/visual-diff
-      - run: pnpm run visual:report
+      # The trusted base can predate the publisher — on the pull request that
+      # introduces it, and on any PR whose base commit is older than the wiring.
+      # With no script at the base there is nothing trusted to run, so the job
+      # skips instead of failing red on a missing pnpm script; it must never
+      # fall back to the head's copy, which is the exposure this job exists to
+      # avoid.
+      - id: publisher
+        run: |
+          if [ -f scripts/visual-report.ts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::visual-report publisher absent at the trusted base commit; skipping"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.publisher.outputs.present == 'true'
+        run: pnpm run visual:report
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
