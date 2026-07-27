@@ -6,6 +6,8 @@ description: The Docker target from the same commit, and per-tenant TLS via Cadd
 
 # Self-host & custom domains 🌐 \{#self-host--custom-domains}
 
+*Read this if you are deploying the Docker target, or giving a tenant its own domain.*
+
 This page exists because a foundation that only runs on one vendor is a foundation with a hostage clause. So the same commit that deploys to Vercel also builds a Docker image that serves the API and the SPA from one Node process — and that claim is a **required CI check** (`docker-smoke` builds the image, boots the compose stack and drives the same CLI smoke suite against the container), not a paragraph of intent. The second half of the page is the piece self-host does *better* than the serverless target today: a tenant custom domain gets a real certificate with **zero per-tenant configuration**.
 
 :::info[Sources]
@@ -232,6 +234,11 @@ stateDiagram-v2
 Authorization is split deliberately: `domain:read` is `owner` **and** `admin` (staff-readable roster), while `domain:write` — add, check, remove — is **owner only**. Cross-tenant safety is structural rather than checked: the lookups behind check and remove are tenant-scoped, so another tenant's domain is a `not_found`, and a host already attached anywhere is a `conflict` (a domain belongs to at most one tenant globally).
 
 ### Driving it from the CLI ⌨️ \{#driving-it-from-the-cli}
+
+Shown with the **`caddy` provisioner**, which has a DNS target configured. The
+same commands under the default `noop` provisioner report no target and no real
+verification — that transcript is in the
+[CLI walkthrough](../guides/cli-walkthrough.md#domain-list-add-check-remove).
 
 ```bash
 pnpm run cli domain list

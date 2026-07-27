@@ -7,7 +7,13 @@ description: Decide, then enforce — the culture behind the ADR set, and the fu
 
 # Decisions (ADRs) 📜 \{#decisions-adrs}
 
-This section exists because an agent-written codebase drifts wherever a choice was never written down: given two plausible paths and no selection rule, every agent picks a different one, and by the tenth feature the codebase has ten topologies. So every architectural choice that could reasonably have gone another way is recorded **before** it is built — and wherever a machine can hold the line, an enforcer is added in the same breath. That is the whole culture: **decide, then enforce.**
+*Read this if you want the reasoning behind a rule, not the rule itself.*
+
+The culture is one line: **decide, then enforce.**
+
+This section exists because an agent-written codebase drifts wherever a choice was never written down. Given two plausible paths and no selection rule, every agent picks a different one, and by the tenth feature the codebase has ten topologies.
+
+So every architectural choice that could reasonably have gone another way is recorded **before** it is built — and wherever a machine can hold the line, an enforcer is added in the same breath.
 
 ## Three habits make it concrete 🔁 \{#three-habits-make-it-concrete}
 
@@ -59,7 +65,11 @@ Every page here summarises the decision, the WHY, the alternatives and the conse
 
 ### How to read a status 🚦 \{#how-to-read-a-status}
 
-An ADR is never edited into agreement with reality — it is **superseded in place**, with a dated note. ADR-0003 is the live example: its release topology changed on 2026-07-24 (`main` became staging, `production` became the release branch), so the ADR carries a superseding note while its other six decision points remain in force. The rule that makes this readable: the ADR records what was decided *then*, and `architecture.md` records what is normative *now*.
+An ADR is never edited into agreement with reality — it is **superseded in place**, with a dated note.
+
+ADR-0003 is the live example. Its release topology changed on 2026-07-24 (`main` became staging, `production` became the release branch), so the ADR carries a superseding note while its other six decision points remain in force.
+
+The rule that makes this readable: the ADR records what was decided *then*, and `architecture.md` records what is normative *now*.
 
 ## What the ADR set does not contain 🚧 \{#what-the-adr-set-does-not-contain}
 

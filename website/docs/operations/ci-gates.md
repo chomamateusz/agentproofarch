@@ -6,7 +6,11 @@ description: Which jobs run, which ones block a merge, which deliberately do not
 
 # CI gates 🚦 \{#ci-gates}
 
-Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time; three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted: every gate runs from a clean `pnpm install --frozen-lockfile` in CI, on every change, and the enforcers themselves are enforced.
+*Read this if you need to know which job blocks a merge, or you maintain the workflows.*
+
+Five consecutive deploy-config failures (PRs #10–#15) shipped with typecheck, lint and tests all green, and production was broken every time. Three more incidents traced a green *local* run to a stale `node_modules` or database rather than the committed tree ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)).
+
+Those eight failures are why the foundation's central claim — *static-green is not done* — is enforced by machinery instead of asserted. Every gate runs from a clean `pnpm install --frozen-lockfile` in CI, on every change, and the enforcers themselves are enforced.
 
 :::info[Sources]
 The workflows in [`.github/workflows/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/workflows), the scripts in [`.github/scripts/`](https://github.com/chomamateusz/agentproofarch/tree/main/.github/scripts), and [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) / [ADR-0008](../decisions/0008-visual-regression.md).
@@ -50,6 +54,8 @@ flowchart TD
 ## The required set 📋 \{#the-required-set}
 
 `production-protection` names four status checks — **`check`**, **`smoke`**, **`e2e`**, **`docker-smoke`** — and `main-gates` names those four plus **`ai-review`**. A merge is *blocked* on a failing or missing one — not merely marked red.
+
+This page is the single source for two lists the rest of the site links to instead of repeating: what `check` runs, [below](#check--the-static-gate), and which jobs deliberately do not block, [further down](#deliberately-non-required).
 
 ### `check` — the static gate 🔍 \{#check--the-static-gate}
 
@@ -113,23 +119,38 @@ Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs
 
 ## Deliberately non-required 🚫 \{#deliberately-non-required}
 
-Three jobs run and report without blocking (`ai-review` graduated to required on 2026-07-26), and one external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
+Exactly three jobs run and report without blocking: **`visual`**, **`docs-build`** and **`dr-acceptance`**. One external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
+
+`ai-review` is not on this list any more. It shipped non-required to accumulate a verdict track record first, and **graduated to a required `main-gates` check on 2026-07-26** when the owner added its job-name context to the ruleset — an Admin-only action.
 
 | Job | Why it does not block | How it becomes blocking |
 |---|---|---|
 | `visual` | Pixel comparison is the classic rerun-to-green offender, and the flake doctrine treats a flake as a P1 bug. The check earns arming only after a run history of green comparisons ([ADR-0008](../decisions/0008-visual-regression.md) §4). | The owner adds `visual` to `main-gates`' required list — and takes it back out the moment it flakes. |
-| `ai-review` | Shipped non-required to accumulate a verdict track record first; **armed as a required `main-gates` check on 2026-07-26**. | Done — the owner added the **`ai-review`** context (the job name) to `main-gates`. Admin-only. |
 | `docs-build` | It is **path-filtered** on `website/**` and `CHANGELOG.md`, so on a PR that leaves both alone it never runs — and a required check that never runs is unmergeable. | Not possible as written; the path filter would have to go first. |
 | `dr-acceptance` | It is path-filtered to the backup package and its workflow, and k3d/MinIO/Compose prove disposable package behavior rather than the real k3s, Neon and offsite environment. | Not possible as written; remove the path filter before considering ruleset changes. |
 | `CodeRabbit` (GitHub App, no workflow) | An advisory second opinion configured by `.coderabbit.yaml` (chill profile, `request_changes_workflow: false`): it comments and reports a status but must never gate — the doctrinal enforcement tier is `ai-review`, and a second AI reviewer stays a perspective, not a wall. | Deliberately never; if it ever gated, a config PR would have to say so here first. |
 
-On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact (7-day retention), because a developer on macOS gets no local comparison at all: baselines are platform-scoped and `ignoreSnapshots` is on for every non-linux platform. New baselines come from the separate `visual-baselines` workflow (`workflow_dispatch`, `update: true`), which re-renders and then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs — so an authoring run that died before the harness booted cannot ship an empty or partial baseline set.
+On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact, kept 7 days. A developer on macOS needs it: baselines are platform-scoped, and `ignoreSnapshots` is on for every non-linux platform, so there is no local comparison at all.
+
+Generate baselines only through the `visual-baselines` workflow (`workflow_dispatch`, `update: true`). It re-renders them, then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs. An authoring run that died before the harness booted therefore cannot ship an empty or partial baseline set.
 
 `dr-acceptance` is a hard-failing acceptance scenario inside its own run: every poll has a timeout and every completion, encrypted artifact, checksum, offsite copy, rotation result, restored row and corruption refusal is asserted. Its non-required status says only that the path-filtered job is outside the rulesets; a red run still means the package or its acceptance harness is wrong and must not be rerun to green.
 
 ## The `ai-review` gate 🤖 \{#the-ai-review-gate}
 
 The design goal is one sentence: **"could not verify" and "verified safe" must never collapse to the same colour.** A review check that cannot run — limits hit, tool unavailable, timeout — is **red**, exactly like a found defect. This is the implementation of the fail-closed bullet in the repo's operating hygiene (DECIDE F1).
+
+In four lines, as a contributor needs it:
+
+- `ai-review.yml` runs `anthropics/claude-code-action` over **only the PR diff**, against this repo's doctrine, with read-only tools.
+- Only an explicit `verdict: PASS` is green. `FAIL`, empty output, a crash, a rate limit and a fork PR are all red.
+- It has been a **required `main-gates` check since 2026-07-26**, so a PR to `main` without a PASS cannot merge.
+- One sticky comment per PR carries the verdict and, when no verdict could be obtained, the reason and the remedy.
+
+Everything below is the maintainer's runbook for that workflow.
+
+<details>
+<summary>Read this if you maintain the workflows — the full `ai-review` mechanics</summary>
 
 ### Shape 🧱 \{#shape}
 
@@ -272,6 +293,8 @@ Concurrency is one in-flight review per PR (`cancel-in-progress: true`), so a ne
 The OAuth token is a subscription-scoped, rotatable, limited-value credential from `claude setup-token` — **not** a production secret, so keeping it as a repo Actions secret does not violate the "production secrets never in Actions" rule. The workflow never echoes it. Adding slots `_2`/`_3` later needs no workflow edit: create the secrets, and the already-wired slots start participating.
 :::
 
+</details>
+
 ## After the deploy 🚀 \{#after-the-deploy}
 
 `post-deploy-smoke.yml` listens for `deployment_status` and re-runs `smoke:remote` when the state is `success` and the environment is `Production` **or** `Preview` (staging deploys as a Preview, so it is covered too). The target URL depends on the environment, and this is the non-obvious part:
@@ -287,14 +310,16 @@ EXPECTED_SHA: ${{ github.event.deployment.sha }}
 - **Previews and staging drive their own `environment_url`**, which their `VERCEL_URL`-derived auth origin already trusts.
 - **`EXPECTED_SHA` is the attestation.** The smoke asserts the live health `sha` equals the SHA this deployment event carried, so it can never green a stale deploy — see [Health & attestation](./health-and-attestation.md).
 
-Because this drives live production, it runs under the production smoke-account doctrine: a dedicated canary tenant, never `db:seed` against a real database, credentials from CI secrets, and a drive that does not poison itself. Its concurrency half is enforced in the workflow — a per-environment, per-SHA group with **`cancel-in-progress: false`**, because a running smoke is a live production verification that must finish rather than be pre-empted, and because two overlapping runs would race on the shared canary tenant.
+This drives live production, so it runs under the production smoke-account doctrine: a dedicated canary tenant, never `db:seed` against a real database, credentials from CI secrets, and a drive that does not poison itself.
+
+The workflow enforces the concurrency half of that doctrine with a per-environment, per-SHA group set to **`cancel-in-progress: false`**. Two reasons: a running smoke is a live production verification and must finish rather than be pre-empted, and two overlapping runs would race on the shared canary tenant.
 
 ## Cross-cutting hardening 🔒 \{#cross-cutting-hardening}
 
 - **Every `uses:` is pinned to a full commit SHA**, never a mutable tag, with a trailing comment recording the human-readable version the SHA resolved to (`# v4.3.0` for `actions/checkout`, `# v4` for `pnpm/action-setup`, `# v4.4.0` for `actions/setup-node`, and `# v1` for `anthropics/claude-code-action`, whose pinned commit is its `v1.0.181` release — the comment records the major line the pin tracks). A tag can be force-moved onto malicious code under an unchanged CI config.
 - **Every job is guarded** with `if: github.repository == 'chomamateusz/agentproofarch'`. The repo is public and therefore forkable; a fork must never spend Actions minutes or fail on missing secrets and services.
 - **pnpm is installed before Node setup**, then Node 24 uses `cache: pnpm` with an explicit `cache-dependency-path`, so each workflow caches against the right `pnpm-lock.yaml` (`demo/` or `website/`).
-- **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block — a malformed one would ship as a red error box with every check green, which is the exact "could not verify, reported green" shape this repo rejects. `pnpm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error. It runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
+- **The diagrams on this site are parsed, not merely built.** `@docusaurus/theme-mermaid` renders in the browser, so a green `docusaurus build` proves nothing about a fenced `mermaid` block. A malformed one would ship as a red error box with every check green — the exact "could not verify, reported green" shape this repo rejects. `pnpm run check:mermaid` (`website/scripts/check-mermaid.mjs`) feeds every block on the site to mermaid's own parser under node and fails on the first syntax error; it runs in `docs-ci.yml` beside `typecheck`, and again in `docs-deploy.yml` before the Pages artifact is uploaded. Dead links need no such step: `onBrokenLinks`, `onBrokenAnchors` and `onBrokenMarkdownLinks` are all `throw`, so the build itself is the link gate.
 - **The enforcers are enforced.** Config-regression probes feed a deliberately violating fixture to a lint or dependency-cruiser rule and assert the gate still goes red, so a rule cannot be quietly deleted while CI stays green ([ADR-0004](../decisions/0004-no-exceptions-enforcement.md) §3).
 
 :::caution[Honest caveats]

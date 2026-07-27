@@ -6,12 +6,16 @@ description: The neon-http single-statement doctrine, hard delete by default, an
 
 # Data & transactions 🗄️ \{#data--transactions}
 
+*Read this if you are writing a migration, adding an aggregate, or making a write that must never be half-done.*
+
 :::note[You do not need this to start]
 You can build with just the [Quickstart](../start/quickstart.md) — the seeded
 demo and single-row writes work without reading this. This page is the
 reference for the data layer and its atomicity doctrine. Come back when you are
 writing a migration, adding an aggregate, or making a multi-row write that must
-never be observable half-done.
+never be observable half-done. On a first read,
+[§Per-target guarantee matrix](#per-target-guarantee-matrix) and
+[§The MUST-ATOMIC list](#the-must-atomic-list) are enough.
 :::
 
 The same `db.transaction(async tx => …)` that is perfectly atomic on
@@ -188,12 +192,13 @@ template.
 
 Why integer minor units and not Postgres `numeric`: an amount crosses four
 decimal-hostile layers — JSON, JS `number`, zod, TS arithmetic — and `numeric`
-survives none of them (drivers surface it as a string, the first careless coercion
-reintroduces binary floats, JSON has no decimal type), while integer minor units
-are exact in every layer, sum and compare with plain integer arithmetic, and are
-the payment provider's native vocabulary. Sub-cent precision scales the minor unit
-(micro-units); formatting for humans is a view concern (`Intl.NumberFormat`), never
-stored.
+survives none of them. Drivers surface it as a string, the first careless
+coercion reintroduces binary floats, and JSON has no decimal type at all.
+
+Integer minor units are exact in every one of those layers, sum and compare with
+plain integer arithmetic, and are the payment provider's native vocabulary.
+Sub-cent precision scales the minor unit (micro-units). Formatting for humans is
+a view concern (`Intl.NumberFormat`), never stored.
 
 Why cursors and not offsets: offsets skew under concurrent writes (rows shift
 between pages) and cost the database the full skipped prefix, while a keyed cursor
@@ -271,3 +276,9 @@ The sequence itself is mechanically gated (DECIDE F2): `pnpm run doc-lint` runs
 non-`<NNNN>`-prefixed migration, or a `meta/_journal.json` that does not match the
 `.sql` files on disk — and a config-regression probe plants a duplicate to prove
 the gate still fires.
+
+**Where to go next.**
+
+- **Deeper:** [ADR-0003 — Vercel environments](../decisions/0003-vercel-environments.md) — why the driver differs per target in the first place.
+- **Sideways:** [Errors & API versioning](errors-and-api-versioning.md) — expand → contract, the same vocabulary applied to the contract.
+- **To work:** [Adding a feature](../guides/adding-a-feature.md) — schema and migration are step 5 of the chain.

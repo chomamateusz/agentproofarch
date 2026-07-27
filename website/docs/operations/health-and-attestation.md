@@ -6,6 +6,8 @@ description: Liveness, readiness, and proving which deploy a smoke run actually 
 
 # Health & deploy attestation 🩺 \{#health--deploy-attestation}
 
+*Read this if you are wiring a probe, or proving which build is live.*
+
 *Is the process alive?* and *is it ready to serve traffic?* have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
 
 :::info[Sources]

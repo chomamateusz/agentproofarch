@@ -6,6 +6,8 @@ description: Four levels, a coverage ratchet, and a flake is a P1 bug.
 
 # Writing tests per the doctrine ✅ \{#writing-tests-per-the-doctrine}
 
+*Read this if you are writing a test and need to know which level it belongs to.*
+
 Most test suites answer "does the happy path work". This one is built to answer a
 harder question: **can an agent's change break something quietly?** That reframes
 everything. The gates are non-negotiable rather than advisory, coverage is a
@@ -55,7 +57,9 @@ flowchart LR
 
 :::danger[Done = `check` green AND `smoke` green]
 Static-green is not done; the app must actually run. And do not weaken a lint rule
-to make either gate green — that inverts the whole point of having one.
+to make either gate green — that inverts the whole point of having one. The full
+statement of the rule, including the flake doctrine, is on the
+[landing page](../start/landing.md#how-it-defends-itself).
 :::
 
 ## Where does my test go? 🗂️ \{#where-does-my-test-go}

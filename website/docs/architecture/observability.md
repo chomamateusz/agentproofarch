@@ -6,6 +6,8 @@ description: One wide event per request, three chokepoints, and an honest matrix
 
 # Observability 🔭 \{#observability}
 
+*Read this if you are trying to find out what was true during a failed production request.*
+
 A production request fails at 03:00 and you have one question: *what was true
 during it?* Step logs answer a different question — what the code was doing —
 and they answer it in fragments that share nothing but a timestamp. So this
@@ -140,3 +142,9 @@ flushes normally — same seam, different lifetime.
 - **No DB-hop instrumentation.** A slow query shows up only as request duration.
 - **`tracesSampleRate: 1` in the browser** is the launch default and directly contradicts the 1–5% happy-path sampling policy above — it is cheap while no DSN is configured, and it is one of the numbers the open wiring decision has to settle.
 :::
+
+**Where to go next.**
+
+- **Deeper:** [Request lifecycle](request-lifecycle.md) — where in the order the wide event is annotated and emitted.
+- **Sideways:** [Health & attestation](../operations/health-and-attestation.md) — the other runtime signal, and the one a deploy is judged on.
+- **To work:** [CI gates](../operations/ci-gates.md) — what proves any of this on every change.

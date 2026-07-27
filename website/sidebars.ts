@@ -58,6 +58,7 @@ const sidebars: SidebarsConfig = {
         'decisions/0006-public-read-only-surface',
         'decisions/0007-email-port-and-magic-link-transport',
         'decisions/0008-visual-regression',
+        'decisions/0009-package-manager-pnpm',
         'decisions/0010-tenant-creation-policy',
         'decisions/0011-layout-layer',
       ],

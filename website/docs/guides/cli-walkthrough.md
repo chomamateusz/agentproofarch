@@ -6,15 +6,18 @@ description: The agent feedback loop — every capability with --json and an exi
 
 # CLI walkthrough ⌨️ \{#cli-walkthrough}
 
+*Read this if you are driving the system from the CLI — by hand, or as an agent.*
+
 An agent cannot read a screenshot to decide whether it wired a feature correctly.
-That is why every capability in this foundation has a CLI command, why `--json`
-prints exactly **one** JSON document on stdout, and why the process exit code is
-mapped from the error taxonomy rather than chosen ad hoc: the CLI is a closed
-verification loop with a machine-readable answer. It is also the reference client —
-it goes through `core/client` like the web app does, never hand-writing a URL — so
-if the CLI round-trips your feature, every layer from contract to repository is
-wired. This page walks every command group as it exists in
-`demo/apps/cli/src/main.ts`.
+The CLI is the closed verification loop that answers instead. Three properties
+make it one: every capability has a command, `--json` prints exactly **one** JSON
+document on stdout, and the process exit code is mapped from the error taxonomy
+rather than chosen ad hoc.
+
+It is also the reference client. It goes through `core/client` exactly like the
+web app does, never hand-writing a URL, so a CLI round-trip proves every layer
+from contract to repository is wired. This page walks every command group as it
+exists in `demo/apps/cli/src/main.ts`.
 
 Run everything from `demo/`. `--silent` keeps pnpm's own output off stdout:
 
@@ -143,6 +146,8 @@ cannot drift.
 
 ## Session: `health`, `register`, `login`, `login-link`, `logout`, `whoami` 🔐 \{#session-health-register-login-login-link-logout-whoami}
 
+### `health` 🩺 \{#health}
+
 ```bash
 pnpm --silent run cli health
 ```
@@ -158,6 +163,8 @@ because only a deploy sets it. There are three health routes:
 `unavailable` envelope with HTTP 503 when the database is down, never a 200), and
 the compat `/api/health` the `health` command calls, which reports the database
 status inline at 200.
+
+### `register`, `login`, `whoami` 🔑 \{#register-login-whoami}
 
 ```bash
 pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo1234
@@ -193,6 +200,8 @@ With no tenant selected `whoami` prints
 }
 ```
 
+### `login-link` ✉️ \{#login-link}
+
 Passwordless sign-in is two steps, because there is deliberately no in-app
 dev route that hands you the link:
 
@@ -203,6 +212,8 @@ pnpm --silent run cli login-link --email mag@example.com
 pnpm --silent run cli login-link --email mag@example.com --link 'http://localhost:47100/api/auth/magic-link/verify?...'
 # → signed in as mag@example.com via magic link
 ```
+
+### `logout` 🚪 \{#logout}
 
 ```bash
 pnpm --silent run cli logout        # revokes server-side, then drops the token
@@ -327,6 +338,8 @@ pnpm --silent run cli card move <id> --board team --to done; echo "exit=$?"
 Members are the tenant's **end customers** — a different concept from staff. The
 whole group is staff-only.
 
+### `member list` 📋 \{#member-list}
+
 ```bash
 pnpm --silent run cli --tenant acme member list
 ```
@@ -336,22 +349,43 @@ pnpm --silent run cli --tenant acme member list
 - mag@example.com	Magic Link Member  (member-a)  [provisioned]
 ```
 
+### `member ensure` ♻️ \{#member-ensure}
+
 ```bash
 pnpm --silent run cli member ensure carol@example.com --name "Carol Example" --tag vip --tag beta
 # → created: carol@example.com (…)      # run again → exists: carol@example.com (…)
+```
+
+Idempotent find-or-create keyed on email — the entry point a provisioning
+integration calls.
+
+### `member update` ✏️ \{#member-update}
+
+```bash
 pnpm --silent run cli member update <id> --name "Carol E." --tag vip
+```
+
+`--tag` **replaces** the whole tag set. `--clear-name` clears the display name
+explicitly, which is why it is a separate flag from omitting `--name`.
+
+### `member export` 📤 \{#member-export}
+
+```bash
 pnpm --silent run cli member export <id>
 # → exported carol@example.com at 2026-07-26T09:31:02.004Z
+```
+
+The GDPR access/portability dump.
+
+### `member remove` 🗑️ \{#member-remove}
+
+```bash
 pnpm --silent run cli member remove <id>
 # → removed: <id> (members deleted: 1)
 ```
 
-`ensure` is idempotent find-or-create keyed on email — the entry point a
-provisioning integration calls. `update --tag` **replaces** the whole tag set
-(and `--clear-name` clears the display name explicitly, which is why it is a
-separate flag from omitting `--name`). `export` is the GDPR access/portability
-dump; `remove` deletes the member and their tenant-scoped data while leaving the
-global account untouched.
+Deletes the member and their tenant-scoped data, leaving the global account
+untouched.
 
 ## `staff`: `list`, `grant`, `revoke` 👑 \{#staff-list-grant-revoke}
 
@@ -381,6 +415,12 @@ is refused — the tenant cannot be left ownerless.
 
 Custom domains for the active tenant. Reading is staff-readable; add, check and
 remove are owner-only.
+
+Every transcript in this section is **shown with the `noop` provisioner** — the
+dev and Vercel default. The same commands against the `caddy` self-host
+provisioner print a configured DNS target and a real verification detail; that
+transcript is on
+[Self-host & custom domains](../operations/self-host-and-domains.md#driving-it-from-the-cli).
 
 ```bash
 pnpm --silent run cli --tenant acme domain list

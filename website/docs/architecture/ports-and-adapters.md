@@ -6,6 +6,18 @@ description: The complete built port set, the adapters behind each one, and the 
 
 # Ports & adapters 🔌 \{#ports--adapters}
 
+*Read this if you are about to add a port, or want to know what sits behind the existing ones.*
+
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — every port
+the demo needs is already wired in the composition root. This page is the
+reference for the built port set and the rule for adding one. Come back when you
+are swapping a provider, adding an external dependency, or about to wrap a
+library in an interface. On a first read,
+[§How a port works here](#how-a-port-works-here) and
+[§When to add a port](#when-to-add-a-port) are enough.
+:::
+
 Two questions, answered precisely: **what is actually behind a port in this
 repo today**, and **when are you allowed to add one**. The second
 question matters more than it looks — a port with exactly one implementation
@@ -258,13 +270,17 @@ Stated plainly, because an aspirational port is worse than no port:
 | `StoragePort` | **not built** — shape, adapters and rules are fixed in the docs | the first feature that persists a caller-supplied binary (avatar, product asset, a GDPR-export file outliving one request). In-request bytes streamed straight to a response do **not** trigger it |
 | `JobsPort` | **not built** — the platform difference is proven, the need is not | the first real deferred job. Executor would differ per target: a drain endpoint plus a QStash schedule on Vercel, a resident pg-boss worker on self-host |
 
-`StoragePort`'s shape is already decided so the first implementation has nothing to
-invent: `put(tenantId, path, body, opts)`, `getSignedUrl(tenantId, path, opts)`,
-`remove(tenantId, path)`; **tenant scoping is the port's job** (the caller passes a
-logical `path`, the adapter composes `tenants/<tenantId>/<path>` and rejects any
-path that escapes the prefix, so the key space is closed by construction); and
-**reads go through short-lived signed URLs** — objects are private, and the client
-never receives a bucket credential or a permanent public URL.
+`StoragePort`'s shape is already decided, so the first implementation has nothing
+to invent. Three methods: `put(tenantId, path, body, opts)`,
+`getSignedUrl(tenantId, path, opts)` and `remove(tenantId, path)`.
+
+Two rules come with them:
+
+- **Tenant scoping is the port's job.** The caller passes a logical `path`; the
+  adapter composes `tenants/<tenantId>/<path>` and rejects any path that escapes
+  the prefix, so the key space is closed by construction.
+- **Reads go through short-lived signed URLs.** Objects are private, and the
+  client never receives a bucket credential or a permanent public URL.
 
 ## When to add a port ➕ \{#when-to-add-a-port}
 
@@ -292,3 +308,9 @@ platform really is a composition-root edit. Both deploy targets run from the sam
 commit with a different `DB_DRIVER` and `DOMAIN_PROVISIONER` — see
 [Environments](../operations/environments.md) and
 [Self-host & domains](../operations/self-host-and-domains.md).
+
+**Where to go next.**
+
+- **Deeper:** [ADR-0007 — EmailPort & magic link](../decisions/0007-email-port-and-magic-link-transport.md) — one port decided end to end.
+- **Sideways:** [Layers](layers.md) — where ports and adapters sit in the dependency graph.
+- **To work:** [Adding a feature](../guides/adding-a-feature.md) — step 3 of the chain adds the port.

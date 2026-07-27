@@ -6,7 +6,11 @@ description: Four environments from one commit, and an owner-only release gate e
 
 # Environments & promotion topology 🗺️ \{#environments--promotion-topology}
 
-Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one. The answer here is nothing an agent is asked to remember — it is a property of the environment: the same commit flows feature branch → preview → `main` (staging) → `production`, only environment variables differ, and the single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
+*Read this if you need to know how a commit reaches production, and who is allowed to put it there.*
+
+Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one.
+
+The answer here is a property of the environment, not a rule an agent is asked to remember. The same commit flows feature branch → preview → `main` (staging) → `production`, and only environment variables differ. The single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.
 
 :::info[Sources]
 Normative: [`docs/architecture.md` §Environments](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md).
@@ -135,7 +139,7 @@ Each is a property of the environment, not a rule someone is asked to remember.
 
 Control 5 has a second effect worth naming: the Docker target is the reason a **paid-app topology** works at all. Production for a commercial app lives on its own **Pro** team while non-commercial work stays on **Hobby** — one login spans both, but a pause, suspension or plan-limit hit on one team does not take the other down.
 
-## Tenant addressing per environment 🏢 \{#tenant-addressing-per-environment}
+## Deploy-side consequences of tenant addressing 🏢 \{#tenant-addressing-per-environment}
 
 Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant` order, what each environment can and cannot address, and the `*.vercel.app` impossibility — is one subject with one page: [Identity & multi-tenancy §Tenant addressing per environment](../architecture/identity-and-multi-tenancy.md). What belongs *here* is the deploy-side consequence of it.
 
@@ -147,7 +151,7 @@ Tenant resolution itself — the fixed custom-domain → subdomain → `X-Tenant
 - **No base-domain shape is live yet.** Both recorded plans — the delegated `agentproofarch.eu.org` and the company-DNS wildcard CNAME bridge — are pending, so the deployed web stays single-tenant on `*.vercel.app` and the CLI's `X-Tenant` carries multi-tenancy.
 - **ADR-0003 is superseded in part.** Its point 1 described `main` as production plus a long-lived `staging` branch. That mapping is gone and the branch relic is deleted; points 2–7 stand.
 - **Browser multi-tenancy is unexercised on previews** until a wildcard domain exists. `smoke:remote` covers the CLI/`X-Tenant` path meanwhile.
-- **One CI job deliberately does not block a merge** (`visual`) — on `main` the required set is the four platform checks plus `ai-review`, armed 2026-07-26 after a verdict track record. See [CI gates](./ci-gates.md).
+- **Some CI jobs deliberately do not block a merge** — on `main` the required set is the four platform checks plus `ai-review`, armed 2026-07-26 after a verdict track record. The jobs outside it, and why, are listed once on [CI gates](./ci-gates.md#deliberately-non-required).
 - **A cross-subdomain session on a real base domain is documented but not locally testable** — it is recorded as a verification residual to be confirmed live on the first custom base-domain deployment.
 :::
 
