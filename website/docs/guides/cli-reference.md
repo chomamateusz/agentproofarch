@@ -158,12 +158,14 @@ pnpm --silent run cli --tenant acme todo add Buy milk
 ```
 
 ```text
-- Wdrożyć walking skeleton na produkcję  (3f8a1c02)
-- Sprawdzić izolację danych między tenantami  (b17d94ee)
+- Wdrożyć walking skeleton na produkcję  (todo-wal)
+- Sprawdzić izolację danych między tenantami  (todo-ten)
 added: Buy milk (9c2e04b7)
 ```
 
-Ids are printed truncated to 8 characters; `--json` gives you the full row:
+Ids are printed truncated to 8 characters — seeded rows carry readable literal
+ids (`todo-walking-skeleton` → `todo-wal`), rows you create get UUIDs; `--json`
+gives you the full row:
 
 ```json
 {
@@ -171,7 +173,7 @@ Ids are printed truncated to 8 characters; `--json` gives you the full row:
   "data": {
     "todos": [
       {
-        "id": "3f8a1c02-…",
+        "id": "todo-walking-skeleton",
         "tenantId": "tenant-acme",
         "title": "Wdrożyć walking skeleton na produkcję",
         "createdBy": "…",

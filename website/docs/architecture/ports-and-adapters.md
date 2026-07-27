@@ -306,8 +306,9 @@ island core's own API is the facade), and a Sentry port (an error sink is config
 The corollary is the cheerful one: because the ports are few and small, swapping a
 platform really is a composition-root edit. Both deploy targets run from the same
 commit with a different `DB_DRIVER` and `DOMAIN_PROVISIONER` — see
-[Environments](../operations/environments.md) and
-[Self-host & domains](../operations/self-host-and-domains.md).
+[Environments](../operations/environments.md),
+[Self-host (Docker)](../operations/self-host.md) and
+[Custom domains & TLS](../operations/self-host-and-domains.md).
 
 **Where to go next.**
 
