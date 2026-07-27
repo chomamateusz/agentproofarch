@@ -1,0 +1,539 @@
+name: dr-acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'demo/ops/backup/**'
+      - '.github/workflows/dr-acceptance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'demo/ops/backup/**'
+      - '.github/workflows/dr-acceptance.yml'
+  schedule:
+    - cron: '37 3 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dr-acceptance:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLUSTER_NAME: dr-acceptance
+      TEST_NAMESPACE: dr-test
+      BACKUP_NAMESPACE: agentproofarch-backup
+      POSTGRES_USER: backup_test
+      POSTGRES_PASSWORD: dr-postgres-password
+      POSTGRES_DB: source_db
+      MINIO_ACCESS_KEY: dr-minio-access
+      MINIO_SECRET_KEY: dr-minio-secret-password
+      MINIO_BUCKET: dr-acceptance
+      MINIO_PREFIX: agentproofarch/ci
+      BACKUP_PASSPHRASE: dr-acceptance-fixed-passphrase-2026
+      RESTORE_POSTGRES_PASSWORD: dr-restore-password
+      COMPOSE_PROJECT_NAME: agentproofarch-dr-acceptance
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Install k3d v5.8.3
+        run: |
+          set -Eeuo pipefail
+          curl --fail --location --silent --show-error \
+            https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64 \
+            --output "$RUNNER_TEMP/k3d"
+          echo "dbaa79a76ace7f4ca230a1ff41dc7d8a5036a8ad0309e9c54f9bf3836dbe853e  $RUNNER_TEMP/k3d" |
+            sha256sum --check
+          chmod +x "$RUNNER_TEMP/k3d"
+          sudo install "$RUNNER_TEMP/k3d" /usr/local/bin/k3d
+          k3d version
+
+      - name: Create the k3d cluster
+        run: |
+          set -Eeuo pipefail
+          k3d cluster create "$CLUSTER_NAME" \
+            --servers 1 \
+            --agents 0 \
+            --image rancher/k3s:v1.31.5-k3s1 \
+            --wait
+          kubectl wait --for=condition=Ready node --all --timeout=120s
+          kubectl get storageclass local-path
+
+      - name: Deploy PostgreSQL 16 and MinIO
+        run: |
+          set -Eeuo pipefail
+          kubectl create namespace "$TEST_NAMESPACE"
+          kubectl create secret generic dr-test-credentials \
+            --namespace "$TEST_NAMESPACE" \
+            --from-literal=postgres-password="$POSTGRES_PASSWORD" \
+            --from-literal=minio-access-key="$MINIO_ACCESS_KEY" \
+            --from-literal=minio-secret-key="$MINIO_SECRET_KEY"
+          envsubst '${TEST_NAMESPACE} ${POSTGRES_USER} ${POSTGRES_DB} ${MINIO_BUCKET}' < <(cat <<'MANIFEST'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: postgres-source
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: postgres-source
+            template:
+              metadata:
+                labels:
+                  app: postgres-source
+              spec:
+                containers:
+                  - name: postgres
+                    image: postgres:16-bookworm
+                    env:
+                      - name: POSTGRES_USER
+                        value: ${POSTGRES_USER}
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: dr-test-credentials
+                            key: postgres-password
+                      - name: POSTGRES_DB
+                        value: ${POSTGRES_DB}
+                    ports:
+                      - name: postgres
+                        containerPort: 5432
+                    readinessProbe:
+                      exec:
+                        command: ["pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+                      initialDelaySeconds: 2
+                      periodSeconds: 2
+                volumes:
+                  - name: data
+                    emptyDir: {}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: postgres-source
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            selector:
+              app: postgres-source
+            ports:
+              - name: postgres
+                port: 5432
+                targetPort: postgres
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: minio
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: minio
+            template:
+              metadata:
+                labels:
+                  app: minio
+              spec:
+                containers:
+                  - name: minio
+                    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+                    args: ["server", "/data"]
+                    env:
+                      - name: MINIO_ROOT_USER
+                        valueFrom:
+                          secretKeyRef:
+                            name: dr-test-credentials
+                            key: minio-access-key
+                      - name: MINIO_ROOT_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: dr-test-credentials
+                            key: minio-secret-key
+                    ports:
+                      - name: api
+                        containerPort: 9000
+                    readinessProbe:
+                      httpGet:
+                        path: /minio/health/ready
+                        port: api
+                      initialDelaySeconds: 2
+                      periodSeconds: 2
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                volumes:
+                  - name: data
+                    emptyDir: {}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: minio
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            selector:
+              app: minio
+            ports:
+              - name: api
+                port: 9000
+                targetPort: api
+          ---
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: minio-create-bucket
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            backoffLimit: 3
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: mc
+                    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+                    command: ["/bin/sh", "-c"]
+                    args:
+                      - |
+                        set -eu
+                        until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                          sleep 2
+                        done
+                        mc mb --ignore-existing "local/$MINIO_BUCKET"
+                    env:
+                      - name: MINIO_ROOT_USER
+                        valueFrom:
+                          secretKeyRef:
+                            name: dr-test-credentials
+                            key: minio-access-key
+                      - name: MINIO_ROOT_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: dr-test-credentials
+                            key: minio-secret-key
+                      - name: MINIO_BUCKET
+                        value: ${MINIO_BUCKET}
+          MANIFEST
+          ) >"$RUNNER_TEMP/dependencies.yaml"
+          kubectl apply -f "$RUNNER_TEMP/dependencies.yaml"
+          kubectl rollout status deployment/postgres-source \
+            --namespace "$TEST_NAMESPACE" \
+            --timeout=120s
+          kubectl rollout status deployment/minio \
+            --namespace "$TEST_NAMESPACE" \
+            --timeout=120s
+          kubectl wait job/minio-create-bucket \
+            --namespace "$TEST_NAMESPACE" \
+            --for=condition=complete \
+            --timeout=120s
+
+      - name: Seed deterministic source rows
+        run: |
+          set -Eeuo pipefail
+          kubectl exec --stdin --namespace "$TEST_NAMESPACE" deployment/postgres-source -- \
+            psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+          CREATE TABLE dr_acceptance (
+            id integer PRIMARY KEY,
+            marker text NOT NULL,
+            payload bytea NOT NULL
+          );
+          INSERT INTO dr_acceptance VALUES
+            (1, 'alpha-known-row', decode('000102ff', 'hex')),
+            (2, 'Zażółć gęślą jaźń', convert_to('byte-identical-二', 'UTF8')),
+            (3, 'punctuation: !@# %', decode('deadbeef00', 'hex'));
+          SQL
+          kubectl exec --namespace "$TEST_NAMESPACE" deployment/postgres-source -- \
+            psql -X -A -t -F $'\t' -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            -c "SELECT id, marker, encode(payload, 'hex') FROM dr_acceptance ORDER BY id" \
+            >"$RUNNER_TEMP/source-rows.tsv"
+          test "$(wc -l <"$RUNNER_TEMP/source-rows.tsv")" -eq 3
+
+      - name: README Secret command; fallback emits an explicit error
+        run: |
+          set -Eeuo pipefail
+          kubectl apply -f demo/ops/backup/namespace.yaml
+          umask 077
+          cat >"$RUNNER_TEMP/agentproofarch-backup.env" <<EOF
+          DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-source.${TEST_NAMESPACE}.svc.cluster.local:5432/${POSTGRES_DB}?sslmode=disable
+          S3_PROVIDER=Minio
+          S3_ENDPOINT=http://minio.${TEST_NAMESPACE}.svc.cluster.local:9000
+          S3_REGION=us-east-1
+          S3_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+          S3_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
+          S3_BUCKET=${MINIO_BUCKET}
+          S3_PREFIX=${MINIO_PREFIX}
+          EOF
+          printf '%s\n' "$BACKUP_PASSPHRASE" >"$RUNNER_TEMP/agentproofarch-backup-passphrase"
+          set +e
+          kubectl create secret generic agentproofarch-backup-secrets \
+            --namespace agentproofarch-backup \
+            --from-env-file="$RUNNER_TEMP/agentproofarch-backup.env" \
+            --from-file=backup-passphrase="$RUNNER_TEMP/agentproofarch-backup-passphrase" \
+            --dry-run=client \
+            --output yaml |
+            kubectl apply -f -
+          readme_status=$?
+          set -e
+          if [[ "$readme_status" -eq 0 ]]; then
+            printf 'README Secret command form accepted by kubectl.\n'
+            printf '### README Secret command\n\nAccepted verbatim command form.\n' >>"$GITHUB_STEP_SUMMARY"
+          else
+            printf '::error::README Secret command form failed with status %s; applying fallback.\n' "$readme_status"
+            printf '### README Secret command\n\nFailed with status `%s`; fallback applied.\n' \
+              "$readme_status" >>"$GITHUB_STEP_SUMMARY"
+            kubectl create secret generic agentproofarch-backup-secrets \
+              --namespace "$BACKUP_NAMESPACE" \
+              --from-env-file="$RUNNER_TEMP/agentproofarch-backup.env" \
+              --from-file="backup-passphrase=$RUNNER_TEMP/agentproofarch-backup-passphrase" \
+              --dry-run=client \
+              --output=yaml >"$RUNNER_TEMP/backup-secret.yaml"
+            kubectl apply -f "$RUNNER_TEMP/backup-secret.yaml"
+          fi
+          kubectl apply --dry-run=client --output=json \
+            -f demo/ops/backup/secret.template.yaml |
+            jq -r '.stringData | keys[]' | sort >"$RUNNER_TEMP/template-secret-keys"
+          kubectl get secret agentproofarch-backup-secrets \
+            --namespace "$BACKUP_NAMESPACE" \
+            --output=json |
+            jq -r '.data | keys[]' | sort >"$RUNNER_TEMP/live-secret-keys"
+          cmp "$RUNNER_TEMP/template-secret-keys" "$RUNNER_TEMP/live-secret-keys"
+
+      - name: Apply the package PVC and CronJob
+        run: |
+          set -Eeuo pipefail
+          kubectl apply -f demo/ops/backup/pvc.yaml
+          kubectl apply -f demo/ops/backup/cronjob.yaml
+          kubectl get cronjob,secret,pvc --namespace "$BACKUP_NAMESPACE"
+
+      - name: Run the first backup
+        run: |
+          set -Eeuo pipefail
+          kubectl create job \
+            --namespace "$BACKUP_NAMESPACE" \
+            --from=cronjob/agentproofarch-postgres-backup \
+            dr-backup-one
+          kubectl wait \
+            --namespace "$BACKUP_NAMESPACE" \
+            --for=condition=complete \
+            --timeout=300s \
+            job/dr-backup-one
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-one --container backup
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-one --container upload
+
+      - name: Age a local pair and run the second backup
+        run: |
+          set -Eeuo pipefail
+          cat <<'MANIFEST' | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: backup-inspector
+            namespace: agentproofarch-backup
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: inspector
+                image: postgres:16-bookworm
+                command: ["/bin/bash", "-c", "sleep 1200"]
+                volumeMounts:
+                  - name: backups
+                    mountPath: /backups
+            volumes:
+              - name: backups
+                persistentVolumeClaim:
+                  claimName: agentproofarch-backups
+          MANIFEST
+          kubectl wait \
+            --namespace "$BACKUP_NAMESPACE" \
+            --for=condition=Ready \
+            --timeout=120s \
+            pod/backup-inspector
+          kubectl exec --namespace "$BACKUP_NAMESPACE" backup-inspector -- \
+            bash -c "printf old >/backups/agentproofarch-20000101T000000Z.dump.gpg &&
+              printf old >/backups/agentproofarch-20000101T000000Z.dump.gpg.sha256 &&
+              touch -d '15 days ago' /backups/agentproofarch-20000101T000000Z.dump.gpg*"
+          kubectl create job \
+            --namespace "$BACKUP_NAMESPACE" \
+            --from=cronjob/agentproofarch-postgres-backup \
+            dr-backup-two
+          kubectl wait \
+            --namespace "$BACKUP_NAMESPACE" \
+            --for=condition=complete \
+            --timeout=300s \
+            job/dr-backup-two
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-two --container backup
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-two --container upload
+          kubectl exec --namespace "$BACKUP_NAMESPACE" backup-inspector -- \
+            test ! -e /backups/agentproofarch-20000101T000000Z.dump.gpg
+          kubectl exec --namespace "$BACKUP_NAMESPACE" backup-inspector -- \
+            test ! -e /backups/agentproofarch-20000101T000000Z.dump.gpg.sha256
+
+      - name: Assert encrypted local and offsite artifacts
+        run: |
+          set -Eeuo pipefail
+          artifact="$(kubectl exec --namespace "$BACKUP_NAMESPACE" backup-inspector -- \
+            bash -c "find /backups -maxdepth 1 -type f -name 'agentproofarch-*.dump.gpg' -printf '%f\n' | sort | tail -n 1")"
+          [[ "$artifact" == agentproofarch-*.dump.gpg ]]
+          local_count="$(kubectl exec --namespace "$BACKUP_NAMESPACE" backup-inspector -- \
+            bash -c "find /backups -maxdepth 1 -type f -name 'agentproofarch-*.dump.gpg' | wc -l")"
+          test "$local_count" -eq 2
+          kubectl cp \
+            "$BACKUP_NAMESPACE/backup-inspector:/backups/$artifact" \
+            "$RUNNER_TEMP/$artifact"
+          kubectl cp \
+            "$BACKUP_NAMESPACE/backup-inspector:/backups/$artifact.sha256" \
+            "$RUNNER_TEMP/$artifact.sha256"
+          (
+            cd "$RUNNER_TEMP"
+            sha256sum --check "$artifact.sha256"
+          )
+          file "$RUNNER_TEMP/$artifact" | grep -F 'GPG symmetrically encrypted data'
+          if grep --text --quiet --fixed-strings 'alpha-known-row' "$RUNNER_TEMP/$artifact"; then
+            printf 'Plaintext seed marker found in encrypted artifact\n' >&2
+            exit 1
+          fi
+          envsubst '${TEST_NAMESPACE}' < <(cat <<'MANIFEST'
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: minio-inspector
+            namespace: ${TEST_NAMESPACE}
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: inspector
+                image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+                command: ["/bin/sh", "-c", "sleep 1200"]
+                env:
+                  - name: MINIO_ROOT_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: dr-test-credentials
+                        key: minio-access-key
+                  - name: MINIO_ROOT_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: dr-test-credentials
+                        key: minio-secret-key
+          MANIFEST
+          ) | kubectl apply -f -
+          kubectl wait \
+            --namespace "$TEST_NAMESPACE" \
+            --for=condition=Ready \
+            --timeout=120s \
+            pod/minio-inspector
+          kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
+            mc alias set local http://minio:9000 "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+          offsite_count="$(kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
+            mc find "local/$MINIO_BUCKET/$MINIO_PREFIX" --name 'agentproofarch-*.dump.gpg' |
+            wc -l)"
+          test "$offsite_count" -eq 2
+          kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
+            mc cp "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact" "/tmp/$artifact"
+          kubectl exec --namespace "$TEST_NAMESPACE" minio-inspector -- \
+            mc cp "local/$MINIO_BUCKET/$MINIO_PREFIX/$artifact.sha256" "/tmp/$artifact.sha256"
+          kubectl cp \
+            "$TEST_NAMESPACE/minio-inspector:/tmp/$artifact" \
+            "$RUNNER_TEMP/offsite-$artifact"
+          kubectl cp \
+            "$TEST_NAMESPACE/minio-inspector:/tmp/$artifact.sha256" \
+            "$RUNNER_TEMP/offsite-$artifact.sha256"
+          cmp "$RUNNER_TEMP/$artifact" "$RUNNER_TEMP/offsite-$artifact"
+          cmp "$RUNNER_TEMP/$artifact.sha256" "$RUNNER_TEMP/offsite-$artifact.sha256"
+          printf '%s\n' "$artifact" >"$RUNNER_TEMP/latest-artifact"
+
+      - name: Restore with the package script
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/restore-compose" "$RUNNER_TEMP/restore-tmp"
+          cat >"$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" <<'COMPOSE'
+          services:
+            postgres:
+              image: postgres:16-bookworm
+              environment:
+                POSTGRES_USER: restore_test
+                POSTGRES_PASSWORD: ${RESTORE_POSTGRES_PASSWORD}
+                POSTGRES_DB: restore_db
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U restore_test -d restore_db"]
+                interval: 2s
+                timeout: 2s
+                retries: 30
+              volumes:
+                - restore-data:/var/lib/postgresql/data
+            app:
+              image: alpine:3.20
+              command: ["sh", "-c", "sleep infinity"]
+              profiles: ["never"]
+            caddy:
+              image: alpine:3.20
+              command: ["sh", "-c", "sleep infinity"]
+              profiles: ["edge"]
+          volumes:
+            restore-data:
+          COMPOSE
+          artifact="$(cat "$RUNNER_TEMP/latest-artifact")"
+          PASSPHRASE_FILE="$RUNNER_TEMP/agentproofarch-backup-passphrase" \
+          RESTORE_CONFIRM=restore-agentproofarch \
+          COMPOSE_DIR="$RUNNER_TEMP/restore-compose" \
+          COMPOSE_FILE=docker-compose.prod.yml \
+          TMPDIR="$RUNNER_TEMP/restore-tmp" \
+            demo/ops/backup/restore.sh "$RUNNER_TEMP/$artifact"
+          docker compose \
+            --project-directory "$RUNNER_TEMP/restore-compose" \
+            -f "$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" \
+            exec -T postgres \
+            psql -X -A -t -F $'\t' -U restore_test -d restore_db \
+            -c "SELECT id, marker, encode(payload, 'hex') FROM dr_acceptance ORDER BY id" \
+            >"$RUNNER_TEMP/restored-rows.tsv"
+          cmp "$RUNNER_TEMP/source-rows.tsv" "$RUNNER_TEMP/restored-rows.tsv"
+
+      - name: Reject a one-byte-corrupted dump
+        run: |
+          set -Eeuo pipefail
+          artifact="$(cat "$RUNNER_TEMP/latest-artifact")"
+          mkdir -p "$RUNNER_TEMP/corrupt"
+          cp "$RUNNER_TEMP/$artifact" "$RUNNER_TEMP/corrupt/$artifact"
+          cp "$RUNNER_TEMP/$artifact.sha256" "$RUNNER_TEMP/corrupt/$artifact.sha256"
+          python3 -c "from pathlib import Path; p=Path('$RUNNER_TEMP/corrupt/$artifact'); d=bytearray(p.read_bytes()); d[32]^=1; p.write_bytes(d)"
+          set +e
+          PASSPHRASE_FILE="$RUNNER_TEMP/agentproofarch-backup-passphrase" \
+          RESTORE_CONFIRM=restore-agentproofarch \
+          COMPOSE_DIR="$RUNNER_TEMP/restore-compose" \
+          COMPOSE_FILE=docker-compose.prod.yml \
+          TMPDIR="$RUNNER_TEMP/restore-tmp" \
+            demo/ops/backup/restore.sh "$RUNNER_TEMP/corrupt/$artifact" \
+            >"$RUNNER_TEMP/corrupt-restore.log" 2>&1
+          corrupt_status=$?
+          set -e
+          cat "$RUNNER_TEMP/corrupt-restore.log"
+          test "$corrupt_status" -ne 0
+          grep --quiet 'FAILED' "$RUNNER_TEMP/corrupt-restore.log"
+
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl get all --all-namespaces || true
+          kubectl get events --all-namespaces --sort-by=.lastTimestamp || true
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-one --all-containers || true
+          kubectl logs --namespace "$BACKUP_NAMESPACE" job/dr-backup-two --all-containers || true
+          docker compose \
+            --project-directory "$RUNNER_TEMP/restore-compose" \
+            -f "$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" \
+            logs --no-color || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" ]]; then
+            docker compose \
+              --project-directory "$RUNNER_TEMP/restore-compose" \
+              -f "$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" \
+              down -v
+          fi
+          k3d cluster delete "$CLUSTER_NAME" || true

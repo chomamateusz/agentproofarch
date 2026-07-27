@@ -13,6 +13,13 @@ before that lives in the git history only.
 
 ## 2026-07-27
 
+### Added
+
+- Non-required `dr-acceptance` CI workflow exercises the backup/DR package on
+  k3d with PostgreSQL 16, MinIO, encrypted backup rotation, byte-identical
+  Compose restore, and corrupted-dump refusal
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD)).
+
 ### Fixed
 
 - Quickstart accuracy pass from a fresh-clone retest: nvm listed as a
