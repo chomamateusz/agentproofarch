@@ -1471,7 +1471,7 @@ The `visual` job (pixel comparison,
 both lists: it reports a screenshot regression without blocking a merge until the
 owner adds it to the required set, and it comes back out the moment it flakes.
 How that report is read and answered is the review loop
-([ADR-0013](decisions/0013-visual-review-loop.md), decided and not yet wired):
+([ADR-0013](decisions/0013-visual-review-loop.md), wired 2026-07-27):
 CI posts the before/after/diff gallery into the pull request, and an
 owner-only `/approve-visuals` comment re-renders the baselines and **commits**
 them onto the PR branch — the approval is a commit here, never a click in a
