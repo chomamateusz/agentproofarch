@@ -30,6 +30,7 @@ flowchart TD
     ci --> smoke["smoke — REQUIRED<br/>postgres:16 + mailpit<br/>integration tests, runtime smoke,<br/>quickstart probe"]
     ci --> e2e["e2e — REQUIRED<br/>Chromium over the real stack"]
     ci --> visual["visual — not required<br/>pixel comparison"]
+    visual --> vr["visual-report — not required<br/>sticky PR gallery"]
     sh --> docker["docker-smoke — REQUIRED<br/>build image, boot compose, smoke:remote"]
     ai --> aireview["ai-review — required on main<br/>fail-closed doctrine review"]
     dci --> docsbuild["docs-build — not required<br/>Docusaurus build + typecheck<br/>+ mermaid parse check"]
@@ -37,16 +38,19 @@ flowchart TD
 
     deploy["deployment_status success<br/>Production or Preview"] --> pds["post-deploy-smoke.yml<br/>smoke:remote + EXPECTED_SHA"]
     dispatch["workflow_dispatch"] --> vb["visual-baselines.yml<br/>re-render baselines in linux CI"]
+    approve["/approve-visuals comment<br/>owner only"] --> av["approve-visuals.yml<br/>guard, then dispatch"]
+    av --> vb
     pushmain["push to main<br/>website/** + CHANGELOG.md"] --> dd["docs-deploy.yml<br/>GitHub Pages"]
 ```
 
 | Workflow | Trigger | Jobs | Required by the rulesets |
 |---|---|---|---|
-| `ci.yml` | `pull_request`, `push` to `main` | `check`, `smoke`, `e2e`, `visual` | first three **yes**; `visual` no |
+| `ci.yml` | `pull_request`, `push` to `main` | `check`, `smoke`, `e2e`, `visual`, `visual-report` (PR only) | first three **yes**; visual jobs no |
 | `selfhost.yml` | `pull_request`, `push` to `main` | `docker-smoke` | **yes** |
 | `ai-review.yml` | PRs to `main` (`opened` / `synchronize` / `ready_for_review`), non-draft | `ai-review` | **yes**, on `main-gates` (since 2026-07-26) |
 | `post-deploy-smoke.yml` | `deployment_status` | `smoke-remote` | n/a — runs after a deploy |
 | `visual-baselines.yml` | `workflow_dispatch` | `visual-baselines` | n/a — authoring tool |
+| `approve-visuals.yml` | `issue_comment` (`created`) on a pull request | `guard`, `approve-visuals` | n/a — the re-baseline command |
 | `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
 | `dr-acceptance.yml` | `pull_request`, `push` to `main` (both path-filtered), weekly schedule, manual dispatch | `dr-acceptance` | no |
 | `docs-deploy.yml` | `push` to `main`, path-filtered | `build`, `deploy` | n/a — publishes this site |
@@ -119,30 +123,31 @@ Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs
 
 ## Deliberately non-required 🚫 \{#deliberately-non-required}
 
-Exactly three jobs run and report without blocking: **`visual`**, **`docs-build`** and **`dr-acceptance`**. One external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
+Exactly four jobs run and report without blocking: **`visual`**, **`visual-report`**, **`docs-build`** and **`dr-acceptance`**. One external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
 
 `ai-review` is not on this list any more. It shipped non-required to accumulate a verdict track record first, and **graduated to a required `main-gates` check on 2026-07-26** when the owner added its job-name context to the ruleset — an Admin-only action.
 
 | Job | Why it does not block | How it becomes blocking |
 |---|---|---|
 | `visual` | Pixel comparison is the classic rerun-to-green offender, and the flake doctrine treats a flake as a P1 bug. The check earns arming only after a run history of green comparisons ([ADR-0008](../decisions/0008-visual-regression.md) §4). | The owner adds `visual` to `main-gates`' required list — and takes it back out the moment it flakes. |
+| `visual-report` | It is the sticky gallery publisher, not a comparison gate; fork PRs skip it because their token cannot write the utility branch or comments. | Deliberately never; `visual` is the status that could be armed. |
 | `docs-build` | It is **path-filtered** on `website/**` and `CHANGELOG.md`, so on a PR that leaves both alone it never runs — and a required check that never runs is unmergeable. | Not possible as written; the path filter would have to go first. |
 | `dr-acceptance` | It is path-filtered to the backup package and its workflow, and k3d/MinIO/Compose prove disposable package behavior rather than the real k3s, Neon and offsite environment. | Not possible as written; remove the path filter before considering ruleset changes. |
 | `CodeRabbit` (GitHub App, no workflow) | An advisory second opinion configured by `.coderabbit.yaml` (chill profile, `request_changes_workflow: false`): it comments and reports a status but must never gate — the doctrinal enforcement tier is `ai-review`, and a second AI reviewer stays a perspective, not a wall. | Deliberately never; if it ever gated, a config PR would have to say so here first. |
 
 On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact, kept 7 days. A developer on macOS needs it: baselines are platform-scoped, and `ignoreSnapshots` is on for every non-linux platform, so there is no local comparison at all.
 
-Generate baselines only through the `visual-baselines` workflow (`workflow_dispatch`, `update: true`). It re-renders them, then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs. An authoring run that died before the harness booted therefore cannot ship an empty or partial baseline set.
+Generate baselines only through the `visual-baselines` workflow (`workflow_dispatch`, `update: true`). It re-renders them, then **re-runs the suite as a comparison against what it just wrote** before uploading the PNGs. An authoring run that died before the harness booted therefore cannot ship an empty or partial baseline set. A second input, `commit: true`, makes that same gated run push the PNGs onto the dispatched branch instead of leaving them in an artifact — it is what `/approve-visuals` triggers, and it fails loud when dispatched without `update: true` or on anything but a branch.
 
 ### The review loop 🔁 \{#the-review-loop}
 
-**Decided 2026-07-27, not yet wired** — [ADR-0013](../decisions/0013-visual-review-loop.md) records the loop below; until its workflows land, a red `visual` is still read from the artifact above.
+**Wired 2026-07-27** — [ADR-0013](../decisions/0013-visual-review-loop.md) records the loop below.
 
-A second job, `visual-report`, publishes Playwright's own **expected / actual / diff** PNGs to the unprotected `visual-reports` branch under `pr-<number>/<head-sha-7>/` and upserts **one** pull-request comment holding them inline (plus a link to the full Playwright HTML report artifact). It downloads the artifact rather than checking out the pull request, so the only job with `contents: write` + `pull-requests: write` never executes PR-authored code.
+A second job, `visual-report`, publishes Playwright's own **expected / actual / diff** PNGs to the unprotected `visual-reports` branch under `pr-<number>/run-<id>/` and upserts **one** pull-request comment holding them inline (plus a link to the full Playwright HTML report artifact). It checks out the protected base SHA explicitly, never the pull-request head, then downloads the untrusted artifact; the write-scoped job therefore never executes PR-authored code. A green comparison updates an existing sticky comment to **no visual changes** without creating a new clean-run comment.
 
-Approval is a commit, not a click. A maintainer comments **`/approve-visuals`**; `visual-approve.yml` accepts it only when the comment is `created` (never `edited`) on a pull request and its `author_association` is **`OWNER`** — or the login is listed in the repository variable `VISUAL_APPROVERS`, which is empty by default, so today the command is owner-only. `COLLABORATOR` and `MEMBER` are deliberately refused: an agent that wants a re-baseline dispatches `visual-baselines` itself. The workflow then dispatches that workflow against the PR branch with `update: true` and `commit: true`, and the new baselines land as a commit — after which **GitHub's native 2-up / swipe / onion-skin PNG diff on the Files tab is the final review**.
+Approval is a commit, not a click. A maintainer comments **`/approve-visuals`**; `approve-visuals.yml` accepts it only when the comment is `created` (never `edited`) on a pull request, the trimmed body equals that command exactly, and its `author_association` is **`OWNER`** — or the login is listed in the repository variable `VISUAL_APPROVERS`, which is empty by default, so today the command is owner-only. `COLLABORATOR` and `MEMBER` are deliberately refused: an agent that wants a re-baseline dispatches `visual-baselines` itself. The privileged job spells its minimum scopes as `actions: write`, `contents: read`, and `pull-requests: write`, then dispatches against the PR branch with `update: true` and `commit: true`, names the head SHA it dispatched on in a reply and 👍s the command; the new baselines land as a commit, after which **GitHub's native 2-up / swipe / onion-skin PNG diff on the Files tab is the final review**. A comment that fails the author rule gets no run and no reply at all — answering it would let any stranger make the bot post on demand.
 
-Because `issue_comment` always runs the **default-branch** copy of a workflow, a pull request cannot alter the rule that guards it. **Fork pull requests get neither half of the loop**: their `GITHUB_TOKEN` is read-only and has no access to the fork, so the gallery job skips and baselines cannot be pushed — the artifact plus a documented manual path is the fork story, spelled out in the ADR.
+Because `issue_comment` always runs the **default-branch** copy of a workflow, a pull request cannot alter the rule that guards it. **Fork pull requests get neither half of the loop**: their `GITHUB_TOKEN` is read-only and has no access to the fork, so the gallery job skips and baselines cannot be pushed. An approver who runs the command on a fork PR anyway gets an explicit refusal comment and a red run rather than a silent no-op; the artifact plus a documented manual path is the fork story, spelled out in the ADR.
 
 `dr-acceptance` is a hard-failing acceptance scenario inside its own run: every poll has a timeout and every completion, encrypted artifact, checksum, offsite copy, rotation result, restored row and corruption refusal is asserted. Its non-required status says only that the path-filtered job is outside the rulesets; a red run still means the package or its acceptance harness is wrong and must not be rerun to green.
 

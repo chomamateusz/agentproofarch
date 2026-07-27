@@ -15,12 +15,14 @@ before that lives in the git history only.
 
 ### Added
 
-- ADR-0013 records the visual review loop: CI publishes Playwright's
-  expected/actual/diff PNGs to a `visual-reports` branch and upserts one PR
-  comment with an inline gallery, and an owner-only `/approve-visuals` comment
-  dispatches `visual-baselines` to re-render and **commit** the new baselines, so
-  the approval closes in git and GitHub's native PNG diff is the final review
-  (#TBD).
+- The visual review loop ships with the ADR-0013 that records it: a new
+  `visual-report` job publishes Playwright's expected/actual/diff PNGs to a
+  `visual-reports` branch and upserts one pull-request comment with an inline
+  gallery, and an owner-only `/approve-visuals` comment (`approve-visuals.yml`)
+  dispatches `visual-baselines` with the new `commit: true` input to re-render
+  and **commit** the new baselines, so the approval closes in git and GitHub's
+  native PNG diff is the final review. Fork pull requests get the artifacts and a
+  documented manual path instead (#TBD).
 
 - ADR-0012 scopes CLI client state per API origin like browser cookies: the
   config file keeps its XDG location but becomes an origin-keyed profile map

@@ -33,21 +33,21 @@ And the best reviewer in the evaluation is already installed: GitHub renders a c
 ```mermaid
 flowchart TD
     visual["visual job — runs PR code<br/>contents: read"] -->|"red: pixels differ"| art["artifact: visual-diff<br/>+ Playwright HTML report"]
-    art --> report["visual-report job — no PR code<br/>contents: write + pull-requests: write"]
-    report --> branch["push PNGs to visual-reports<br/>path: pr-N / head-sha7 / *.png"]
+    art --> report["visual-report job — trusted base code<br/>contents: write + pull-requests: write"]
+    report --> branch["push PNGs to visual-reports<br/>path: pr-N / run-ID / *.png"]
     report --> comment["upsert ONE PR comment:<br/>expected · actual · diff table<br/>+ link to the HTML report"]
     comment --> human["maintainer reads it in the PR"]
 ```
 
-- **The publisher never runs pull-request code.** `visual-report` (`needs: visual`, `if: failure()`) does not check out the PR — it downloads the artifact. The job that builds and runs the app keeps `contents: read`; only the publisher holds write scopes, and it holds them where there is no PR-authored code to execute.
+- **The publisher never runs pull-request code.** `visual-report` checks out the protected base SHA explicitly, never the PR head, and downloads the artifact on failure. It also runs after a green comparison to update an existing sticky comment to "no visual changes". The job that builds and runs the app keeps `contents: read`; only the publisher holds write scopes, and it holds them where there is no PR-authored code to execute.
 - **Artifact file names are untrusted input** (a spec title becomes a path), so only entries matching `^[A-Za-z0-9._-]+-(expected|actual|diff)\.png$` are copied, flattened.
-- **The head SHA is in the path on purpose.** `raw.githubusercontent.com` caches by URL; a fixed per-PR path would show the *previous* run's image for minutes. A new commit is a new URL, and a new URL cannot be stale.
+- **The run ID is in the path on purpose.** `raw.githubusercontent.com` caches by URL; a fixed per-PR path would show the *previous* run's image for minutes. A new run is a new URL, and a new URL cannot be stale.
 - **The branch is bounded, not accumulating**: each publication rewrites `visual-reports` as a single orphan root commit holding the directories of currently open PRs only, serialised by a `concurrency` group. Nothing triggers off that branch — `ci.yml` runs on `pull_request` and pushes to `main`, and Pages is published by `actions/deploy-pages`, not from a branch.
 - **One comment, edited.** A hidden `<!-- visual-review-gallery -->` marker identifies it — the `ai-review` sticky-comment pattern, reused rather than reinvented.
 
 ### 2. Approval closes the loop in git ✅ \{#2-approval-closes-the-loop-in-git}
 
-A maintainer comments `/approve-visuals`. `visual-approve.yml` verifies the comment, then dispatches the existing `visual-baselines` workflow (`update: true`, plus a new `commit: true` input) against the PR's branch. That run re-renders the baselines on the linux runner, **re-runs the suite as a comparison against what it just wrote** — the ADR-0008 gate, now gating a push instead of an upload — and commits the PNGs onto the branch.
+A maintainer comments `/approve-visuals`. `approve-visuals.yml` verifies the comment, then dispatches the existing `visual-baselines` workflow (`update: true`, plus a new `commit: true` input) against the PR's branch. That run re-renders the baselines on the linux runner, **re-runs the suite as a comparison against what it just wrote** — the ADR-0008 gate, now gating a push instead of an upload — and commits the PNGs onto the branch.
 
 The exact rule, evaluated before any step runs:
 
@@ -57,7 +57,7 @@ on:
     types: [created]
 
 jobs:
-  approve-visuals:
+  guard:
     if: >-
       github.repository == 'chomamateusz/agentproofarch'
       && github.event.issue.pull_request != null
@@ -77,7 +77,7 @@ jobs:
 | `types: [created]` only | A comment can be edited by someone other than its author, while `comment.user` stays the original author; "approval by editing" is therefore unreachable. |
 | A failing rule produces **no run and no reply** | Replying would let any stranger make the bot post on demand. The gallery comment states who may approve. |
 
-**The comment body is data, never code**: it appears only inside `if:` expressions and is never interpolated into a `run:` step, which closes the standard Actions script-injection seam by construction.
+The read-only guard trims the body and requires exact equality with `/approve-visuals`; only then can the privileged job run. **The comment body is data, never code**: `actions/github-script` reads it from the webhook context, and it is never interpolated into a `run:` step.
 
 **Then GitHub's native PNG diff is the final review artifact.** The baselines arrive as a normal commit, so the Files tab renders each screenshot with 2-up, swipe and onion-skin. That view — not the command — is the decision of record.
 
@@ -85,7 +85,7 @@ jobs:
 
 **A stranger tries to make CI commit for them.** They comment `/approve-visuals`. GitHub emits `issue_comment.created` with an `author_association` of `NONE`/`CONTRIBUTOR` that they cannot set. The `if:` is evaluated **against the default-branch version of the workflow file** — `issue_comment` is a repository-level event, so GitHub never runs the PR's version. **The rule they are trying to pass is a rule they cannot have edited**, because editing it requires merging to `main`, which is behind the `main-gates` ruleset with an empty bypass list. The condition is false, **no job is created**, no token is minted, nothing is commented.
 
-**The owner approves on a same-repo PR.** The approve workflow itself runs on `contents: read` + `pull-requests: write`. It refuses when `head.repo.full_name != github.repository`, records the head SHA, and dispatches. The dispatched run holds `contents: write` while executing PR-authored code — acceptable for a stated reason, not by omission:
+**The owner approves on a same-repo PR.** The read-only guard applies the author rule and exact trimmed command check. The privileged job runs on `actions: write` + `contents: read` + `pull-requests: write`; it refuses when `head.repo.full_name != github.repository`, records the head SHA, and dispatches. The dispatched run holds `contents: write` while executing PR-authored code — acceptable for a stated reason, not by omission:
 
 - the ref must be a branch **in this repository**, so its author already has Write: the dispatch confers no new privilege;
 - today's manual dispatch already runs the same code with the same identity, minus the write scope;
@@ -118,7 +118,7 @@ There is also a race worth naming: the branch can move between the comment and t
 ## Consequences ⚡ \{#consequences}
 
 - **Nine manual steps become three**: read the comment, type `/approve-visuals`, review the committed image diff.
-- **`ci.yml` grows one job and the visual config grows one reporter.** No new service, no account, no secret — the whole loop runs on the ephemeral `GITHUB_TOKEN`.
+- **`ci.yml` grows one job, `visual-baselines` one input, and the visual config one reporter.** No new service, no account, no secret — the whole loop runs on the ephemeral `GITHUB_TOKEN`.
 - **The repository grows a `visual-reports` branch**: machine-written, one commit of history, bounded by the open PRs with differences, unprotected on purpose (protecting it would block the force-push that keeps it bounded).
 
 :::caution[Honest caveats]

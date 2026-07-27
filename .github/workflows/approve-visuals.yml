@@ -1,0 +1,92 @@
+name: approve-visuals
+
+# ADR-0013: the one path that turns a visual review into a baseline commit.
+# `issue_comment` is a repository-level event, so GitHub always runs the
+# default-branch copy of this file — a pull request cannot edit the rule that
+# guards it. The author rule lives in the read-only `guard` job's `if:`, so a
+# comment that fails it creates no job, mints no token and gets no reply.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    if: >-
+      github.repository == 'chomamateusz/agentproofarch'
+      && github.event.issue.pull_request != null
+      && startsWith(github.event.comment.body, '/approve-visuals')
+      && (
+        github.event.comment.author_association == 'OWNER'
+        || contains(fromJSON(vars.VISUAL_APPROVERS || '[]'),
+                    github.event.comment.user.login)
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      accepted: ${{ steps.command.outputs.accepted }}
+    steps:
+      # The body is data, never code: github-script reads it from the webhook
+      # context and compares it, so it never reaches a shell.
+      - id: command
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            core.setOutput('accepted', context.payload.comment.body.trim() === '/approve-visuals');
+
+  approve-visuals:
+    needs: guard
+    if: needs.guard.outputs.accepted == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      COMMENT_ID: ${{ github.event.comment.id }}
+      COMMENTER: ${{ github.event.comment.user.login }}
+    steps:
+      - id: pull
+        run: |
+          pull="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          {
+            echo "head_repo=$(jq -r '.head.repo.full_name' <<<"${pull}")"
+            echo "head_ref=$(jq -r '.head.ref' <<<"${pull}")"
+            echo "head_sha=$(jq -r '.head.sha' <<<"${pull}")"
+          } >> "${GITHUB_OUTPUT}"
+
+      # A fork head is not a ref in this repository, so there is nothing this
+      # token can commit to. Refusing red stops every step below it.
+      - if: steps.pull.outputs.head_repo != github.repository
+        run: |
+          gh api --method POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -f body="@${COMMENTER} \`/approve-visuals\` cannot commit baselines onto a fork branch — this token has no access to it (ADR-0013 §3). Review the \`visual-diff\` and \`playwright-report\` artifacts, then take the documented manual fork path."
+          exit 1
+
+      - env:
+          HEAD_REF: ${{ steps.pull.outputs.head_ref }}
+        run: |
+          gh api --method POST \
+            "repos/${REPOSITORY}/actions/workflows/visual-baselines.yml/dispatches" \
+            -f ref="${HEAD_REF}" \
+            -F "inputs[update]=true" \
+            -F "inputs[commit]=true"
+
+      # The dispatch is by branch name, so the tip can move between the comment
+      # and the render (ADR-0013 Scenario C): naming the SHA that was seen is
+      # what makes that race visible to the reviewer.
+      - env:
+          HEAD_REF: ${{ steps.pull.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pull.outputs.head_sha }}
+        run: |
+          gh api --method POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -f body="Dispatched \`visual-baselines\` (\`update: true\`, \`commit: true\`) on \`${HEAD_REF}\`, seen at \`${HEAD_SHA}\`. The re-rendered baselines land as a commit on this branch — review them in the Files tab."
+
+      - run: |
+          gh api --method POST \
+            "repos/${REPOSITORY}/issues/comments/${COMMENT_ID}/reactions" \
+            -f content='+1'

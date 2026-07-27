@@ -36,6 +36,7 @@
     "e2e": "playwright test",
     "visual": "playwright test --config playwright.visual.config.ts",
     "visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
+    "visual:report": "tsx scripts/visual-report.ts",
     "smoke:remote": "tsx scripts/smoke-remote.ts",
     "lock-lint": "pnpm install --frozen-lockfile --lockfile-only"
   },

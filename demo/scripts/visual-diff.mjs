@@ -1,4 +1,7 @@
 // Pixel-diff two PNGs: node scripts/visual-diff.mjs <a.png> <b.png> <diff.png>
+// The threshold mirrors playwright.visual.config.ts, so the count printed here is
+// the count the visual gate itself compared on and can be quoted as such in the
+// ADR-0013 gallery — not a second opinion with its own tolerance.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import pixelmatch from 'pixelmatch';
@@ -14,7 +17,7 @@ if (a.width !== b.width || a.height !== b.height) {
 }
 
 const diff = new PNG({ width: a.width, height: a.height });
-const mismatched = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold: 0.1 });
+const mismatched = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold: 0 });
 if (diffPath) writeFileSync(diffPath, PNG.sync.write(diff));
 const pct = ((mismatched / (a.width * a.height)) * 100).toFixed(2);
 console.log(`${mismatched} px differ (${pct}%)`);

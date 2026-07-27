@@ -61,9 +61,11 @@ already written into `demo/test-results/` — to an **unprotected utility branch
 and posts **one** pull-request comment containing them inline.
 
 - **The publisher never runs pull-request code.** `ci.yml` gains a second job,
-  `visual-report` (`needs: visual`, `if: failure()`), which does *not* check out
-  the PR: it downloads the existing `visual-diff` artifact and nothing else. Its
-  inputs are PNG bytes and a PR number. The job that builds and runs the app
+  `visual-report` (`needs: visual`, `if: always()`), which checks out the PR's
+  trusted base SHA, never its head, and downloads the existing `visual-diff`
+  artifact on failure. Its untrusted inputs are PNG bytes and a PR number. The
+  job also runs after a green comparison so an existing gallery comment can be
+  updated to "no visual changes". The job that builds and runs the app
   keeps `contents: read`; only this one holds `contents: write` +
   `pull-requests: write`, and it holds them in a job where there is no
   PR-authored code to execute.
@@ -74,7 +76,7 @@ and posts **one** pull-request comment containing them inline.
   directory components from the artifact.
 
 - **Branch and path:** `visual-reports`, laid out as
-  `pr-<number>/<head-sha-7>/<name>-{expected,actual,diff}.png`. The head SHA is
+  `pr-<number>/run-<id>/<name>-{expected,actual,diff}.png`. The run ID is
   in the path on purpose: `raw.githubusercontent.com` caches by URL, so reusing
   one path per PR would show a maintainer the *previous* run's image for
   minutes. A new commit is a new URL, and a new URL cannot be stale.
@@ -100,7 +102,9 @@ and posts **one** pull-request comment containing them inline.
 
 - **What the comment contains:** an HTML table, one row per changed screenshot,
   three `<img width="260">` cells (expected · actual · diff) pointing at
-  `raw.githubusercontent.com`; the pixel counts Playwright reported; the
+  `raw.githubusercontent.com`; the differing-pixel count, recomputed from the
+  two PNGs by `scripts/visual-diff.mjs` at the config's own `threshold: 0` so it
+  is the number Playwright compared on rather than a second opinion; the
   `/approve-visuals` instruction and who may run it; and a link to the full
   **Playwright HTML report** artifact, whose own viewer offers the side-by-side
   and slider modes for a serious look. That report needs the visual config to
@@ -113,7 +117,7 @@ look, for the cases where it is not.
 
 ### 2. Approval closes the loop IN GIT
 
-**A maintainer comments `/approve-visuals`.** A new workflow, `visual-approve.yml`,
+**A maintainer comments `/approve-visuals`.** A new workflow, `approve-visuals.yml`,
 listens on `issue_comment` and, when it accepts the comment, dispatches the
 existing `visual-baselines` workflow with `update: true` against the pull
 request's branch. That run re-renders the baselines on the linux runner, re-runs
@@ -127,7 +131,9 @@ artifact.
 `demo/visual/__screenshots__/**` to the ref it was dispatched on. The artifact
 upload stays exactly as it is — it is the fork path (§3) and the manual path.
 
-**The exact author rule**, evaluated in the workflow's `if:` before any step runs:
+**The exact author rule** is evaluated in the read-only `guard` job's `if:`
+before any step runs. The guard then trims the body and requires exact equality
+with `/approve-visuals`; only that result can create the write-capable job:
 
 ```yaml
 on:
@@ -136,10 +142,9 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
-  approve-visuals:
+  guard:
     if: >-
       github.repository == 'chomamateusz/agentproofarch'
       && github.event.issue.pull_request != null
@@ -150,6 +155,11 @@ jobs:
                     github.event.comment.user.login)
       )
 ```
+
+The `approve-visuals` job needs `actions: write` to dispatch the baseline
+workflow, `contents: read` to resolve the pull request, and
+`pull-requests: write` to comment and react. It is not created unless the
+trimmed body equals the command.
 
 Read as prose, so there is no ambiguity about who may re-baseline:
 
@@ -177,11 +187,11 @@ Read as prose, so there is no ambiguity about who may re-baseline:
    gallery comment states who may approve, so the information is available before
    anyone types the command.
 
-**The comment is data, never code.** `github.event.comment.body` appears only
-inside `if:` expressions; it is never interpolated into a `run:` block, and the
-pull-request number comes from `github.event.issue.number`, not from the text.
-This closes the standard Actions script-injection seam by construction rather
-than by escaping.
+**The comment is data, never code.** The body is read from the webhook context
+by `actions/github-script` and compared after `trim()`; it is never interpolated
+into a `run:` block, and the pull-request number comes from
+`github.event.issue.number`, not from the text. This closes the standard Actions
+script-injection seam by construction rather than by escaping.
 
 **After the commit, GitHub's native PNG diff is the final review artifact.** The
 new baselines are a normal commit on the PR branch, so the Files tab renders each
@@ -202,12 +212,12 @@ assumed.
 2. `attacker` comments `/approve-visuals`.
 3. GitHub emits `issue_comment.created`. The payload's `author_association` is
    computed by GitHub as `NONE` / `CONTRIBUTOR` — the attacker cannot set it.
-4. The `if:` is evaluated **against `visual-approve.yml` as it exists on the
+4. The `if:` is evaluated **against `approve-visuals.yml` as it exists on the
    default branch**. `issue_comment` is a repository-level event: GitHub always
    runs the default-branch version of the workflow file, never the version on
    the PR's head. So the rule the attacker is trying to pass is a rule the
    attacker cannot have edited — a pull request that rewrites
-   `visual-approve.yml` changes nothing until it is merged to `main`, and `main`
+   `approve-visuals.yml` changes nothing until it is merged to `main`, and `main`
    is behind the `main-gates` ruleset (PR required, empty bypass, five required
    checks).
 5. The condition is false. **No job is created.** No token is minted, no step
@@ -218,9 +228,10 @@ its privileges).**
 
 1. Owner comments `/approve-visuals` on PR #N, whose head branch lives in this
    repository.
-2. `visual-approve.yml` (default-branch version) matches. Its own token is
-   `contents: read` + `pull-requests: write` — it needs to read the PR and to
-   post a confirmation, nothing more.
+2. `approve-visuals.yml` (default-branch version) matches. The read-only guard
+   accepts the exact trimmed command; the following job holds `actions: write`
+   + `contents: read` + `pull-requests: write` so it can dispatch, resolve the
+   PR, post confirmation, and react to the command.
 3. The job resolves the PR through the API and **refuses when
    `head.repo.full_name != github.repository`** (§fork story below). It records
    the head SHA it saw and names it in the confirmation comment.
@@ -304,7 +315,8 @@ request from a fork:
   being cosmetic on the day the owner arms `visual` as a required check**, and
   the arming decision (ADR-0008 §4) must account for it: the honest options are a
   re-run by hand, an empty commit, or the App/PAT this ADR rejects.
-- **`ci.yml` grows one job, and the visual config grows one reporter.** No new
+- **`ci.yml` grows one job, `visual-baselines` one input, and the visual config
+  one reporter.** No new
   service, no new account, no new secret: the whole loop runs on the ephemeral
   `GITHUB_TOKEN`, which is why it costs nothing under CHEAP SECRETS.
 - **The repository grows a `visual-reports` branch** whose content is machine
@@ -321,9 +333,9 @@ request from a fork:
 
   | Rule | TYPE | LINT | TEST | REVIEW+AI |
   |---|---|---|---|---|
-  | Only OWNER (or `VISUAL_APPROVERS`) can trigger a re-baseline | n/a | n/a | n/a — the `if:` expression **is** the mechanism, evaluated by GitHub from server-computed payload fields | that no future edit widens it to `COLLABORATOR` |
-  | The publisher never executes PR code | n/a | n/a | n/a | the job boundary is reviewable in one screen: `visual-report` has no `actions/checkout` of the PR |
-  | The comment body never reaches a shell | n/a | n/a | n/a | review-tier — a `run:` step interpolating `github.event.comment.*` is a blocking finding |
+  | Only OWNER (or `VISUAL_APPROVERS`) can trigger a re-baseline | n/a | n/a | the `if:` expression **is** the mechanism (GitHub evaluates it server-side, from payload fields the commenter cannot set, before a job exists); `config-regression/visual-approval.test.ts` cannot execute it, so it fails the build when an edit widens the accepted set instead | that no future edit widens it to `COLLABORATOR` |
+  | The publisher never executes PR code | n/a | n/a | the same probe asserts the `visual-report` checkout is `pull_request.base.sha` and no head ref | the job boundary itself |
+  | The comment body never reaches a shell | n/a | n/a | the probe fails on any `${{ … github.event.comment.body … }}` interpolation | review-tier for the subtler variants — a `run:` step reading `github.event.comment.*` is a blocking finding |
   | Baselines only ever change through a gated CI run | n/a | `ignoreSnapshots` (ADR-0008) keeps a mac from authoring | the second comparison run gates the commit exactly as it gates today's artifact | — |
 
 - **Two residuals stay open and named.** (a) The approval races a push to the
