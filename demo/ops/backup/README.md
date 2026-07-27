@@ -73,22 +73,24 @@ S3_PREFIX=agentproofarch/production
 
 Use Neon's direct endpoint rather than its pooled endpoint. Keep Neon at a server version PostgreSQL 16 `pg_dump` can read until this package and the self-host stack are upgraded together. Use the rclone S3 provider name required by the service, such as `AWS`, `Cloudflare`, `Minio`, or `Other`. Keep the prefix free of a leading slash. `secret.template.yaml` is a reference template; never apply it without replacing every placeholder, and never commit a populated copy.
 
-Create the Secret without putting values on a command line:
+Append the passphrase to the same env file, create the Secret from that single file without putting values on a command line, and destroy the file. Everything goes through one `--from-env-file` because kubectl refuses to combine `--from-env-file` with `--from-file` in a single `create secret` call:
 
 ```bash
+printf 'backup-passphrase=%s\n' "$(cat /root/agentproofarch-backup-passphrase)" \
+  >> /root/agentproofarch-backup.env
 kubectl create secret generic agentproofarch-backup-secrets \
   --namespace agentproofarch-backup \
   --from-env-file=/root/agentproofarch-backup.env \
-  --from-file=backup-passphrase=/root/agentproofarch-backup-passphrase \
   --dry-run=client \
   --output yaml |
   kubectl apply -f -
+shred -u /root/agentproofarch-backup.env
 kubectl apply -f pvc.yaml
 kubectl apply -f cronjob.yaml
 kubectl get cronjob,pvc -n agentproofarch-backup
 ```
 
-Keep the root-owned source files off shared or agent-accessible machines. The Secret is the live k3s copy; the independently stored encryption key is part of DR.
+Keep the root-owned passphrase file off shared or agent-accessible machines. The Secret is the live k3s copy; the independently stored encryption key is part of DR.
 
 To change the local retention or PVC size, edit the manifest before installation. Reducing an existing PVC is not supported. Ensure the bucket lifecycle is configured independently because the CronJob never deletes offsite objects.
 

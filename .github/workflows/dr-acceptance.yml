@@ -253,11 +253,12 @@ jobs:
             >"$RUNNER_TEMP/source-rows.tsv"
           test "$(wc -l <"$RUNNER_TEMP/source-rows.tsv")" -eq 3
 
-      - name: README Secret command; fallback emits an explicit error
+      - name: Create the Secret with the documented single env-file form
         run: |
           set -Eeuo pipefail
           kubectl apply -f demo/ops/backup/namespace.yaml
           umask 077
+          printf '%s\n' "$BACKUP_PASSPHRASE" >"$RUNNER_TEMP/agentproofarch-backup-passphrase"
           cat >"$RUNNER_TEMP/agentproofarch-backup.env" <<EOF
           DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-source.${TEST_NAMESPACE}.svc.cluster.local:5432/${POSTGRES_DB}?sslmode=disable
           S3_PROVIDER=Minio
@@ -267,41 +268,26 @@ jobs:
           S3_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
           S3_BUCKET=${MINIO_BUCKET}
           S3_PREFIX=${MINIO_PREFIX}
+          backup-passphrase=${BACKUP_PASSPHRASE}
           EOF
-          printf '%s\n' "$BACKUP_PASSPHRASE" >"$RUNNER_TEMP/agentproofarch-backup-passphrase"
-          set +e
           kubectl create secret generic agentproofarch-backup-secrets \
-            --namespace agentproofarch-backup \
+            --namespace "$BACKUP_NAMESPACE" \
             --from-env-file="$RUNNER_TEMP/agentproofarch-backup.env" \
-            --from-file=backup-passphrase="$RUNNER_TEMP/agentproofarch-backup-passphrase" \
             --dry-run=client \
             --output yaml |
             kubectl apply -f -
-          readme_status=$?
-          set -e
-          if [[ "$readme_status" -eq 0 ]]; then
-            printf 'README Secret command form accepted by kubectl.\n'
-            printf '### README Secret command\n\nAccepted verbatim command form.\n' >>"$GITHUB_STEP_SUMMARY"
-          else
-            printf '::error::README Secret command form failed with status %s; applying fallback.\n' "$readme_status"
-            printf '### README Secret command\n\nFailed with status `%s`; fallback applied.\n' \
-              "$readme_status" >>"$GITHUB_STEP_SUMMARY"
-            kubectl create secret generic agentproofarch-backup-secrets \
+          rm -f "$RUNNER_TEMP/agentproofarch-backup.env"
+          for key in DATABASE_URL S3_PROVIDER S3_ENDPOINT S3_REGION \
+            S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY S3_BUCKET S3_PREFIX \
+            backup-passphrase; do
+            value="$(kubectl get secret agentproofarch-backup-secrets \
               --namespace "$BACKUP_NAMESPACE" \
-              --from-env-file="$RUNNER_TEMP/agentproofarch-backup.env" \
-              --from-file="backup-passphrase=$RUNNER_TEMP/agentproofarch-backup-passphrase" \
-              --dry-run=client \
-              --output=yaml >"$RUNNER_TEMP/backup-secret.yaml"
-            kubectl apply -f "$RUNNER_TEMP/backup-secret.yaml"
-          fi
-          kubectl apply --dry-run=client --output=json \
-            -f demo/ops/backup/secret.template.yaml |
-            jq -r '.stringData | keys[]' | sort >"$RUNNER_TEMP/template-secret-keys"
-          kubectl get secret agentproofarch-backup-secrets \
-            --namespace "$BACKUP_NAMESPACE" \
-            --output=json |
-            jq -r '.data | keys[]' | sort >"$RUNNER_TEMP/live-secret-keys"
-          cmp "$RUNNER_TEMP/template-secret-keys" "$RUNNER_TEMP/live-secret-keys"
+              --output "jsonpath={.data['$key']}")"
+            if [[ -z "$value" ]]; then
+              printf '::error::Secret is missing key %s consumed by cronjob.yaml.\n' "$key"
+              exit 1
+            fi
+          done
 
       - name: Apply the package PVC and CronJob
         run: |
