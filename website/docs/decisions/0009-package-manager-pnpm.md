@@ -1,6 +1,6 @@
 ---
 title: ADR-0009 — Package manager — npm → pnpm
-sidebar_label: '0009 · Package manager: pnpm 📦'
+sidebar_label: '📦 0009 · Package manager: pnpm'
 description: Supply-chain hardening at install time — dependency scripts off by default, a release-age cooldown, a strict non-hoisted layout, and frozen-lockfile everywhere.
 ---
 
@@ -33,13 +33,17 @@ npm's own answer, `--ignore-scripts`, is all-or-nothing and per-call-site — ex
 
 pnpm ≥10 does not run dependencies' `preinstall`/`install`/`postinstall` by default (the *project's own* scripts are unaffected). Packages that genuinely need a build step are named in **`onlyBuiltDependencies`** — a security control, not configuration convenience:
 
-- the list stays **minimal** — a package earns a place only by breaking a gate without one, never pre-emptively;
-- every addition is reviewed on its own merits in the PR that adds it, with the failure it fixes stated;
-- the shipped list is whatever a green `check` / `smoke` / `e2e` / `docker-smoke` proves necessary — no more.
+Before a package goes on that list, three things must hold:
+
+1. **A gate is red without it.** A package earns its place by breaking one, never pre-emptively — that is what keeps the list minimal.
+2. **The PR that adds it states the failure it fixes**, and the addition is reviewed on its own merits.
+3. **A green `check` / `smoke` / `e2e` / `docker-smoke` proves it necessary.** The shipped list is exactly that, and no more.
 
 ### 3. A minimum-release-age cooldown is on ⏳ \{#3-a-minimum-release-age-cooldown-is-on}
 
-Freshly published versions are not installable until they age past `minimumReleaseAge` — measured in days, not minutes. Both 2025 incidents were detected and cleaned within hours to days, so an install that simply declines to be first closes most of the compromised-release window. **The override procedure is explicit**: an urgent patch younger than the cooldown is taken by lowering the setting **in a reviewed pull request** — never a local flag, never silently — with the lowering and its revert both in the diff.
+Freshly published versions are not installable until they age past `minimumReleaseAge` — measured in days, not minutes. Both 2025 incidents were detected and cleaned within hours to days, so an install that simply declines to be first closes most of the compromised-release window.
+
+**The override procedure is explicit.** An urgent patch younger than the cooldown is taken by lowering the setting in a reviewed pull request, with the lowering and its revert both in the diff. Never a local flag, never silently.
 
 ### 4. The strict, non-hoisted layout is the point — no escape hatches 🧱 \{#4-the-strict-non-hoisted-layout-is-the-point--no-escape-hatches}
 

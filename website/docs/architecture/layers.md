@@ -6,6 +6,8 @@ description: The allowed dependency directions, and the two independent enforcer
 
 # Layers 📚 \{#layers}
 
+*Read this if you need to know where a file belongs, or why an import was rejected.*
+
 A layered architecture that lives in a README is a suggestion, and suggestions do
 not survive contact with an agent generating a hundred files. Here the layers are a **graph with machine-checked edges**: every
 allowed dependency direction below is spelled out twice — once in
@@ -103,16 +105,24 @@ an *explicit permission*, and anything not listed fails with the message
 | `app-web` (`apps/web/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-web` |
 | `app-cli` (`apps/cli/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-cli` |
 
-Inside `apps/web` the same mechanism continues at a finer grain: `web-main`,
-`web-api`, `web-shell` (the stateful shell composition `AppLayout.tsx` beside
-`main.tsx`, per [ADR-0011](../decisions/0011-layout-layer.md)), `web-routes`,
-`web-features`, `web-ui`, `web-lib`, `web-theme` are
-separate element types, and the `web-features` pattern captures the feature name
-so a feature may only import itself. That is how "features are islands" is
-enforced — see [Client state](client-state.md). `components/layout/` joins them
-as the page-skeleton element decided in
-[ADR-0011](../decisions/0011-layout-layer.md); its element type and dependency
-rule land with the enforcer slice of that change.
+Inside `apps/web` the same mechanism continues at a finer grain. Each of these
+is its own element type, with its own row of allowed imports:
+
+| Element type | What it matches |
+|---|---|
+| `web-main` | `apps/web/src/main.tsx` — the app entry, a single file |
+| `web-api` | `apps/web/src/api.ts` — the one place descriptors are bound to their transport, a single file |
+| `web-shell` | `apps/web/src/AppLayout.tsx` — the stateful shell composition beside `main.tsx` ([ADR-0011](../decisions/0011-layout-layer.md)) |
+| `web-routes` | `apps/web/src/routes/**` |
+| `web-features` | `apps/web/src/features/<name>/**` |
+| `web-ui` | `apps/web/src/components/ui/**` |
+| `web-layout` | `apps/web/src/components/layout/**` — the page-skeleton element decided in [ADR-0011](../decisions/0011-layout-layer.md) |
+| `web-lib` | `apps/web/src/lib/**` |
+| `web-theme` | `apps/web/src/theme*` |
+
+The `web-features` pattern captures the feature name, so a feature may only
+import itself. That is how "features are islands" is enforced — see
+[Client state](client-state.md).
 
 `boundaries/external` adds the package-level half of the same rule:
 `core-domain`, `core-contract` and `core-server` may not import `react`,
@@ -143,8 +153,9 @@ covers directories the ESLint element map does not classify.
 | `smtp-sdk-only-in-adapters-email` | `nodemailer` / `@aws-sdk/*` outside `adapters/email` |
 | `island-core-is-framework-agnostic` | `features/*/core/**` → `react`, `react-dom`, `@tanstack/react-query`, `@xstate/store/react`, `@xstate/react` |
 | `island-core-is-portable` | `features/<x>/core/**` → any `apps/web/src` path outside its own core dir |
-| `web-ui-is-presentational`, `web-lib-no-react`, `web-lib-has-no-app-internal-deps`, `web-routes-stay-thin`, `web-features-consume-bound-actions`, `web-features-are-islands`, `web-api-is-the-only-client-construction-site` | the intra-`apps/web` graph (see [Client state](client-state.md)) |
-| `web-layouts-are-structure-only` (lands with the ADR-0011 enforcer slice) | `components/layout/**` → `core`, `adapters`, `features`, `routes`, `api.ts`, TanStack |
+| eight further rules | the intra-`apps/web` graph — [one row each below](#the-intra-web-rules) |
+
+Every row above is live in `.dependency-cruiser.cjs` today.
 
 :::info[Two enforcers, deliberately not identical]
 The ESLint element map declares element types for `adapters/db`,
@@ -154,6 +165,22 @@ The ESLint element map declares element types for `adapters/db`,
 imperfect overlap between the two tools is the reason both run: each one catches
 things the other misses, and both sit in the same red gate.
 :::
+
+### The intra-`apps/web` rules 🕸️ \{#the-intra-web-rules}
+
+The same second pass keeps the frontend graph honest, one rule per relationship
+(see [Client state](client-state.md) for what the shapes mean):
+
+| depcruise rule | Forbids |
+|---|---|
+| `web-ui-is-presentational` | `components/ui/**` → `core`, `adapters`, `features`, `routes`, TanStack |
+| `web-layouts-are-structure-only` | `components/layout/**` → `core`, `adapters`, `features`, `routes`, `api.ts`, TanStack ([ADR-0011](../decisions/0011-layout-layer.md)) |
+| `web-lib-no-react` | `lib/**` → `react`, `react-dom` |
+| `web-lib-has-no-app-internal-deps` | `lib/**` → any app-internal import; it is a pure utility leaf |
+| `web-routes-stay-thin` | `routes/**` → `core`, `adapters` or API wiring; a route renders features |
+| `web-features-consume-bound-actions` | a feature importing an adapter directly instead of the bound actions from `api.ts` |
+| `web-features-are-islands` | a feature importing a sibling feature |
+| `web-api-is-the-only-client-construction-site` | any web module besides `api.ts` and `main.tsx` binding adapters |
 
 ## What knip enforces ✂️ \{#what-knip-enforces}
 
@@ -192,6 +219,9 @@ pnpm run check
 # = typecheck && typecheck:islands && lint && lock-lint
 #   && depcruise && knip && doc-lint && test:coverage
 ```
+
+What each of those eight members does is spelled out once, on
+[CI gates](../operations/ci-gates.md#check--the-static-gate).
 
 Static-green is not done: `pnpm run smoke` is the second, runtime gate — it boots
 the real server against a real database and drives health, sign-in and todos
@@ -240,8 +270,23 @@ turns a contract violation into a loud failure instead of corrupted state (see
 
 `pnpm run doc-lint` closes the loop from the other direction: removing an enforcer
 from config without updating the docs that promise it fails the gate
-([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Weakening a
-*structural* rule — letting a client import `core/server`, a framework into
-`core/**`, dissolving the `core/contract` seam, throwing across a boundary
-instead of returning `Result`, re-enabling `any`/`as` — is a legitimate choice
-that forfeits the name and the guarantee, and it has to be written down.
+([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)).
+
+Weakening a *structural* rule stays a legitimate choice. It forfeits the name
+and the guarantee, and it has to be written down. Those are the rules that hold
+the shape:
+
+- a client importing `core/server`;
+- a framework entering `core/**`;
+- dissolving the `core/contract` seam;
+- throwing across a boundary instead of returning `Result`;
+- re-enabling `any` or `as`.
+
+**Where to go next.**
+
+- **Deeper:** [ADR-0011 — the layout layer](../decisions/0011-layout-layer.md),
+  the most recent decision to add an element type to this map.
+- **Sideways:** [Request lifecycle](request-lifecycle.md) — one request walking
+  down through the layers above and back out.
+- **To work:** [Adding a feature](../guides/adding-a-feature.md) — the 12-step
+  chain that crosses every layer on this page.

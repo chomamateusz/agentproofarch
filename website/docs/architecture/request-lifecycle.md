@@ -6,12 +6,19 @@ description: From HTTP in to envelope out — the fixed order of a request.
 
 # Request lifecycle 🔄 \{#request-lifecycle}
 
-This page exists because every security property in this architecture is really
-a claim about **order**: authentication before tenant resolution, tenant
-resolution before authorization, authorization before the first repository call,
-and exactly one place where anything becomes an HTTP response. If you cannot
-point at the line where each of those happens, the properties are hypotheses.
-So here is the order, as `demo/apps/server/src/app.ts` actually registers it.
+*Read this if you want to see where authentication, tenant resolution and authorization actually happen inside one request.*
+
+Every security property in this architecture is really a claim about **order**.
+Four of them:
+
+- authentication before tenant resolution;
+- tenant resolution before authorization;
+- authorization before the first repository call;
+- exactly one place where anything becomes an HTTP response.
+
+If you cannot point at the line where each of those happens, the properties are
+hypotheses. So here is the order, as `demo/apps/server/src/app.ts` actually
+registers it.
 
 ## The happy path 🛤️ \{#the-happy-path}
 
@@ -254,3 +261,9 @@ decision, two renderings. The walkthrough lives in
 - **No per-route authorization middleware.** Authorization is a use-case-layer
   call, not an HTTP-layer decorator, because the CLI and any future client must
   hit the same check.
+
+**Where to go next.**
+
+- **Deeper:** [Errors & API versioning](errors-and-api-versioning.md) — the envelope and the taxonomy this order produces.
+- **Sideways:** [Identity & multi-tenancy](identity-and-multi-tenancy.md) — how the middleware decides which tenant a request is for.
+- **To work:** [Adding a feature](../guides/adding-a-feature.md) — the chain that puts a new route into this order.

@@ -6,13 +6,28 @@ description: A closed capability union, a wildcard-free grant table, and the tes
 
 # Authorization (default-deny) 🛡️ \{#authorization-default-deny}
 
+*Read this if you are adding a capability, or deciding who may do what inside a tenant.*
+
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — the seeded
+demo already carries a working grant table. This page is the reference for the
+capability model and the tests that pin it. Come back when you are adding a
+capability, changing who holds one, or reviewing a use-case that touches another
+tenant's data. On a first read,
+[§Two questions, two steps](#two-questions-two-steps) and
+[§The capability model](#the-capability-model) are enough.
+:::
+
 "We check permissions in the handlers" is how cross-tenant data leaks happen:
-one handler forgets the check, and nothing above it notices. Authorization here
-is **one pure function over one closed table**, called as the first statement of every tenant-scoped
-use-case, with an exhaustive unit suite that asserts every capability × principal
-cell and a structural probe that fails the build when a new use-case forgets the
-call. Nothing is granted by wildcard: a principal absent from a capability's list
-is denied.
+one handler forgets the check, and nothing above it notices.
+
+Authorization here is **one pure function over one closed table**, called as the
+first statement of every tenant-scoped use-case. Two mechanisms keep that honest:
+an exhaustive unit suite asserting every capability × principal cell, and a
+structural probe that fails the build when a new use-case forgets the call.
+
+Nothing is granted by wildcard — a principal absent from a capability's list is
+denied.
 
 ## Two questions, two steps ❓ \{#two-questions-two-steps}
 
@@ -282,3 +297,9 @@ new aggregate therefore starts with its denial tests already written.
 5. Add the denial tests, or let `pnpm run new:resource` scaffold them.
 
 There is no step where a wildcard shortcut exists, which is the point.
+
+**Where to go next.**
+
+- **Deeper:** [ADR-0002 — member identity](../decisions/0002-member-identity-and-idp.md) — where staff grants and memberships come from.
+- **Sideways:** [Identity & multi-tenancy](identity-and-multi-tenancy.md) — the first of the two questions.
+- **To work:** [Adding a feature](../guides/adding-a-feature.md) — naming the capabilities a new resource needs.

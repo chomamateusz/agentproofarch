@@ -92,6 +92,18 @@ before that lives in the git history only.
 
 ### Changed
 
+- Documentation-site readability pass, variant C (variant A's text carried
+  onto variant B's structure): the journey sidebar
+  (Start here → Build a feature → Run and ship → Productionize → Architecture reference →
+  ADRs, with generated-index hubs) and B's four page splits — CLI command
+  reference, the `ai-review` gate runbook, Self-host (the Docker target), and
+  Troubleshooting first run — each split page carrying variant A's prose, old
+  URLs kept on the anchor-bearing halves; factual content reconciled with the
+  per-origin CLI profiles
+  ([#91](https://github.com/chomamateusz/agentproofarch/pull/91)) and the
+  agent-capability corrections
+  ([#90](https://github.com/chomamateusz/agentproofarch/pull/90)) that landed on
+  main ([#89](https://github.com/chomamateusz/agentproofarch/pull/89)).
 - Package management migrated from npm to pnpm with frozen-lockfile gates,
   blocked dependency build scripts, and a three-day release cooldown; the strict
   non-hoisted layout surfaced one phantom dependency — the Docker runtime image

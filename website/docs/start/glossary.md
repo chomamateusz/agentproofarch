@@ -6,6 +6,8 @@ description: The words this architecture uses precisely — including the two th
 
 # Glossary 📖 \{#glossary}
 
+*Read this if a word on this site was used before you met it — and read the first section even if not.*
+
 ## The architecture, in plain words 🏛️ \{#the-architecture-in-plain-words}
 
 A pure-TypeScript core in four layers, one line each:
@@ -45,6 +47,24 @@ it names actually lives.
 The normative wording is
 [`docs/architecture.md` §Vocabulary](https://github.com/chomamateusz/agentproofarch/blob/main/docs/architecture.md).
 
+### Start with these ten 🔟 \{#start-with-these-ten}
+
+The page below has over a hundred entries. Ten of them carry most of the site;
+the rest can wait until you meet them.
+
+| Term | In one line | Section |
+|---|---|---|
+| **`Result`** | a return value that is explicitly success *or* a typed error | [Errors and the contract](#errors-and-the-contract) |
+| **Error taxonomy** | the one closed list of error codes, mapped to HTTP statuses and CLI exit codes | [Errors and the contract](#errors-and-the-contract) |
+| **Port** | an interface in the core naming a capability it needs from outside | [Structure and layers](#structure-and-layers) |
+| **Adapter** | the replaceable implementation of a port | [Structure and layers](#structure-and-layers) |
+| **Seam** | a declared boundary two sides agree on — here, the contract seam and the island seam | [Structure and layers](#structure-and-layers) |
+| **Island** | a frontend feature that no other feature may import | [Client state](#client-state) |
+| **Gate** | a red-or-green mechanical check | [Gates, verification and doctrine](#gates-verification-and-doctrine) |
+| **`check` / `smoke`** | the static gate and the runtime gate; both green is "done" | [Gates, verification and doctrine](#gates-verification-and-doctrine) |
+| **Tenant** | one customer organisation on a shared instance | [Identity and authorization](#identity-and-authorization) |
+| **Principal** | what an identity *acts as* for a decision: owner, admin, member, visitor | [Identity and authorization](#identity-and-authorization) |
+
 ## Structure and layers 🧱 \{#structure-and-layers}
 
 | Term | Meaning |
@@ -56,6 +76,7 @@ The normative wording is
 | **`core/client`** | The typed HTTP client and the query/mutation descriptor factories. Framework-free — it knows `@tanstack/query-core`, never React. |
 | **Port** | A plain TypeScript `interface` in `core/server` (or `core/client`, for `AuthClientPort`) that names a capability the core needs. No decorators, no container. |
 | **Adapter** | An implementation of a port, in `adapters/*`. Points *inward*: it imports the port, never the reverse. |
+| **Seam** | A declared boundary two sides agree on, so one side can be replaced or tested without the other. The term comes from Michael Feathers' *Working Effectively with Legacy Code*. This site names **two** of them, and always qualifies which: the **contract seam** (`core/contract` — what the server and every client agree on) and the **island seam** (a feature core's events in, selectors out). A bare "seam" in the opening framing means the general idea. |
 | **Composition root** | `apps/server/src/composition.ts` — the one place env decides which adapters run. Two sanctioned exceptions: the auth *client* adapter (bound in `apps/web/src/api.ts` and the CLI context) and `adapters/db/migrate.ts`. |
 | **Platform entry** | `api/index.ts` — the Vercel serverless entry, allowed to import `apps/server` and nothing else. Where vendor env names such as `VERCEL_GIT_COMMIT_SHA` are mapped to neutral ones. |
 | **Vocabulary library** | A dependency that is practically a language extension and would be a rewrite to swap: `zod`, `@tanstack/query-core`, the `@opentelemetry/api` no-op facade. Imported directly, on a per-layer allow-list. |
@@ -72,7 +93,7 @@ See [Layers](../architecture/layers.md) and
 | **Feature (island)** | `apps/web/src/features/<name>/` — the vertical slice of a subdomain in the UI. Only `features/` folders exist in the code; *island* is not a second thing but the same feature seen from its isolation guarantee: lint forbids features to import each other. |
 | **View** | A React component inside a feature; renders UI and talks exclusively to its **own** island's core. |
 | **Island core** | `features/<name>/core/` — a pure TS module: events in, selectors out, machine inside. A factory over its dependencies, DOM-free, node-runnable. |
-| **Seam** (= the module's boundary) | The island core's public API: `send(event)` in, `subscribe(listener)` for change notification, selectors out. Identical on every rung. The term comes from Michael Feathers' *Working Effectively with Legacy Code*. |
+| **Island seam** (= the module's boundary) | The island core's public API: `send(event)` in, `subscribe(listener)` for change notification, selectors out. Identical on every rung. It is one of the two seams named in [Structure and layers](#structure-and-layers) — the other is the contract seam. |
 | **Machine** | The state implementation *inside* an island core, on a three-rung ladder. Never exported, so a view cannot type against it. |
 | **Rung** (= a level on the state-management ladder) | 1 — descriptor re-exports (the CRUD default); 2 — island store (`@xstate/store`); 3 — statechart (XState) derived from a `core/domain` transition table. |
 | **Graduation trigger** | The measurable condition that licenses moving up a rung: state survives component unmount, multi-component coordination inside the island, optimistic writes spanning more than one entity, undo/redo, validation with dependencies. Enumerable states with transition-legality rules trigger rung 3. A graduating PR must name its trigger. |
@@ -150,6 +171,8 @@ See [Data & transactions](../architecture/data-and-transactions.md).
 | **NORMATIVE WHEN TRIGGERED** | A decided rule that activates on a **named** trigger, and is honestly not built until then. |
 | **OUT OF SCOPE** | Deliberately not the foundation's problem, with the reason stated. |
 | **Deferred-work register** | [`docs/backlog.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md) — accepted-but-unbuilt work and accepted verification residuals, each with a named trigger, so the architecture doc never carries a silent gap. |
+| **DECIDE `<id>`** | An owner ruling on a question only the owner can settle, cited by its queue id — `DECIDE F1` (the AI-reviewer gate), `DECIDE F3` (a flake is a P1 bug). The still-open ids are listed in the [deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md); a decided one is written into the doc or ADR it governs. |
+| **US-`<n>`** | A user story from the [PRD](https://github.com/chomamateusz/agentproofarch/blob/main/docs/prd-agentproofarch-foundation.md), cited by its number — `US-020` is the Vercel domain-provisioning adapter. Build status per story lives in the deferred-work register. |
 | **Wide event** | One context-rich event per request per service hop: annotate the active span as context accrues, emit once. Never step-log. Observability, **not** an audit trail — see [Observability](../architecture/observability.md). |
 | **TIMELINE-TRACE** | The security doctrine that every security claim must be justified by tracing the **actual** event order — who acts, when, with what privilege — not the intended order. A claim not walked step by step is a hypothesis, not a control. |
 | **CHEAP SECRETS** | The doctrine that every production secret must be least-privilege, revocable, and asymmetric-verify where possible — because a production build sees them all. |
@@ -160,17 +183,22 @@ See [CI gates](../operations/ci-gates.md) and
 ## Foundation lifecycle 🌱 \{#foundation-lifecycle}
 
 These three terms describe one scenario: you copy this repository's `demo/`
-directory as the starting point — the *foundation* — of your own app. The demo code (todos,
-cards, the seeded tenants) is not what you are taking; you replace it with your
-own domain. What you carry forward is the **enforcement configuration** — the
-lint rules, dependency-cruiser config, `tsconfig` strictness, gate scripts,
-config-regression probes and CI workflows — because that is what encodes the
-architecture *structurally* rather than describing it in prose. Your app then
-writes one provenance file, `FOUNDATION.md`, recording where it forked from, so
-that picking up a later foundation improvement (a security fix, a tightened
-rule) is a mechanical diff over the recorded paths instead of a guess. And if
-you ever knowingly weaken one of the structural rules, that is a legitimate
-choice — you are simply "off the foundation" and the guarantees no longer hold.
+directory as the starting point — the *foundation* — of your own app.
+
+The demo code is not what you are taking. Todos, cards and the seeded tenants
+get replaced by your own domain. What you carry forward is the **enforcement
+configuration**: the lint rules, dependency-cruiser config, `tsconfig`
+strictness, gate scripts, config-regression probes and CI workflows. That is
+the part which encodes the architecture *structurally* instead of describing it
+in prose.
+
+Your app then writes one provenance file, `FOUNDATION.md`, recording where it
+forked from. Picking up a later foundation improvement — a security fix, a
+tightened rule — is then a mechanical diff over the recorded paths rather than
+a guess.
+
+Knowingly weakening one of the structural rules stays a legitimate choice. It
+simply means you are "off the foundation", and the guarantees no longer hold.
 
 | Term | Meaning |
 |---|---|

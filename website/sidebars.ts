@@ -6,13 +6,71 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: '🚀 Start here',
       collapsed: false,
-      items: ['start/landing', 'start/quickstart'],
+      items: [
+        'start/landing',
+        'start/quickstart',
+        'start/glossary',
+        'start/troubleshooting',
+      ],
     },
     {
       type: 'category',
-      label: '🏛️ Full architecture',
+      label: '🧭 Build a feature',
+      link: {
+        type: 'generated-index',
+        title: 'Build a feature',
+        description:
+          'The working loop: drive the stack from the CLI, then add a feature the type-forced way. If you just booted the demo, start with the CLI walkthrough.',
+      },
       items: [
-        'start/glossary',
+        'guides/cli-walkthrough',
+        'guides/cli-reference',
+        'guides/adding-a-feature',
+      ],
+    },
+    {
+      type: 'category',
+      label: '✅ Run and ship',
+      link: {
+        type: 'generated-index',
+        title: 'Run and ship',
+        description:
+          'What "done" means here and how a change reaches main: the testing doctrine, the CI gates, the fail-closed AI review, and the agent workflow around them.',
+      },
+      items: [
+        'guides/testing-doctrine',
+        'operations/ci-gates',
+        'operations/ai-review-gate',
+        'guides/agent-workflow',
+      ],
+    },
+    {
+      type: 'category',
+      label: '🧱 Productionize',
+      link: {
+        type: 'generated-index',
+        title: 'Productionize',
+        description:
+          'Operating the deployed thing: environments and promotion, health probes and deploy attestation, backup and DR, the Docker self-host target, and per-tenant custom domains with TLS.',
+      },
+      items: [
+        'operations/environments',
+        'operations/health-and-attestation',
+        'operations/backup-dr',
+        'operations/self-host',
+        'operations/self-host-and-domains',
+      ],
+    },
+    {
+      type: 'category',
+      label: '🏛️ Architecture reference',
+      link: {
+        type: 'generated-index',
+        title: 'Architecture reference',
+        description:
+          'Lookup pages, not required reading: the layer graph and its enforcers, the fixed order of a request, identity and tenancy, authorization, data, errors, observability, client state, and the port catalogue.',
+      },
+      items: [
         'architecture/layers',
         'architecture/request-lifecycle',
         'architecture/identity-and-multi-tenancy',
@@ -22,27 +80,6 @@ const sidebars: SidebarsConfig = {
         'architecture/observability',
         'architecture/client-state',
         'architecture/ports-and-adapters',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🧭 Step-by-step guides',
-      items: [
-        'guides/cli-walkthrough',
-        'guides/adding-a-feature',
-        'guides/testing-doctrine',
-        'guides/agent-workflow',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🧱 Infrastructure',
-      items: [
-        'operations/environments',
-        'operations/ci-gates',
-        'operations/health-and-attestation',
-        'operations/backup-dr',
-        'operations/self-host-and-domains',
       ],
     },
     {
@@ -58,6 +95,7 @@ const sidebars: SidebarsConfig = {
         'decisions/0006-public-read-only-surface',
         'decisions/0007-email-port-and-magic-link-transport',
         'decisions/0008-visual-regression',
+        'decisions/0009-package-manager-pnpm',
         'decisions/0010-tenant-creation-policy',
         'decisions/0011-layout-layer',
       ],

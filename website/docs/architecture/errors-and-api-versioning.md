@@ -6,12 +6,15 @@ description: A closed error taxonomy, one normalization edge, and deliberately n
 
 # Errors & API versioning 🚨 \{#errors--api-versioning}
 
+*Read this if you are adding an error kind, or wondering why there is no `/v1`.*
+
 :::note[You do not need this to start]
 You can build with just the [Quickstart](../start/quickstart.md) — the error
 taxonomy already works out of the box. This page is the reference for the error
 model and the no-versioning contract. Come back when you are adding an error
 kind, mapping a new failure to an HTTP status or CLI exit code, or wondering
-why there is no `/v1`.
+why there is no `/v1`. On a first read, [§The taxonomy](#the-taxonomy) and
+[§`Result`, not exceptions](#result-not-exceptions) are enough.
 :::
 
 This page exists because two decisions here look like omissions until you see the
@@ -275,3 +278,9 @@ remainder **plus** `x-vercel-cache: HIT`/`STALE` on a repeat request as proof th
 edge actually cached, while direct-to-origin smoke (local, docker) asserts the
 literal helper output.
 :::
+
+**Where to go next.**
+
+- **Deeper:** [Request lifecycle](request-lifecycle.md) — the single normalization edge, in the order it runs.
+- **Sideways:** [Data & transactions](data-and-transactions.md) — the same expand → contract discipline for schemas.
+- **To work:** [CLI walkthrough](../guides/cli-walkthrough.md) — the exit codes this taxonomy produces, command by command.

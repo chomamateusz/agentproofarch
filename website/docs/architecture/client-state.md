@@ -6,11 +6,15 @@ description: Pure island cores, a three-rung ladder of machines, and the seam th
 
 # Client state (island cores) 🏝️ \{#client-state-island-cores}
 
+*Read this if a frontend feature is growing state of its own.*
+
 :::note[You do not need this to start]
 You can build with just the [Quickstart](../start/quickstart.md) — server state
 via TanStack Query needs none of this. This page is the reference for client
 application state inside island cores. Come back when your island needs a store
-or a statechart, or a view is tempted to hold state of its own.
+or a statechart, or a view is tempted to hold state of its own. On a first read,
+[§The seam: events in, selectors out](#the-seam-events-in-selectors-out) and
+[§The three-rung ladder](#the-three-rung-ladder) are enough.
 :::
 
 This page exists because client state is where architectures usually stop being
