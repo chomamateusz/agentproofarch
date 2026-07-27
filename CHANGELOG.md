@@ -15,6 +15,13 @@ before that lives in the git history only.
 
 ### Added
 
+- ADR-0012 scopes CLI client state per API origin like browser cookies: the
+  config file keeps its XDG location but becomes an origin-keyed profile map
+  with a `currentOrigin` pointer, `APP_CLI_API_URL`/`APP_CLI_TENANT` override it
+  for agents and CI (no token env var by design), a checkout of this repo
+  defaults to the local dev server ahead of any stored origin, and a legacy
+  single-profile file migrates itself losslessly on first run (#TBD).
+
 - ADR-0011 makes page skeletons a named structural element: `components/layout/`
   enters the frontend structure with two import rules (the layout-import rule
   mechanical, the "features do not define layouts" mirror honestly review-tier),
