@@ -20,7 +20,10 @@ before that lives in the git history only.
   with a `currentOrigin` pointer, `APP_CLI_API_URL`/`APP_CLI_TENANT` override it
   for agents and CI (no token env var by design), a checkout of this repo
   defaults to the local dev server ahead of any stored origin, and a legacy
-  single-profile file migrates itself losslessly on first run (#TBD).
+  single-profile file migrates itself losslessly on first run. `cli origin list`
+  and `cli origin use <url>` inspect and switch the active origin without a
+  network call, and the config file is now written atomically at mode `0600`
+  (#TBD).
 
 - ADR-0011 makes page skeletons a named structural element: `components/layout/`
   enters the frontend structure with two import rules (the layout-import rule

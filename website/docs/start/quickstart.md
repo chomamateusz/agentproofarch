@@ -172,17 +172,10 @@ has to be running** (`dev:web` on 47180 is not it, and `smoke` boots its own
 throwaway port). `--silent` keeps pnpm's own chatter off stdout, so `--json`
 really does emit one document:
 
-:::warning[The CLI keeps one global profile per machine]
-CLI state — API URL, session token, selected tenant — lives in
-`~/.config/agentproofarch/config.json`, keyed off the home directory, so it
-survives across clones **and** deployments. If this machine ever pointed the
-CLI at another instance, the block below talks to *that* API, not your local
-server. Start from a clean profile: run the whole block in a throwaway shell
-whose home is a fresh directory (`export HOME="$(mktemp -d)"` first, in that
-shell only), or pin the URL with the global `--api-url` flag —
-`pnpm --silent run cli --api-url http://localhost:47100 login --email … --password …`
-persists `http://localhost:47100` for every command after it (add the same flag
-to the `health` line, which runs before `login`).
+:::note[The CLI keeps one session per API origin]
+CLI state lives in `~/.config/agentproofarch/config.json`, with separate tokens
+and tenants for each API origin. Inside this repo the default origin is the local
+dev server at `http://localhost:47100`.
 :::
 
 ```bash

@@ -66,22 +66,51 @@ Three properties fall out of that shape and matter to anyone scripting it:
 | `--api-url <url>` | API base URL for this invocation; must parse as a URL |
 | `--tenant <slug>` | tenant slug for this invocation; must parse as a canonical slug |
 
-Both `--api-url` and `--tenant` **override** the stored config for that
-invocation. The config lives at `~/.config/agentproofarch/config.json`, is written
-with mode `0600`, and holds three keys:
+The config lives at `~/.config/agentproofarch/config.json`, is written
+atomically with mode `0600`, and keeps one session profile per canonical API
+origin:
 
 ```json
 {
-  "apiUrl": "http://localhost:47100",
-  "token": null,
-  "tenant": null
+  "version": 2,
+  "currentOrigin": "http://localhost:47100",
+  "profiles": {
+    "http://localhost:47100": {
+      "token": "…",
+      "tenant": "acme"
+    },
+    "https://agentproofarch.vercel.app": {
+      "token": "…",
+      "tenant": null
+    }
+  }
 }
 ```
 
-`login` / `register` / `login-link --link` store the session token there,
-`tenant switch` stores the active tenant, and `logout` sets the token back to
-`null` — after revoking the session server-side first, because a bearer-authenticated
-CLI that only cleared its local copy would leave the session valid.
+API URL precedence is `--api-url` → `APP_CLI_API_URL` → the local dev default
+when running inside this repo → `currentOrigin`. Tenant precedence is
+`--tenant` → `APP_CLI_TENANT` → the selected origin profile. The token always
+comes from that profile; there is no token environment variable.
+
+`login` / `register` / `login-link --link` store the session token under the
+active origin only, `tenant switch` stores that origin's tenant, and `logout`
+sets that origin's token back to `null` — after revoking the session server-side
+first, because a bearer-authenticated CLI that only cleared its local copy would
+leave the session valid.
+
+A deliberate context switch keeps both sessions:
+
+```bash
+pnpm --silent run cli origin use http://localhost:47100
+pnpm --silent run cli --api-url https://agentproofarch.vercel.app login --email you@example.com --password '…'
+pnpm --silent run cli origin list
+pnpm --silent run cli origin use http://localhost:47100
+```
+
+`origin list` marks `currentOrigin` and reports only whether each profile has a
+token, never the token itself. Inside this checkout, repo detection still
+defaults ordinary invocations to localhost; use `--api-url` or
+`APP_CLI_API_URL` when deliberately targeting a deployment from here.
 
 :::note[Position does not matter]
 Global options are declared on the root program and commander collects them onto
@@ -438,6 +467,7 @@ sample. Rationale:
 | Group | Commands |
 |---|---|
 | session | `health`, `register`, `login`, `login-link`, `logout`, `whoami` |
+| `origin` | `list`, `use <url>` |
 | `tenant` | `list`, `create <name...>` `[--slug]`, `switch <slug>` |
 | `todo` | `list`, `add <title...>` |
 | `card` | `list` `[--board]`, `add <title...>` `[--board] [--column]`, `move <id> --to <column>` `[--board] [--index]` |

@@ -65,7 +65,7 @@ never carries silent gaps.
 ```
 core/domain     entities, Result, error taxonomy, zod schemas   → zod only
 core/contract   API routes + I/O schemas + error envelope       → domain
-core/server     use-cases + ports (interfaces)                  → domain
+core/server     use-cases + ports (interfaces)                  → domain, contract
 core/client     typed HTTP client + query definitions           → contract
 adapters/*      implement ports (db, auth, domain provisioning:
                 vercel + caddy + noop)                        → core
