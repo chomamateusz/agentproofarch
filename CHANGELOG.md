@@ -23,7 +23,7 @@ before that lives in the git history only.
   single-profile file migrates itself losslessly on first run. `cli origin list`
   and `cli origin use <url>` inspect and switch the active origin without a
   network call, and the config file is now written atomically at mode `0600`
-  (#TBD).
+  ([#91](https://github.com/chomamateusz/agentproofarch/pull/91)).
 
 - ADR-0011 makes page skeletons a named structural element: `components/layout/`
   enters the frontend structure with two import rules (the layout-import rule
