@@ -20,7 +20,8 @@ before that lives in the git history only.
   `~/.config/agentproofarch/config.json` profile disclosed with a
   clean-profile step, the smoke timing claim recalibrated to warm (~5s) vs
   first runs (~20-30s) in the quickstart and `demo/CLAUDE.md`, and the health
-  JSON sample updated to the real output's key order (#TBD).
+  JSON sample updated to the real output's key order
+  ([#84](https://github.com/chomamateusz/agentproofarch/pull/84)).
 
 ## 2026-07-26
 
