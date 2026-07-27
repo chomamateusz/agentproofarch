@@ -75,13 +75,13 @@ before that lives in the git history only.
 
 ### Changed
 
-- Documentation-site readability pass, variant A (preview PR — one of two
-  variants the owner compares before choosing): ADR-0009 restored to the
-  sidebar, the non-required job count reconciled to one source on the CI-gates
-  page, the `ai-review` maintainer runbook collapsed behind a disclosure, the
-  landing feature map rewritten without symbol names, per-page "read this if"
-  signatures, on-ramps on three more architecture pages, and per-subcommand
-  headings in the CLI walkthrough — no factual claim changed (#TBD-A).
+- Documentation-site readability pass, variant C (preview PR — variant A's
+  text carried unchanged onto variant B's structure): the journey sidebar
+  (Start here → Build something → Ship it → Run it → Architecture reference →
+  ADRs, with generated-index hubs) and B's four page splits — CLI command
+  reference, the `ai-review` gate runbook, Self-host (the Docker target), and
+  Troubleshooting first run — each split page carrying variant A's prose, old
+  URLs kept on the anchor-bearing halves — no factual claim changed (#TBD-C).
 - Package management migrated from npm to pnpm with frozen-lockfile gates,
   blocked dependency build scripts, and a three-day release cooldown; the strict
   non-hoisted layout surfaced one phantom dependency — the Docker runtime image

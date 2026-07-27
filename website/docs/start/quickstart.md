@@ -2,6 +2,7 @@
 title: Quickstart
 sidebar_label: 🔥 Quickstart
 description: Clone the repository and get to a green runtime gate.
+pagination_next: guides/cli-walkthrough
 ---
 
 # Quickstart 🔥 \{#quickstart}
@@ -372,25 +373,17 @@ The five that actually happen on a first run:
 | A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
 | Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
 
-<details>
-<summary>Rarer failures, and the archaeology of an older checkout</summary>
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| `check` fails in `lock-lint` after adding a dependency | `package.json` and `pnpm-lock.yaml` are out of sync | run `pnpm install` with the pinned package manager and commit the settled lockfile |
-| Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
-| A second clone attaches to the first clone's database and Mailpit | `docker-compose.dev.yml` deliberately names one shared machine-wide stack, `agentproofarch-dev` | this is the default design; for per-clone isolation set a unique `COMPOSE_PROJECT_NAME` and non-conflicting `DB_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_API_PORT`, and matching `DATABASE_URL` |
-| `pnpm run db:up` refuses to start (or Docker reports port 47542 already allocated), and `docker ps` shows a `demo-db-1` container | your checkout predates the `agentproofarch-dev` project name, so Docker still runs the old directory-derived project `demo`, which owns port 47542 and the volume `demo_agentproofarch-pgdata`; the renamed stack cannot start next to it | retire the **old** project by name: `docker compose -p demo down -v` — **this deletes the old dev volume; its seed data is disposable** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
-| Your dev database holds duplicated seed rows (four Acme todos, say) | the volume predates the idempotent seed and accumulated a set per `db:seed` run | reset the **current** `agentproofarch-dev` stack from `demo/` with `docker compose -f docker-compose.dev.yml down -v` — **this deletes the dev database volume** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
-| e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
-
-</details>
+The longer tail — old checkouts, shared Docker stacks, stale volumes, origin
+mismatches — has its own page:
+[Troubleshooting first run](./troubleshooting.md).
 
 ## Next ➡️ \{#next}
 
-**Go to the [CLI walkthrough](../guides/cli-walkthrough.md)** — every command
-group with real output and exit codes. It is the surface an agent drives, and
-the fastest way to see the whole system respond.
+**Go to the [CLI walkthrough](../guides/cli-walkthrough.md)** — the agent loop,
+the envelope and the exit codes, with
+[every command group with real output](../guides/cli-reference.md) beside it. It
+is the surface an agent drives, and the fastest way to see the whole system
+respond.
 
 Or, depending on what you are doing:
 
