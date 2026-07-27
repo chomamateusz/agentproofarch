@@ -187,7 +187,8 @@ from rotting once nobody remembers writing it.
 | `QUERY_KEY_BAN` / `HTTP_GLOBALS` / `CLIENT_CONSTRUCTION_BANS` (eslint.config.js) | all of `apps/web` | inline `queryKey`/`queryFn`, raw `fetch`, holding an `ApiClient` or a port in feature code |
 | `setQueryData` ban | all of `apps/web` **except** a feature's `optimistic.ts` | manual cache writes outside the single-resource optimistic path |
 | `agentproofarch/event-suffix-taxonomy` | `features/*/core/events.ts` | an imperative event name — see below |
-| `agentproofarch/sx-layout-only` | all of `apps/web` | colour, typography, background and border-styling keys in an `sx` prop — `sx` carries layout/spacing/flex/grid/position/sizing only, and `theme.ts` owns the visual language. Existing debt is held by a **frozen per-file baseline that may only shrink** |
+| `agentproofarch/sx-layout-only` | all of `apps/web` | colour, typography, background and border-styling keys in an `sx` prop — `sx` carries layout/spacing/flex/grid/position/sizing only, and `theme.ts` owns the visual language. Existing debt is held by a **frozen per-file baseline that may only shrink**. A second, *structural* key category (reserving `display`/`grid*`/`flex*`/`position: sticky\|fixed`/`width`/`maxWidth` for `components/layout/**`) is designed and deliberately unshipped — see [ADR-0011](../decisions/0011-layout-layer.md) for its named trigger |
+| `web-layouts-are-structure-only` (depcruise, lands with the ADR-0011 enforcer slice) | `components/layout/**` | importing `core`, `adapters`, `features`, `routes`, `api.ts` or TanStack — page skeletons take theme atoms in and keep feature data out |
 | `web-api-is-the-only-client-construction-site` | all of `apps/web` except `api.ts` and `main.tsx` | binding an adapter anywhere else |
 
 React correctness runs at **error** level in the same gate:
@@ -397,6 +398,15 @@ shareable filters**, and neither is duplicated into component state.
 - `routes/` are thin: parse params, render a feature. No core, no adapters, no api
   wiring.
 - `components/ui/` is presentational: no core, no features, no TanStack.
+- `components/layout/` holds **page skeletons** — the one legal home for a
+  component that owns a page's shape (grid, widths, rails, the `Outlet` slot).
+  Structure only: visuals come from `theme.ts` atoms, content arrives through
+  `ReactNode` slots, and loading/error/empty render *inside* the skeleton so the
+  width never jumps. It imports `theme`, `components/ui` and `lib` — never core,
+  features, routes, `api.ts` or TanStack. The mirror rule — a feature consumes
+  skeletons instead of declaring its own — is review-tier until the structural
+  `sx` tier triggers. Both are decided in
+  [ADR-0011](../decisions/0011-layout-layer.md).
 - `lib/` is pure TypeScript with no React and no app-internal imports.
 - `theme.ts` is the entire visual language — no colors or fonts anywhere else, held
   by `agentproofarch/sx-layout-only` above rather than by convention.
