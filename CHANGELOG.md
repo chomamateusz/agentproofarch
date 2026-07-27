@@ -22,7 +22,7 @@ before that lives in the git history only.
   dispatches `visual-baselines` with the new `commit: true` input to re-render
   and **commit** the new baselines, so the approval closes in git and GitHub's
   native PNG diff is the final review. Fork pull requests get the artifacts and a
-  documented manual path instead (#TBD).
+  documented manual path instead ([#92](https://github.com/chomamateusz/agentproofarch/pull/92)).
 
 - ADR-0012 scopes CLI client state per API origin like browser cookies: the
   config file keeps its XDG location but becomes an origin-keyed profile map
