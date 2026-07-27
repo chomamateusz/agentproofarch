@@ -5,14 +5,14 @@ import { Link as RouterLink, Outlet, useNavigate } from '@tanstack/react-router'
 
 import { ApiError } from '#core/client/index.js';
 
-import { actions } from '../../api.js';
-import { AppShell } from '../../components/layout/AppShell.js';
-import { FocusCard } from '../../components/layout/FocusCard.js';
-import { StatusView, type PageState } from '../../components/layout/StatusView.js';
-import { tenantHue, tenantUrl } from '../../lib/tenant.js';
-import { useThemeMode } from '../../theme-mode.js';
-import { createThemeForMode, TenantName, Wordmark } from '../../theme.js';
-import { CreateTenantForm } from './CreateTenantForm.js';
+import { actions } from './api.js';
+import { AppShell } from './components/layout/AppShell.js';
+import { FocusCard } from './components/layout/FocusCard.js';
+import { StatusView, type PageState } from './components/layout/StatusView.js';
+import { tenantHue, tenantUrl } from './lib/tenant.js';
+import { useThemeMode } from './theme-mode.js';
+import { createThemeForMode, TenantName, Wordmark } from './theme.js';
+import { CreateTenantForm } from './features/settings/CreateTenantForm.js';
 
 const errorCodeOf = (error: unknown): string | null =>
   error instanceof ApiError ? error.appError.code : null;

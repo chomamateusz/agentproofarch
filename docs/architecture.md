@@ -145,6 +145,8 @@ apps/web/src/
   main.tsx          composition root: providers + router wiring only
   api.ts            binds core/client action factories once — the only module
                     that sees ApiClient, AuthClientPort and adapters
+  AppLayout.tsx     the stateful shell composition (ADR-0011): auth guard,
+                    tenant switcher, onboarding — renders components/layout/AppShell
   routes/           route components — thin: parse params, render a feature
   features/<name>/  feature folders (islands): core/ — the island core (events
                     in, selectors out) — plus views, hooks, <Name>.logic.ts
@@ -218,8 +220,8 @@ part of the portable artifact.
 authenticated surface lives under `/app`, whose layout route is the shell — split
 per [ADR-0011](decisions/0011-layout-layer.md) into the chrome skeleton
 (`components/layout/AppShell.tsx`: app bar, nav slots, widths, the `Outlet` slot,
-no server state) and a thin stateful composition beside `main.tsx` that renders
-it. The shell guards auth
+no server state) and a thin stateful composition (`AppLayout.tsx`, beside
+`main.tsx`) that renders it. The shell guards auth
 (an anonymous hit on any `/app/*` route redirects to `/login`), owns the shared
 chrome — the header **tenant switcher** (lists the caller's tenants; selecting one
 navigates to that tenant's host, the same subdomain mechanism `lib/tenant.ts`

@@ -103,7 +103,9 @@ an *explicit permission*, and anything not listed fails with the message
 | `app-cli` (`apps/cli/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-cli` |
 
 Inside `apps/web` the same mechanism continues at a finer grain: `web-main`,
-`web-api`, `web-routes`, `web-features`, `web-ui`, `web-lib`, `web-theme` are
+`web-api`, `web-shell` (the stateful shell composition `AppLayout.tsx` beside
+`main.tsx`, per [ADR-0011](../decisions/0011-layout-layer.md)), `web-routes`,
+`web-features`, `web-ui`, `web-lib`, `web-theme` are
 separate element types, and the `web-features` pattern captures the feature name
 so a feature may only import itself. That is how "features are islands" is
 enforced — see [Client state](client-state.md). `components/layout/` joins them

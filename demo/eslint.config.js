@@ -287,6 +287,10 @@ export default tseslint.config(
         { type: 'platform-entry', pattern: 'api/**', mode: 'full' },
         { type: 'web-main', pattern: 'apps/web/src/main.tsx', mode: 'full' },
         { type: 'web-api', pattern: 'apps/web/src/api.ts', mode: 'full' },
+        // ADR-0011 Decision 4: the shell is split — the chrome skeleton lives in
+        // components/layout/AppShell.tsx; this is its thin stateful composition
+        // beside main.tsx, a single-file element like web-api above.
+        { type: 'web-shell', pattern: 'apps/web/src/AppLayout?(.test).tsx', mode: 'full' },
         { type: 'web-routes', pattern: 'apps/web/src/routes/**', mode: 'full' },
         {
           type: 'web-features',
@@ -364,6 +368,7 @@ export default tseslint.config(
               allow: [
                 'web-main',
                 'web-api',
+                'web-shell',
                 'web-routes',
                 'web-features',
                 'web-ui',
@@ -380,6 +385,21 @@ export default tseslint.config(
             {
               from: ['web-api'],
               allow: ['web-api', 'core-domain', 'core-contract', 'core-client', 'adapter-auth'],
+            },
+            {
+              from: ['web-shell'],
+              allow: [
+                'web-shell',
+                'web-api',
+                'web-features',
+                'web-layout',
+                'web-lib',
+                'web-theme',
+                'web-test',
+                'core-domain',
+                'core-contract',
+                'core-client',
+              ],
             },
             {
               from: ['web-routes'],
