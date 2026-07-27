@@ -19,7 +19,8 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
   `agentproofarch_smoke` database (never touches your dev-seeded data), migrates
   and seeds it, boots the real server (`entry.node.ts`) on an ephemeral port and
   drives health → sign-in → todos through the CLI, asserting taxonomy exit codes
-  (including unauthorized = exit 3). Assumes `pnpm run db:up`. Runs in ~5s.
+  (including unauthorized = exit 3). Assumes `pnpm run db:up`. Runs in a few
+  seconds warm; a first run can take ~20-30s.
   Integration tests (`pnpm run test:integration`, opt-in `VITEST_INTEGRATION=1`)
   run where Postgres exists — the CI smoke job runs them before smoke — so local
   `pnpm run smoke` stays fast.

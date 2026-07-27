@@ -37,6 +37,7 @@ drivable from both the web app and the CLI:
 | Tool | Version | Why exactly this |
 |---|---|---|
 | **Node** | 24 (`.nvmrc` pins it) | `engines.node` is `24.x`; the CI runner is Node 24. |
+| **[nvm](https://github.com/nvm-sh/nvm)** (or any Node version manager) | any recent | step 1 runs `nvm use` to land on Node 24 from `.nvmrc`; `fnm use`, `mise use` or a direct Node 24 install work just as well. |
 | **pnpm** | `10.34.5` | `packageManager` pins the exact release; `engines.pnpm` requires pnpm 10 or newer. |
 | **Docker** | any recent | `pnpm run db:up` starts Postgres 16 and Mailpit from `docker-compose.dev.yml`. |
 
@@ -53,6 +54,12 @@ corepack enable
 corepack prepare --activate
 pnpm install --frozen-lockfile
 ```
+
+No nvm? Substitute your manager's equivalent of `nvm use` (`fnm use`,
+`mise use`), or install Node 24 directly — the pin lives in `.nvmrc`. Do **not**
+ignore pnpm printing `WARN Unsupported engine: wanted: {"node":"24.x"}`: it
+means the shell is still on some other Node (a failed `nvm use` does not stop a
+pasted block), and everything from here on would run on an unsupported runtime.
 
 :::warning[Keep the lock and supply-chain policy intact]
 `lock-lint` proves `pnpm-lock.yaml` matches `package.json` with
@@ -165,6 +172,19 @@ has to be running** (`dev:web` on 47180 is not it, and `smoke` boots its own
 throwaway port). `--silent` keeps pnpm's own chatter off stdout, so `--json`
 really does emit one document:
 
+:::warning[The CLI keeps one global profile per machine]
+CLI state — API URL, session token, selected tenant — lives in
+`~/.config/agentproofarch/config.json`, keyed off the home directory, so it
+survives across clones **and** deployments. If this machine ever pointed the
+CLI at another instance, the block below talks to *that* API, not your local
+server. Start from a clean profile: run the whole block in a throwaway shell
+whose home is a fresh directory (`export HOME="$(mktemp -d)"` first, in that
+shell only), or pin the URL with the global `--api-url` flag —
+`pnpm --silent run cli --api-url http://localhost:47100 login --email … --password …`
+persists `http://localhost:47100` for every command after it (add the same flag
+to the `health` line, which runs before `login`).
+:::
+
 ```bash
 pnpm --silent run cli --json health
 pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
@@ -180,10 +200,10 @@ The first command is machine-readable and prints one JSON envelope:
 {
   "ok": true,
   "data": {
-    "status": "ok",
-    "database": "up",
     "version": "0.1.0",
-    "sha": "unknown"
+    "sha": "unknown",
+    "status": "ok",
+    "database": "up"
   }
 }
 ```
@@ -210,14 +230,15 @@ parenthesis on a todo is the first 8 characters of its stable seed row id. Full 
 
 ```bash
 pnpm run check            # static: typecheck ×2 + eslint + lock-lint + depcruise + knip + doc-lint + coverage
-pnpm run smoke            # runtime: isolated DB, real server, CLI flow — ~5s
+pnpm run smoke            # runtime: isolated DB, real server, CLI flow — seconds warm, ~20-30s first run
 pnpm run quickstart:probe # fresh-state promises: repeat seed, two clones, CLI hello
 ```
 
 `smoke` assumes `pnpm run db:up` is running. It does **not** touch your dev-seeded
 database: it drops and recreates `agentproofarch_smoke`, migrates and seeds that,
 boots `entry.node.ts` on an ephemeral port, and drives the flow. A green run prints
-these phases (the port is ephemeral and the elapsed time is measured, so both vary):
+these phases (the port is ephemeral and the elapsed time is measured, so both vary —
+a warm machine lands around 5s, a first run closer to 20-30s):
 
 ```text
 smoke: checking lockfile drift...

@@ -11,6 +11,17 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-07-27
+
+### Fixed
+
+- Quickstart accuracy pass from a fresh-clone retest: nvm listed as a
+  prerequisite with a do-not-ignore engine-warning note, the CLI's global
+  `~/.config/agentproofarch/config.json` profile disclosed with a
+  clean-profile step, the smoke timing claim recalibrated to warm (~5s) vs
+  first runs (~20-30s) in the quickstart and `demo/CLAUDE.md`, and the health
+  JSON sample updated to the real output's key order (#TBD).
+
 ## 2026-07-26
 
 ### Added
