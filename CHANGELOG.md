@@ -17,7 +17,7 @@ before that lives in the git history only.
 
 - Agent-capability claims in the docs corrected to current reality: agents can
   verify rendered UI through vision loops, so the CLI-first stance is stated as
-  a determinism/cost/speed choice rather than agent blindness (#TBD).
+  a determinism/cost/speed choice rather than agent blindness (#90).
 
 ### Added
 
