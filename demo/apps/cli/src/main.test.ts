@@ -58,6 +58,8 @@ interface FakeAuth {
 
 interface Hoisted {
   config: CliConfig;
+  loadError: Error | null;
+  repoDetected: boolean;
   saved: CliConfig[];
   apiOptions: ApiClientOptions | null;
   authBaseUrl: string | null;
@@ -75,6 +77,8 @@ const h = vi.hoisted(
         'http://localhost:47100': { token: null, tenant: null },
       },
     },
+    loadError: null,
+    repoDetected: false,
     saved: [],
     apiOptions: null,
     authBaseUrl: null,
@@ -102,14 +106,19 @@ const h = vi.hoisted(
 
 vi.mock('./config.js', () => ({
   apiOrigin: (apiUrl: string): string => new URL(apiUrl).origin,
-  loadConfig: (): CliConfig => h.config,
+  loadConfig: (): CliConfig => {
+    if (h.loadError) throw h.loadError;
+    return h.config;
+  },
   resolveCliConfig: (input: ResolveCliConfigInput): ResolvedCliConfig => {
     const selection =
       input.apiUrl !== undefined
         ? { apiUrl: input.apiUrl, originSource: 'flag' as const }
         : input.env.APP_CLI_API_URL !== undefined
           ? { apiUrl: input.env.APP_CLI_API_URL, originSource: 'env' as const }
-          : { apiUrl: input.config.currentOrigin, originSource: 'stored' as const };
+          : h.repoDetected
+            ? { apiUrl: 'http://localhost:47100', originSource: 'repo' as const }
+            : { apiUrl: input.config.currentOrigin, originSource: 'stored' as const };
     const origin = new URL(selection.apiUrl).origin;
     const profile = input.config.profiles[origin] ?? { token: null, tenant: null };
     return {
@@ -190,6 +199,8 @@ const soleJson = (): unknown => {
 
 beforeEach(() => {
   h.config = singleProfile('http://localhost:47100', null, null);
+  h.loadError = null;
+  h.repoDetected = false;
   delete process.env['APP_CLI_API_URL'];
   delete process.env['APP_CLI_TENANT'];
   h.saved = [];
@@ -523,6 +534,41 @@ describe('--json envelope', () => {
   });
 });
 
+describe('fatal config protocol', () => {
+  it('emits exactly one internal envelope (exit 10) on stdout for a corrupted config under --json', async () => {
+    h.loadError = new Error(
+      'agentproofarch: invalid ~/.config/agentproofarch/config.json: malformed JSON',
+    );
+
+    await run('--json', 'health');
+
+    expect(h.api.health).not.toHaveBeenCalled();
+    expect(soleJson()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'internal',
+        message: 'agentproofarch: invalid ~/.config/agentproofarch/config.json: malformed JSON',
+      },
+    });
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(10);
+  });
+
+  it('prints one human error line (exit 10) for a corrupted config without --json', async () => {
+    h.loadError = new Error(
+      'agentproofarch: invalid ~/.config/agentproofarch/config.json: malformed JSON',
+    );
+
+    await run('health');
+
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      'error(internal): agentproofarch: invalid ~/.config/agentproofarch/config.json: malformed JSON',
+    );
+    expect(process.exitCode).toBe(10);
+  });
+});
+
 describe('exit-code mapping', () => {
   it('maps an unauthorized client error to exit code 3', async () => {
     h.api.me.mockResolvedValue(err(appError('unauthorized', 'nope')));
@@ -612,6 +658,30 @@ describe('auth commands persist the session token', () => {
         profiles: {
           'https://stored.example': { token: 'stored-token', tenant: 'stored' },
           'https://active.example': { token: 'sess-tok', tenant: 'active' },
+        },
+      },
+    ]);
+  });
+
+  it('writes a repo-default login token under the dev origin without moving currentOrigin', async () => {
+    h.repoDetected = true;
+    h.config = {
+      version: 2,
+      currentOrigin: 'https://stored.example',
+      profiles: {
+        'https://stored.example': { token: 'stored-token', tenant: 'stored' },
+      },
+    };
+
+    await run('login', '--email', 'demo@x', '--password', 'pw');
+
+    expect(h.saved).toEqual([
+      {
+        version: 2,
+        currentOrigin: 'https://stored.example',
+        profiles: {
+          'https://stored.example': { token: 'stored-token', tenant: 'stored' },
+          'http://localhost:47100': { token: 'sess-tok', tenant: null },
         },
       },
     ]);

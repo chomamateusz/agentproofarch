@@ -714,8 +714,7 @@ try {
       emit(err(validation(error.message.replace(/^error:\s*/i, ''))), wantsJson, () => '');
     }
   } else if (error instanceof Error && error.message.startsWith('agentproofarch:')) {
-    console.error(error.message);
-    process.exitCode = 10;
+    emit(err(internal(error.message)), wantsJson, () => '');
   } else {
     throw error;
   }

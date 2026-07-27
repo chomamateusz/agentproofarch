@@ -196,9 +196,19 @@ credentials by context, cloud CLIs key them by account. Ours keys them by
    agentproofarch: migrated ~/.config/agentproofarch/config.json to per-origin profiles (http://localhost:47100)
    ```
 
-   A file whose shape matches neither version is read as "no profiles" in memory
-   and is **not** rewritten until a command actually writes, so a future format
-   is never destroyed by a read.
+   A file whose shape matches neither version is never silently reset. The one
+   quiet case is forward compatibility: a shape that announces a *newer* format
+   — a top-level `version` other than `2`, or a `profiles` key with no
+   `version` at all — is read as "no profiles" and left byte-for-byte intact,
+   so a future format is never destroyed by a read. **Everything else fails
+   loud.** Malformed JSON, a corrupted version-2 profile, a corrupted legacy
+   field: each aborts the invocation with a clear error naming the file
+   (`internal`, exit 10 — under `--json` still exactly one envelope on stdout),
+   and the CLI never rewrites the file it could not read. A corrupted `0600`
+   file holding a live bearer token is evidence that something on this machine
+   went wrong; a silent reset would destroy the sessions *and* the evidence.
+   `config.test.ts` asserts both halves: every loud failure leaves the file
+   byte-for-byte unchanged, and the future-version read rewrites nothing.
 
 6. **Explicitly rejected, with reasons.**
 
@@ -230,11 +240,15 @@ credentials by context, cloud CLIs key them by account. Ours keys them by
   sample. Its "stored config" section currently prints the three-key legacy
   JSON; it gets the origin-keyed shape, the precedence ladder, the two env
   names, and a worked local → deployed → local switch.
-- **No server changes.** No route, no contract change, no addition to
-  `serverEnvSchema` and none to `.env.example`. The only cross-layer edit is the
-  default-dev-port constant moving into `core/contract` so `core/server/config.ts`
-  and `apps/cli` read one value; `apps/cli` still imports `core/client` +
-  `core/contract` only, so the layer rules are untouched.
+- **No server changes, one deliberate layer-rule relaxation.** No route, no
+  contract change, no addition to `serverEnvSchema` and none to `.env.example`.
+  The default-dev-port constant moves into `core/contract`, and reading it from
+  `core/server/config.ts` requires relaxing the layer rules docs-first: both
+  enforcers (`core-server-pure` in `.dependency-cruiser.cjs` and the ESLint
+  boundaries matrix) now allow `core/server` → `core/contract`, with
+  `docs/architecture.md` §Layers and the PRD's dependency list updated in the
+  same change. `apps/cli` itself still imports `core/client` + `core/contract`
+  only.
 - **Existing CI, smoke and e2e keep working — checked, not assumed.**
   `demo/scripts/smoke-cli.ts` passes `--api-url <baseUrl>` on **every**
   invocation and runs each persona under its own `mkdtemp` `HOME`;
