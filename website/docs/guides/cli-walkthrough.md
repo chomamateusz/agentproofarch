@@ -6,8 +6,10 @@ description: The agent feedback loop — every capability with --json and an exi
 
 # CLI walkthrough ⌨️ \{#cli-walkthrough}
 
-An agent cannot read a screenshot to decide whether it wired a feature correctly.
-That is why every capability in this foundation has a CLI command, why `--json`
+An agent *can* read a screenshot to decide whether it wired a feature correctly —
+vision-loop verification works. It is just a poor default: probabilistic where an
+exit code is exact, and one to two orders of magnitude more tokens and latency
+per check. That is why every capability in this foundation has a CLI command, why `--json`
 prints exactly **one** JSON document on stdout, and why the process exit code is
 mapped from the error taxonomy rather than chosen ad hoc: the CLI is a closed
 verification loop with a machine-readable answer. It is also the reference client —

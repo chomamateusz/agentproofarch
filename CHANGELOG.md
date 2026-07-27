@@ -30,6 +30,13 @@ before that lives in the git history only.
   the backup README now create the Secret from one combined env file
   ([#85](https://github.com/chomamateusz/agentproofarch/pull/85)).
 
+### Changed
+
+- Agent-capability claims in the docs corrected to current reality: agents can
+  verify rendered UI through vision loops, so the CLI-first stance is stated as
+  a determinism/cost/speed choice rather than agent blindness
+  ([#90](https://github.com/chomamateusz/agentproofarch/pull/90)).
+
 ### Fixed
 
 - Quickstart accuracy pass from a fresh-clone retest: nvm listed as a
