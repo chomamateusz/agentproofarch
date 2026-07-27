@@ -11,16 +11,21 @@ You can build with just the [Quickstart](../start/quickstart.md) — the seeded
 demo and single-row writes work without reading this. This page is the
 reference for the data layer and its atomicity doctrine. Come back when you are
 writing a migration, adding an aggregate, or making a multi-row write that must
-never be observable half-done.
+never be observable half-done. On a first read,
+[§Per-target guarantee matrix](#per-target-guarantee-matrix) and
+[§The MUST-ATOMIC list](#the-must-atomic-list) are enough.
 :::
 
 The same `db.transaction(async tx => …)` that is perfectly atomic on
 `node-postgres` is **not atomic at all** on Neon's HTTP driver — same code, same
-types, silently different guarantee. Nothing in the type system tells you. A multi-row write that must never be observable half-done is
-"100% unacceptable in a transient state" (owner ruling, DECIDE C1) — so this page
-is how that is *enforced*, plus the cross-cutting data conventions that were
-settled deliberately, before the next aggregate copied whatever shape happened to
-exist.
+types, silently different guarantee. Nothing in the type system tells you.
+
+A multi-row write that must never be observable half-done is "100% unacceptable
+in a transient state" (owner ruling, DECIDE C1 — an
+[owner ruling from the decision queue](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)).
+This page is how that rule is *enforced*. It also records the cross-cutting
+data conventions, settled deliberately before the next aggregate copied
+whatever shape happened to exist.
 
 ## Per-target guarantee matrix 📊 \{#per-target-guarantee-matrix}
 
@@ -186,17 +191,21 @@ template.
 | **List pagination** | normative now for **future** list endpoints | cursor-based: request `?cursor=<opaque>&limit=<n>` with a server-side cap; response `{ items, nextCursor }` where `nextCursor` is `null` on the last page. Never a raw offset |
 | **Concurrency** | normative now | last-write-wins, **documented per aggregate**. The named upgrade is a `version` column with `WHERE version = $expected`, adopted per aggregate when its trigger fires |
 
-Why integer minor units and not Postgres `numeric`: an amount crosses four
-decimal-hostile layers — JSON, JS `number`, zod, TS arithmetic — and `numeric`
-survives none of them (drivers surface it as a string, the first careless coercion
-reintroduces binary floats, JSON has no decimal type), while integer minor units
-are exact in every layer, sum and compare with plain integer arithmetic, and are
-the payment provider's native vocabulary. Sub-cent precision scales the minor unit
-(micro-units); formatting for humans is a view concern (`Intl.NumberFormat`), never
-stored.
+Why integer minor units and not Postgres `numeric`? An amount crosses four
+decimal-hostile layers: JSON, JS `number`, zod, TS arithmetic. `numeric`
+survives none of them —
 
-Why cursors and not offsets: offsets skew under concurrent writes (rows shift
-between pages) and cost the database the full skipped prefix, while a keyed cursor
+- drivers surface it as a string;
+- the first careless coercion reintroduces binary floats;
+- JSON has no decimal type.
+
+Integer minor units are exact in every layer, sum and compare with plain
+integer arithmetic, and are the payment provider's native vocabulary. Sub-cent
+precision scales the minor unit (micro-units). Formatting for humans is a view
+concern (`Intl.NumberFormat`), never stored.
+
+Why cursors and not offsets? Offsets skew under concurrent writes (rows shift
+between pages) and cost the database the full skipped prefix. A keyed cursor
 is stable and index-backed.
 
 ### The grandfather list, stated out loud 👴 \{#the-grandfather-list-stated-out-loud}
@@ -271,3 +280,9 @@ The sequence itself is mechanically gated (DECIDE F2): `pnpm run doc-lint` runs
 non-`<NNNN>`-prefixed migration, or a `meta/_journal.json` that does not match the
 `.sql` files on disk — and a config-regression probe plants a duplicate to prove
 the gate still fires.
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) — the probe machinery that keeps the MUST-ATOMIC doc honest.
+- Sideways: [Errors & API versioning](errors-and-api-versioning.md) — the expand → contract vocabulary shared with the contract.
+- To work: [Adding a feature](../guides/adding-a-feature.md) — the schema-and-migration step in context.

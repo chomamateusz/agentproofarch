@@ -6,6 +6,8 @@ description: Liveness, readiness, and proving which deploy a smoke run actually 
 
 # Health & deploy attestation 🩺 \{#health--deploy-attestation}
 
+*Read this if you are wiring a probe, reading a health payload, or verifying which commit a deploy actually runs.*
+
 *Is the process alive?* and *is it ready to serve traffic?* have different correct answers, and collapsing them into one endpoint breaks both. A restart-on-liveness platform must not kill a healthy process because the database blinked; a load balancer must not keep sending traffic to a process whose database is gone. On top of that split sits a second idea: every health response carries a **build attestation**, so a smoke run can prove *which* deploy it verified instead of asserting it.
 
 :::info[Sources]
@@ -145,6 +147,16 @@ The Docker image wires liveness (never readiness) into its container healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||47100)+'/api/health/live').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ```
+
+## Release identity 🏷️ \{#release-identity}
+
+The `version` field every successful health response carries is the build's
+release identity, and it has exactly one source: `0.1.0` in
+`demo/package.json`. The website's own `package.json` holds an inert `0.0.0`
+placeholder that carries no meaning. Nothing bumps the number on promotion — a
+release is a branch promotion, not a version event. And a *failing* readiness
+probe answers with a bare `unavailable` error envelope instead, so a degraded
+process never attests a version it cannot serve.
 
 ## The attestation, and the SHA it carries 🧾 \{#the-attestation-and-the-sha-it-carries}
 

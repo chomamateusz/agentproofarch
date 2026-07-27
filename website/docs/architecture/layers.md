@@ -6,6 +6,8 @@ description: The allowed dependency directions, and the two independent enforcer
 
 # Layers 📚 \{#layers}
 
+*Read this if you are evaluating the architecture, or looking up which import is legal from where. On a first read, [The stack](#the-stack) and [The full feature map](#the-full-feature-map) are enough.*
+
 A layered architecture that lives in a README is a suggestion, and suggestions do
 not survive contact with an agent generating a hundred files. Here the layers are a **graph with machine-checked edges**: every
 allowed dependency direction below is spelled out twice — once in
@@ -83,6 +85,68 @@ Two edges in that diagram are the ones people get wrong:
   themselves against the same zod schemas the server implements. Neither client
   can reach `core/server` or `adapters/db` at all.
 
+## The full feature map 🗺️ \{#the-full-feature-map}
+
+The [landing page](../start/landing.md#the-feature-map) shows the newcomer
+version of this graph; here is the full one, now that the table above has
+introduced the vocabulary it uses. Every capability is reachable through the web
+app and, with three deliberate exceptions (the browser-bound sign-in ceremonies
+— TOTP enrollment, passkeys, Google), through the CLI. The public API exposes
+two unauthenticated read-only routes over one tenant profile and nothing else
+([ADR-0006](../decisions/0006-public-read-only-surface.md)).
+
+```mermaid
+graph LR
+  subgraph surfaces["Drive surfaces"]
+    web["Web SPA<br/>React · TanStack · MUI"]
+    cli["CLI<br/>--json · exit codes"]
+    pub["Public API<br/>no session · cacheable"]
+  end
+
+  subgraph seam["core/contract — the app seam"]
+    routes["API_ROUTES + zod schemas"]
+    publicRoutes["PUBLIC_API_ROUTES<br/>its own registry"]
+  end
+
+  authRoutes["Better Auth /api/auth/*<br/>via the auth adapters"]
+
+  subgraph caps["Capabilities in the walking skeleton"]
+    auth["Auth: password · magic link<br/>TOTP · passkey · Google seam"]
+    tenants["Tenants + staff grants<br/>owner / admin"]
+    members["Members: ensure · update<br/>remove · GDPR export"]
+    work["Todos + two boards<br/>personal · guarded team"]
+    domains["Custom domains<br/>add · check · remove"]
+    health["Health + attestation<br/>live · ready · commit SHA"]
+    profile["Public tenant profile<br/>read-only · 2 routes"]
+  end
+
+  subgraph gates["How it stays true"]
+    check["check — static"]
+    smoke["smoke — runtime"]
+    e2e["e2e — browser"]
+  end
+
+  web --> routes
+  cli --> routes
+  web --> authRoutes
+  cli --> authRoutes
+  pub --> publicRoutes
+  authRoutes --> auth
+  routes --> tenants
+  routes --> members
+  routes --> work
+  routes --> domains
+  routes --> health
+  publicRoutes --> profile
+
+  caps --> check
+  caps --> smoke
+  caps --> e2e
+
+  classDef highlight fill:#dbeafe,stroke:#2563eb,color:#1e3a5f;
+  class routes highlight;
+```
+
 ## The dependency-rule table 📋 \{#the-dependency-rule-table}
 
 The ESLint element map (`boundaries/elements`) classifies every file, and
@@ -102,14 +166,23 @@ an *explicit permission*, and anything not listed fails with the message
 | `app-web` (`apps/web/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-web` |
 | `app-cli` (`apps/cli/**`) | `core-domain`, `core-contract`, `core-client`, `adapter-auth`, `app-cli` |
 
-Inside `apps/web` the same mechanism continues at a finer grain: `web-main`,
-`web-api`, `web-shell` (the stateful shell composition `AppLayout.tsx` beside
-`main.tsx`, per [ADR-0011](../decisions/0011-layout-layer.md)), `web-routes`,
-`web-features`, `web-ui`, `web-lib`, `web-theme` are
-separate element types, and the `web-features` pattern captures the feature name
-so a feature may only import itself. That is how "features are islands" is
-enforced — see [Client state](client-state.md). `components/layout/` joins them
-as the page-skeleton element decided in
+Inside `apps/web` the same mechanism continues at a finer grain — eight separate
+element types:
+
+| Element type | What it classifies |
+|---|---|
+| `web-main` | `main.tsx` — composition only: providers plus router wiring |
+| `web-api` | `api.ts` — the one site that binds descriptors to their transport |
+| `web-shell` | the stateful shell composition `AppLayout.tsx` beside `main.tsx` ([ADR-0011](../decisions/0011-layout-layer.md)) |
+| `web-routes` | `routes/` — thin route modules |
+| `web-features` | `features/<name>/` — the pattern captures the feature name, so a feature may only import itself |
+| `web-ui` | `components/ui/` — presentational components |
+| `web-lib` | `lib/` — pure TypeScript helpers |
+| `web-theme` | `theme.ts` — the visual language |
+
+The per-feature capture on `web-features` is how "features are islands" is
+enforced — see [Client state](client-state.md). `components/layout/` joins the
+list as the page-skeleton element decided in
 [ADR-0011](../decisions/0011-layout-layer.md); its element type and dependency
 rule land with the enforcer slice of that change.
 
@@ -142,8 +215,13 @@ covers directories the ESLint element map does not classify.
 | `smtp-sdk-only-in-adapters-email` | `nodemailer` / `@aws-sdk/*` outside `adapters/email` |
 | `island-core-is-framework-agnostic` | `features/*/core/**` → `react`, `react-dom`, `@tanstack/react-query`, `@xstate/store/react`, `@xstate/react` |
 | `island-core-is-portable` | `features/<x>/core/**` → any `apps/web/src` path outside its own core dir |
-| `web-ui-is-presentational`, `web-lib-no-react`, `web-lib-has-no-app-internal-deps`, `web-routes-stay-thin`, `web-features-consume-bound-actions`, `web-features-are-islands`, `web-api-is-the-only-client-construction-site` | the intra-`apps/web` graph (see [Client state](client-state.md)) |
-| `web-layouts-are-structure-only` (lands with the ADR-0011 enforcer slice) | `components/layout/**` → `core`, `adapters`, `features`, `routes`, `api.ts`, TanStack |
+| seven intra-`apps/web` rules | illegal edges inside the `apps/web` graph — each rule is named and tabulated with its scope in [Client state §What lint actually enforces](client-state.md#what-lint-actually-enforces) |
+
+Every rule in that table is live today. One more is decided but lands with the
+ADR-0011 enforcer slice, so it is deliberately **not** in the "enforces" table:
+`web-layouts-are-structure-only`, which will forbid `components/layout/**` from
+importing `core`, `adapters`, `features`, `routes`, `api.ts` or TanStack
+([ADR-0011](../decisions/0011-layout-layer.md)).
 
 :::info[Two enforcers, deliberately not identical]
 The ESLint element map declares element types for `adapters/db`,
@@ -239,8 +317,16 @@ turns a contract violation into a loud failure instead of corrupted state (see
 
 `pnpm run doc-lint` closes the loop from the other direction: removing an enforcer
 from config without updating the docs that promise it fails the gate
-([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)). Weakening a
-*structural* rule — letting a client import `core/server`, a framework into
-`core/**`, dissolving the `core/contract` seam, throwing across a boundary
-instead of returning `Result`, re-enabling `any`/`as` — is a legitimate choice
-that forfeits the name and the guarantee, and it has to be written down.
+([ADR-0004](../decisions/0004-no-exceptions-enforcement.md)).
+
+Weakening a *structural* rule is a legitimate choice — but it forfeits the name
+and the guarantee, and it has to be written down. The structural rules are:
+no client importing `core/server`, no framework in `core/**`, the
+`core/contract` seam stays, errors return as `Result` instead of being thrown
+across a boundary, and `any`/`as` stay disabled.
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0004](../decisions/0004-no-exceptions-enforcement.md) — why the enforcers are themselves enforced.
+- Sideways: [Request lifecycle](request-lifecycle.md) — one request through these layers, in order.
+- To work: [Adding a feature](../guides/adding-a-feature.md) — the 12-step chain across the stack.

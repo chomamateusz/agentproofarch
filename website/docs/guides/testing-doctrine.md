@@ -6,6 +6,8 @@ description: Four levels, a coverage ratchet, and a flake is a P1 bug.
 
 # Writing tests per the doctrine ✅ \{#writing-tests-per-the-doctrine}
 
+*Read this if you are about to write a test and want to know which level it belongs to — the [checklist at the bottom](#checklist-for-a-new-test) is the short answer.*
+
 Most test suites answer "does the happy path work". This one is built to answer a
 harder question: **can an agent's change break something quietly?** That reframes
 everything. The gates are non-negotiable rather than advisory, coverage is a
@@ -53,10 +55,13 @@ flowchart LR
   done -->|"either red"| redGate["the commit is wrong<br/>or the gate is wrong"]
 ```
 
-:::danger[Done = `check` green AND `smoke` green]
-Static-green is not done; the app must actually run. And do not weaken a lint rule
-to make either gate green — that inverts the whole point of having one.
-:::
+Done = `check` green **and** `smoke` green — static-green is not done; the app
+must actually run. The canonical statement of that rule lives on the
+[landing page](../start/landing.md#how-it-defends-itself), and the full
+eight-member composition of `check` is pinned in
+[CI gates](../operations/ci-gates.md#check--the-static-gate). And do not weaken
+a lint rule to make either gate green — that inverts the whole point of having
+one.
 
 ## Where does my test go? 🗂️ \{#where-does-my-test-go}
 

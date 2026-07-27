@@ -6,6 +6,8 @@ description: Hourly encrypted pg_dump on k3s, an offsite copy, and the Docker se
 
 # Backup & disaster recovery 💾 \{#backup--disaster-recovery}
 
+*Read this if you operate the VPS backup package or are running the restore drill.*
+
 The whole deployment topology assumes two vendors — Vercel and Neon — so the disaster to plan for is losing one of them entirely: account suspension, provider outage, or a destructive migration that outran its restore window. The production backup package therefore lives **outside** both: it runs on the owner's k3s VPS, while GitHub Actions exercises it only against disposable services and throwaway credentials. No production credential belongs in GitHub, this repository, a shell command or shell history. The cold standby is the repository's own Docker self-host stack, which means DR reuses a target that a required CI check already proves works.
 
 :::info[Source of truth]

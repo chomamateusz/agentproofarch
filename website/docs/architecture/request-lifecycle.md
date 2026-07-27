@@ -6,12 +6,12 @@ description: From HTTP in to envelope out — the fixed order of a request.
 
 # Request lifecycle 🔄 \{#request-lifecycle}
 
-This page exists because every security property in this architecture is really
-a claim about **order**: authentication before tenant resolution, tenant
-resolution before authorization, authorization before the first repository call,
-and exactly one place where anything becomes an HTTP response. If you cannot
-point at the line where each of those happens, the properties are hypotheses.
-So here is the order, as `demo/apps/server/src/app.ts` actually registers it.
+Every security property in this architecture is really a claim about **order**.
+Authentication runs before tenant resolution. Resolution runs before
+authorization. Authorization runs before the first repository call. And exactly
+one place turns anything into an HTTP response. If you cannot point at the line
+where each of those happens, the properties are hypotheses — so here is the
+order, as `demo/apps/server/src/app.ts` actually registers it.
 
 ## The happy path 🛤️ \{#the-happy-path}
 
@@ -254,3 +254,9 @@ decision, two renderings. The walkthrough lives in
 - **No per-route authorization middleware.** Authorization is a use-case-layer
   call, not an HTTP-layer decorator, because the CLI and any future client must
   hit the same check.
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0006](../decisions/0006-public-read-only-surface.md) — why the public group sits above identity resolution.
+- Sideways: [Authorization](authorization.md) — the grant table behind `authorizeTenant`, and [Errors & API versioning](errors-and-api-versioning.md) — the taxonomy behind `respond()`.
+- To work: [Adding a feature](../guides/adding-a-feature.md) — wiring a new route into this exact order.

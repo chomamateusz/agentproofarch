@@ -2,6 +2,7 @@
 title: Quickstart
 sidebar_label: 🔥 Quickstart
 description: Clone the repository and get to a green runtime gate.
+pagination_next: guides/cli-walkthrough
 ---
 
 # Quickstart 🔥 \{#quickstart}
@@ -13,6 +14,20 @@ the same five minutes that start the dev server also seed two tenants, a demo
 account and a local mail sink, because every one of those is something the gates
 and the walkthroughs assume exists. Every command below is copied from
 `demo/package.json` and the repository READMEs.
+
+## The four commands ⚡ \{#the-four-commands}
+
+After [install](#1-clone-and-install), four commands boot the working demo:
+
+```bash
+pnpm run db:up
+pnpm run db:migrate
+pnpm run db:seed
+pnpm run dev:web
+```
+
+The numbered sections below are the same path with every prerequisite, seed
+value and sharp edge annotated.
 
 ## What you get after boot 📦 \{#what-you-get-after-boot}
 
@@ -135,15 +150,18 @@ instead of delivering them. Read a magic link from its UI at
 ## 4. Run it ▶️ \{#4-run-it}
 
 Two dev paths, and picking the wrong one is the most common first-run
-frustration:
+frustration. Each path answers on its own port — open the URL printed next to
+the command you ran:
 
 ```bash
-pnpm run dev:web          # Vite + hot reload on 47180 — the canonical frontend path
+pnpm run dev:web          # Vite + hot reload — the canonical frontend path
+                          # → open http://acme.localhost:47180
 ```
 
 ```bash
 pnpm run build:web        # …or a prod-like page: build the SPA first,
-pnpm run dev:server       # then the API + built bundle on http://acme.localhost:47100
+pnpm run dev:server       # then the API + built bundle
+                          # → open http://acme.localhost:47100
 ```
 
 :::warning[`dev:server` serves a gitignored build]
@@ -157,8 +175,8 @@ switch to `dev:web`. **All frontend work goes through `dev:web`.**
 Open both tenants and watch the isolation — each has its own todos and its own
 accent colour:
 
-- `http://acme.localhost:47100`
-- `http://globex.localhost:47100`
+- `http://acme.localhost:47180` and `http://globex.localhost:47180` (`dev:web`)
+- `http://acme.localhost:47100` and `http://globex.localhost:47100` (`dev:server`)
 
 Browsers reject `Domain=.localhost` cookies, so in dev you sign in **per
 subdomain**. On a real base domain one session spans every tenant subdomain; the
@@ -172,17 +190,25 @@ has to be running** (`dev:web` on 47180 is not it, and `smoke` boots its own
 throwaway port). `--silent` keeps pnpm's own chatter off stdout, so `--json`
 really does emit one document:
 
-:::warning[The CLI keeps one global profile per machine]
+:::note[The CLI keeps one global profile per machine]
+First time on this machine? Nothing to do — skip this.
+
 CLI state — API URL, session token, selected tenant — lives in
 `~/.config/agentproofarch/config.json`, keyed off the home directory, so it
 survives across clones **and** deployments. If this machine ever pointed the
 CLI at another instance, the block below talks to *that* API, not your local
-server. Start from a clean profile: run the whole block in a throwaway shell
-whose home is a fresh directory (`export HOME="$(mktemp -d)"` first, in that
-shell only), or pin the URL with the global `--api-url` flag —
-`pnpm --silent run cli --api-url http://localhost:47100 login --email … --password …`
-persists `http://localhost:47100` for every command after it (add the same flag
-to the `health` line, which runs before `login`).
+server. The one-line fix: add the global `--api-url http://localhost:47100`
+flag to the `health` and `login` lines below — the URL persists for every
+command after it.
+
+<details>
+<summary>Alternative: a fully clean throwaway profile</summary>
+
+Run the whole block in a throwaway shell whose home is a fresh directory —
+`export HOME="$(mktemp -d)"` first, in that shell only. The CLI then starts
+from an empty profile and nothing it writes survives the shell.
+
+</details>
 :::
 
 ```bash
@@ -299,7 +325,22 @@ flowchart TD
   gates["pnpm run check<br/>pnpm run smoke"] --> done["Done = both green"]
 ```
 
-## Ports 🔌 \{#ports}
+## Troubleshooting 🚨 \{#troubleshooting}
+
+The five failures people actually hit on a first boot. The longer tail — old
+checkouts, shared Docker stacks, stale volumes, origin mismatches — has its own
+page: [Troubleshooting first run](./troubleshooting.md).
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Every page fails with "response does not match the contract" | `dist/web` is a stale build and `dev:server` is serving it | `pnpm run build:web`, or use `dev:web` |
+| `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `pnpm run db:up`, then wait for its healthcheck |
+| `smoke` fails with "Dependencies are not installed" or a lockfile-drift list | `node_modules` does not match `pnpm-lock.yaml` | `pnpm install --frozen-lockfile` |
+| Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
+| A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
+
+<details>
+<summary>Ports — the full map</summary>
 
 Nothing binds a common port, on purpose — 3000, 5432, 8080 and friends are all
 avoided so the stack never collides with whatever else you are running.
@@ -313,28 +354,16 @@ avoided so the stack never collides with whatever else you are running.
 | 47980 | Mailpit web UI + HTTP API (override with `MAILPIT_API_PORT`) |
 | 47101 | Self-host only: the internal domain-check control plane (`INTERNAL_PORT`, unset in dev) |
 
-## Troubleshooting 🚨 \{#troubleshooting}
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| Every page fails with "response does not match the contract" | `dist/web` is a stale build and `dev:server` is serving it | `pnpm run build:web`, or use `dev:web` |
-| `check` fails in `lock-lint` after adding a dependency | `package.json` and `pnpm-lock.yaml` are out of sync | run `pnpm install` with the pinned package manager and commit the settled lockfile |
-| `smoke` fails with "Dependencies are not installed" or a lockfile-drift list | `node_modules` does not match `pnpm-lock.yaml` | `pnpm install --frozen-lockfile` |
-| Signing in on `acme.localhost` does not carry over to `globex.localhost` | browsers reject `Domain=.localhost` cookies | expected in dev — sign in per subdomain |
-| Sign-in returns 403 "invalid origin" | Better Auth requires the request `Origin` to match `APP_BASE_URL`; changing the port without changing `APP_BASE_URL` breaks it | keep `APP_PORT` and `APP_BASE_URL` in step |
-| `db:migrate` / `db:seed` cannot connect | the Docker stack is not up, or Postgres is still starting | `pnpm run db:up`, then wait for its healthcheck |
-| A second clone attaches to the first clone's database and Mailpit | `docker-compose.dev.yml` deliberately names one shared machine-wide stack, `agentproofarch-dev` | this is the default design; for per-clone isolation set a unique `COMPOSE_PROJECT_NAME` and non-conflicting `DB_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_API_PORT`, and matching `DATABASE_URL` |
-| `pnpm run db:up` refuses to start (or Docker reports port 47542 already allocated), and `docker ps` shows a `demo-db-1` container | your checkout predates the `agentproofarch-dev` project name, so Docker still runs the old directory-derived project `demo`, which owns port 47542 and the volume `demo_agentproofarch-pgdata`; the renamed stack cannot start next to it | retire the **old** project by name: `docker compose -p demo down -v` — **this deletes the old dev volume; its seed data is disposable** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
-| Your dev database holds duplicated seed rows (four Acme todos, say) | the volume predates the idempotent seed and accumulated a set per `db:seed` run | reset the **current** `agentproofarch-dev` stack from `demo/` with `docker compose -f docker-compose.dev.yml down -v` — **this deletes the dev database volume** — then `pnpm run db:up && pnpm run db:migrate && pnpm run db:seed` |
-| A magic-link command "sent" a mail you cannot find | there is no dev mail transport — Mailpit captured it | open `http://localhost:47980` |
-| e2e fails at startup with the port already in use | a previous harness left the port bound | the harness now frees the port before boot ([#55](https://github.com/chomamateusz/agentproofarch/pull/55)); if it recurs, that is a P1 to file, not a job to rerun |
+</details>
 
 ## Next ➡️ \{#next}
 
-- [CLI walkthrough](../guides/cli-walkthrough.md) — every command group with real
-  output and exit codes.
-- [Adding a feature](../guides/adding-a-feature.md) — the scaffolder and the
-  12-step chain.
-- [Layers](../architecture/layers.md) — what you just booted, structurally.
-- [Environments and promotion](../operations/environments.md) — how the same
-  commit reaches Vercel and a self-hosted container.
+**Next: the [CLI walkthrough](../guides/cli-walkthrough.md)** — the loop you just
+said hello to, in full: the envelope, the exit codes, and how an agent scripts it.
+
+Or, depending on what you are doing:
+[Adding a feature](../guides/adding-a-feature.md) (the scaffolder and the 12-step
+chain) · [Layers](../architecture/layers.md) (what you just booted, structurally) ·
+[Environments and promotion](../operations/environments.md) (how the same commit
+reaches Vercel and a container) · [glossary](./glossary.md) (every term this site
+uses).

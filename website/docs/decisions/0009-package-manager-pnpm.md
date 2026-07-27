@@ -1,6 +1,6 @@
 ---
 title: ADR-0009 — Package manager — npm → pnpm
-sidebar_label: '0009 · Package manager: pnpm 📦'
+sidebar_label: '📦 0009 · Package manager: pnpm'
 description: Supply-chain hardening at install time — dependency scripts off by default, a release-age cooldown, a strict non-hoisted layout, and frozen-lockfile everywhere.
 ---
 

@@ -6,13 +6,23 @@ description: A closed capability union, a wildcard-free grant table, and the tes
 
 # Authorization (default-deny) 🛡️ \{#authorization-default-deny}
 
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — the
+scaffolder generates the denial tests and the checklist tells you where to
+decide grants. This page is the reference for the capability model. Come back
+when you are naming a new capability, changing a grant row, or reading a
+`forbidden` you did not expect. On a first read,
+[§The capability model](#the-capability-model) and
+[§The grant table](#the-grant-table) are enough.
+:::
+
 "We check permissions in the handlers" is how cross-tenant data leaks happen:
 one handler forgets the check, and nothing above it notices. Authorization here
-is **one pure function over one closed table**, called as the first statement of every tenant-scoped
-use-case, with an exhaustive unit suite that asserts every capability × principal
-cell and a structural probe that fails the build when a new use-case forgets the
-call. Nothing is granted by wildcard: a principal absent from a capability's list
-is denied.
+is **one pure function over one closed table**, called as the first statement
+of every tenant-scoped use-case. An exhaustive unit suite asserts every
+capability × principal cell. A structural probe fails the build when a new
+use-case forgets the call. And nothing is granted by wildcard: a principal
+absent from a capability's list is denied.
 
 ## Two questions, two steps ❓ \{#two-questions-two-steps}
 
@@ -282,3 +292,9 @@ new aggregate therefore starts with its denial tests already written.
 5. Add the denial tests, or let `pnpm run new:resource` scaffold them.
 
 There is no step where a wildcard shortcut exists, which is the point.
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0010](../decisions/0010-tenant-creation-policy.md) — the `TENANT_CREATION` decision behind the mode-derived row.
+- Sideways: [Identity & multi-tenancy](identity-and-multi-tenancy.md) — the resolution step that runs before this one.
+- To work: [Adding a feature](../guides/adding-a-feature.md) — where you name the capability and decide its grants.

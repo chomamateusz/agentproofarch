@@ -11,7 +11,8 @@ You can build with just the [Quickstart](../start/quickstart.md) — the error
 taxonomy already works out of the box. This page is the reference for the error
 model and the no-versioning contract. Come back when you are adding an error
 kind, mapping a new failure to an HTTP status or CLI exit code, or wondering
-why there is no `/v1`.
+why there is no `/v1`. On a first read, [§The taxonomy](#the-taxonomy) and
+[§`Result`, not exceptions](#result-not-exceptions) are enough.
 :::
 
 This page exists because two decisions here look like omissions until you see the
@@ -266,6 +267,12 @@ bytes and there is nothing to invalidate twice.
 A config-regression probe asserts the `s-maxage` and `stale-while-revalidate`
 tokens appear in that **one** helper and nowhere else, so no call site can
 hand-write a cache string.
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0003](../decisions/0003-vercel-environments.md) — the one-commit topology that makes no-versioning honest.
+- Sideways: [Request lifecycle](request-lifecycle.md) — where `respond()` and `app.onError` sit.
+- To work: [CLI walkthrough](../guides/cli-walkthrough.md) — the taxonomy as exit codes.
 
 :::caution[What the smoke gate can and cannot see behind Vercel]
 Vercel's CDN **consumes** `s-maxage`/`stale-while-revalidate` at the edge and

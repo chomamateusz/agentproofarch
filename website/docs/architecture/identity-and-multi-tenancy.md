@@ -6,6 +6,15 @@ description: Global authentication, tenant-owned relationship, and honest per-en
 
 # Identity & multi-tenancy 🏢 \{#identity--multi-tenancy}
 
+:::note[You do not need this to start]
+You can build with just the [Quickstart](../start/quickstart.md) — the seeded
+tenants already resolve on `*.localhost`. This page is the reference for the
+identity split and tenant addressing. Come back when you are adding an auth
+method, touching tenant resolution, or planning a real base domain. On a first
+read, [§Who are you, versus who are you here](#who-are-you-versus-who-are-you-here)
+and [§Tenant resolution order](#tenant-resolution-order) are enough.
+:::
+
 "Multi-tenant" is where most SaaS foundations quietly sell out: they let the
 auth provider own the organization model, and two years later swapping the
 provider is a data migration rather than an adapter change.
@@ -295,3 +304,9 @@ branches) are **normative when triggered** — the trigger is the first real
 end-user personal data in production, beyond the demo seed. Today they are a
 documented use-case shape, not shipped code. See
 [Data & transactions](data-and-transactions.md).
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [ADR-0002](../decisions/0002-member-identity-and-idp.md) — the member-identity decision and its rejected alternatives.
+- Sideways: [Authorization](authorization.md) — what the resolved identity may do.
+- To work: [Custom domains & TLS](../operations/self-host-and-domains.md) — attaching a real tenant domain.

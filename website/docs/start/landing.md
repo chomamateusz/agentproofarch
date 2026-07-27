@@ -62,10 +62,14 @@ Those answers roll up into the four promises the architecture makes
 
 ## Start here 🚀 \{#start-here}
 
-Four commands boot a working demo on your machine, right now — multi-tenancy
-included, on localhost, with seeded data (a demo account and two tenants). The
-[Quickstart](./quickstart.md) has the commands, with every prerequisite, seed
-value and sharp edge spelled out.
+Four commands after install boot a working demo on your machine, right now —
+multi-tenancy included, on localhost, with seeded data (a demo account and two
+tenants). The [Quickstart has the four-command block](./quickstart.md#the-four-commands),
+with every prerequisite, seed value and sharp edge spelled out.
+
+What boots is a small multi-tenant todo app — two tenants, staff grants,
+end-customer members, two boards — deliberately boring, because the product is
+the seams, not the todos.
 
 What boots is a **walking skeleton** — the thinnest version of the real system
 with every layer connected and actually working — not a scaffold of stubs. Each
@@ -104,87 +108,65 @@ rather than by exception
 
 ```mermaid
 graph LR
-  subgraph surfaces["Drive surfaces"]
-    web["Web SPA<br/>React · TanStack · MUI"]
-    cli["CLI<br/>--json · exit codes"]
-    pub["Public API<br/>no session · cacheable"]
+  subgraph surfaces["Three ways in"]
+    web["Web app"]
+    cli["CLI — machine-readable"]
+    pub["Public API — read-only"]
   end
 
-  subgraph seam["core/contract — the app seam"]
-    routes["API_ROUTES + zod schemas"]
-    publicRoutes["PUBLIC_API_ROUTES<br/>its own registry"]
-  end
+  seam["one shared contract:<br/>typed routes the server and<br/>every client agree on"]
 
-  authRoutes["Better Auth /api/auth/*<br/>via the auth adapters"]
+  caps["everything the demo can do:<br/>sign-in · tenants + staff ·<br/>members (incl. GDPR export) ·<br/>todos + two boards ·<br/>custom domains · health"]
 
-  subgraph caps["Capabilities in the walking skeleton"]
-    auth["Auth: password · magic link<br/>TOTP · passkey · Google seam"]
-    tenants["Tenants + staff grants<br/>owner / admin"]
-    members["Members: ensure · update<br/>remove · GDPR export"]
-    work["Todos + two boards<br/>personal · guarded team"]
-    domains["Custom domains<br/>add · check · remove"]
-    health["Health + attestation<br/>live · ready · commit SHA"]
-    profile["Public tenant profile<br/>read-only · 2 routes"]
-  end
+  pubcaps["public tenant profile —<br/>two routes, nothing else"]
 
-  subgraph gates["How it stays true"]
-    check["check — static"]
-    smoke["smoke — runtime"]
-    e2e["e2e — browser"]
-  end
-
-  web --> routes
-  cli --> routes
-  web --> authRoutes
-  cli --> authRoutes
-  pub --> publicRoutes
-  authRoutes --> auth
-  routes --> tenants
-  routes --> members
-  routes --> work
-  routes --> domains
-  routes --> health
-  publicRoutes --> profile
-
-  caps --> check
-  caps --> smoke
-  caps --> e2e
+  web --> seam
+  cli --> seam
+  seam --> caps
+  pub --> pubcaps
 
   classDef highlight fill:#dbeafe,stroke:#2563eb,color:#1e3a5f;
-  class routes highlight;
+  class seam highlight;
 ```
 
-Read the structure top-down in [Layers](../architecture/layers.md), then follow a
-single request through it in
+That is the simplified view — one box per idea, no symbol names. The full graph,
+with the real route registries and the gates that keep it true, sits at the
+[top of Layers](../architecture/layers.md#the-full-feature-map), which also
+teaches the vocabulary the graph uses. Then follow a single request through it in
 [Request lifecycle](../architecture/request-lifecycle.md).
 
 ## How it defends itself 🛡️ \{#how-it-defends-itself}
 
 | Gate | Command | What it proves | Required check? |
 |---|---|---|---|
-| **Static** | `pnpm run check` | typecheck (incl. the island TS project) + ESLint boundaries + `lock-lint` + dependency-cruiser + knip + `doc-lint` + vitest with a coverage ratchet | yes — `check` |
-| **Runtime** | `pnpm run smoke` | recreates an isolated database, boots the real server, drives health → sign-in → todos → unauthorized through the CLI asserting taxonomy exit codes | yes — `smoke` |
-| **Browser** | `pnpm run e2e` | a real Chromium over the real stack: 15 tests across 6 spec files | yes — `e2e` |
-| **Container** | `selfhost.yml` | builds the image, boots `docker-compose.prod.yml`, smokes the container through the CLI | yes — `docker-smoke` |
-| **Pixel** | `pnpm run visual` | Playwright `toHaveScreenshot()` against CI-rendered baselines ([ADR-0008](../decisions/0008-visual-regression.md)) | **no** — by design |
-| **Review** | `ai-review.yml` | fail-closed AI diff review; only a positive `PASS` verdict is green | **yes**, on `main` (since 2026-07-26) |
+| **Static** | `pnpm run check` | the code compiles, respects the declared boundaries, and passes the unit tests — [eight members, in order](../operations/ci-gates.md#check--the-static-gate) | yes — `check` |
+| **Runtime** | `pnpm run smoke` | the app actually boots: a real server on a real (isolated) database, driven end to end through the CLI | yes — `smoke` |
+| **Browser** | `pnpm run e2e` | a real Chromium works over the real stack | yes — `e2e` |
+| **Container** | `selfhost.yml` | the Docker self-host target works from the same commit: build the image, boot it, smoke it | yes — `docker-smoke` |
+| **Pixel** | `pnpm run visual` | the pixels did not move — screenshot comparison against CI-rendered baselines ([ADR-0008](../decisions/0008-visual-regression.md)) | **no** — by design |
+| **Review** | `ai-review.yml` | an AI reviewer read the diff against the doctrine; only a positive `PASS` verdict is green | **yes**, on `main` (since 2026-07-26) |
+
+Every tool and term named in that table is defined in the
+[glossary](./glossary.md); which jobs run and which block is the
+[CI gates](../operations/ci-gates.md) page's single source.
 
 :::danger[Done = `check` green AND `smoke` green]
 Static-green is not done. A typechecked, linted commit that does not boot is a
 red commit. And a red gate is never rerun to green: **a flake is a P1 bug**
-(owner ruling, DECIDE F3) — a red gate means the commit is wrong or the gate is
-wrong, and one of them gets fixed.
+(owner ruling, [DECIDE F3](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md))
+— a red gate means the commit is wrong or the gate is wrong, and one of them
+gets fixed.
 :::
 
-Underneath those gates: **88** test files in the database-free run, **48**
-integration tests against a real Postgres, **15** Playwright tests, and **48**
-config-regression probes that guard the enforcers themselves — most feed a
-deliberately illegal fixture and assert rejection; the rest are structural
-scans and non-vacuity guards over the real source — so a silently weakened rule
-fails CI instead of passing quietly. Those counts sit in the repository's own
-READMEs as machine-checked tokens that `doc-lint` re-verifies against the
-source tree on every `check`. See
-[Testing doctrine](../guides/testing-doctrine.md) and
+Underneath those gates sit the test suites. **88** test files run database-free
+in `check`. **48** integration tests run against a real Postgres, and **15**
+Playwright tests drive the browser. A further **48** config-regression probes
+guard the enforcers themselves: most feed a deliberately illegal fixture and
+assert rejection, the rest are structural scans and non-vacuity guards over the
+real source. A silently weakened rule therefore fails CI instead of passing
+quietly. Those counts sit in the repository's own READMEs as machine-checked
+tokens that `doc-lint` re-verifies against the source tree on every `check`.
+See [Testing doctrine](../guides/testing-doctrine.md) and
 [CI gates](../operations/ci-gates.md).
 
 ## Live demo 🖥️ \{#live-demo}
@@ -206,9 +188,10 @@ stay fully multi-tenant via the `X-Tenant` header.
   against the live API** — proven against a stubbed `fetch` only, because no
   `VERCEL_TOKEN` exists on CI or the build machine. Full statement:
   [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
-- **Two CI jobs run but block nothing.** `visual` (pixel) and `docs-build`
-  (this site) report without gating until the owner arms them; `ai-review`
-  has been a required `main-gates` check since 2026-07-26.
+- **Not every CI job blocks a merge.** Some jobs report without gating until the
+  owner arms them — the current required and deliberately-non-required sets are
+  listed in one place, [CI gates](../operations/ci-gates.md#deliberately-non-required);
+  `ai-review` has been a required `main-gates` check since 2026-07-26.
   Adding a status check to a ruleset is Admin-only — which the agent account
   deliberately is not.
 - **`ai-review` has one token slot provisioned.** `CLAUDE_CODE_OAUTH_TOKEN_1` is
@@ -223,17 +206,19 @@ stay fully multi-tenant via the `X-Tenant` header.
   implementation slice; it never gets built silently.
 
 :::note[This is a reference implementation, not a package]
+You read it, fork it, or lift patterns out of it.
+
 `demo/package.json` is `private: true` and nothing is published to npm. There is
 no release versioning either: a release is a branch promotion
 (`main` → `production`), the repository carries no version tags, and the
-[changelog](../changelog.md) groups entries by merge date rather than by version. The
-one version number that carries meaning — `0.1.0` in `demo/package.json`; the
-website's `package.json` holds an inert `0.0.0` placeholder — is the build's
-release identity, served as the `version` field of every successful health
-response ([Health & attestation](../operations/health-and-attestation.md)); a
-failing readiness probe answers with a bare `unavailable` error envelope
-instead, and nothing bumps the number on promotion. You read it, fork it, or lift patterns out of it. CLI
-distribution and a version handshake sit on the
+[changelog](../changelog.md) groups entries by merge date rather than by
+version.
+
+The one version number that carries meaning — `0.1.0` in `demo/package.json` —
+is the build's release identity, served with every successful health response;
+the full mechanics are in
+[Health & attestation](../operations/health-and-attestation.md#release-identity).
+CLI distribution and a version handshake sit on the
 [deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
 with "first external CLI consumer" as the named trigger.
 :::

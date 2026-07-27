@@ -30,6 +30,14 @@ before that lives in the git history only.
   the backup README now create the Secret from one combined env file
   ([#85](https://github.com/chomamateusz/agentproofarch/pull/85)).
 
+### Changed
+
+- Docs readability variant B (preview PR for owner comparison, not merged):
+  sidebar reordered into a reader path, the ai-review runbook and the CLI
+  command reference extracted to their own pages, self-host split from custom
+  domains, a first-run troubleshooting page, and cross-page count/wording
+  consistency fixes (#TBD-B).
+
 ### Fixed
 
 - Quickstart accuracy pass from a fresh-clone retest: nvm listed as a

@@ -140,3 +140,9 @@ flushes normally — same seam, different lifetime.
 - **No DB-hop instrumentation.** A slow query shows up only as request duration.
 - **`tracesSampleRate: 1` in the browser** is the launch default and directly contradicts the 1–5% happy-path sampling policy above — it is cheap while no DSN is configured, and it is one of the numbers the open wiring decision has to settle.
 :::
+
+## Where next ➡️ \{#where-next}
+
+- Deeper: [`docs/observability.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/observability.md) — the normative doctrine.
+- Sideways: [Request lifecycle](request-lifecycle.md) — where the middleware and the one error edge sit.
+- To work: [Errors & API versioning](errors-and-api-versioning.md) — the taxonomy the wide event folds in.

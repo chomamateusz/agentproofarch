@@ -6,15 +6,19 @@ description: Start with the scaffolder; let the type system drive the chain.
 
 # Adding a feature ✨ \{#adding-a-feature}
 
-Adding a resource to a strictly layered stack touches twelve files, and the
-tempting fix — a generator that writes all twelve — is the wrong one: generated
-edits to *shared* files rot the moment anyone else touches them. So the scaffolder
-here does something deliberately partial. It writes only the files the new resource
-owns outright, leaves every shared file alone, and prints an ordered checklist with
-the anchor line and a paste-ready snippet for each hand edit. The generated code
-imports symbols that do not exist yet, which means `pnpm run check` is **red from the
+*Read this when you are about to add a resource — it is the working procedure, not background.*
+
+Run the partial scaffolder first, then let the compiler drive you: the generated
+code imports symbols that do not exist yet, so `pnpm run check` is **red from the
 first second** and every error it prints is literally the next step. You are not
 following a tutorial; you are following the compiler.
+
+Why partial? Adding a resource to a strictly layered stack touches twelve files.
+The tempting fix — a generator that writes all twelve — is the wrong one:
+generated edits to *shared* files rot the moment anyone else touches them. So
+the scaffolder writes only the files the new resource owns outright, leaves
+every shared file alone, and prints an ordered checklist with the anchor line
+and a paste-ready snippet for each hand edit.
 
 The long-form narration lives in the repository as
 [`docs/first-feature.md`](https://github.com/chomamateusz/agentproofarch/blob/main/docs/first-feature.md)
@@ -119,7 +123,7 @@ exact snippet to paste, so you are never hunting.
 
 Two steps genuinely need thought rather than pasting.
 
-**Authorization (step 4b).** The generated use-cases call
+**Authorization (the authorization half of step 4).** The generated use-cases call
 `authorizeTenant(ctx, 'note:read' | 'note:write')`, and those capabilities are not
 in the `Capability` union yet — so `check` stays red until you *name them and
 decide their grants*. Default-deny, no wildcard. The checklist's baseline is
@@ -186,7 +190,7 @@ pnpm run dev:web        # Vite + hot reload on 47180
 Always `dev:web` for frontend work — `dev:server` serves a gitignored built bundle
 that goes stale after a contract change.
 
-:::note[The generated page is rung 0, not an exemption]
+:::note[The generated page is coreless — below rung 1 — not an exemption]
 The generated page reads server state directly through `actions`, exactly like the
 pre-existing todos page. That is a deliberate starting point, not a carve-out from
 [ADR-0005](../decisions/0005-client-application-state.md): the moment the feature
@@ -219,7 +223,7 @@ on a clean checkout, `docker-smoke` boots the container stack, and
 
 - [Layers](../architecture/layers.md) — what each step of the chain is *for*.
 - [Authorization](../architecture/authorization.md) — the capability model behind
-  step 4b.
+  the authorization half of step 4.
 - [Data and transactions](../architecture/data-and-transactions.md) — migration
   and atomicity rules behind step 5.
 - [Testing doctrine](./testing-doctrine.md) — what to test at which level.

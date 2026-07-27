@@ -6,6 +6,8 @@ description: How this repository is actually built — worktrees, gates, audits,
 
 # Agent workflow 🤖 \{#agent-workflow}
 
+*Read this if you are evaluating how an agent-driven repository is actually operated, or setting one up yourself.*
+
 This repository is written by AI agents, and that is not a footnote — it is the
 design constraint the whole architecture answers. So the workflow is documented
 here for the same reason the layer boundaries are: because "the agent was told to

@@ -10,7 +10,9 @@ description: Pure island cores, a three-rung ladder of machines, and the seam th
 You can build with just the [Quickstart](../start/quickstart.md) — server state
 via TanStack Query needs none of this. This page is the reference for client
 application state inside island cores. Come back when your island needs a store
-or a statechart, or a view is tempted to hold state of its own.
+or a statechart, or a view is tempted to hold state of its own. On a first
+read, [§Feature, island, core](#feature-island-core--three-words-for-one-thing)
+and [§The seam](#the-seam-events-in-selectors-out) are enough.
 :::
 
 This page exists because client state is where architectures usually stop being
@@ -21,7 +23,9 @@ invisible outside it. Views cannot tell a store from a statechart, and lint make
 sure they cannot find out. The model is decided in
 [ADR-0005](../decisions/0005-client-application-state.md).
 
-## Feature, island, core — three words for one thing 🧩 \{#feature-island-core--three-words-for-one-thing}
+## The model 🧠 \{#the-model}
+
+### Feature, island, core — three words for one thing 🧩 \{#feature-island-core--three-words-for-one-thing}
 
 | Word | Meaning |
 |---|---|
@@ -35,7 +39,7 @@ A business **subdomain** is not a feature: the demo has one tasks subdomain and
 distinction is the whole reason `core/domain` is singular while `features/` is
 plural — see the [glossary](../start/glossary.md).
 
-## The seam: events in, selectors out 🪡 \{#the-seam-events-in-selectors-out}
+### The seam: events in, selectors out 🪡 \{#the-seam-events-in-selectors-out}
 
 Every island core's public API is a closed event union plus selector functions.
 The machine is **not exported**, so a view cannot type against it:
@@ -58,7 +62,7 @@ The web adapter is one line of glue: feed `subscribe` plus the `snapshot` select
 into `useSyncExternalStore`. A TUI would consume `subscribe(listener)` and the
 selectors directly.
 
-## Portable by construction 📦 \{#portable-by-construction}
+### Portable by construction 📦 \{#portable-by-construction}
 
 An island core is a **factory over its dependencies**, not a module that reaches
 out for them:
@@ -102,7 +106,7 @@ island.
 So "DOM-free" is proven by a compiler program, not asserted in prose: a core that
 touches `window`, `document` or a React type fails `typecheck:islands`.
 
-## The three-rung ladder 🪜 \{#the-three-rung-ladder}
+### The three-rung ladder 🪜 \{#the-three-rung-ladder}
 
 The seam is uniform; the **machine** escalates.
 
@@ -152,7 +156,7 @@ pnpm run new:island -- <name> --machine=store       # rung 2, with optimistic-ap
 pnpm run new:island -- <name> --machine=statechart  # rung 3, with the transition table and a drift test
 ```
 
-## The two-machines contract 🤝 \{#the-two-machines-contract}
+### The two-machines contract 🤝 \{#the-two-machines-contract}
 
 The dividing line, verbatim: **local state is state that must die on reload —
 anything "save progress" is server state.**
@@ -166,60 +170,7 @@ one reversible undo step, and a `committedRev` counter the view uses to invalida
 once. The card list itself lives in the cache, and `core/selectors.ts` merges cache
 plus overlay to render the board.
 
-## What lint actually enforces 🧹 \{#what-lint-actually-enforces}
-
-Every rule below is a real entry in `eslint.config.js` or
-`.dependency-cruiser.cjs`. The island-core rules are additionally backed by a
-config-regression probe (`config-regression/island-core.test.ts`), which plants a
-violating fixture and asserts `check` still goes red — that is how a rule is kept
-from rotting once nobody remembers writing it.
-
-| Rule | Scope | Forbids |
-|---|---|---|
-| `web-features-are-islands` (depcruise) + `boundaries` per-feature capture | `features/<a>/**` | importing `features/<b>/**` |
-| `island-core-is-framework-agnostic` (depcruise) + `no-restricted-imports` | `features/*/core/**` | `react`, `react-dom`, `@tanstack/react-query`, `@xstate/store/react`, `@xstate/react` |
-| `island-core-is-portable` (depcruise) + a parent-relative import ban | `features/*/core/**` | any `apps/web/src` path outside its own core dir — including `api.ts` and sibling features |
-| store-library confinement pattern | all of `apps/web` **except** island cores | importing `@xstate/store` or `xstate` outside a core |
-| zustand ban | all of `apps/web` | importing `zustand` at all — it is not a demo dependency |
-| persist ban | `features/*/core/**` | store persistence middleware / JSON storage — client state must die on reload |
-| storage-globals ban | all of `apps/web` | `localStorage`, `sessionStorage` (one designated exception: `theme-mode.tsx`) |
-| `agentproofarch/query-descriptors-only` | all of `apps/web` | a query built from an inline object, a descriptor not imported, or one imported from another feature's module |
-| `QUERY_KEY_BAN` / `HTTP_GLOBALS` / `CLIENT_CONSTRUCTION_BANS` (eslint.config.js) | all of `apps/web` | inline `queryKey`/`queryFn`, raw `fetch`, holding an `ApiClient` or a port in feature code |
-| `setQueryData` ban | all of `apps/web` **except** a feature's `optimistic.ts` | manual cache writes outside the single-resource optimistic path |
-| `agentproofarch/event-suffix-taxonomy` | `features/*/core/events.ts` | an imperative event name — see below |
-| `agentproofarch/sx-layout-only` | all of `apps/web` | colour, typography, background and border-styling keys in an `sx` prop — `sx` carries layout/spacing/flex/grid/position/sizing only, and `theme.ts` owns the visual language. Existing debt is held by a **frozen per-file baseline that may only shrink**. A second, *structural* key category (reserving `display`/`grid*`/`flex*`/`position: sticky\|fixed`/`width`/`maxWidth` for `components/layout/**`) is designed and deliberately unshipped — see [ADR-0011](../decisions/0011-layout-layer.md) for its named trigger |
-| `web-layouts-are-structure-only` (depcruise, lands with the ADR-0011 enforcer slice) | `components/layout/**` | importing `core`, `adapters`, `features`, `routes`, `api.ts` or TanStack — page skeletons take theme atoms in and keep feature data out |
-| `web-api-is-the-only-client-construction-site` | all of `apps/web` except `api.ts` and `main.tsx` | binding an adapter anywhere else |
-
-React correctness runs at **error** level in the same gate:
-`react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`,
-`react-compiler/react-compiler`, `jsx-a11y` recommended, and the TanStack Query
-plugin rules.
-
-### Intent-named events 🏷️ \{#intent-named-events}
-
-Events name what the **user did**, never what should happen — `deleteConfirmed`,
-not `deleteOrder`. Each island's events are one closed union in one file, and the
-custom lint rule enforces the suffix taxonomy so the imperative form is
-*unwritable*:
-
-`…Requested` · `…Confirmed` · `…Cancelled` · `…Changed` · `…Selected` ·
-`…Opened` · `…Closed` · `…Added` · `…Moved` · `…Removed` · `…Failed` ·
-`…Succeeded`
-
-```ts
-export type BoardEvent =
-  | { type: 'refreshRequested' }
-  | { type: 'cardAdded'; title: string; column: string }
-  | { type: 'cardMoved'; cardId: string; fromColumn: string; fromIndex: number;
-      toColumn: string; toIndex: number; toColumnSize: number }
-  | { type: 'undoRequested' };
-```
-
-The rule itself is unit-tested with ESLint's `RuleTester`. The semantic half — "do
-these events report intent, or smuggle a decision?" — stays a review question.
-
-## Rung 3: the derived machine and its oracle 🔮 \{#rung-3-the-derived-machine-and-its-oracle}
+### Rung 3: the derived machine and its oracle 🔮 \{#rung-3-the-derived-machine-and-its-oracle}
 
 When transition legality is a **business rule** (WIP limits, an enforced status
 path), client-only enforcement is cosmetics: the CLI walks straight past it. So the
@@ -272,7 +223,7 @@ The drift test is not decorative — it does three things:
 3. proves its own detection power with a **planted mutant** — a hand-written
    machine that drops a guard must fail the suite.
 
-### Oracle, not owner 👁️ \{#oracle-not-owner}
+#### Oracle, not owner 👁️ \{#oracle-not-owner}
 
 The derived machine contains **domain states only** (columns plus guards). UI
 states — drag lifecycle, optimism, undo — never enter it; the failure mode there is
@@ -307,7 +258,7 @@ A runtime-assembled machine is invisible to static XState tooling — no visuali
 no typegen. That was traded for having exactly one source of truth for the rules.
 :::
 
-## Optimism holds one intent per entity ⚡ \{#optimism-holds-one-intent-per-entity}
+### Optimism holds one intent per entity ⚡ \{#optimism-holds-one-intent-per-entity}
 
 An overlay card whose operation has not settled carries a client-generated id and a
 position the server has not confirmed. A second intent fired in that window would
@@ -326,7 +277,7 @@ behaviourally. Related spike learning, also shipped: `toIndex` is **clamped befo
 the gateway**, in the use-case, so a client's optimistic index can never diverge
 from persisted order.
 
-## How islands coordinate — four channels, and only these 📡 \{#how-islands-coordinate--four-channels-and-only-these}
+### How islands coordinate — four channels, and only these 📡 \{#how-islands-coordinate--four-channels-and-only-these}
 
 ```mermaid
 graph LR
@@ -375,7 +326,7 @@ through its own selectors, so A's views still see one seam; **(c)** injected app
 globals. Deleting island B never breaks island A's *views* — at most a typed
 subscription inside A's core.
 
-## Server state stays separate 🖥️ \{#server-state-stays-separate}
+### Server state stays separate 🖥️ \{#server-state-stays-separate}
 
 Server state is TanStack Query only, consuming **bound actions**: `core/client`
 exports query/mutation factories, `apps/web/src/api.ts` binds them once, and
@@ -392,7 +343,65 @@ CLI, future — consumes the same partition.
 URL state has its own rule: **path params are resource identity, search params are
 shareable filters**, and neither is duplicated into component state.
 
-## Other apps/web rules worth knowing 📐 \{#other-appsweb-rules-worth-knowing}
+## The rules 📏 \{#the-rules}
+
+Every guarantee in the model above is held by a named rule. This half of the
+page is the lookup table.
+
+### What lint actually enforces 🧹 \{#what-lint-actually-enforces}
+
+Every rule below is a real entry in `eslint.config.js` or
+`.dependency-cruiser.cjs`. The island-core rules are additionally backed by a
+config-regression probe (`config-regression/island-core.test.ts`), which plants a
+violating fixture and asserts `check` still goes red — that is how a rule is kept
+from rotting once nobody remembers writing it.
+
+| Rule | Scope | Forbids |
+|---|---|---|
+| `web-features-are-islands` (depcruise) + `boundaries` per-feature capture | `features/<a>/**` | importing `features/<b>/**` |
+| `island-core-is-framework-agnostic` (depcruise) + `no-restricted-imports` | `features/*/core/**` | `react`, `react-dom`, `@tanstack/react-query`, `@xstate/store/react`, `@xstate/react` |
+| `island-core-is-portable` (depcruise) + a parent-relative import ban | `features/*/core/**` | any `apps/web/src` path outside its own core dir — including `api.ts` and sibling features |
+| store-library confinement pattern | all of `apps/web` **except** island cores | importing `@xstate/store` or `xstate` outside a core |
+| zustand ban | all of `apps/web` | importing `zustand` at all — it is not a demo dependency |
+| persist ban | `features/*/core/**` | store persistence middleware / JSON storage — client state must die on reload |
+| storage-globals ban | all of `apps/web` | `localStorage`, `sessionStorage` (one designated exception: `theme-mode.tsx`) |
+| `agentproofarch/query-descriptors-only` | all of `apps/web` | a query built from an inline object, a descriptor not imported, or one imported from another feature's module |
+| `QUERY_KEY_BAN` / `HTTP_GLOBALS` / `CLIENT_CONSTRUCTION_BANS` (eslint.config.js) | all of `apps/web` | inline `queryKey`/`queryFn`, raw `fetch`, holding an `ApiClient` or a port in feature code |
+| `setQueryData` ban | all of `apps/web` **except** a feature's `optimistic.ts` | manual cache writes outside the single-resource optimistic path |
+| `agentproofarch/event-suffix-taxonomy` | `features/*/core/events.ts` | an imperative event name — see below |
+| `agentproofarch/sx-layout-only` | all of `apps/web` | colour, typography, background and border-styling keys in an `sx` prop — `sx` carries layout/spacing/flex/grid/position/sizing only, and `theme.ts` owns the visual language. Existing debt is held by a **frozen per-file baseline that may only shrink**. A second, *structural* key category (reserving `display`/`grid*`/`flex*`/`position: sticky\|fixed`/`width`/`maxWidth` for `components/layout/**`) is designed and deliberately unshipped — see [ADR-0011](../decisions/0011-layout-layer.md) for its named trigger |
+| `web-layouts-are-structure-only` (depcruise, lands with the ADR-0011 enforcer slice) | `components/layout/**` | importing `core`, `adapters`, `features`, `routes`, `api.ts` or TanStack — page skeletons take theme atoms in and keep feature data out |
+| `web-api-is-the-only-client-construction-site` | all of `apps/web` except `api.ts` and `main.tsx` | binding an adapter anywhere else |
+
+React correctness runs at **error** level in the same gate:
+`react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`,
+`react-compiler/react-compiler`, `jsx-a11y` recommended, and the TanStack Query
+plugin rules.
+
+#### Intent-named events 🏷️ \{#intent-named-events}
+
+Events name what the **user did**, never what should happen — `deleteConfirmed`,
+not `deleteOrder`. Each island's events are one closed union in one file, and the
+custom lint rule enforces the suffix taxonomy so the imperative form is
+*unwritable*:
+
+`…Requested` · `…Confirmed` · `…Cancelled` · `…Changed` · `…Selected` ·
+`…Opened` · `…Closed` · `…Added` · `…Moved` · `…Removed` · `…Failed` ·
+`…Succeeded`
+
+```ts
+export type BoardEvent =
+  | { type: 'refreshRequested' }
+  | { type: 'cardAdded'; title: string; column: string }
+  | { type: 'cardMoved'; cardId: string; fromColumn: string; fromIndex: number;
+      toColumn: string; toIndex: number; toColumnSize: number }
+  | { type: 'undoRequested' };
+```
+
+The rule itself is unit-tested with ESLint's `RuleTester`. The semantic half — "do
+these events report intent, or smuggle a decision?" — stays a review question.
+
+### Other apps/web rules worth knowing 📐 \{#other-appsweb-rules-worth-knowing}
 
 - `main.tsx` is composition only: providers plus router wiring.
 - `routes/` are thin: parse params, render a feature. No core, no adapters, no api
