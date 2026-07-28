@@ -11,12 +11,10 @@ description: Start with the scaffolder; let the type system drive the chain.
 **Run the partial scaffolder first**, then let the red gate walk you through the
 rest.
 
-Adding a resource to a strictly layered stack touches twelve files. The tempting
-fix — a generator that writes all twelve — is the wrong one: generated edits to
-*shared* files rot the moment anyone else touches them. So the scaffolder here
-does something deliberately partial. It writes only the files the new resource
-owns outright, leaves every shared file alone, and prints an ordered checklist
-with the anchor line and a paste-ready snippet for each hand edit.
+Adding a resource to this strictly layered stack follows a twelve-step wiring
+chain, while the scaffolder creates the six files the resource owns outright.
+It leaves every shared file alone and prints an ordered checklist with the
+anchor line and a paste-ready snippet for each hand edit.
 
 The generated code imports symbols that do not exist yet, which means
 `pnpm run check` is **red from the first second** and every error it prints is
@@ -45,10 +43,12 @@ Six files land — everything a resource owns and nothing shared:
 | `apps/web/src/features/notes/NotesPage.tsx` | the page component |
 | `apps/web/src/routes/notes.tsx` | the route module |
 
-The name is validated before anything is written: it must be singular kebab-case,
-must not collide with an existing file, and must not be one of the reserved names
-(`todo`, `tenant`, `health`, `me`, `auth`, `member`, `identity`). Add `--dry-run`
-to see the plan and the checklist without touching the tree.
+The name's format is validated before anything is written: it must be
+kebab-case. Singular naming is a caller convention, not something the script
+can recognize mechanically. The script also refuses existing-file collisions
+and reserved names (`todo`, `tenant`, `health`, `me`, `auth`, `member`,
+`identity`). Add `--dry-run` to see the plan and the checklist without touching
+the tree.
 
 :::info[Why a hand-rolled script and not Plop]
 `scripts/new-resource.ts` needs no dependency and no template DSL — templates are

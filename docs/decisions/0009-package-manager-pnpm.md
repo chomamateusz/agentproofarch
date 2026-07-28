@@ -93,6 +93,9 @@ patch on npm:
    never by a local flag on someone's machine and never silently — the lowering
    and its revert are both in the diff.
 
+   **Update (2026-07-28):** `minimumReleaseAge` is measured in minutes; the
+   configured value `4320` equals three days.
+
 5. **The strict, non-hoisted layout is the point — no escape hatches.**
    `shamefully-hoist` and a hoisted `node-linker` are off. If an import stops
    resolving after the migration, the fix is to declare the dependency, not to

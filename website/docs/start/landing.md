@@ -21,10 +21,9 @@ weeks later nobody can say where the boundary between the database and the
 domain went.
 
 agentproofarch is the answer to that specific failure. Every boundary is
-machine-enforced by lint, so structure cannot drift silently. Every capability
-short of the browser-bound sign-in ceremonies is drivable from a CLI with
-machine-readable output, so work can be verified without a browser — by you or
-by the agent itself.
+machine-enforced by lint, so structure cannot drift silently. The day-to-day
+capability surface is drivable from a CLI with machine-readable output, so work
+can be verified without a browser — by you or by the agent itself.
 
 The architecture is written down first (`docs/architecture.md` is normative),
 the enforcers are written down next, and `demo/` is a running reference
@@ -42,7 +41,7 @@ If you have watched an AI-assisted codebase rot, you already know these:
 |---|---|
 | Generated code lands wherever it compiles; layering erodes PR by PR | Layer boundaries are lint rules (`eslint-plugin-boundaries` + dependency-cruiser). A misplaced import **fails the build**. |
 | Merged, typechecked — and does not boot | "Done" is two green gates: **`check`** (static — typecheck, lint, boundary rules, unit tests) **and** **`smoke`** (runtime — boots the real server on a real database and drives it through the CLI). |
-| The agent verifying its own work through a browser is slow, token-hungry and probabilistic | Every capability short of the browser-bound sign-in ceremonies is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop. |
+| The agent verifying its own work through a browser is slow, token-hungry and probabilistic | The day-to-day capability surface is drivable from the CLI with `--json` output and deterministic exit codes — no browser in the loop; the exceptions are named in [the feature map](#the-feature-map). |
 | Multi-tenancy bolted on later, painfully | Tenants, subdomains and custom domains are in the skeleton from day one. |
 | Locked into one platform | Externals sit behind **ports and adapters**: the core declares the interfaces it needs (ports), thin replaceable modules (adapters) implement them. The same commit runs on Vercel and in Docker. |
 | Docs drift from the code | Docs-first rule (`docs/architecture.md` is normative) plus a `doc-lint` cross-check in CI that verifies docs against the enforcers and the source tree. |
@@ -99,12 +98,16 @@ opens with the architecture in plain words; the full structural story is in
 There are three ways into the system, and one seam in the middle where the
 surfaces and the server agree on what exists.
 
-Every capability is reachable through the web app and, with three deliberate
-exceptions, through the CLI. The CLI path is the one an agent uses, because it
+Every capability is reachable through the web app, and the day-to-day surface is
+reachable through the CLI too. The CLI path is the one an agent uses, because it
 is the only one that prints machine-readable output and ends with an exit code
 mapped from the error taxonomy — the single closed list of error codes this
-system uses. The exceptions are the browser-bound sign-in ceremonies: TOTP
-enrollment, passkeys and Google, which only the web app drives.
+system uses. Its known exceptions come in two kinds. Browser-bound: passkeys
+(the WebAuthn ceremony needs an authenticator, so the CLI auth adapter
+hard-errors) and Google sign-in (the consent redirect happens in a browser).
+Not written yet: TOTP enrolment works over plain HTTP and simply has no command,
+and the internal backfill executor (`POST /api/internal/backfills/:name`) is
+driven by raw HTTP from a cron, with no CLI and no UI.
 
 The third surface is deliberately *not* a third door onto everything: the
 public API exposes two unauthenticated read-only routes over one tenant profile
@@ -235,7 +238,7 @@ single request through it in
 |---|---|---|---|
 | **Static** | `pnpm run check` | Does it compile, does it respect the boundaries, do the unit tests pass — [eight members, in that order](../operations/ci-gates.md#check--the-static-gate). | yes — `check` |
 | **Runtime** | `pnpm run smoke` | Boots the real server on a real database and drives it through the CLI, asserting the exit code of every step. | yes — `smoke` |
-| **Browser** | `pnpm run e2e` | Drives a real Chromium over the real stack: 15 tests across 6 spec files. | yes — `e2e` |
+| **Browser** | `pnpm run e2e` | Drives a real Chromium over the real stack: {/*count:e2e-tests*/}15{/*/count*/} tests across {/*count:e2e-specs*/}6{/*/count*/} spec files. | yes — `e2e` |
 | **Container** | `selfhost.yml` | Builds the image, boots `docker-compose.prod.yml`, smokes the container through the CLI. | yes — `docker-smoke` |
 | **Pixel** | `pnpm run visual` | Compares CI-rendered screenshots pixel for pixel ([ADR-0008](../decisions/0008-visual-regression.md)). | **no** — by design |
 | **Review** | `ai-review.yml` | An AI reads the diff against this repo's doctrine; only a positive `PASS` verdict is green, and a review that could not run is red. | **yes**, on `main` (since 2026-07-26) |
@@ -252,9 +255,9 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **88** test files in the database-free
-run, **48** integration tests against a real Postgres, **15** Playwright tests,
-and **48** config-regression probes.
+Underneath those gates sit four counts: **{/*count:test-files*/}91{/*/count*/}** test files in the database-free
+run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}15{/*/count*/}** Playwright tests,
+and **{/*count:config-regression*/}57{/*/count*/}** config-regression probes.
 
 That last number is the unusual one. Those probes guard the enforcers
 themselves: most feed a deliberately illegal fixture and assert rejection, and

@@ -132,7 +132,7 @@ flushes normally — same seam, different lifetime.
 |---|---|
 | **TYPE** | `captureServerException` is the only exported capture, and its `AppError` + `Identity` parameters come from `core/domain` — a caller cannot invent an untyped capture |
 | **LINT** | `boundaries` keeps `core/**` and the clients off `apps/server`; `no-console` is an error across `apps/server` (scoped off only for the composition root's startup/fatal path, `entry.*.ts` and `env.ts`) and bans `console.log` in `apps/web`, so step-logging around the seam does not compile past `check` |
-| **TEST** | `apps/server/src/observability.test.ts` drives `app.onError` with a fake DSN and an injected sink and asserts **exactly one** capture carrying the app-error, trace and tenant tags — and that everything no-ops when no DSN configured a client |
+| **TEST** | `apps/server/src/observability.test.ts` module-mocks the Sentry client, drives `app.onError`, and asserts **exactly one** capture carrying the app-error, trace and tenant tags — plus a no-client no-op; separate initialization tests cover DSN-present and unconfigured startup |
 | **REVIEW+AI** | a second `Sentry.captureException` anywhere but the seam, or a `@sentry/node` import outside the sink module, is rejected in review |
 
 :::caution[Honest caveats]

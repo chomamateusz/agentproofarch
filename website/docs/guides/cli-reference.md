@@ -34,13 +34,13 @@ status inline at 200.
 ### `register`, `login`, `whoami` 🔑 \{#register-login-whoami}
 
 ```bash
-pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli register --name New --email new-user@example.com --password demo1234
 pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
 pnpm --silent run cli whoami
 ```
 
 ```text
-registered and signed in as demo@agentproofarch.dev
+registered and signed in as new-user@example.com
 signed in as demo@agentproofarch.dev
 demo@agentproofarch.dev @ Acme Sp. z o.o. (acme, staff: owner)
 ```
@@ -83,12 +83,12 @@ pnpm --silent run cli login-link --email mag@example.com --link 'http://localhos
 ### `logout` 🚪 \{#logout}
 
 ```bash
-pnpm --silent run cli logout        # revokes server-side, then drops the active origin's token
+pnpm --silent run cli logout        # attempts server revocation, then drops the active origin's token
 ```
 
-The token is revoked server-side *first* — a bearer-authenticated CLI that only
-cleared its local copy would leave the session valid — and only the active
-origin's profile is touched; sessions stored for other origins stay signed in.
+The CLI attempts server-side revocation first, then clears the active origin's
+local token even if revocation fails. Only that origin's profile is touched;
+sessions stored for other origins stay signed in.
 
 ## `origin`: `list`, `use` 🌍 \{#origin-list-use}
 
@@ -338,8 +338,11 @@ pnpm --silent run cli --tenant acme domain list
 The target line is what the web add-flow renders as the DNS record to create.
 The target comes from the `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP` env
 vars, not from the provisioner — dev and Vercel leave both unset, so it reports
-`no DNS target configured`; a self-host deployment sets exactly one, and the
-`caddy` provisioner's check verifies DNS resolves to it.
+`no DNS target configured`. A self-host deployment sets exactly one of them —
+"set one, not both", per `core/server/config.ts` and `.env.example` — and the
+`caddy` provisioner's check verifies DNS resolves to it. If both are set the
+provisioner prefers the CNAME and never inspects the A record: defensive
+behaviour, not a supported configuration.
 
 ```bash
 pnpm --silent run cli domain add shop.example.com

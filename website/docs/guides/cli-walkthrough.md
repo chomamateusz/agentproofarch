@@ -12,7 +12,12 @@ An agent *can* read a screenshot to decide whether it wired a feature correctly 
 vision-loop verification works. It is just a poor default: probabilistic where an
 exit code is exact, and one to two orders of magnitude more tokens and latency
 per check. The CLI is the closed verification loop that answers cheaply and
-exactly instead. Three properties make it one: every capability has a command,
+exactly instead. It covers the day-to-day capability surface, with known
+exceptions of two kinds: passkeys and Google sign-in are browser-bound (the CLI
+auth adapter hard-errors on the WebAuthn ceremony, and the Google consent
+redirect needs a browser), while TOTP enrolment and the internal backfill
+executor (`POST /api/internal/backfills/:name`) run over plain HTTP and simply
+have no CLI command yet. For what it does cover, each capability has a command,
 `--json` prints exactly **one** JSON document on stdout, and the process exit
 code is mapped from the error taxonomy rather than chosen ad hoc.
 
@@ -101,9 +106,9 @@ comes from that profile; there is no token environment variable.
 
 `login` / `register` / `login-link --link` store the session token under the
 active origin only, `tenant switch` stores that origin's tenant, and `logout`
-sets that origin's token back to `null` — after revoking the session server-side
-first, because a bearer-authenticated CLI that only cleared its local copy would
-leave the session valid.
+attempts to revoke the session server-side, then sets that origin's token back
+to `null` even if revocation fails. A bearer-authenticated CLI that retained its
+local copy after a failed revocation would leave stale credentials on disk.
 
 A deliberate context switch keeps both sessions:
 

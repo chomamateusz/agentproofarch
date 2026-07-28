@@ -119,8 +119,9 @@ You create a `.env` (`cp .env.example .env`) in three cases:
    transport, Vercel domain provisioning, the backfill route. Their keys have
    no dev default because absent means the feature stays dormant.
 
-`.env.example` documents **names only**, and it is also the file `doc-lint` checks
-the env schema against — a new env key missing from it fails `check`.
+`.env.example` ships local-development defaults and deployment placeholders as
+well as optional variable names. It is also the file `doc-lint` checks the env
+schema against — a new env key missing from it fails `check`.
 
 ## 3. Database, mail sink, seed 🗄️ \{#3-database-mail-sink-seed}
 
