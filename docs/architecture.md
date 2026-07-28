@@ -1720,9 +1720,12 @@ touches:
   `TEAM_WIP_LIMITS`), and the team card walks the full legal chain
   `todo→in-dev→review→done`. So repeated runs never accumulate in the bounded
   `in-dev`/`review` columns and can never hit a WIP limit that would turn the
-  deploy gate false-red. A per-environment `concurrency` group
+  deploy gate false-red. A per-shared-target `concurrency` group
   (`post-deploy-smoke.yml`, `cancel-in-progress: false`) serializes runs so
-  overlapping deploys don't race the `before + 1` assertions.
+  overlapping deploys don't race the `before + 1` assertions: production keys on
+  a constant, since every production deploy drives the same alias and canary
+  tenant, while previews key on the deployment SHA, since they share the single
+  `Preview` environment but neither their URLs nor their data.
 - **Credentials via CI secrets; forks override the defaults.** `SMOKE_EMAIL` /
   `SMOKE_PASSWORD` / `SMOKE_TENANT` / `BASE_URL` come from repository secrets in
   CI, not the repo. The script's baked-in defaults are the local canary only; a

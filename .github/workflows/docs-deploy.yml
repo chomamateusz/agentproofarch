@@ -25,7 +25,9 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'chomamateusz/agentproofarch'
+    if: >-
+      github.repository == 'chomamateusz/agentproofarch' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,7 +52,9 @@ jobs:
           path: website/build
 
   deploy:
-    if: github.repository == 'chomamateusz/agentproofarch'
+    if: >-
+      github.repository == 'chomamateusz/agentproofarch' &&
+      github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:

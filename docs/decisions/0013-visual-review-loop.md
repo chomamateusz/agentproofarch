@@ -263,6 +263,14 @@ maintainer looked at. This is not patched with a lock; it is why decision 2 puts
 the review at the committed diff rather than at the command, and why the
 confirmation comment names the head SHA that was dispatched.
 
+**Update (2026-07-28):** this race is closed as of
+[PR #96](https://github.com/chomamateusz/agentproofarch/pull/96), which also
+retires residual (a) below. `approve-visuals` now passes the head SHA it
+recorded as a `sha` input; `visual-baselines` checks out that exact commit
+instead of the dispatched branch tip, and the run still pushes to the branch —
+so a tip that moved in between makes the push fail non-fast-forward rather than
+land baselines for code no maintainer looked at.
+
 **The fork limitation, stated honestly rather than discovered later.** For a pull
 request from a fork:
 
