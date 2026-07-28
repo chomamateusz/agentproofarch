@@ -119,6 +119,12 @@ cells name a commissioned gate, not a shipped one.
   track the rules they guard), accepted as the price of making "you cannot
   silently disable a rule" a mechanical guarantee rather than a hope.
 
+**Update (2026-07-28):** The `check` chain now has eight members:
+typecheck, island typecheck, ESLint, lock-lint, dependency-cruiser, knip,
+doc-lint and vitest with coverage. Canonical-repository gating still covers
+every CI job, but `approve-visuals` inherits it transitively from its guarded
+`guard` dependency instead of repeating the predicate on both jobs.
+
 ## Amendment (2026-07-20): post-deploy-smoke scope and target URL
 
 Decision point 2 above described the narrowest form of the post-deploy gate.

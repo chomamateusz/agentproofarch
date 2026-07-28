@@ -242,7 +242,7 @@ The README carries a 16-item checklist; its non-obvious items are the ones that 
 - **Treat any failed restore or missed hourly backup as an incident.**
 
 :::caution[Honest caveats]
-- **This package is installed by hand and exercised by hand.** It is not part of any CI job, so nothing mechanically proves it is currently installed and healthy on the VPS — that is what the two-hour alert and the quarterly drill are for.
+- **CI proves the package on k3d; the live VPS remains manual.** The weekly and path-triggered `dr-acceptance` job exercises backup, offsite copy, restore and corruption refusal against disposable services, but nothing mechanically proves the package is currently installed and healthy on the VPS — that is what the two-hour alert and the quarterly drill are for.
 - **The RPO/RTO figures are operating targets, not measured guarantees.** The README says so explicitly and instructs measuring them in the drill.
 - **The default 20 GiB PVC only fits 14 days of hourly artifacts while each dump stays under roughly 60 MiB.** Past that, the retention window silently shortens unless the PVC is grown — and reducing an existing PVC is not supported.
 - **The offsite tier depends on configuration this repo cannot enforce**: lifecycle rules, versioning or object lock, access logging and credential expiry all live in the bucket provider.

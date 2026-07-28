@@ -11,10 +11,11 @@ with **[CodeRoad.pl](https://coderoad.pl)** and
 The idea in one paragraph: a pure-TypeScript core (domain, API contract,
 use-cases + ports, typed client) surrounded by thin adapters (database, auth,
 email, domain provisioning) and thin apps (HTTP server, web SPA, CLI). Every
-layer boundary is machine-enforced by lint, every capability is verifiable from
-the CLI with JSON output and deterministic exit codes — so AI agents can build,
-run and verify features in a closed loop — and the same commit deploys to
-Vercel today **and** to a self-hosted Docker stack.
+layer boundary is machine-enforced by lint. Every capability except three
+browser-bound authentication flows — TOTP enrolment, passkeys and Google
+sign-in — is verifiable from the CLI with JSON output and deterministic exit
+codes, so AI agents can build, run and verify features in a closed loop. The
+same commit deploys to Vercel today **and** to a self-hosted Docker stack.
 
 ## Documentation
 
@@ -46,7 +47,8 @@ pnpm install --frozen-lockfile
 pnpm run db:up     # Postgres 16 in Docker on port 47542
 pnpm run db:migrate
 pnpm run db:seed
-pnpm run dev:web   # Vite + hot reload on 47180
+pnpm run dev:server # API on 47100 — its own terminal
+pnpm run dev:web    # Vite + hot reload on 47180 — another terminal
 ```
 
 Then drive the same capabilities from the CLI — the agent feedback loop:

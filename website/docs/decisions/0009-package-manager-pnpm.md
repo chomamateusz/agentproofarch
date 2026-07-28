@@ -41,7 +41,7 @@ Before a package goes on that list, three things must hold:
 
 ### 3. A minimum-release-age cooldown is on ⏳ \{#3-a-minimum-release-age-cooldown-is-on}
 
-Freshly published versions are not installable until they age past `minimumReleaseAge` — measured in days, not minutes. Both 2025 incidents were detected and cleaned within hours to days, so an install that simply declines to be first closes most of the compromised-release window.
+Freshly published versions are not installable until they age past `minimumReleaseAge` — measured in minutes, not days. Both 2025 incidents were detected and cleaned within hours to days, so an install that simply declines to be first closes most of the compromised-release window.
 
 **The override procedure is explicit.** An urgent patch younger than the cooldown is taken by lowering the setting in a reviewed pull request, with the lowering and its revert both in the diff. Never a local flag, never silently.
 

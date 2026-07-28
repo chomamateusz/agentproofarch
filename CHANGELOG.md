@@ -21,7 +21,14 @@ before that lives in the git history only.
   slot-1 token, model from the `VISUAL_VERDICT_MODEL` repository variable,
   default `sonnet`, never a gate), and the CI-gates page states who owns the
   baseline: the PNGs committed under `demo/visual/__screenshots__/linux/chromium/`,
-  changed only through a PR that passes the full gates (#94).
+  changed only through a PR that passes the full gates
+  ([#94](https://github.com/chomamateusz/agentproofarch/pull/94)).
+
+### Fixed
+
+- Documentation now records the browser-only auth exceptions, complete local
+  quickstart process set, missing ADR-0012 mirror, and current implementation,
+  CI, test-count, scaffolder, environment and observability behavior (#TBD).
 
 ## 2026-07-27
 

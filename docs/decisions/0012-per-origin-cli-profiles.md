@@ -119,6 +119,10 @@ credentials by context, cloud CLIs key them by account. Ours keys them by
      no unrelated process reads. Handing agents a documented way to put a live
      bearer token on a command line is the one affordance in this design that
      would reliably end up in a public CI log.
+
+   **Update (2026-07-28):** `logout` attempts server-side revocation and clears
+   the active origin's local token even when that attempt fails.
+
    - CI does not need it. The repo's own harnesses already show the pattern:
      `demo/scripts/smoke-cli.ts` gives each persona a throwaway `HOME` and calls
      `login` with credentials from the environment. Credentials belong in the
