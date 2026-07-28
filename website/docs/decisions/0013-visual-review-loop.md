@@ -100,6 +100,8 @@ The manual path: the `visual` job still uploads the diff artifact and HTML repor
 
 There is also a race worth naming: the branch can move between the comment and the dispatch. It is **not** patched with a lock — the re-render always targets the current tip, which is the only correct baseline, and the review happens at the committed diff rather than at the command.
 
+**Update (2026-07-28):** this race is closed as of [PR #96](https://github.com/chomamateusz/agentproofarch/pull/96). `approve-visuals` passes the head SHA it recorded as a `sha` input, `visual-baselines` checks out that exact commit rather than the branch tip, and the run still pushes to the branch — so a tip that moved in between makes the push fail non-fast-forward instead of baselining code no maintainer looked at.
+
 ## Alternatives considered 🔀 \{#alternatives-considered}
 
 | Alternative | Verdict | Why |

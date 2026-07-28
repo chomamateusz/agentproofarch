@@ -69,22 +69,21 @@ jobs:
 
       - env:
           HEAD_REF: ${{ steps.pull.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pull.outputs.head_sha }}
         run: |
           gh api --method POST \
             "repos/${REPOSITORY}/actions/workflows/visual-baselines.yml/dispatches" \
             -f ref="${HEAD_REF}" \
             -F "inputs[update]=true" \
-            -F "inputs[commit]=true"
+            -F "inputs[commit]=true" \
+            -f "inputs[sha]=${HEAD_SHA}"
 
-      # The dispatch is by branch name, so the tip can move between the comment
-      # and the render (ADR-0013 Scenario C): naming the SHA that was seen is
-      # what makes that race visible to the reviewer.
       - env:
           HEAD_REF: ${{ steps.pull.outputs.head_ref }}
           HEAD_SHA: ${{ steps.pull.outputs.head_sha }}
         run: |
           gh api --method POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" \
-            -f body="Dispatched \`visual-baselines\` (\`update: true\`, \`commit: true\`) on \`${HEAD_REF}\`, seen at \`${HEAD_SHA}\`. The re-rendered baselines land as a commit on this branch — review them in the Files tab."
+            -f body="Dispatched \`visual-baselines\` (\`update: true\`, \`commit: true\`) for \`${HEAD_SHA}\` on \`${HEAD_REF}\`. The re-rendered baselines land as a commit on this branch unless its tip has moved — review them in the Files tab."
 
       - run: |
           gh api --method POST \

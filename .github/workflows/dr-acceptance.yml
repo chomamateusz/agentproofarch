@@ -57,7 +57,7 @@ jobs:
           k3d cluster create "$CLUSTER_NAME" \
             --servers 1 \
             --agents 0 \
-            --image rancher/k3s:v1.31.5-k3s1 \
+            --image rancher/k3s:v1.31.5-k3s1@sha256:53cf744fe2fabf140cee240d2db70d13a4f2d98f1a13c98f58f457f423096917 \
             --wait
           kubectl wait --for=condition=Ready node --all --timeout=120s
           kubectl get storageclass local-path
@@ -89,7 +89,7 @@ jobs:
               spec:
                 containers:
                   - name: postgres
-                    image: postgres:16-bookworm
+                    image: postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55
                     env:
                       - name: POSTGRES_USER
                         value: ${POSTGRES_USER}
@@ -142,7 +142,7 @@ jobs:
               spec:
                 containers:
                   - name: minio
-                    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+                    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
                     args: ["server", "/data"]
                     env:
                       - name: MINIO_ROOT_USER
@@ -196,7 +196,7 @@ jobs:
                 restartPolicy: Never
                 containers:
                   - name: mc
-                    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+                    image: minio/mc:RELEASE.2025-04-16T18-13-26Z@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
                     command: ["/bin/sh", "-c"]
                     args:
                       - |
@@ -324,7 +324,7 @@ jobs:
             restartPolicy: Never
             containers:
               - name: inspector
-                image: postgres:16-bookworm
+                image: postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55
                 command: ["/bin/bash", "-c", "sleep 1200"]
                 volumeMounts:
                   - name: backups
@@ -393,7 +393,7 @@ jobs:
             restartPolicy: Never
             containers:
               - name: inspector
-                image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+                image: minio/mc:RELEASE.2025-04-16T18-13-26Z@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
                 command: ["/bin/sh", "-c", "sleep 1200"]
                 env:
                   - name: MINIO_ROOT_USER
@@ -436,7 +436,7 @@ jobs:
           cat >"$RUNNER_TEMP/restore-compose/docker-compose.prod.yml" <<'COMPOSE'
           services:
             postgres:
-              image: postgres:16-bookworm
+              image: postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55
               environment:
                 POSTGRES_USER: restore_test
                 POSTGRES_PASSWORD: ${RESTORE_POSTGRES_PASSWORD}
@@ -449,11 +449,11 @@ jobs:
               volumes:
                 - restore-data:/var/lib/postgresql/data
             app:
-              image: alpine:3.20
+              image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
               command: ["sh", "-c", "sleep infinity"]
               profiles: ["never"]
             caddy:
-              image: alpine:3.20
+              image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
               command: ["sh", "-c", "sleep infinity"]
               profiles: ["edge"]
           volumes:

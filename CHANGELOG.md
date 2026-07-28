@@ -15,6 +15,15 @@ before that lives in the git history only.
 
 ### Changed
 
+- CI serializes post-deploy smoke runs per shared target (one group for the
+  production alias, per-deployment groups for previews), takes the smoke
+  credentials from repository secrets only, restricts docs deploys to `main`,
+  gives `post-deploy-smoke` and `selfhost` read-only default permissions, binds
+  visual approval renders to the approved SHA, and pins every container image
+  referenced in `.github/workflows` — `postgres`, `axllent/mailpit`,
+  `minio/minio`, `minio/mc`, `alpine`, `rancher/k3s` — to a `tag@sha256:` digest
+  ([#96](https://github.com/chomamateusz/agentproofarch/pull/96)).
+
 - The visual review gallery says **baseline** where Playwright says "expected"
   (column header and published `*-baseline.png` names), gains an advisory
   fail-open **AI read** line per changed screenshot (Claude action on the

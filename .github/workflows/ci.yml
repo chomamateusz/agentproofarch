@@ -40,7 +40,7 @@ jobs:
         working-directory: demo
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
         env:
           POSTGRES_USER: agentproofarch
           POSTGRES_PASSWORD: agentproofarch
@@ -55,7 +55,7 @@ jobs:
       # Local SMTP sink for the US-026 magic-link phase: the real smtp adapter
       # delivers here; smoke/e2e read the message back over its HTTP API.
       mailpit:
-        image: axllent/mailpit:v1.21
+        image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
         ports:
           - 47925:1025
           - 47980:8025
@@ -90,7 +90,7 @@ jobs:
         working-directory: demo
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
         env:
           POSTGRES_USER: agentproofarch
           POSTGRES_PASSWORD: agentproofarch
@@ -105,7 +105,7 @@ jobs:
       # Local SMTP sink for the US-026 magic-link phase: the real smtp adapter
       # delivers here; smoke/e2e read the message back over its HTTP API.
       mailpit:
-        image: axllent/mailpit:v1.21
+        image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
         ports:
           - 47925:1025
           - 47980:8025
@@ -144,7 +144,7 @@ jobs:
         working-directory: demo
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
         env:
           POSTGRES_USER: agentproofarch
           POSTGRES_PASSWORD: agentproofarch
@@ -157,7 +157,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       mailpit:
-        image: axllent/mailpit:v1.21
+        image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
         ports:
           - 47925:1025
           - 47980:8025
