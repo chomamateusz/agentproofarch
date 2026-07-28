@@ -10,7 +10,7 @@ description: The pixel gate gains a human loop — a before/after/diff gallery p
 
 ## Summary 📋 \{#summary}
 
-When the `visual` job finds differences, CI publishes Playwright's own **expected / actual / diff** PNGs to an unprotected `visual-reports` branch and posts **one** upserted pull-request comment with an inline gallery plus a link to the full HTML report. A maintainer replies `/approve-visuals`; a workflow verifies the author, dispatches `visual-baselines` against the PR branch, and the new baselines are **committed** — after which GitHub's own 2-up / swipe / onion-skin image diff on the Files tab is the final review artifact. No vendor, no account, no new secret.
+When the `visual` job finds differences, CI publishes Playwright's own expected / actual / diff PNGs to an unprotected `visual-reports` branch — shown to readers as **baseline · actual · diff** (Playwright's "expected" *is* the committed baseline, and the gallery says so) — and posts **one** upserted pull-request comment with an inline gallery plus a link to the full HTML report. A maintainer replies `/approve-visuals`; a workflow verifies the author, dispatches `visual-baselines` against the PR branch, and the new baselines are **committed** — after which GitHub's own 2-up / swipe / onion-skin image diff on the Files tab is the final review artifact. No vendor, no account, no new secret.
 
 ## The WHY 🤔 \{#the-why}
 
@@ -35,7 +35,7 @@ flowchart TD
     visual["visual job — runs PR code<br/>contents: read"] -->|"red: pixels differ"| art["artifact: visual-diff<br/>+ Playwright HTML report"]
     art --> report["visual-report job — trusted base code<br/>contents: write + pull-requests: write"]
     report --> branch["push PNGs to visual-reports<br/>path: pr-N / run-ID / *.png"]
-    report --> comment["upsert ONE PR comment:<br/>expected · actual · diff table<br/>+ link to the HTML report"]
+    report --> comment["upsert ONE PR comment:<br/>baseline · actual · diff table<br/>+ link to the HTML report"]
     comment --> human["maintainer reads it in the PR"]
 ```
 

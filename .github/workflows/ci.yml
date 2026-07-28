@@ -254,6 +254,76 @@ jobs:
             echo "::notice::visual-report publisher absent at the trusted base commit; skipping"
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
+      # Advisory "AI read": one line per changed screenshot judging whether the
+      # pixel change looks intentional given the PR's file diff. FAIL-OPEN by
+      # construction, never a gate: every step in this chain is skippable or
+      # continue-on-error, the publisher below runs regardless of their
+      # outcomes, and a missing token, model error or timeout degrades to a
+      # "verdict unavailable" note inside the gallery comment. The model reads
+      # the PNGs from the runner's disk (Claude Code's Read tool is multimodal),
+      # so nothing has to be published before it runs.
+      - name: Detect verdict token
+        id: verdict-token
+        # Only a presence boolean is emitted — the slot secret's value is never
+        # echoed; the ai-review slot-1 token is reused with the same
+        # skip-if-absent semantics.
+        env:
+          SLOT1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN_1 }}
+        run: |
+          [ -n "$SLOT1" ] && echo "has_token=true" >> "$GITHUB_OUTPUT" || echo "has_token=false" >> "$GITHUB_OUTPUT"
+      - name: Prepare AI verdict input
+        id: verdict-input
+        if: steps.publisher.outputs.present == 'true' && steps.verdict-token.outputs.has_token == 'true'
+        continue-on-error: true
+        run: |
+          if [ -f scripts/visual-verdict-input.ts ]; then
+            pnpm run visual:verdict-input
+          else
+            echo "::notice::verdict input builder absent at the trusted base commit; the gallery notes the verdict as unavailable"
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          VISUAL_ARTIFACT_DIR: ${{ runner.temp }}/visual-diff
+          VERDICT_DIR: ${{ runner.temp }}/visual-verdict
+      - name: AI verdict — advisory, fail-open
+        id: verdict
+        if: steps.verdict-input.outcome == 'success' && steps.verdict-input.outputs.screenshots != '0'
+        continue-on-error: true
+        # Bounds the known `--json-schema` CLI-hang failure mode
+        # (claude-code#27926); here a timeout is a missing advisory line, never
+        # a red job.
+        timeout-minutes: 10
+        uses: anthropics/claude-code-action@44423bdec74b97d67543eb16c110546762c110b2 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN_1 }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You write the advisory "AI read" lines for the visual review
+            gallery. Read ${{ runner.temp }}/visual-verdict/context.md: it
+            lists every changed screenshot with its differing-pixel count and
+            the on-disk paths of the baseline, actual and diff PNGs — open the
+            images with the Read tool — followed by the pull request's file
+            diff (names + patches, truncated). For each screenshot judge
+            whether the visual change looks INTENTIONAL given that diff.
+            Write one short line per screenshot, in Polish, in one of these
+            shapes:
+              ok — jawnie zmienione w PR (LoginPage: mt 0.4→1.2rem)
+              ok — propagacja zmiany z <komponent>
+              uwaga — nic w diffie nie tłumaczy tej zmiany
+            Keep each line under 120 characters; when unsure, say "uwaga" and
+            name the doubt in a few words. You are advisory only — you cannot
+            fail or gate anything. Do not modify any files. Conclude by calling
+            the StructuredOutput tool with `verdicts`: one { screenshot, line }
+            object per screenshot, where `screenshot` is the stem exactly as
+            listed in context.md.
+          claude_args: >-
+            --model ${{ vars.VISUAL_VERDICT_MODEL || 'sonnet' }}
+            --max-turns 16
+            --add-dir ${{ runner.temp }}/visual-verdict
+            --allowedTools "Read,Glob"
+            --json-schema '{"type":"object","properties":{"verdicts":{"type":"array","items":{"type":"object","properties":{"screenshot":{"type":"string"},"line":{"type":"string"}},"required":["screenshot","line"]}}},"required":["verdicts"]}'
       - if: steps.publisher.outputs.present == 'true'
         run: pnpm run visual:report
         env:
@@ -262,3 +332,4 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           VISUAL_OUTCOME: ${{ needs.visual.result }}
           VISUAL_ARTIFACT_DIR: ${{ runner.temp }}/visual-diff
+          AI_VERDICTS: ${{ steps.verdict.outputs.structured_output }}
