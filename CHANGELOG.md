@@ -17,7 +17,8 @@ before that lives in the git history only.
 
 - CI serializes post-deploy smoke runs per environment, restricts docs deploys
   to `main`, applies read-only default permissions, binds visual approval
-  renders to the approved SHA, and pins the cited service images by digest (#TBD).
+  renders to the approved SHA, and pins the cited service images by digest
+  ([#96](https://github.com/chomamateusz/agentproofarch/pull/96)).
 
 - The visual review gallery says **baseline** where Playwright says "expected"
   (column header and published `*-baseline.png` names), gains an advisory
