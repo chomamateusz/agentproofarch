@@ -19,7 +19,7 @@ before that lives in the git history only.
 
 - ADR-0014 establishes SemVer releases, additive-only v1 API policy, web and CLI
   version surfaces, release tagging, and major-version documentation snapshots
-  (#TBD).
+  ([#100](https://github.com/chomamateusz/agentproofarch/pull/100)).
 
 ### Changed
 
