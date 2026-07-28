@@ -12,11 +12,14 @@ An agent *can* read a screenshot to decide whether it wired a feature correctly 
 vision-loop verification works. It is just a poor default: probabilistic where an
 exit code is exact, and one to two orders of magnitude more tokens and latency
 per check. The CLI is the closed verification loop that answers cheaply and
-exactly instead. It covers every capability except three browser-bound
-authentication flows — TOTP enrolment, passkeys and Google sign-in. For the
-capabilities it covers, every one has a command, `--json` prints exactly **one**
-JSON document on stdout, and the process exit code is mapped from the error
-taxonomy rather than chosen ad hoc.
+exactly instead. It covers the day-to-day capability surface, with known
+exceptions of two kinds: passkeys and Google sign-in are browser-bound (the CLI
+auth adapter hard-errors on the WebAuthn ceremony, and the Google consent
+redirect needs a browser), while TOTP enrolment and the internal backfill
+executor (`POST /api/internal/backfills/:name`) run over plain HTTP and simply
+have no CLI command yet. For what it does cover, each capability has a command,
+`--json` prints exactly **one** JSON document on stdout, and the process exit
+code is mapped from the error taxonomy rather than chosen ad hoc.
 
 It is also the reference client. It goes through `core/client` exactly like the
 web app does, never hand-writing a URL, so a CLI round-trip proves every layer

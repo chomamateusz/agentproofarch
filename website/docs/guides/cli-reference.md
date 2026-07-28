@@ -338,9 +338,11 @@ pnpm --silent run cli --tenant acme domain list
 The target line is what the web add-flow renders as the DNS record to create.
 The target comes from the `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP` env
 vars, not from the provisioner — dev and Vercel leave both unset, so it reports
-`no DNS target configured`. A self-host deployment may set an A target, a CNAME
-target, or both; when both are configured, CNAME wins and the `caddy`
-provisioner's check does not inspect the A record.
+`no DNS target configured`. A self-host deployment sets exactly one of them —
+"set one, not both", per `core/server/config.ts` and `.env.example` — and the
+`caddy` provisioner's check verifies DNS resolves to it. If both are set the
+provisioner prefers the CNAME and never inspects the A record: defensive
+behaviour, not a supported configuration.
 
 ```bash
 pnpm --silent run cli domain add shop.example.com

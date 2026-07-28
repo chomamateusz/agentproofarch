@@ -11,11 +11,13 @@ with **[CodeRoad.pl](https://coderoad.pl)** and
 The idea in one paragraph: a pure-TypeScript core (domain, API contract,
 use-cases + ports, typed client) surrounded by thin adapters (database, auth,
 email, domain provisioning) and thin apps (HTTP server, web SPA, CLI). Every
-layer boundary is machine-enforced by lint. Every capability except three
-browser-bound authentication flows — TOTP enrolment, passkeys and Google
-sign-in — is verifiable from the CLI with JSON output and deterministic exit
-codes, so AI agents can build, run and verify features in a closed loop. The
-same commit deploys to Vercel today **and** to a self-hosted Docker stack.
+layer boundary is machine-enforced by lint. The CLI covers the day-to-day
+capability surface with JSON output and deterministic exit codes, so AI agents
+can build, run and verify features in a closed loop. Known exceptions: passkeys
+and Google sign-in are browser-bound (a WebAuthn ceremony and a consent
+redirect), while TOTP enrolment and the internal backfill executor work over
+plain HTTP but have no CLI command yet. The same commit deploys to Vercel today
+**and** to a self-hosted Docker stack.
 
 ## Documentation
 

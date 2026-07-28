@@ -26,7 +26,7 @@ before that lives in the git history only.
 
 ### Fixed
 
-- Documentation now records the browser-only auth exceptions, complete local
+- Documentation now records the real CLI-coverage exceptions, complete local
   quickstart process set, missing ADR-0012 mirror, and current implementation,
   CI, test-count, scaffolder, environment and observability behavior
   ([#97](https://github.com/chomamateusz/agentproofarch/pull/97)).
