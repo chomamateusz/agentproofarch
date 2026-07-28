@@ -1,18 +1,19 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 
 import {
   needsSnapshot,
   nextVersion,
+  releaseBumpArgument,
   snapshotName,
   withReleaseHeading,
   withVersion,
 } from './release-plan.js';
 
 const bumpSchema = z.enum(['major', 'minor', 'patch']);
-const parsed = bumpSchema.safeParse(process.argv[2]);
+const parsed = bumpSchema.safeParse(releaseBumpArgument(process.argv.slice(2)));
 if (!parsed.success) {
   process.stderr.write('usage: pnpm run release -- <major|minor|patch>\n');
   process.exit(2);
@@ -32,6 +33,15 @@ const changelogPath = resolve(repoDir, 'CHANGELOG.md');
 const manifestText = readFileSync(manifestPath, 'utf8');
 const manifest = z.object({ version: z.string() }).parse(JSON.parse(manifestText));
 const next = nextVersion(manifest.version, parsed.data);
+
+if (
+  needsSnapshot(parsed.data) &&
+  !existsSync(resolve(websiteDir, 'node_modules', '.bin', 'docusaurus'))
+) {
+  process.stderr.write('run `pnpm install --frozen-lockfile` in website/ first\n');
+  process.exit(1);
+}
+
 writeFileSync(manifestPath, withVersion(manifestText, next));
 
 const changelogText = readFileSync(changelogPath, 'utf8');

@@ -1,3 +1,9 @@
+---
+title: Changelog
+sidebar_label: 📝 Changelog
+description: Every notable change, backfilled from merged pull-request history.
+---
+
 # Changelog
 
 All notable changes to this project are documented in this file.

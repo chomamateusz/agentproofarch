@@ -2,6 +2,9 @@ export type Bump = 'major' | 'minor' | 'patch';
 
 const STRICT_SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
+export const releaseBumpArgument = (args: readonly string[]): string | undefined =>
+  args[0] === '--' ? args[1] : args[0];
+
 export const nextVersion = (current: string, bump: Bump): string => {
   const match = STRICT_SEMVER.exec(current);
   if (match === null) throw new Error(`Version is not strict SemVer: ${current}`);

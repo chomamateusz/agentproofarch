@@ -80,6 +80,7 @@ const config: Config = {
       logo: {alt: 'agentproofarch', src: 'img/logo.svg'},
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
+        {type: 'docsVersionDropdown', position: 'left'},
         {to: '/start/quickstart', label: 'Quickstart', position: 'left'},
         {to: '/changelog', label: 'Changelog', position: 'left'},
         {
