@@ -3,13 +3,21 @@ name: post-deploy-smoke
 on:
   deployment_status:
 
-# Serialize smoke runs per environment+ref so two overlapping runs can't race on
-# the shared canary tenant (the `before + 1` todo assertion and the team board's
-# WIP guards assume a single writer). Never cancel in progress: a running smoke
-# is a live production verification that must finish, not be pre-empted.
+# Serialize per shared target, not per environment. Production deploys all drive
+# one alias and one canary tenant, so they take a constant group component and run
+# one at a time. Previews share the single Preview environment but neither their
+# URLs nor their data, so they key on the deployment SHA — on the environment name
+# alone, an unrelated branch's smoke would supersede a pending one. Never cancel in
+# progress: a running smoke is a live verification that must finish. GitHub keeps
+# only the newest pending run, so a queued production smoke can be dropped once a
+# newer deploy holds the alias — that older SHA is not what the alias serves, and
+# EXPECTED_SHA would fail it anyway.
 concurrency:
-  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.sha }}
+  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.environment == 'Production' && 'shared' || github.event.deployment.sha }}
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   smoke-remote:
@@ -44,6 +52,8 @@ jobs:
       - run: pnpm run smoke:remote
         env:
           BASE_URL: ${{ github.event.deployment.environment == 'Production' && 'https://agentproofarch.vercel.app' || github.event.deployment_status.environment_url }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
           # Deploy attestation: the smoke asserts the live health SHA equals the
           # SHA this deployment event carried, so it can never green a stale deploy.
           EXPECTED_SHA: ${{ github.event.deployment.sha }}

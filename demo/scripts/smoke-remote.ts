@@ -7,9 +7,11 @@ if (!baseUrl) {
   console.error('smoke:remote: FAIL\nBASE_URL is required (the deployment URL, e.g. https://app.vercel.app)');
   process.exit(2);
 }
-const email = process.env['SMOKE_EMAIL'] ?? 'demo@agentproofarch.dev';
-const password = process.env['SMOKE_PASSWORD'] ?? 'demo1234';
-const tenant = process.env['SMOKE_TENANT'] ?? 'acme';
+// `||`, not `??`: CI passes these through from repository secrets, and an unset
+// secret arrives as an empty string rather than an absent variable.
+const email = process.env['SMOKE_EMAIL'] || 'demo@agentproofarch.dev';
+const password = process.env['SMOKE_PASSWORD'] || 'demo1234';
+const tenant = process.env['SMOKE_TENANT'] || 'acme';
 // When CI passes the deployment SHA, assert the live health SHA equals it so a
 // smoke run can never green-light a deployment other than the one that triggered it.
 const expectedSha = process.env['EXPECTED_SHA'] || undefined;
