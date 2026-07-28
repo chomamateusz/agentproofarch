@@ -13,6 +13,8 @@ import {
 import type { ApiClientOptions } from '#core/client/index.js';
 import { appError, err, ok, type AppError, type Result } from '#core/domain/index.js';
 
+import pkg from '../../../package.json' with { type: 'json' };
+
 import type {
   CliConfig,
   ResolveCliConfigInput,
@@ -267,6 +269,25 @@ afterAll(() => {
 });
 
 describe('command wiring', () => {
+  it('emits the manifest version as one JSON envelope', async () => {
+    await run('--json', 'version');
+
+    expect(soleJson()).toEqual({
+      ok: true,
+      data: { name: 'agentproofarch', version: pkg.version },
+    });
+  });
+
+  it('prints the manifest version for --version without a JSON envelope or failure exit', async () => {
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await run('--version');
+
+    expect(stdoutSpy).toHaveBeenCalledWith(`${pkg.version}\n`);
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(0);
+  });
+
   it('routes `health` to api.health and prints the human summary', async () => {
     await run('health');
 

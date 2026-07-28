@@ -255,9 +255,9 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}91{/*/count*/}** test files in the database-free
+Underneath those gates sit four counts: **{/*count:test-files*/}96{/*/count*/}** test files in the database-free
 run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}15{/*/count*/}** Playwright tests,
-and **{/*count:config-regression*/}57{/*/count*/}** config-regression probes.
+and **{/*count:config-regression*/}58{/*/count*/}** config-regression probes.
 
 That last number is the unusual one. Those probes guard the enforcers
 themselves: most feed a deliberately illegal fixture and assert rejection, and
@@ -309,20 +309,18 @@ stay fully multi-tenant via the `X-Tenant` header.
 **You read it, fork it, or lift patterns out of it.**
 
 `demo/package.json` is `private: true` and nothing is published to npm. There is
-no release versioning either: a release is a branch promotion
-(`main` → `production`), the repository carries no version tags, and the
-[changelog](../changelog.md) groups entries by merge date rather than by version.
+release versioning: releases are SemVer, bumped by a dedicated release-cut pull
+request to `main`, promoted to `production` and tagged `vX.Y.Z`. The
+[changelog](../changelog.md) keeps its UTC date groups and gains a marker at each
+cut; the docs site freezes one snapshot per major.
 
-The one version number that carries meaning is `0.1.0` in `demo/package.json` —
-the build's release identity, served by every successful health response and
-never bumped on promotion (the website's `package.json` holds an inert `0.0.0`
-placeholder). The full mechanics, including what a failing readiness probe
-answers instead, are in
-[Health & attestation](../operations/health-and-attestation.md).
-
-CLI distribution and a version handshake sit on the
-[deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
-with "first external CLI consumer" as the named trigger.
+The version in `demo/package.json` — `0.1.0` until the first release cut — is the
+build's single release identity, served by every successful health response. The
+website's `package.json` holds an inert `0.0.0` placeholder. See
+[Versioning & releases](../operations/versioning-and-releases.md) for the
+release, API, documentation, and display contracts, and
+[Health & attestation](../operations/health-and-attestation.md) for probe
+semantics.
 :::
 
 ## Where the truth lives 📚 \{#where-the-truth-lives}

@@ -40,12 +40,14 @@ import {
   type CliProfile,
 } from './config.js';
 import { emit } from './output.js';
+import { CLI_VERSION } from './version.js';
 
 const program = new Command('agentproofarch')
   .description('Reference client for the agentproofarch API — the agent feedback loop')
   .option('--json', 'machine-readable JSON output', false)
   .option('--api-url <url>', 'API base URL (overrides config)')
-  .option('--tenant <slug>', 'tenant slug for this invocation (overrides config)');
+  .option('--tenant <slug>', 'tenant slug for this invocation (overrides config)')
+  .version(CLI_VERSION, '-V, --version', 'print the CLI version');
 
 // Own Commander's parse failures (unknown command, missing option/argument, bad
 // option) instead of letting it process.exit(1) with plain-text stderr: throw so
@@ -168,6 +170,11 @@ const saveActiveProfile = (ctx: CliCtx, patch: Partial<CliProfile>): void => {
     updateOriginProfile(ctx.config, ctx.origin, patch, ctx.originSource !== 'repo'),
   );
 };
+
+program.command('version').description('This CLI build identity').action(() => {
+  const ctx = cliCtx();
+  emit(ok({ name: 'agentproofarch', version: CLI_VERSION }), ctx.json, (v) => `${v.name}/${v.version}`);
+});
 
 program.command('health').description('API and database status').action(async () => {
   const ctx = cliCtx();

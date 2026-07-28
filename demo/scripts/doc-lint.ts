@@ -256,9 +256,15 @@ const REQUIRED_COUNT_TOKENS: Readonly<Record<string, readonly string[]>> = {
   'website/docs/start/landing.md': ALL_COUNTERS,
 };
 
+const FROZEN_DOC_ROOTS = ['website/versioned_docs/'];
+const isFrozenDoc = (rel: string): boolean =>
+  FROZEN_DOC_ROOTS.some((root) => rel.startsWith(root));
+
 let countTokensSeen = 0;
 const countersByFile = new Map<string, Set<string>>();
 for (const rel of trackedMarkdown) {
+  // A cut snapshot is frozen by design; its numbers describe that release, not the working tree.
+  if (isFrozenDoc(rel)) continue;
   const text = readFileSync(join(repoRoot, rel), 'utf8');
   const seenHere = new Set<string>();
   countersByFile.set(rel, seenHere);

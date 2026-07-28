@@ -585,6 +585,13 @@ namespace, no version header, no content negotiation.** The contract's types are
 the version, checked at build for every consumer at once; a breaking change that
 reaches production un-migrated is a red `check`, not a runtime surprise.
 
+Today's unprefixed `/api/*` is the v1 contract. Inside v1, changes are
+additive-only under the rules below. A breaking change requires `/api/v2`
+mounted alongside v1, with a deprecation window announced in the changelog and
+lasting at least one subsequent release before v1 is removed. No `/api/v1`
+alias or v2 machinery exists today. [ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)
+decides this escalation path.
+
 **NORMATIVE NOW** (every change to `core/contract`):
 
 - **Additive-first.** New request fields are optional with a server default; new
@@ -617,7 +624,7 @@ check is prescribed (the Vercel target has no resident channel).
 
 | Trigger | Rule |
 |---|---|
-| First **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | Introduce explicit versioning — the compiled-contract argument no longer holds. Cheapest first: additive-only with a dated capability field; then a `/v1` URL prefix per major; then per-request `Accept-Version`. Internal `X-Tenant` clients do not count. |
+| First **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | The compiled-contract argument no longer holds. A breaking change introduces `/api/v2` alongside v1, with an announced deprecation window lasting at least one subsequent release before v1 is removed ([ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)). Internal `X-Tenant` clients do not count. |
 | First **webhook we emit** to creators/integrators | Version the **payload**, not the URL: embed a `schemaVersion` in the event body, keep old fields additively, let subscribers pin. Delivery/idempotency reuse the inbound-webhook pattern (§Background jobs and webhooks) — this covers only the payload contract. |
 
 **OUT OF SCOPE:** per-tenant/per-product API variants, GraphQL-style field-level
@@ -1736,7 +1743,11 @@ touches:
 
 Health is split by the two questions an operator actually asks, and every health
 response carries a build attestation (release `version` + commit `sha`) so a
-smoke run can prove *which* deploy it verified. The `sha` is a vendor-neutral
+smoke run can prove *which* deploy it verified. `version` is strict SemVer from
+`demo/package.json`, bumped only by the release-cut pull request that precedes a
+promotion
+([ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)). The
+`sha` is a vendor-neutral
 `APP_COMMIT_SHA`; the platform entry (`api/index.ts`) maps Vercel's
 `VERCEL_GIT_COMMIT_SHA` into it, so the vendor name stays contained to the one
 platform boundary (§Layers). Unset (local dev) it reports `unknown`.

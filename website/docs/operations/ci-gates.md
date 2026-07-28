@@ -49,11 +49,17 @@ flowchart TD
 | `selfhost.yml` | `pull_request`, `push` to `main` | `docker-smoke` | **yes** |
 | `ai-review.yml` | PRs to `main` (`opened` / `synchronize` / `ready_for_review`), non-draft | `ai-review` | **yes**, on `main-gates` (since 2026-07-26) |
 | `post-deploy-smoke.yml` | `deployment_status` | `smoke-remote` | n/a — runs after a deploy |
+| `tag-release.yml` | push to `production` | `tag` | no — post-merge release indexing |
 | `visual-baselines.yml` | `workflow_dispatch` | `visual-baselines` | n/a — authoring tool |
 | `approve-visuals.yml` | `issue_comment` (`created`) on a pull request | `guard`, `approve-visuals` | n/a — the re-baseline command |
 | `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
 | `dr-acceptance.yml` | `pull_request`, `push` to `main` (both path-filtered), weekly schedule, manual dispatch | `dr-acceptance` | no |
 | `docs-deploy.yml` | `push` to `main`, path-filtered | `build`, `deploy` | n/a — publishes this site |
+
+`tag-release` keeps `contents: read` at workflow level and elevates only its
+`tag` job to `contents: write`. It creates the manifest's `vX.Y.Z` tag
+idempotently after a production merge and fails rather than moving an existing
+tag.
 
 ## The required set 📋 \{#the-required-set}
 

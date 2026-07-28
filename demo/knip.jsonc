@@ -27,7 +27,11 @@
   "ignoreBinaries": [
     // System binary (psmisc) the e2e harness shells out to free a stuck port on
     // Linux CI; not a package dependency, so knip cannot resolve it.
-    "fuser"
+    "fuser",
+    // `scripts/release.ts` cuts the docs snapshot with `pnpm --dir ../website
+    // run docusaurus`; the binary belongs to website/'s own manifest, which is
+    // outside this knip project.
+    "docusaurus"
   ],
   "rules": {
     // Gate on the unambiguous dead weight: dead files, undeclared/unused

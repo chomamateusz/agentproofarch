@@ -41,7 +41,10 @@ All three are mounted **before** tenant resolution — they are a public surface
 
 The envelope is the repo-wide one: `{ ok: true, data }` or `{ ok: false, error }`. The commit SHA in the samples below is a stand-in for whatever commit is deployed — the field, not the value, is the point.
 
-**Liveness — the deployed shape.** `version` is `package.json`'s version (`0.1.0` today); `sha` is the build commit.
+**Liveness — the deployed shape.** `version` is SemVer from `demo/package.json`,
+bumped only by the release-cut pull request that precedes a promotion
+([Versioning & releases](./versioning-and-releases.md)); `sha` is the build
+commit.
 
 ```bash
 curl -sS https://agentproofarch.vercel.app/api/health/live

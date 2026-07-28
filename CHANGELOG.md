@@ -3,15 +3,22 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-This project carries **no release version numbers**: a release is a branch promotion
-(`main` → `production`, owner-approved PR), so entries are grouped by the **UTC
-date their pull request merged** instead of by version.
+Entries stay grouped by the **UTC date their pull request merged**. A dedicated
+release-cut pull request to `main` inserts a `## vX.Y.Z — YYYY-MM-DD` marker
+above the newest date section; everything between one marker and the next
+shipped in that release.
 
 This file was backfilled on 2026-07-26 from merged pull-request history and starts
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
 ## 2026-07-28
+
+### Added
+
+- ADR-0014 establishes SemVer releases, additive-only v1 API policy, web and CLI
+  version surfaces, release tagging, and major-version documentation snapshots
+  ([#100](https://github.com/chomamateusz/agentproofarch/pull/100)).
 
 ### Changed
 

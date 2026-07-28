@@ -1,5 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 
+import pkg from './package.json' with { type: 'json' };
+
 // Integration tests hit a real Postgres and are opt-in: the default `vitest run`
 // (pnpm run test / test:coverage) must stay database-free for the CI check job.
 // Enabling `VITEST_INTEGRATION=1` adds the `integration` project; the `node`
@@ -8,6 +10,10 @@ import { configDefaults, defineConfig } from 'vitest/config';
 const integrationEnabled = process.env['VITEST_INTEGRATION'] === '1';
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_COMMIT_SHA__: JSON.stringify('unknown'),
+  },
   test: {
     coverage: {
       provider: 'v8',
@@ -65,6 +71,8 @@ export default defineConfig({
         // it has no database-free unit surface, so counting it as 0% would
         // falsely depress the branch floor.
         'scripts/doc-lint.ts',
+        // Release orchestration shells out and exits; the pure release plan is tested.
+        'scripts/release.ts',
       ],
       // Ratchet floor, not aspiration: each threshold is the measured coverage
       // of the default (database-free) `vitest run --coverage`, rounded DOWN to

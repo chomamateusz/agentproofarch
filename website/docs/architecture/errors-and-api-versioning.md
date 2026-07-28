@@ -160,7 +160,7 @@ stdout and `error(<code>): <message>` on stderr. One decision, three renderings 
 which is what makes the CLI a real verification surface for an agent (see
 [CLI walkthrough](../guides/cli-walkthrough.md)).
 
-## Why there is no API version 🔢 \{#why-there-is-no-api-version}
+## Today's unprefixed API is v1 🔢 \{#todays-unprefixed-api-is-v1}
 
 Server, web and CLI ship **together from one commit**
 ([ADR-0003](../decisions/0003-vercel-environments.md)). The `core/contract` zod
@@ -168,10 +168,9 @@ schemas compile into all three, so client and server are never independently
 versioned. `/v1`-style URL versioning solves skew between separately-released
 client and server — a split this architecture does not have.
 
-**No version namespace, no version header, no content negotiation.** The
-contract's types are the version, checked at build for every consumer at once: a
-breaking change that reaches production un-migrated is a red `pnpm run check`, not a
-runtime surprise.
+There is no version namespace, version header, or content negotiation today.
+The unprefixed `/api/*` surface **is v1**, and the contract's types are checked
+at build for every in-repo consumer at once. No `/api/v1` alias is introduced.
 
 ## Normative now: every change to `core/contract` 📜 \{#normative-now-every-change-to-corecontract}
 
@@ -236,14 +235,14 @@ zero disclosure cost.
 
 | Trigger | Rule |
 |---|---|
-| the first **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | introduce explicit versioning — the compiled-contract argument no longer holds. Cheapest first: additive-only with a dated capability field; then a `/v1` URL prefix per major; then per-request `Accept-Version`. Internal `X-Tenant` clients do not count |
+| the first **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | the compiled-contract argument no longer holds. A breaking change introduces `/api/v2` alongside v1, with an announced deprecation window lasting at least one subsequent release before v1 is removed ([ADR-0014](../decisions/0014-release-versioning-and-version-surfaces.md)). Internal `X-Tenant` clients do not count |
 | the first **webhook we emit** to creators or integrators | version the **payload**, not the URL: embed a `schemaVersion` in the event body, keep old fields additively, let subscribers pin. Delivery and idempotency reuse the inbound-webhook pattern; this covers only the payload contract |
 
 :::note[Out of scope]
 Per-tenant or per-product API variants, GraphQL-style field-level deprecation
-tooling, and consumer-driven contract testing against external partners. All three
-arrive with the external consumer that triggers real versioning — building them
-first would mean maintaining machinery for a consumer that does not exist.
+tooling, and consumer-driven contract testing against external partners. Those
+mechanisms arrive with the external consumer; the additive-only v1 policy
+already applies.
 :::
 
 ## Cache headers are part of the response contract 🧊 \{#cache-headers-are-part-of-the-response-contract}

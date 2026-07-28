@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AppBar, Box, Container, Divider, Stack, Toolbar } from '@mui/material';
 
 import { StatusView, type PageState } from './StatusView.js';
+import { BuildStamp } from '../ui/BuildStamp.js';
 
 const APP_CONTENT_WIDTH = '44rem';
 
@@ -51,6 +52,9 @@ export const AppShell = ({
           <StatusView state={state} />
         </Container>
       )}
+    </Box>
+    <Box component="footer" sx={{ display: 'flex', justifyContent: 'flex-end', px: '1.5rem', py: '0.8rem' }}>
+      <BuildStamp />
     </Box>
   </>
 );

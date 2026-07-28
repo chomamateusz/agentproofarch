@@ -25,6 +25,9 @@ plain HTTP but have no CLI command yet. The same commit deploys to Vercel today
 site: architecture with diagrams, quickstart, CLI walkthrough, guides,
 operations runbooks (CI gates, environments & promotion, backup/DR), every
 decision record with its WHY, and the [changelog](CHANGELOG.md).
+Releases use SemVer, bumped by a dedicated release-cut pull request to `main`
+and promoted from there; see
+[Versioning & releases](https://chomamateusz.github.io/agentproofarch/operations/versioning-and-releases).
 
 The normative source remains this repo: [docs/architecture.md](docs/architecture.md)
 (the architecture), the [PRD](docs/prd-agentproofarch-foundation.md) (the
