@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 
 import { observabilityEnvSchema, serverEnvSchema } from '#core/server/config.js';
 
+import { lintLinks } from './link-lint.js';
 import { lintMigrations } from './migration-lint.js';
 
 /**
@@ -25,7 +26,9 @@ import { lintMigrations } from './migration-lint.js';
  *     back to unverifiable prose.
  *   env schema:     every key the config schema reads is documented in
  *     `.env.example`.
- *   links:          every relative link in a tracked `.md` resolves to a file.
+ *   links:          every link in a tracked `.md` resolves to a file — relative
+ *     links against the linking file, site-absolute ones against the Docusaurus
+ *     static directory (see link-lint.ts).
  *   delimiters:     no tool/XML delimiter leaks into committed prose.
  */
 
@@ -324,7 +327,7 @@ for (const key of declaredEnvKeys) {
   }
 }
 
-// ── Dead relative-link check: every tracked `.md`. ──────────────────────────
+// ── Dead-link check: every tracked `.md`. ──────────────────────────────────
 /**
  * Build-generated docs are legitimate link targets that are absent from a clean
  * checkout, so `existsSync` is the wrong question for them. Each entry must be
@@ -332,22 +335,14 @@ for (const key of declaredEnvKeys) {
  * is expected to create — so a genuine typo still fails.
  */
 const GENERATED_DOCS = new Set([resolve(repoRoot, 'website/docs/changelog.md')]);
-const LINK = /\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-for (const rel of trackedMarkdown) {
-  const raw = readFileSync(join(repoRoot, rel), 'utf8');
-  const prose = raw.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '');
-  for (const match of prose.matchAll(LINK)) {
-    const target = match[1] ?? '';
-    if (/^(https?:|mailto:|tel:|\/\/|#)/.test(target)) continue;
-    const path = target.split('#')[0];
-    if (!path) continue;
-    const resolved = resolve(dirname(join(repoRoot, rel)), path);
-    if (GENERATED_DOCS.has(resolved)) continue;
-    if (!existsSync(resolved)) {
-      problems.push(`[link] ${rel}: relative link "${target}" points at a missing file.`);
-    }
-  }
-}
+problems.push(
+  ...lintLinks({
+    repoRoot,
+    files: trackedMarkdown,
+    site: { docsPrefix: 'website/', staticDir: join('website', 'static') },
+    generated: GENERATED_DOCS,
+  }),
+);
 
 // ── Migration sequence: gapless, duplicate-free prefixes matching the journal. ─
 const migrationProblems = lintMigrations(join(demoRoot, 'drizzle'));

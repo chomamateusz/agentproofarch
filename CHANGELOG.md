@@ -27,6 +27,8 @@ before that lives in the git history only.
 - Release v1.0.0 sets the app version, freezes the documentation as 1.x, adds
   the documentation version selector, and repairs the release command and
   dependency preflight plus the snapshot-safe banner path found by the first cut
+  — `doc-lint` now resolves site-absolute links against `website/static/` the
+  way Docusaurus serves them, instead of reporting them as missing files
   ([#101](https://github.com/chomamateusz/agentproofarch/pull/101)).
 
 - CI serializes post-deploy smoke runs per shared target (one group for the
