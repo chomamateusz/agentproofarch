@@ -1,20 +1,32 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 
 import { z } from 'zod';
 
+import {
+  collectFiles,
+  kinds,
+  publishedName,
+  screenshotsFrom,
+  type Kind,
+  type Screenshot,
+} from './visual-screenshots.js';
+
 /**
  * The visual review gallery (ADR-0013): it turns the `visual-diff` artifact into
- * one sticky pull-request comment showing expected · actual · diff inline.
+ * one sticky pull-request comment showing baseline · actual · diff inline
+ * (Playwright's "expected" renamed for readers — artifact names keep its
+ * vocabulary, published names and the column header say baseline).
  *
  * It runs in the `visual-report` job, which checks out the trusted base commit
  * and never the pull-request head, so everything reaching this script from the
  * pull request is data:
  *   - artifact file names are untrusted (a spec title becomes a path), so only
  *     `<name>-{expected,actual,diff}.png` entries are copied, flattened, with no
- *     directory component carried over;
+ *     directory component carried over, and published as
+ *     `<name>-{baseline,actual,diff}.png`;
  *   - the images are published to the unprotected `visual-reports` branch under
  *     `pr-<number>/run-<id>/`. The run id is in the path because
  *     raw.githubusercontent.com caches by URL: a fixed path would serve the
@@ -26,7 +38,6 @@ import { z } from 'zod';
 
 const marker = '<!-- visual-review-gallery -->';
 const reportBranch = 'visual-reports';
-const allowedName = /^([A-Za-z0-9._-]+)-(expected|actual|diff)\.png$/;
 const pageSize = 100;
 
 const envSchema = z.object({
@@ -36,6 +47,7 @@ const envSchema = z.object({
   RUN_ID: z.coerce.number().int().positive(),
   VISUAL_OUTCOME: z.enum(['success', 'failure']),
   VISUAL_ARTIFACT_DIR: z.string().min(1),
+  AI_VERDICTS: z.string().optional(),
 });
 
 const commentSchema = z.object({
@@ -46,18 +58,11 @@ const commentSchema = z.object({
 
 const pullSchema = z.object({ number: z.number().int().positive() });
 
-type Kind = 'expected' | 'actual' | 'diff';
-
-const kinds = ['expected', 'actual', 'diff'] as const;
-
-interface Screenshot {
-  readonly stem: string;
-  readonly files: Record<Kind, string>;
-  readonly pixels: string;
-}
+const verdictSchema = z.object({
+  verdicts: z.array(z.object({ screenshot: z.string(), line: z.string() })),
+});
 
 const env = envSchema.parse(process.env);
-const demoRoot = join(import.meta.dirname, '..');
 const runUrl = `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.RUN_ID}`;
 
 const api = async (path: string, init?: RequestInit): Promise<unknown> => {
@@ -88,56 +93,6 @@ const paginate = async <T>(
     items.push(...batch);
     if (batch.length < pageSize) return items;
   }
-};
-
-const collectFiles = (root: string): Map<string, string> => {
-  const files = new Map<string, string>();
-  if (!existsSync(root)) return files;
-  const visit = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        visit(full);
-      } else if (entry.isFile() && allowedName.test(entry.name)) {
-        const name = basename(entry.name);
-        if (files.has(name)) throw new Error(`Duplicate flattened artifact name: ${name}`);
-        files.set(name, full);
-      }
-    }
-  };
-  visit(root);
-  return files;
-};
-
-const pixelSummary = (expected: string, actual: string): string => {
-  const result = spawnSync(
-    process.execPath,
-    [join(demoRoot, 'scripts/visual-diff.mjs'), expected, actual],
-    { encoding: 'utf8' },
-  );
-  return result.stdout.trim() || 'pixel count unavailable';
-};
-
-const screenshotsFrom = (files: Map<string, string>): Screenshot[] => {
-  const grouped = new Map<string, Partial<Record<Kind, string>>>();
-  for (const [name, path] of files) {
-    const match = allowedName.exec(name);
-    const stem = match?.[1];
-    const kind = kinds.find((candidate) => candidate === match?.[2]);
-    if (stem === undefined || kind === undefined) continue;
-    grouped.set(stem, { ...grouped.get(stem), [kind]: path });
-  }
-
-  const screenshots: Screenshot[] = [];
-  for (const [stem, group] of grouped) {
-    if (!group.expected || !group.actual || !group.diff) continue;
-    screenshots.push({
-      stem,
-      files: { expected: group.expected, actual: group.actual, diff: group.diff },
-      pixels: pixelSummary(group.expected, group.actual),
-    });
-  }
-  return screenshots.sort((left, right) => left.stem.localeCompare(right.stem));
 };
 
 const git = (
@@ -200,7 +155,10 @@ const publish = async (screenshots: Screenshot[]): Promise<void> => {
       mkdirSync(destination, { recursive: true });
       for (const screenshot of screenshots) {
         for (const kind of kinds) {
-          copyFileSync(screenshot.files[kind], join(destination, `${screenshot.stem}-${kind}.png`));
+          copyFileSync(
+            screenshot.files[kind],
+            join(destination, `${screenshot.stem}-${publishedName(kind)}.png`),
+          );
         }
       }
     }
@@ -219,13 +177,49 @@ const publish = async (screenshots: Screenshot[]): Promise<void> => {
 
 const imageUrl = (stem: string, kind: Kind): string =>
   `https://raw.githubusercontent.com/${env.GITHUB_REPOSITORY}/${reportBranch}/` +
-  `pr-${env.PR_NUMBER}/run-${env.RUN_ID}/${encodeURIComponent(`${stem}-${kind}.png`)}`;
+  `pr-${env.PR_NUMBER}/run-${env.RUN_ID}/${encodeURIComponent(`${stem}-${publishedName(kind)}.png`)}`;
+
+// The verdict is advisory and fail-open (ADR-0013 polish): a missing token, a
+// model error or malformed output degrades to the unavailable note — the
+// gallery itself never depends on it, so it cannot become a gate by accident.
+const aiReadSection = (screenshots: Screenshot[]): string => {
+  const note =
+    `_Advisory only — the AI read can never gate this job; ` +
+    `the gallery posts with or without it._`;
+  const parsed = ((): Map<string, string> | undefined => {
+    if (env.AI_VERDICTS === undefined || env.AI_VERDICTS === '') return undefined;
+    const raw = ((): unknown => {
+      try {
+        return JSON.parse(env.AI_VERDICTS ?? '');
+      } catch {
+        return undefined;
+      }
+    })();
+    const result = verdictSchema.safeParse(raw);
+    if (!result.success) return undefined;
+    return new Map(
+      result.data.verdicts.map((verdict) => [
+        verdict.screenshot,
+        verdict.line.replace(/\s+/g, ' ').trim().slice(0, 200),
+      ]),
+    );
+  })();
+  if (parsed === undefined) {
+    return `### AI read\n\nVerdict unavailable this run. ${note}`;
+  }
+  const lines = screenshots.map(
+    (screenshot) =>
+      `- \`${screenshot.stem}\` — ` +
+      (parsed.get(screenshot.stem) ?? 'uwaga — brak werdyktu dla tego zrzutu'),
+  );
+  return `### AI read\n\n${lines.join('\n')}\n\n${note}`;
+};
 
 const galleryBody = (screenshots: Screenshot[]): string => {
   if (screenshots.length === 0) {
     return env.VISUAL_OUTCOME === 'success'
       ? `${marker}\n## Visual review\n\nNo visual changes. [Workflow run](${runUrl}).`
-      : `${marker}\n## Visual review\n\nThe comparison produced no complete expected/actual/diff ` +
+      : `${marker}\n## Visual review\n\nThe comparison produced no complete baseline/actual/diff ` +
           `set to show — a screenshot with no baseline yet, or a run that died before writing one. ` +
           `[Read the run and its artifacts](${runUrl}#artifacts).`;
   }
@@ -237,7 +231,7 @@ const galleryBody = (screenshots: Screenshot[]): string => {
         kinds
           .map(
             (kind) =>
-              `<td><img width="260" alt="${screenshot.stem} ${kind}" ` +
+              `<td><img width="260" alt="${screenshot.stem} ${publishedName(kind)}" ` +
               `src="${imageUrl(screenshot.stem, kind)}"></td>`,
           )
           .join('') +
@@ -247,8 +241,9 @@ const galleryBody = (screenshots: Screenshot[]): string => {
 
   return (
     `${marker}\n## Visual review\n\n` +
-    `<table><thead><tr><th>Screenshot</th><th>Expected</th><th>Actual</th><th>Diff</th></tr></thead>` +
+    `<table><thead><tr><th>Screenshot</th><th>Baseline</th><th>Actual</th><th>Diff</th></tr></thead>` +
     `<tbody>${rows}</tbody></table>\n\n` +
+    `${aiReadSection(screenshots)}\n\n` +
     `[Open the run's \`playwright-report\` artifact](${runUrl}#artifacts) for the side-by-side and ` +
     `slider views.\n\n` +
     `If this is the change you made, the repository owner — or a login listed in the ` +

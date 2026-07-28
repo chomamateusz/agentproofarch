@@ -51,11 +51,14 @@ export default defineConfig({
         // surface, exercised by the smoke + e2e CI jobs — excluded for the same
         // reason as the smoke/e2e scripts above.
         'scripts/mailpit.ts',
-        // The visual gallery publisher (ADR-0013): a CI-only program that talks
-        // to the GitHub API and force-pushes a report branch, run by the
-        // `visual-report` job, never by vitest. Same rationale as the smoke/e2e
-        // scripts — no database-free unit surface to measure.
+        // The visual gallery publisher (ADR-0013) and its shared artifact
+        // collector / advisory-verdict input builder: CI-only programs that talk
+        // to the GitHub API, force-push a report branch or stage model input,
+        // run by the `visual-report` job, never by vitest. Same rationale as the
+        // smoke/e2e scripts — no database-free unit surface to measure.
         'scripts/visual-report.ts',
+        'scripts/visual-screenshots.ts',
+        'scripts/visual-verdict-input.ts',
         // doc-lint is a check-gate orchestration script (a top-level program that
         // scans docs/config and process.exit()s), run by `pnpm run doc-lint`
         // inside `pnpm run check`, not by vitest. Like the smoke/e2e scripts above
