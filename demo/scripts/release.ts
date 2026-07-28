@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import {
   needsSnapshot,
+  nextSteps,
   nextVersion,
   releaseBumpArgument,
   snapshotName,
@@ -66,8 +67,4 @@ if (needsSnapshot(parsed.data)) {
   }
 }
 
-process.stdout.write(
-  `review the diff; commit it on release/v${next}; merge that PR into main; ` +
-    'open the main → production promotion PR; ' +
-    'let tag-release cut the tag after the owner merges\n',
-);
+process.stdout.write(nextSteps(next, parsed.data));

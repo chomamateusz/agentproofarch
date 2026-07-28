@@ -33,7 +33,15 @@ before that lives in the git history only.
 - Release v1.0.0 sets the app version, freezes the documentation as 1.x, adds
   the documentation version selector, and repairs the release command and
   dependency preflight plus the snapshot-safe banner path found by the first cut
-  (#TBD).
+  — `doc-lint` now resolves site-absolute links against `website/static/` the
+  way Docusaurus serves them, instead of reporting them as missing files
+  ([#101](https://github.com/chomamateusz/agentproofarch/pull/101)).
+
+- The release procedure fixes the documentation snapshot as the last step of a
+  release cut: any later commit on the release branch that touches
+  `CHANGELOG.md` or `website/docs/**` requires re-cutting it before merge, and
+  `pnpm run release` prints that rule after a major cut
+  ([#101](https://github.com/chomamateusz/agentproofarch/pull/101)).
 
 - CI serializes post-deploy smoke runs per shared target (one group for the
   production alias, per-deployment groups for previews), takes the smoke

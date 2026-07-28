@@ -59,8 +59,11 @@ add the `docsVersionDropdown` navbar item after the snapshot exists. The command
 does not commit, tag, or push. Review and commit that diff — and nothing else —
 then:
 
-1. merge the `release/vX.Y.Z` pull request into `main`;
-2. open the owner-approved `main → production` promotion pull request, which
+1. land every review fix the release pull request needs, re-cutting the snapshot
+   whenever one touches `CHANGELOG.md` or `website/docs/**`
+   ([the snapshot is cut last](#the-snapshot-is-cut-last));
+2. merge the `release/vX.Y.Z` pull request into `main`;
+3. open the owner-approved `main → production` promotion pull request, which
    carries the bump to production.
 
 After that merge, `tag-release` creates `vX.Y.Z` at the production commit. A
@@ -93,6 +96,29 @@ Future major cuts create another `version-<major>.x/` snapshot. Minor and patch
 releases do not create near-identical archives. A documentation fix made after
 a cut reaches Next, not the frozen snapshot, unless someone backports it
 manually.
+
+## The snapshot is cut last \{#the-snapshot-is-cut-last}
+
+`docs:version` copies `website/docs/**` byte for byte at the moment it runs, so
+the snapshot is only as true as the tree it was taken from. It is therefore the
+**last** step of a release cut, and any later commit on the release branch that
+touches `CHANGELOG.md` or `website/docs/**` invalidates it: re-cut before the
+release pull request merges, or the frozen pages ship claims the release itself
+contradicts. The first `v1.0.0` cut shipped a `#TBD` pull-request number, a
+stale test count, and a superseded description of `doc-lint` for exactly this
+reason — the gates that keep those numbers honest skip frozen snapshots by
+design, so nothing else catches it.
+
+Re-cutting is deleting the snapshot and taking it again from the final tree —
+for the `1.x` snapshot, with `website/` dependencies installed:
+
+```bash
+cd website
+node scripts/sync-changelog.mjs
+git rm -r versioned_docs/version-1.x versioned_sidebars/version-1.x-sidebars.json
+# then drop "1.x" from versions.json
+pnpm run docusaurus docs:version 1.x
+```
 
 ## Where the version shows up \{#where-the-version-shows-up}
 

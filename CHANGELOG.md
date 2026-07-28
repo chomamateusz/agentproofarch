@@ -31,6 +31,12 @@ before that lives in the git history only.
   way Docusaurus serves them, instead of reporting them as missing files
   ([#101](https://github.com/chomamateusz/agentproofarch/pull/101)).
 
+- The release procedure fixes the documentation snapshot as the last step of a
+  release cut: any later commit on the release branch that touches
+  `CHANGELOG.md` or `website/docs/**` requires re-cutting it before merge, and
+  `pnpm run release` prints that rule after a major cut
+  ([#101](https://github.com/chomamateusz/agentproofarch/pull/101)).
+
 - CI serializes post-deploy smoke runs per shared target (one group for the
   production alias, per-deployment groups for previews), takes the smoke
   credentials from repository secrets only, restricts docs deploys to `main`,

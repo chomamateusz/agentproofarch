@@ -255,7 +255,7 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}96{/*/count*/}** test files in the database-free
+Underneath those gates sit four counts: **{/*count:test-files*/}97{/*/count*/}** test files in the database-free
 run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}15{/*/count*/}** Playwright tests,
 and **{/*count:config-regression*/}58{/*/count*/}** config-regression probes.
 

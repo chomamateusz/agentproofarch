@@ -47,3 +47,19 @@ export const snapshotName = (version: string): string => {
 };
 
 export const needsSnapshot = (bump: Bump): boolean => bump === 'major';
+
+export const nextSteps = (version: string, bump: Bump): string =>
+  `${[
+    'review the diff',
+    `commit it on release/v${version}`,
+    ...(needsSnapshot(bump)
+      ? [
+          `the ${snapshotName(version)} snapshot is a copy of website/docs as it stands, so ` +
+            're-cut it before merging if any later commit on that branch touches CHANGELOG.md ' +
+            'or website/docs',
+        ]
+      : []),
+    'merge that PR into main',
+    'open the main → production promotion PR',
+    'let tag-release cut the tag after the owner merges',
+  ].join('; ')}\n`;
