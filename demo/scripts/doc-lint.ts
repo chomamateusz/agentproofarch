@@ -15,9 +15,14 @@ import { lintMigrations } from './migration-lint.js';
  *     eslint.config.js / .dependency-cruiser.cjs.
  *   config -> docs: every custom rule in eslint-plugin-agentproofarch/rules
  *     must be documented by name.
- *   counts:         hand-maintained numeric claims in the READMEs are replaced
- *     with `<!--count:NAME-->N<!--/count-->` tokens verified against the real
- *     sources here, so a stale number fails the gate instead of misleading.
+ *   counts:         hand-maintained numeric claims in the READMEs and on the
+ *     published website are replaced with `<!--count:NAME-->N<!--/count-->`
+ *     tokens verified against the real sources here, so a stale number fails
+ *     the gate instead of misleading. Docusaurus pages compile as MDX, which
+ *     rejects HTML comments, so they use the MDX comment spelling instead
+ *     (see COUNT_TOKEN_SYNTAXES). REQUIRED_COUNT_TOKENS pins which surface
+ *     must carry which counter, so a rewrite cannot drop a checked number
+ *     back to unverifiable prose.
  *   env schema:     every key the config schema reads is documented in
  *     `.env.example`.
  *   links:          every relative link in a tracked `.md` resolves to a file.
@@ -225,24 +230,74 @@ const COUNTERS: Record<string, () => number> = {
   'config-regression': () => countDecls(configRegressionFiles()),
 };
 
-const COUNT_TOKEN = /<!--count:([a-z0-9-]+)-->(\d+)<!--\/count-->/g;
+/**
+ * Two spellings of the same token. Markdown read as markdown takes the HTML
+ * comment; `website/**` is compiled as MDX by Docusaurus, which rejects HTML
+ * comments outright ("Unexpected character `!`"), so those pages carry the MDX
+ * comment form. Both are invisible in the rendered page.
+ */
+const COUNT_TOKEN_SYNTAXES: readonly RegExp[] = [
+  /<!--count:([a-z0-9-]+)-->(\d+)<!--\/count-->/g,
+  /\{\/\*count:([a-z0-9-]+)\*\/\}(\d+)\{\/\*\/count\*\/\}/g,
+];
+
+/**
+ * The surfaces whose numeric claims must stay machine-checked, and the counters
+ * each one is required to carry. Verifying only the tokens that happen to be
+ * present cannot catch a number that was never tokenised — which is exactly how
+ * the published website drifted to stale test counts while `check` stayed green.
+ * Extend an entry when a page starts making a new numeric claim; shrink one only
+ * when the page genuinely stops making that claim.
+ */
+const ALL_COUNTERS = ['test-files', 'integration-tests', 'e2e-tests', 'e2e-specs', 'config-regression'];
+const REQUIRED_COUNT_TOKENS: Readonly<Record<string, readonly string[]>> = {
+  'demo/README.md': ALL_COUNTERS,
+  'website/docs/guides/testing-doctrine.md': ALL_COUNTERS,
+  'website/docs/start/landing.md': ALL_COUNTERS,
+};
+
 let countTokensSeen = 0;
+const countersByFile = new Map<string, Set<string>>();
 for (const rel of trackedMarkdown) {
   const text = readFileSync(join(repoRoot, rel), 'utf8');
-  for (const match of text.matchAll(COUNT_TOKEN)) {
-    countTokensSeen += 1;
-    const name = match[1] ?? '';
-    const claimed = Number(match[2]);
-    const counter = COUNTERS[name];
-    if (!counter) {
-      problems.push(`[count] unknown counter "${name}" in ${rel} — valid: ${Object.keys(COUNTERS).join(', ')}.`);
-      continue;
+  const seenHere = new Set<string>();
+  countersByFile.set(rel, seenHere);
+  for (const syntax of COUNT_TOKEN_SYNTAXES) {
+    for (const match of text.matchAll(syntax)) {
+      countTokensSeen += 1;
+      const name = match[1] ?? '';
+      const claimed = Number(match[2]);
+      const counter = COUNTERS[name];
+      if (!counter) {
+        problems.push(`[count] unknown counter "${name}" in ${rel} — valid: ${Object.keys(COUNTERS).join(', ')}.`);
+        continue;
+      }
+      seenHere.add(name);
+      const actual = counter();
+      if (actual !== claimed) {
+        problems.push(
+          `[count] ${rel}: count:${name} claims ${claimed} but the source has ${actual} — ` +
+            `update the token to ${actual}.`,
+        );
+      }
     }
-    const actual = counter();
-    if (actual !== claimed) {
+  }
+}
+
+for (const [rel, required] of Object.entries(REQUIRED_COUNT_TOKENS)) {
+  const seenHere = countersByFile.get(rel);
+  if (!seenHere) {
+    problems.push(
+      `[count] ${rel} is listed in REQUIRED_COUNT_TOKENS but is not a tracked .md file — ` +
+        `commit it, or drop the entry if the page is gone.`,
+    );
+    continue;
+  }
+  for (const name of required) {
+    if (!seenHere.has(name)) {
       problems.push(
-        `[count] ${rel}: count:${name} claims ${claimed} but the source has ${actual} — ` +
-          `update the token to ${actual}.`,
+        `[count] ${rel} must state count:${name} as a verified token but does not — ` +
+          `restore the token around the number instead of writing it as prose.`,
       );
     }
   }

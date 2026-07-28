@@ -37,7 +37,12 @@ before that lives in the git history only.
 
 - Documentation now records the real CLI-coverage exceptions, complete local
   quickstart process set, missing ADR-0012 mirror, and current implementation,
-  CI, test-count, scaffolder, environment and observability behavior
+  CI, test-count, scaffolder, environment and observability behavior. The
+  published website's test counts are machine-checked rather than hand-written:
+  `doc-lint` now reads count tokens in the Docusaurus MDX comment spelling as
+  well as the HTML-comment one, and a `REQUIRED_COUNT_TOKENS` manifest fails
+  `check` when a pinned surface states a count as untokenised prose — so website
+  drift is now caught by the gate instead of by review
   ([#97](https://github.com/chomamateusz/agentproofarch/pull/97)).
 
 ## 2026-07-27
