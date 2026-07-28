@@ -20,7 +20,7 @@ pnpm --silent run cli health
 ```
 
 ```text
-status=ok db=up v0.1.0 sha=unknown
+status=ok db=up v1.0.0 sha=unknown
 ```
 
 `version` is `package.json`'s version — the single release-identity source — and
@@ -30,6 +30,18 @@ because only a deploy sets it. There are three health routes:
 `unavailable` envelope with HTTP 503 when the database is down, never a 200), and
 the compat `/api/health` the `health` command calls, which reports the database
 status inline at 200.
+
+### `--version` and `version` 🏷️ \{#version}
+
+`agentproofarch --version` prints one plain version line and exits 0, exactly
+like `--help`; it is deliberately not a JSON envelope. The machine-readable
+surface is `agentproofarch --json version`, which emits exactly one success
+envelope. The "`--json` prints exactly one JSON envelope" contract covers
+commands, not Commander's built-in informational flags.
+
+The CLI reports no commit SHA because it runs from source through `tsx` and has
+no build step or build attestation. Use `agentproofarch health` for the server's
+SHA.
 
 ### `register`, `login`, `whoami` 🔑 \{#register-login-whoami}
 

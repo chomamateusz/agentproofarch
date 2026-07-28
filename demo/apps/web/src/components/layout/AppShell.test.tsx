@@ -20,6 +20,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('banner')).toHaveTextContent('brandcontextmetaaction');
     expect(screen.getByRole('navigation')).toContainElement(screen.getByRole('link', { name: 'next' }));
     expect(screen.getByRole('main')).toHaveTextContent('page content');
+    expect(screen.getByTestId('build-stamp')).toBeInTheDocument();
   });
 
   it('keeps a non-happy state inside the shell width', () => {
@@ -37,5 +38,6 @@ describe('AppShell', () => {
     expect(screen.getByTestId('app-shell-status')).toHaveStyle({ maxWidth: '44rem' });
     expect(screen.getByText('opening the app…')).toBeInTheDocument();
     expect(screen.queryByText('page content')).not.toBeInTheDocument();
+    expect(screen.getByTestId('build-stamp')).toBeInTheDocument();
   });
 });

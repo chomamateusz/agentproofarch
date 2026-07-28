@@ -55,6 +55,7 @@ const sidebars: SidebarsConfig = {
       },
       items: [
         'operations/environments',
+        'operations/versioning-and-releases',
         'operations/health-and-attestation',
         'operations/backup-dr',
         'operations/self-host',
@@ -100,6 +101,7 @@ const sidebars: SidebarsConfig = {
         'decisions/0011-layout-layer',
         'decisions/0012-per-origin-cli-profiles',
         'decisions/0013-visual-review-loop',
+        'decisions/0014-release-versioning-and-version-surfaces',
       ],
     },
     'changelog',

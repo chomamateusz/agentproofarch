@@ -50,6 +50,9 @@ flowchart LR
 
 Agents own everything left of the `production` branch. An agent — acting as the machine account `chomamateusz-agent` — branches, opens PRs, merges to `main` once the five checks pass, dispatches workflows and drives preview + staging deployments freely. It may even **open** the `main → production` release PR. It cannot approve it.
 
+A promotion is a release, and the release pull request is where the SemVer
+identity is bumped; see [Versioning & releases](./versioning-and-releases.md).
+
 ## The wall 🧱 \{#the-wall}
 
 The security boundary is **not** "no GitHub event can reach production" — a merge to `production` *is* the release trigger. The wall is that this merge requires a pull request only the owner can approve, so **the owner's diff review happens before the build that sees production secrets runs.** That ordering is the whole point, and it is the specific correction over the older dashboard-promote model, where the review ran *after* the build.

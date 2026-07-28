@@ -16,6 +16,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ApiError } from '#core/client/index.js';
 
 import { actions } from '../../api.js';
+import { BuildStamp } from '../../components/ui/BuildStamp.js';
 import { DemoValue, Eyebrow, FinePrint, Wordmark } from '../../theme.js';
 
 export const LoginPage = () => {
@@ -159,6 +160,9 @@ export const LoginPage = () => {
           demo account: <DemoValue>demo@agentproofarch.dev</DemoValue> /{' '}
           <DemoValue>demo1234</DemoValue>
         </FinePrint>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: '1.2rem' }}>
+          <BuildStamp />
+        </Box>
       </Paper>
     </Box>
   );

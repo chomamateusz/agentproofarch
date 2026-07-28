@@ -671,4 +671,10 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  {
+    files: ['apps/web/src/main.tsx'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
 );

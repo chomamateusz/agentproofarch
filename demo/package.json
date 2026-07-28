@@ -1,6 +1,6 @@
 {
   "name": "agentproofarch",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Agent-first, strictly layered full-stack TypeScript foundation for multi-tenant SaaS",
@@ -33,6 +33,7 @@
     "new:island": "tsx scripts/new-island.ts",
     "smoke": "tsx scripts/smoke.ts",
     "quickstart:probe": "tsx scripts/quickstart-probe.ts",
+    "release": "tsx scripts/release.ts",
     "e2e": "playwright test",
     "visual": "playwright test --config playwright.visual.config.ts",
     "visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",

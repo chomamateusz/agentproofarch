@@ -58,6 +58,10 @@ pnpm --silent run cli logout                           # drops the stored token
 Full command set: `health`, `register`, `login`, `logout`, `whoami`,
 `tenant list|create|switch`, `todo list|add`, `card list|add|move`.
 
+Release preparation runs `pnpm run release -- <major|minor|patch>` from this
+directory; it bumps the manifest, inserts the changelog marker and cuts a
+documentation snapshot for a major without committing, tagging or pushing.
+
 Every command supports `--json` and exits with a code mapped from the error
 taxonomy (`validation`=2, `unauthorized`=3, `forbidden`=4, `not_found`=5,
 `conflict`=6, `tenant_not_found`=7, `internal`=10). That makes the CLI a

@@ -62,6 +62,7 @@ A rule whose only tier is REVIEW+AI is documented as such rather than presented 
 | [0011](./0011-layout-layer.md) | The layout layer — page skeletons as a named, enforced structural element | 2026-07-27 · accepted |
 | [0012](./0012-per-origin-cli-profiles.md) | Per-origin CLI profiles — client state scoped like browser cookies | 2026-07-27 · accepted |
 | [0013](./0013-visual-review-loop.md) | The visual review loop — a GitHub-native gallery and an approval that commits | 2026-07-27 · accepted |
+| [0014](./0014-release-versioning-and-version-surfaces.md) | Release versioning — SemVer app releases, additive-only v1 API, and named version surfaces | 2026-07-28 · accepted |
 
 Every page here summarises the decision, the WHY, the alternatives and the consequences. **The full text of each ADR stays authoritative** and lives in [`docs/decisions/`](https://github.com/chomamateusz/agentproofarch/tree/main/docs/decisions).
 

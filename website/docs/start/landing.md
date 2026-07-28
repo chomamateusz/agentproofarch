@@ -309,20 +309,17 @@ stay fully multi-tenant via the `X-Tenant` header.
 **You read it, fork it, or lift patterns out of it.**
 
 `demo/package.json` is `private: true` and nothing is published to npm. There is
-no release versioning either: a release is a branch promotion
-(`main` → `production`), the repository carries no version tags, and the
-[changelog](../changelog.md) groups entries by merge date rather than by version.
+release versioning: releases are SemVer, bumped in the `main → production`
+promotion pull request and tagged `vX.Y.Z`. The [changelog](../changelog.md)
+keeps its UTC date groups and adds a marker at each promotion; the docs site
+freezes one snapshot per major.
 
-The one version number that carries meaning is `0.1.0` in `demo/package.json` —
-the build's release identity, served by every successful health response and
-never bumped on promotion (the website's `package.json` holds an inert `0.0.0`
-placeholder). The full mechanics, including what a failing readiness probe
-answers instead, are in
-[Health & attestation](../operations/health-and-attestation.md).
-
-CLI distribution and a version handshake sit on the
-[deferred-work register](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md)
-with "first external CLI consumer" as the named trigger.
+`1.0.0` in `demo/package.json` is the build's single release identity, served by
+every successful health response. The website's `package.json` holds an inert
+`0.0.0` placeholder. See [Versioning & releases](../operations/versioning-and-releases.md)
+for the release, API, documentation, and display contracts, and
+[Health & attestation](../operations/health-and-attestation.md) for probe
+semantics.
 :::
 
 ## Where the truth lives 📚 \{#where-the-truth-lives}

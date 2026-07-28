@@ -79,6 +79,10 @@ const fixtures = {
       'export const write = (qc: { setQueryData: (k: unknown, v: unknown) => void }) =>\n' +
       "  qc.setQueryData(['probe'], 1);\n",
   },
+  consoleOutsideBootstrap: {
+    rel: join(webDir, 'console-probe.ts'),
+    content: "console.log('x');\n",
+  },
 } satisfies Record<string, { rel: string; content: string }>;
 
 const dcFixtures = [
@@ -268,5 +272,11 @@ describe('custom plugin rules stay registered as errors', () => {
       readFileSync(join(demoRoot, 'eslint-plugin-agentproofarch', 'sx-layout-baseline.json'), 'utf8'),
     );
     expect(baseline).toEqual({});
+  });
+});
+
+describe('bootstrap console exception stays scoped', () => {
+  it('reports no-console outside apps/web/src/main.tsx', () => {
+    expect(findMessage('consoleOutsideBootstrap', 'no-console')).toBeDefined();
   });
 });

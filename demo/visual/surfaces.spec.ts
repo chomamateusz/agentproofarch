@@ -30,7 +30,10 @@ const submitSignIn = async (page: Page): Promise<void> => {
 test('login page', async ({ page }) => {
   await openLogin(page);
 
-  await expect(page).toHaveScreenshot('login.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('login.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
 });
 
 test('login page with a rejected sign-in', async ({ page }) => {
@@ -40,7 +43,10 @@ test('login page with a rejected sign-in', async ({ page }) => {
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page.getByRole('alert')).toBeVisible();
 
-  await expect(page).toHaveScreenshot('login-error.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('login-error.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
 });
 
 test('register page', async ({ page }) => {
@@ -60,7 +66,9 @@ test('authenticated app shell chrome', async ({ page }) => {
   const chrome = page.getByRole('banner');
   await expect(chrome.getByRole('button', { name: 'Switch tenant' })).toContainText('Acme Sp. z o.o.');
 
-  await expect(chrome).toHaveScreenshot('app-shell-chrome.png');
+  await expect(chrome).toHaveScreenshot('app-shell-chrome.png', {
+    mask: [page.getByTestId('build-stamp')],
+  });
 });
 
 test('StatusView loading inside AppShell', async ({ page }) => {
@@ -69,7 +77,10 @@ test('StatusView loading inside AppShell', async ({ page }) => {
   await submitSignIn(page);
   await expect(page.getByText('opening the app…')).toBeVisible();
 
-  await expect(page).toHaveScreenshot('layout-status-view-loading.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('layout-status-view-loading.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
 });
 
 test('StatusView error inside AppShell', async ({ page }) => {
@@ -87,7 +98,10 @@ test('StatusView error inside AppShell', async ({ page }) => {
   await submitSignIn(page);
   await expect(page.getByRole('alert')).toContainText('visual status error');
 
-  await expect(page).toHaveScreenshot('layout-status-view-error.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('layout-status-view-error.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
 });
 
 test('StatusView empty inside FocusCard', async ({ page }) => {
@@ -111,5 +125,8 @@ test('StatusView empty inside FocusCard', async ({ page }) => {
     page.getByRole('heading', { name: 'no tenant here yet — create one to get started' }),
   ).toBeVisible();
 
-  await expect(page).toHaveScreenshot('layout-status-view-empty.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('layout-status-view-empty.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
 });

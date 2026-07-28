@@ -30,6 +30,7 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('email')).toBeInTheDocument();
     expect(screen.getByLabelText('password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'sign in' })).toBeInTheDocument();
+    expect(screen.getByTestId('build-stamp')).toBeInTheDocument();
   });
 
   it('renders the AppError from a failed sign-in mutation', async () => {

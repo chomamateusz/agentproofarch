@@ -50,6 +50,10 @@ Do this once per Vercel project + GitHub repo.
 Performed by the **owner**, from a device the agent does not control. Opening the
 PR may be delegated to an agent; **approval and merge are not.**
 
+0. **Cut the release on `main`.** From `demo/`, run
+   `pnpm run release -- <major|minor|patch>` and commit the manifest bump,
+   changelog marker and, for a major, the documentation snapshot. The release
+   PR's diff therefore carries the version it releases.
 1. **Open the release PR `main → production`** (agent or owner). Its diff *is* the
    diff since the released SHA.
 2. **Review that diff — this is the seam defense.** Read the released SHA off
@@ -78,6 +82,9 @@ PR may be delegated to an agent; **approval and merge are not.**
    Because a `production` merge is an ordinary branch push, it emits the normal
    `deployment_status` for the `Production` environment, so the workflow fires as
    usual.
+7. **Confirm the release tag.** The `tag-release` workflow cuts `vX.Y.Z` at the
+   merged `production` commit. It is idempotent and fails rather than moving an
+   existing tag.
 
 **Rollback** is a release in reverse: open and merge a PR that reverts
 `production` to the previous known-good SHA (or `git revert` the offending

@@ -18,6 +18,7 @@ import {
   ensureMemberInvalidates,
   ensureMemberMutation,
   grantStaffMutation,
+  healthQuery,
   meInvalidates,
   membersQuery,
   meQuery,
@@ -64,6 +65,7 @@ const authClient = createBetterAuthClientAdapter('');
  */
 export const actions = {
   config: configQuery(apiClient),
+  health: healthQuery(apiClient),
   me: meQuery(apiClient),
   meInvalidates,
   tenants: tenantsQuery(apiClient),
