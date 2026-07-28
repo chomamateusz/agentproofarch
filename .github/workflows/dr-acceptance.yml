@@ -57,7 +57,7 @@ jobs:
           k3d cluster create "$CLUSTER_NAME" \
             --servers 1 \
             --agents 0 \
-            --image rancher/k3s:v1.31.5-k3s1 \
+            --image rancher/k3s:v1.31.5-k3s1@sha256:53cf744fe2fabf140cee240d2db70d13a4f2d98f1a13c98f58f457f423096917 \
             --wait
           kubectl wait --for=condition=Ready node --all --timeout=120s
           kubectl get storageclass local-path

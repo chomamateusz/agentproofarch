@@ -3,13 +3,16 @@ name: post-deploy-smoke
 on:
   deployment_status:
 
-# Serialize smoke runs per environment+ref so two overlapping runs can't race on
-# the shared canary tenant (the `before + 1` todo assertion and the team board's
-# WIP guards assume a single writer). Never cancel in progress: a running smoke
-# is a live production verification that must finish, not be pre-empted.
+# The shared canary tenant requires one writer per environment. Never cancel a
+# running production verification; GitHub keeps only the newest pending run, so
+# an intermediate smoke may be superseded, which is safe because the newer
+# deployment replaces the older one.
 concurrency:
-  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.sha }}
+  group: post-deploy-smoke-${{ github.event.deployment.environment }}
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   smoke-remote:
@@ -44,6 +47,8 @@ jobs:
       - run: pnpm run smoke:remote
         env:
           BASE_URL: ${{ github.event.deployment.environment == 'Production' && 'https://agentproofarch.vercel.app' || github.event.deployment_status.environment_url }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL || 'demo@agentproofarch.dev' }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD || 'demo1234' }}
           # Deploy attestation: the smoke asserts the live health SHA equals the
           # SHA this deployment event carried, so it can never green a stale deploy.
           EXPECTED_SHA: ${{ github.event.deployment.sha }}

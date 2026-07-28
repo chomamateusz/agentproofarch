@@ -15,6 +15,10 @@ before that lives in the git history only.
 
 ### Changed
 
+- CI serializes post-deploy smoke runs per environment, restricts docs deploys
+  to `main`, applies read-only default permissions, binds visual approval
+  renders to the approved SHA, and pins the cited service images by digest (#TBD).
+
 - The visual review gallery says **baseline** where Playwright says "expected"
   (column header and published `*-baseline.png` names), gains an advisory
   fail-open **AI read** line per changed screenshot (Claude action on the

@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 # Proves the Docker self-host target for real (PRD US-022, ADR-0004 §no-exceptions
 # enforcement): builds the image, boots the compose stack, and drives the same
 # smoke CLI suite the Vercel post-deploy gate runs — against the container.
