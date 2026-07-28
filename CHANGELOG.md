@@ -35,6 +35,9 @@ before that lives in the git history only.
 
 ### Fixed
 
+- Demo pins patched postcss, handlebars, brace-expansion, and fast-uri
+  releases, and the website pins patched serialize-javascript (#TBD).
+
 - Documentation now records the real CLI-coverage exceptions, complete local
   quickstart process set, missing ADR-0012 mirror, and current implementation,
   CI, test-count, scaffolder, environment and observability behavior. The
