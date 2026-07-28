@@ -1744,7 +1744,8 @@ touches:
 Health is split by the two questions an operator actually asks, and every health
 response carries a build attestation (release `version` + commit `sha`) so a
 smoke run can prove *which* deploy it verified. `version` is strict SemVer from
-`demo/package.json`, bumped only at promotion
+`demo/package.json`, bumped only by the release-cut pull request that precedes a
+promotion
 ([ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)). The
 `sha` is a vendor-neutral
 `APP_COMMIT_SHA`; the platform entry (`api/index.ts`) maps Vercel's

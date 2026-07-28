@@ -50,10 +50,12 @@ Do this once per Vercel project + GitHub repo.
 Performed by the **owner**, from a device the agent does not control. Opening the
 PR may be delegated to an agent; **approval and merge are not.**
 
-0. **Cut the release on `main`.** From `demo/`, run
-   `pnpm run release -- <major|minor|patch>` and commit the manifest bump,
-   changelog marker and, for a major, the documentation snapshot. The release
-   PR's diff therefore carries the version it releases.
+0. **Cut the release.** Branch `release/vX.Y.Z` off the `main` tip you are about
+   to promote, run `pnpm run release -- <major|minor|patch>` from `demo/`, and
+   commit the manifest bump, changelog marker and — for a major — the
+   documentation snapshot and its navbar dropdown. That pull request into `main`
+   carries nothing else, and it is the only diff allowed to change the version.
+   Merge it before opening the promotion PR.
 1. **Open the release PR `main → production`** (agent or owner). Its diff *is* the
    diff since the released SHA.
 2. **Review that diff — this is the seam defense.** Read the released SHA off

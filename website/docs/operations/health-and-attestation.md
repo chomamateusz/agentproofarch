@@ -41,8 +41,8 @@ All three are mounted **before** tenant resolution — they are a public surface
 
 The envelope is the repo-wide one: `{ ok: true, data }` or `{ ok: false, error }`. The commit SHA in the samples below is a stand-in for whatever commit is deployed — the field, not the value, is the point.
 
-**Liveness — the deployed shape.** `version` is SemVer from
-`demo/package.json`, bumped only at promotion
+**Liveness — the deployed shape.** `version` is SemVer from `demo/package.json`,
+bumped only by the release-cut pull request that precedes a promotion
 ([Versioning & releases](./versioning-and-releases.md)); `sha` is the build
 commit.
 
@@ -55,7 +55,7 @@ curl -sS https://agentproofarch.vercel.app/api/health/live
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612"
   }
 }
@@ -66,7 +66,7 @@ Local dev, where `APP_COMMIT_SHA` is unset:
 ```json
 {
   "ok": true,
-  "data": { "status": "ok", "version": "1.0.0", "sha": "unknown" }
+  "data": { "status": "ok", "version": "0.1.0", "sha": "unknown" }
 }
 ```
 
@@ -77,7 +77,7 @@ Local dev, where `APP_COMMIT_SHA` is unset:
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "up"
   }
@@ -105,7 +105,7 @@ The status code is not hand-written at the route. `respond()` maps the error cod
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "down"
   }
@@ -118,7 +118,7 @@ That `"database": "down"` at `200` is exactly why new callers should use `/ready
 
 ```bash
 pnpm run cli health
-# status=ok db=up v1.0.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
+# status=ok db=up v0.1.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
 
 pnpm run cli --json health
 # exactly one JSON document on stdout: { "ok": true, "data": { … } }

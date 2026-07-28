@@ -2,8 +2,7 @@ import { screen } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 
-import pkg from '../../../../package.json' with { type: 'json' };
-
+import { BUILD_VERSION } from '../../lib/build-info.js';
 import { renderWithProviders } from '../../test/render.js';
 import { server } from '../../test/server.js';
 import { BuildInfoSection } from './BuildInfoSection.js';
@@ -11,7 +10,7 @@ import { BuildInfoSection } from './BuildInfoSection.js';
 describe('BuildInfoSection', () => {
   it('does not warn when browser and server builds match', async () => {
     renderWithProviders(<BuildInfoSection />);
-    expect(await screen.findByText(`server version: ${pkg.version}`)).toBeInTheDocument();
+    expect(await screen.findByText(`server version: ${BUILD_VERSION}`)).toBeInTheDocument();
     expect(screen.queryByTestId('stale-bundle-warning')).not.toBeInTheDocument();
   });
 

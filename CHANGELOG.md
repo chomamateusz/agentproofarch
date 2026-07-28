@@ -3,15 +3,14 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Entries stay grouped by the **UTC date their pull request merged**. At each
-promotion, a `## vX.Y.Z — YYYY-MM-DD` marker is inserted above the newest date
-section; everything between one marker and the next shipped in that release.
+Entries stay grouped by the **UTC date their pull request merged**. A dedicated
+release-cut pull request to `main` inserts a `## vX.Y.Z — YYYY-MM-DD` marker
+above the newest date section; everything between one marker and the next
+shipped in that release.
 
 This file was backfilled on 2026-07-26 from merged pull-request history and starts
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
-
-## v1.0.0 — 2026-07-28
 
 ## 2026-07-28
 

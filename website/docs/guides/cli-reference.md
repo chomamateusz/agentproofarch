@@ -20,7 +20,7 @@ pnpm --silent run cli health
 ```
 
 ```text
-status=ok db=up v1.0.0 sha=unknown
+status=ok db=up v0.1.0 sha=unknown
 ```
 
 `version` is `package.json`'s version — the single release-identity source — and

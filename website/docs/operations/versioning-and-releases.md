@@ -29,12 +29,14 @@ because the docs site is not the product.
 | minor | a new route, command, page, or operational capability |
 | patch | a fix, dependency update, documentation change, or refactor |
 
-The version changes only at promotion. `v1.0.0` is the first release under this
-contract.
+Only one kind of pull request may change the version: the release cut described
+below. Ordinary feature work never touches it, and the manifest stays `0.1.0`
+until the first cut. `v1.0.0` will be the first release under this contract.
 
 ## The release procedure \{#the-release-procedure}
 
-From `demo/` on a clean `main`:
+A release is cut on its own branch, `release/vX.Y.Z`, taken from the `main` tip
+that is about to be promoted. From `demo/` on that clean branch:
 
 ```bash
 pnpm run release -- <major|minor|patch>
@@ -42,10 +44,13 @@ pnpm run release -- <major|minor|patch>
 
 The command bumps `demo/package.json`, inserts a `## vX.Y.Z — YYYY-MM-DD`
 changelog marker, and cuts a documentation snapshot on a major. It does not
-commit, tag, or push. Review and commit that diff, then open the owner-approved
-`main → production` release pull request.
+commit, tag, or push. Review and commit that diff — and nothing else — then:
 
-After the merge, `tag-release` creates `vX.Y.Z` at the production commit. A
+1. merge the `release/vX.Y.Z` pull request into `main`;
+2. open the owner-approved `main → production` promotion pull request, which
+   carries the bump to production.
+
+After that merge, `tag-release` creates `vX.Y.Z` at the production commit. A
 repeat run is harmless when the tag already points there and fails if the tag
 points anywhere else. The owner-side sequence is in the
 [release runbook](https://github.com/chomamateusz/agentproofarch/blob/main/docs/deploy-promotion.md).
@@ -68,11 +73,14 @@ no `/api/v1` alias is introduced.
 
 ## Documentation snapshots \{#documentation-snapshots}
 
-`website/docs/**` is the working copy published as **Next**. Each major
-promotion freezes it into `website/versioned_docs/version-<major>.x/`; the
-released major is the default docs version. Minor and patch releases do not
-create near-identical archives. A documentation fix after a cut reaches Next,
-not the frozen snapshot, unless someone backports it manually.
+`website/docs/**` is the working copy published as **Next**, and it is the only
+docs version this site currently serves. The release cut for a major will freeze
+it into `website/versioned_docs/version-<major>.x/` and add the navbar version
+dropdown in the same pull request, after which the released major becomes the
+default docs version; until that cut exists there is nothing to select and no
+dropdown is shown. Minor and patch releases will not create near-identical
+archives. A documentation fix made after a cut reaches Next, not the frozen
+snapshot, unless someone backports it manually.
 
 ## Where the version shows up \{#where-the-version-shows-up}
 

@@ -73,16 +73,24 @@ decision.
    asserts `APP_VERSION` matches strict SemVer, so a non-SemVer manifest fails
    `check` rather than reaching a health response.
 
-2. **The version is bumped ONLY at promotion — promotion *is* the release.**
-   Merges to `main` never bump it. The bump lands in the release pull request,
-   `main → production`, and is therefore reviewed under the same owner approval
-   as everything else in that diff (ADR-0003's seam defense). Consequences that
-   follow from "a release is a promotion", and are decided here rather than left
-   to habit:
+2. **The version is bumped ONLY by a dedicated release-cut pull request to
+   `main`, opened immediately before promotion.** An ordinary feature pull
+   request never touches `version`, and neither does the promotion PR itself. The
+   cut is its own branch — `release/vX.Y.Z`, branched from the `main` tip that is
+   about to be promoted — and its diff contains **nothing but** the manifest
+   bump, the changelog marker and, on a major, the documentation snapshot. Once
+   that PR is merged, the ordinary `main → production` promotion PR carries the
+   bump to production and is reviewed under the same owner approval as everything
+   else in that diff (ADR-0003's seam defense); after the merge the `tag-release`
+   workflow tags the released commit. Splitting the cut from the promotion keeps
+   the promotion diff readable as "what changed for a user" rather than mixing
+   release bookkeeping into it, and keeps `main` and `production` agreeing on the
+   version at every moment either is deployed. Consequences that follow, and are
+   decided here rather than left to habit:
 
    - **The changelog gains version markers.** Entries keep being written under
      the UTC merge date of their pull request — nothing changes for a
-     contributor. At release, `pnpm run release` inserts a single
+     contributor. In the release-cut PR, `pnpm run release` inserts a single
      `## vX.Y.Z — YYYY-MM-DD` heading above the newest date section. Everything
      between one marker and the next shipped in that release. **No existing entry
      is ever rewritten**, which is what makes the operation safe to automate.
@@ -91,9 +99,12 @@ decision.
      existing tag pointing at a different commit is a **failed run**, not a
      silent force-update. The tag is a convenience index into history, never the
      source of truth — the manifest in the commit is.
-   - **The first promotion is `v1.0.0`.** `0.1.0` was the pre-release identity of
-     something that had never been released; the first thing to reach production
-     under this ADR is 1.0.0, and the SemVer promises in Decision 3 begin there.
+   - **The first release cut is `v1.0.0`.** `0.1.0` is the pre-release identity
+     of something that has never been released, and the manifest keeps it —
+     including in the pull request that accepts this ADR — until the first
+     `release/v1.0.0` cut runs `pnpm run release -- major`. The first thing to
+     reach production under this ADR is 1.0.0, and the SemVer promises in
+     Decision 3 begin there.
 
 3. **API stability contract: today's unprefixed `/api/*` IS v1, and inside v1 the
    HTTP API changes additively only.** This is a **policy and contract decision
@@ -140,8 +151,11 @@ decision.
    toolchain. `website/docs/**` remains the working copy and is published as
    **Next**; `website/versioned_docs/version-<major>.x/` is the frozen snapshot a
    reader of the released software gets by default. The **1.x snapshot is cut in
-   the v1.0.0 release pull request**, by the same script that bumps the version,
-   so the snapshot is provably the documentation of the commit being promoted.
+   the `release/v1.0.0` pull request to `main`** described in Decision 2, by the
+   same script that bumps the version, so the snapshot is provably the
+   documentation of the commit being promoted. That same pull request adds the
+   `docsVersionDropdown` navbar item: a version selector is a false claim until
+   there is a snapshot to select, so it cannot land before the cut.
    Minor and patch releases do **not** cut a snapshot: a snapshot per patch would
    be an archive nobody reads, maintained forever.
 
@@ -222,10 +236,11 @@ decision.
   changed is that the escalation path is now one named answer instead of three
   ranked options. Any future author who wants `Accept-Version` must supersede
   this ADR to get it.
-- **`docs/deploy-promotion.md` gains one step and the release stops being
+- **`docs/deploy-promotion.md` gains two steps and the release stops being
   hand-work.** `pnpm run release -- <major|minor|patch>` bumps the manifest,
   inserts the changelog marker and (on a major) cuts the docs snapshot; the
-  release PR carries that diff; a `tag-release` workflow tags `production` after
+  `release/vX.Y.Z` pull request to `main` carries that diff; the promotion PR
+  carries it to `production`; a `tag-release` workflow tags `production` after
   the merge. The script **never commits, never tags, never pushes** — the human
   gate stays exactly where ADR-0003 put it.
 - **The web bundle gains two build-time constants and one query.** `__APP_VERSION__`
@@ -236,8 +251,9 @@ decision.
   health attestation, the SemVer format of `APP_VERSION`, the footer stamp on two
   rendered surfaces, the CLI's `--version` and `version`, and the changelog/
   manifest rewriting helpers. One config-regression probe is added, so the scoped
-  `no-console` exception is proven scoped. The doc-lint count tokens on all three
-  pinned surfaces move with the new test files.
+  `no-console` exception is proven scoped. doc-lint pins the test-file and
+  config-regression counts on three documentation surfaces, so those numbers are
+  re-stated in this pull request or `check` fails.
 - **doc-lint learns that a frozen snapshot is frozen.** Its injected-count check
   runs over every tracked `.md`, so a committed `versioned_docs/` snapshot would
   fail the gate the first time a test is added after the cut. The count check
@@ -245,9 +261,11 @@ decision.
   checks continue to cover it. **This is a correctness fix to the checker, not a
   weakened gate**: the live pages, which are the ones that can mislead a reader
   about the current tree, remain fully pinned by `REQUIRED_COUNT_TOKENS`.
-- **Visual baselines are re-rendered once.** The login screen and the app shell
-  both gain a footer region. The stamp itself is masked in the visual specs, so a
-  future version bump can never redden the pixel suite — a version string is by
+- **Visual baselines are re-rendered once, in this pull request.** `AppShell`
+  gains a footer region and the login card gains a stamp under its fine print, so
+  every affected `linux` PNG is re-authored by the `visual-baselines` workflow on
+  this branch. The stamp itself is masked in the visual specs, so a future
+  version bump can never redden the pixel suite — a version string is by
   definition a value that changes, and pinning it in a screenshot would
   manufacture the flake class the flake doctrine forbids.
 - **Enforcement, honestly tiered.**
@@ -255,15 +273,16 @@ decision.
   | Rule | TYPE | LINT | TEST | REVIEW+AI |
   |---|---|---|---|---|
   | One version source (`demo/package.json`) | n/a | n/a | `version.test.ts` asserts strict SemVer; the web/CLI surfaces derive from the same manifest and their tests read it back | that a new surface derives rather than hardcodes |
-  | Version bumped only at promotion | n/a | n/a | n/a — a merge to `main` cannot be distinguished from a bump by any local check | the release PR is the only diff that may touch `version`; the tag workflow refuses to move an existing tag |
+  | Version bumped only by the release cut | n/a | n/a | n/a — no local check can tell a release-cut branch from an ordinary one | the `release/vX.Y.Z` PR to `main` is the only diff that may touch `version`; the tag workflow refuses to move an existing tag |
   | Additive-only within v1 | the contract's zod schemas: a removed/retyped field fails every consumer's `check` at once | n/a | contract tests over the route schemas | **the primary tier** — a rename that *is* applied to all three consumers typechecks fine; only review catches that it broke an external reader |
   | Breaking change ⇒ `/api/v2` + announced window | n/a | n/a | n/a — no v2 machinery exists to test | the only tier, and it is named as such |
   | Layouts stay structure-only | n/a | `web-layouts-are-structure-only` (depcruise) + the boundaries matrix, both unchanged | the `layoutDir` config-regression probe, unchanged | that a stamp never grows a fetch |
   | Console banner is bootstrap-only | n/a | `no-console` still errors across `apps/web`, excepted on `main.tsx` alone | a config-regression probe asserts `no-console` still fires elsewhere in `apps/web` | — |
-  | Docs snapshot per major | n/a | n/a | n/a | the release PR for a major must contain `versioned_docs/version-<n>.x/` |
+  | Docs snapshot per major | n/a | n/a | n/a | the release-cut PR for a major must contain `versioned_docs/version-<n>.x/` and the navbar dropdown that selects it |
 
 - **Four residuals stay open and named.** (a) **Nothing mechanical prevents a
-  version bump on a `main` PR** — it is a review-tier rule, stated as such. (b)
+  version bump on an ordinary `main` PR** — only the release-cut PR may carry
+  one, and that is a review-tier rule, stated as such. (b)
   **The additive-only promise is REVIEW+AI-tier for the case that matters**: a
   breaking rename applied consistently to server, web and CLI is green on every
   gate, because all three ship from one commit; only a reader outside the commit

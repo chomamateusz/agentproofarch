@@ -87,7 +87,6 @@ const config: Config = {
           label: 'Live demo',
           position: 'right',
         },
-        {type: 'docsVersionDropdown', position: 'right'},
         {href: GITHUB_REPO, label: 'GitHub', position: 'right'},
       ],
     },

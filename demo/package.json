@@ -1,6 +1,6 @@
 {
   "name": "agentproofarch",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Agent-first, strictly layered full-stack TypeScript foundation for multi-tenant SaaS",

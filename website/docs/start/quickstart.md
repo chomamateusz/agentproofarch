@@ -234,7 +234,7 @@ The first command is machine-readable and prints one JSON envelope:
 {
   "ok": true,
   "data": {
-    "version": "1.0.0",
+    "version": "0.1.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"
@@ -254,7 +254,8 @@ demo@agentproofarch.dev @ Acme Sp. z o.o. (acme, staff: owner)
 - Sprawdzić izolację danych między tenantami  (todo-ten)
 ```
 
-`v1.0.0` is `package.json`'s SemVer release identity, bumped at promotion
+`v0.1.0` is `package.json`'s SemVer release identity, bumped only by a
+release-cut pull request
 ([Versioning & releases](../operations/versioning-and-releases.md)), and
 `sha=unknown` is the honest local answer — `APP_COMMIT_SHA` is only set by a
 deploy, where `smoke:remote` asserts it equals the promoted commit. The trailing

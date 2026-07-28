@@ -161,7 +161,7 @@ See [Data & transactions](../architecture/data-and-transactions.md).
 | **Gate** | A red-or-green mechanical check. The static gate is `pnpm run check`; the runtime gate is `pnpm run smoke`. Static-green is not done — the app must actually run. |
 | **`check`** | `typecheck` + `typecheck:islands` + `lint` + `lock-lint` + `depcruise` + `knip` + `doc-lint` + `test:coverage`. |
 | **`smoke`** | Boots the real server against a real database and drives health → sign-in → todos through the CLI, asserting taxonomy exit codes. `smoke:remote` runs the same CLI suite against a deployment URL. |
-| **Release version** | SemVer from `demo/package.json`, bumped only at promotion, tagged `vX.Y.Z`, and reported by health, the console banner, footer/login stamp, settings, and CLI. |
+| **Release version** | SemVer from `demo/package.json`, bumped only by the release-cut pull request that precedes a promotion, tagged `vX.Y.Z`, and reported by health, the console banner, footer/login stamp, settings, and CLI. |
 | **Attestation** | The SemVer release `version` + commit `sha` carried by every health response, so a smoke run can prove *which* deploy it verified. `sha` is a vendor-neutral `APP_COMMIT_SHA`; unset (local dev) it reports `unknown`. |
 | **`EXPECTED_SHA`** | The deployment event's SHA, passed to `smoke:remote`, which asserts `health.sha === EXPECTED_SHA` — closing the "smoked the wrong deployment" class of failure. |
 | **Canary tenant** | The ring-fenced smoke account and tenant that `smoke:remote` drives against live production. Disposable, belongs to no creator, and non-self-poisoning by construction: every card a run creates ends in an unbounded column. |

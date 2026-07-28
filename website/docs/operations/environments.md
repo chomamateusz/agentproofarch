@@ -50,8 +50,9 @@ flowchart LR
 
 Agents own everything left of the `production` branch. An agent — acting as the machine account `chomamateusz-agent` — branches, opens PRs, merges to `main` once the five checks pass, dispatches workflows and drives preview + staging deployments freely. It may even **open** the `main → production` release PR. It cannot approve it.
 
-A promotion is a release, and the release pull request is where the SemVer
-identity is bumped; see [Versioning & releases](./versioning-and-releases.md).
+A promotion is a release, and the SemVer identity is bumped one step earlier, by
+a dedicated release-cut pull request to `main`; see
+[Versioning & releases](./versioning-and-releases.md).
 
 ## The wall 🧱 \{#the-wall}
 

@@ -57,6 +57,7 @@ if (needsSnapshot(parsed.data)) {
 }
 
 process.stdout.write(
-  'review the diff; commit it on main; open the main → production release PR; ' +
+  `review the diff; commit it on release/v${next}; merge that PR into main; ` +
+    'open the main → production promotion PR; ' +
     'let tag-release cut the tag after the owner merges\n',
 );
