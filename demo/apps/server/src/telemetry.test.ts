@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { err, internal, type Identity } from '#core/domain/index.js';
 
 import { recordException, telemetryMiddleware } from './telemetry.js';
+import './entry.node.tests.js';
 
 const exporter = new InMemorySpanExporter();
 const provider = new NodeTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });

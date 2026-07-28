@@ -18,6 +18,7 @@ import type {
   ResolveCliConfigInput,
   ResolvedCliConfig,
 } from './config.js';
+import './config.errors.tests.js';
 
 interface ConfigModule {
   DEFAULT_DEV_API_URL: string;
