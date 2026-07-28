@@ -28,7 +28,8 @@ before that lives in the git history only.
 
 - Documentation now records the browser-only auth exceptions, complete local
   quickstart process set, missing ADR-0012 mirror, and current implementation,
-  CI, test-count, scaffolder, environment and observability behavior (#TBD).
+  CI, test-count, scaffolder, environment and observability behavior
+  ([#97](https://github.com/chomamateusz/agentproofarch/pull/97)).
 
 ## 2026-07-27
 
