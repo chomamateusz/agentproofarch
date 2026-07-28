@@ -31,7 +31,6 @@ import {
 import { createStaffRepository, createUserDirectory } from './staff-repository.js';
 import { cards, members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 import * as schema from './schema.js';
-import './seed.integration-tests.js';
 
 const ITEST_DB = 'agentproofarch_itest';
 const baseDatabaseUrl =

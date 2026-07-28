@@ -664,7 +664,9 @@ export default tseslint.config(
   },
   {
     // Scoped exception (Observability §Enforcement): composition-root startup/fatal path.
+    // Their tests are not that path, so `*.test.ts` keeps the `no-console` error.
     files: ['apps/server/src/entry.*.ts', 'apps/server/src/env.ts'],
+    ignores: ['apps/server/src/**/*.test.ts'],
     rules: {
       'no-console': 'off',
     },
