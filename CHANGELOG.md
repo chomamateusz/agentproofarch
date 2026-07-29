@@ -20,6 +20,13 @@ before that lives in the git history only.
   pointing DNS records through the API, CLI, and domains settings view
   ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
 
+### Fixed
+
+- Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
+  export, and moves Drizzle Kit to v1 migration tooling without the vulnerable
+  `@esbuild-kit/*` dependency chain
+  ([#102](https://github.com/chomamateusz/agentproofarch/pull/102))
+
 ## v1.0.0 — 2026-07-28
 
 ## 2026-07-28
