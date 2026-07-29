@@ -179,7 +179,7 @@ environment, and the code handles each case explicitly rather than pretending.
 | **Local dev** (`*.localhost`) | full subdomain tenancy — `acme.localhost:47100` | **per-subdomain** | browsers reject `Domain=.localhost` cookies, so a session does not span siblings; `crossSubDomainCookies` is off for `localhost` |
 | **Vercel shared apex** (`<project>.vercel.app`) | **impossible** — see below | single deployment URL | `tenantUrl()` returns `null`; web runs single-tenant, multi-tenancy is CLI-only via `X-Tenant` |
 | **Real base domain + wildcard** (`*.example.com`) | full subdomain tenancy, one wildcard resolves all tenants | spans sibling subdomains (`crossSubDomainCookies` on) | wildcard cert needs an ACME **DNS-01** challenge → NS delegation to Vercel (or `_acme-challenge` delegation) |
-| **Custom domain** (`shop.acme.com`) | step 1 of resolution, once `verified` | **its own cookie world** — sign-in per domain, deliberate isolation | Vercel attaches each host through the US-020 Domains API adapter (built, `VERCEL_TOKEN` pending); self-host needs nothing |
+| **Custom domain** (`shop.acme.com`) | step 1 of resolution, once `verified` | **its own cookie world** — sign-in per domain, deliberate isolation | Vercel attaches each host through the US-020 Domains API adapter (production add confirmed live); self-host needs nothing |
 | **Docker self-host** | subdomain *and* custom domain both work | as configured | Caddy `on_demand_tls` asks an internal endpoint before minting a cert |
 
 ### The `*.vercel.app` impossibility 🚫 \{#the-vercelapp-impossibility}
@@ -215,7 +215,7 @@ The way out is a real owned base domain, or per-tenant custom domains:
 |---|---|---|
 | Wildcard cert | ACME DNS-01 → **NS delegation** to Vercel, or narrow `_acme-challenge` delegation | Caddy on-demand TLS, no wildcard needed |
 | Records-only DNS (no NS delegation) | individual non-wildcard per-tenant hosts (HTTP-01 via CNAME), each attached to the project by the US-020 adapter | n/a |
-| Domain provisioning port | `vercel` adapter (**built**, US-020): `provision`/`remove` attach and detach the host over the Domains API, `check` reads the domain and its config back — [live run still pending](../operations/self-host-and-domains.md#us-020-built-and-never-run-live) | `caddy` adapter (**built**): `provision`/`remove` are no-ops, `check` is a DNS lookup against `SELF_HOST_TARGET_CNAME`/`_IP` |
+| Domain provisioning port | `vercel` adapter (**built**, US-020): `provision`/`remove` attach and detach the host over the Domains API, `check` reads the domain and its config back — [production add confirmed live; check/remove acceptance unrecorded](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live) | `caddy` adapter (**built**): `provision`/`remove` are no-ops, `check` is a DNS lookup against `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Plan limits | see [Wildcard vs per-host attach](../operations/self-host-and-domains.md#wildcard-base-domain-vs-per-host-attach) for the Vercel Hobby caps | none |
 
 The tenant-facing surface is built (US-019): `/app/settings/domains` and the

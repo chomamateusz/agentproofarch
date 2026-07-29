@@ -156,6 +156,12 @@ single verified sender; per-tenant branded senders are a when-triggered extensio
 | `caddy` | Docker self-host | no-ops — Caddy issues certificates on demand | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME` or `SELF_HOST_TARGET_IP` |
 | `noop` (default) | dev | no-ops | always accepts |
 
+`provision` and `check` also return the remaining DNS actions as
+`requiredDnsRecords`: provider ownership challenges plus CNAME/A pointing for
+the Vercel adapter, configured CNAME/A pointing for Caddy, and `[]` for noop.
+The API and CLI carry these records without reconstructing them outside the
+adapter.
+
 The `vercel` adapter (US-020) exists because a wildcard cert on Vercel needs an
 ACME DNS-01 challenge, hence NS delegation. Where the base domain is a company
 zone that cannot be delegated, a plain wildcard CNAME resolves every tenant host
@@ -165,10 +171,10 @@ convergent: an already-attached host (`409`) is a success, so the use-case may
 retry. The token travels only in the `Authorization` header, never into a log or
 an error detail, and every API response is zod-parsed at the boundary.
 
-:::caution[`vercel` is proven against a stubbed `fetch` only]
-The adapter has **never run against the live Domains API**. That caveat has one
-canonical home so it can be deleted in one place the day it stops being true:
-[US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
+:::caution[Live acceptance is partial]
+The production add path was confirmed live on 2026-07-29. Live check/remove
+acceptance remains unrecorded:
+[US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 :::
 
 The US-019 use-cases sit on top: `addDomain` provisions then writes an unverified

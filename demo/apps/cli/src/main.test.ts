@@ -37,6 +37,25 @@ type CardWrite = { card: CardItem };
 type Session = { token: string | null };
 type PublicDiscovery = { slug: string; contentVersion: string };
 type PublicProfile = { slug: string; displayName: string; contentVersion: string };
+type RequiredDnsRecord = {
+  type: string;
+  name: string;
+  value: string;
+  purpose: 'ownership-verification' | 'pointing';
+};
+type TenantDomain = {
+  id: string;
+  tenantId: string;
+  domain: string;
+  kind: 'custom';
+  verified: boolean;
+};
+type DomainAdd = { domain: TenantDomain; requiredDnsRecords?: RequiredDnsRecord[] };
+type DomainCheck = {
+  domain: TenantDomain;
+  check: { resolved: boolean; detail: string };
+  requiredDnsRecords?: RequiredDnsRecord[];
+};
 
 interface FakeApi {
   health: Mock<Async<Health>>;
@@ -48,6 +67,8 @@ interface FakeApi {
   listCards: Mock<Async<CardList>>;
   addCard: Mock<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>;
   moveCard: Mock<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>;
+  addDomain: Mock<AsyncIn<{ domain: string }, DomainAdd>>;
+  checkDomain: Mock<AsyncIn<{ domain: string }, DomainCheck>>;
   publicTenantDiscovery: Mock<AsyncIn<string, PublicDiscovery>>;
   publicTenantProfile: Mock<(slug: string, version: string) => Promise<Result<PublicProfile, AppError>>>;
 }
@@ -95,6 +116,8 @@ const h = vi.hoisted(
       listCards: vi.fn<Async<CardList>>(),
       addCard: vi.fn<AsyncIn<{ title: string; board: string; column: string }, CardWrite>>(),
       moveCard: vi.fn<AsyncIn<{ cardId: string; board: string; toColumn: string; toIndex: number }, CardWrite>>(),
+      addDomain: vi.fn<AsyncIn<{ domain: string }, DomainAdd>>(),
+      checkDomain: vi.fn<AsyncIn<{ domain: string }, DomainCheck>>(),
       publicTenantDiscovery: vi.fn<AsyncIn<string, PublicDiscovery>>(),
       publicTenantProfile: vi.fn<(slug: string, version: string) => Promise<Result<PublicProfile, AppError>>>(),
     },
@@ -220,6 +243,8 @@ beforeEach(() => {
     h.api.listCards,
     h.api.addCard,
     h.api.moveCard,
+    h.api.addDomain,
+    h.api.checkDomain,
     h.api.publicTenantDiscovery,
     h.api.publicTenantProfile,
   ]) {
@@ -241,6 +266,31 @@ beforeEach(() => {
   );
   h.api.moveCard.mockResolvedValue(
     ok({ card: { id: 'card-1234abcd', title: 'ship it', column: 'doing', position: 1 } }),
+  );
+  h.api.addDomain.mockResolvedValue(
+    ok({
+      domain: {
+        id: 'domain-1',
+        tenantId: 'tenant-1',
+        domain: 'shop.example.com',
+        kind: 'custom',
+        verified: false,
+      },
+      requiredDnsRecords: [],
+    }),
+  );
+  h.api.checkDomain.mockResolvedValue(
+    ok({
+      domain: {
+        id: 'domain-1',
+        tenantId: 'tenant-1',
+        domain: 'shop.example.com',
+        kind: 'custom',
+        verified: false,
+      },
+      check: { resolved: false, detail: 'DNS is pending' },
+      requiredDnsRecords: [],
+    }),
   );
   h.api.publicTenantDiscovery.mockResolvedValue(ok({ slug: 'acme', contentVersion: 'v1abc' }));
   h.api.publicTenantProfile.mockResolvedValue(
@@ -528,6 +578,77 @@ describe('card commands', () => {
 
     expect(soleJson()).toMatchObject({ ok: false, error: { code: 'unauthorized' } });
     expect(process.exitCode).toBe(3);
+  });
+});
+
+describe('domain commands', () => {
+  const records: RequiredDnsRecord[] = [
+    {
+      type: 'TXT',
+      name: '_vercel.example.com',
+      value: 'vc-domain-verify=shop.example.com,abc123',
+      purpose: 'ownership-verification',
+    },
+    {
+      type: 'CNAME',
+      name: 'shop.example.com',
+      value: 'cname.vercel-dns.com',
+      purpose: 'pointing',
+    },
+  ];
+
+  it('prints the required DNS records after domain add', async () => {
+    h.api.addDomain.mockResolvedValue(
+      ok({
+        domain: {
+          id: 'domain-1',
+          tenantId: 'tenant-1',
+          domain: 'shop.example.com',
+          kind: 'custom',
+          verified: false,
+        },
+        requiredDnsRecords: records,
+      }),
+    );
+
+    await run('domain', 'add', 'shop.example.com');
+
+    expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+      [
+        'attached: shop.example.com (pending)',
+        '',
+        'Configure these DNS records',
+        'TXT  _vercel.example.com  vc-domain-verify=shop.example.com,abc123',
+        '  Purpose: ownership-verification',
+        'CNAME  shop.example.com  cname.vercel-dns.com',
+        '  Purpose: pointing',
+      ].join('\n'),
+    );
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('carries requiredDnsRecords verbatim in domain check JSON', async () => {
+    h.api.checkDomain.mockResolvedValue(
+      ok({
+        domain: {
+          id: 'domain-1',
+          tenantId: 'tenant-1',
+          domain: 'shop.example.com',
+          kind: 'custom',
+          verified: false,
+        },
+        check: { resolved: false, detail: 'DNS is pending' },
+        requiredDnsRecords: records,
+      }),
+    );
+
+    await run('--json', 'domain', 'check', 'shop.example.com');
+
+    expect(soleJson()).toMatchObject({
+      ok: true,
+      data: { requiredDnsRecords: records },
+    });
+    expect(process.exitCode).toBe(0);
   });
 });
 

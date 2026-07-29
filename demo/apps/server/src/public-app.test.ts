@@ -64,9 +64,9 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   },
   domainTarget: { cname: null, ip: null },
   domainPort: {
-    provision: async () => {},
+    provision: async () => ({ requiredDnsRecords: [] }),
     remove: async () => {},
-    check: async () => ({ resolved: true, detail: 'noop' }),
+    check: async () => ({ resolved: true, detail: 'noop', requiredDnsRecords: [] }),
   },
   tenants: {
     findById: async () => null,

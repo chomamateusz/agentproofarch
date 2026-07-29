@@ -12,6 +12,13 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-07-29
+
+### Added
+
+- Domain add/check responses now surface provisioner-required ownership and
+  pointing DNS records through the API, CLI, and domains settings view (#TBD).
+
 ## v1.0.0 — 2026-07-28
 
 ## 2026-07-28

@@ -330,13 +330,9 @@ is refused — the tenant cannot be left ownerless.
 ## `domain`: `list`, `add`, `check`, `remove` 🌐 \{#domain-list-add-check-remove}
 
 Custom domains for the active tenant. Reading is staff-readable; add, check and
-remove are owner-only.
-
-Every transcript in this section is **shown with the `noop` provisioner** — the
-dev and Vercel default. The same commands against the `caddy` self-host
-provisioner print a configured DNS target and a real verification detail; that
-transcript is on
-[Self-host & custom domains](../operations/self-host-and-domains.md#driving-it-from-the-cli).
+remove are owner-only. `domain add` and `domain check` print every DNS action
+returned by the active provisioner. `--json` carries the same
+`requiredDnsRecords` array without reformatting it.
 
 ```bash
 pnpm --silent run cli --tenant acme domain list
@@ -347,30 +343,58 @@ pnpm --silent run cli --tenant acme domain list
 (no DNS target configured)
 ```
 
-The target line is what the web add-flow renders as the DNS record to create.
-The target comes from the `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP` env
-vars, not from the provisioner — dev and Vercel leave both unset, so it reports
-`no DNS target configured`. A self-host deployment sets exactly one of them —
-"set one, not both", per `core/server/config.ts` and `.env.example` — and the
-`caddy` provisioner's check verifies DNS resolves to it. If both are set the
-provisioner prefers the CNAME and never inspects the A record: defensive
-behaviour, not a supported configuration.
+The target line comes from `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP`. A
+self-host deployment sets exactly one; if both are present, the Caddy
+provisioner prefers the CNAME. Provider-specific ownership challenges are not
+part of this list response: they arrive from `domain add` and `domain check`.
 
 ```bash
 pnpm --silent run cli domain add shop.example.com
-# → attached: shop.example.com (pending)
+```
+
+```text
+attached: shop.example.com (pending)
+
+Configure these DNS records
+TXT  _vercel.example.com  vc-domain-verify=shop.example.com,2b1f4d8a
+  Purpose: ownership-verification
+CNAME  shop.example.com  cname.vercel-dns.com
+  Purpose: pointing
+```
+
+The TXT challenge appears when the parent domain is already claimed by another
+hosting account. After configuring it, `domain check` reports the remaining
+work rather than collapsing the domain to a pending boolean:
+
+```bash
 pnpm --silent run cli domain check shop.example.com
-# → shop.example.com: verified — shop.example.com accepted (noop provisioner)
+```
+
+```text
+shop.example.com: pending — shop.example.com is verified but Vercel reports its DNS as misconfigured
+
+Configure these DNS records
+CNAME  shop.example.com  cname.vercel-dns.com
+  Purpose: pointing
+```
+
+For an apex such as `example.com`, the pointing row is
+`A  example.com  76.76.21.21`. A successful later check prints the verified
+summary with no DNS block. The default `noop` provisioner returns an empty list;
+the Caddy provisioner returns its configured CNAME or A record until the DNS
+lookup matches.
+
+```bash
 pnpm --silent run cli domain remove shop.example.com
 # → removed: shop.example.com (rows: 1)
 ```
 
 A newly added domain starts **unverified**; `domain check` asks the provisioner
-and persists the answer. The `noop` provisioner accepts every domain without a
-DNS lookup — only `caddy` performs a real check that DNS points at the
-configured target. See
-[Self-host and domains](../operations/self-host-and-domains.md) for the two
-provisioning paths.
+and persists the answer. Exit codes are unchanged: pending DNS is a successful
+check result (exit 0), while authorization, validation and transport failures
+retain their taxonomy codes. See
+[Self-host and domains](../operations/self-host-and-domains.md) for the
+platform-subdomain and bring-your-own flows.
 
 ## `public`: `profile` 📣 \{#public-profile}
 

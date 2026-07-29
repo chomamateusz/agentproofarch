@@ -6,7 +6,11 @@ import type { DomainPort } from '#core/server/index.js';
  * Vercel deployment opts into real provisioning with `DOMAIN_PROVISIONER=vercel`.
  */
 export const createNoopDomainPort = (): DomainPort => ({
-  provision: async () => {},
+  provision: async () => ({ requiredDnsRecords: [] }),
   remove: async () => {},
-  check: async (domain) => ({ resolved: true, detail: `${domain} accepted (noop provisioner)` }),
+  check: async (domain) => ({
+    resolved: true,
+    detail: `${domain} accepted (noop provisioner)`,
+    requiredDnsRecords: [],
+  }),
 });

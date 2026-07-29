@@ -71,5 +71,5 @@ flowchart LR
 :::caution[What changed, and what is still pending]
 - **The release topology in point 1 no longer describes reality** — see the warning at the top of this page, and [Environments & promotion](../operations/environments.md) for the current model.
 - **Point 6 is still in force on Vercel.** Neither recorded base-domain shape is live — the `agentproofarch.eu.org` delegation waits on eu.org approval, the company-DNS bridge waits on `VERCEL_TOKEN` — so the deployed web app stays single-tenant on `*.vercel.app`. Both shapes are laid out in [Identity & multi-tenancy](../architecture/identity-and-multi-tenancy.md).
-- **US-020 — the Vercel Domains API `DomainPort` — is now built** but has never run against the live API, and this deployment still runs `DOMAIN_PROVISIONER=noop`, whose `check` accepts every domain; see [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
+- **US-020 — the Vercel Domains API `DomainPort` — is built**, and its production add path was confirmed live on 2026-07-29. Live check/remove acceptance remains unrecorded; see [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 :::

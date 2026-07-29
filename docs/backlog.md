@@ -60,11 +60,9 @@ enterprise customer questionnaire)
   `VERCEL_TOKEN`/`VERCEL_PROJECT_ID`(+`VERCEL_TEAM_ID`) and a boot refusal when
   the block is incomplete (see
   [architecture.md](architecture.md#ports-complete-list)). Hobby
-  caps at 50 custom domains per project. **Residual, still open: the adapter has
-  never run against the live Domains API** — its behaviour is proven only against
-  a stubbed `fetch`, because CI and the build machine have no token. The owner
-  supplying `VERCEL_TOKEN` in the Vercel env (A1-S5) is what closes that gap; the
-  first live add/check/remove against a real project is the acceptance run.
+  caps at 50 custom domains per project. The production add path was confirmed
+  live on 2026-07-29. **Residual, still open:** live check/remove acceptance
+  remains unrecorded; both paths are covered by the stubbed-`fetch` suite.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -128,9 +126,9 @@ enterprise customer questionnaire)
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
-A1-S4 (magic-link email provider, social OAuth credentials) and A1-S5
-(`VERCEL_TOKEN` for US-020 — the adapter is built and offline-tested; the token
-is what remains, and only the live verification depends on it).
+A1-S4 (magic-link email provider, social OAuth credentials). A1-S5 is closed:
+the production domain-add path ran live on 2026-07-29; live check/remove
+acceptance remains the US-020 verification residual above.
 **F1 (AI-reviewer gate) is decided and built** — the
 fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
 [../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

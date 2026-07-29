@@ -196,7 +196,8 @@ boots the stack and runs the smoke CLI against the container on every push.
 Self-host issues TLS via Caddy and needs no platform API; the **Vercel** Domains
 API adapter (US-020, `DOMAIN_PROVISIONER=vercel`) is the other target's
 equivalent — it attaches each tenant host to the Vercel project, and is tested
-against a stubbed `fetch` only until the owner supplies `VERCEL_TOKEN`.
+against a stubbed `fetch`; the production add path was confirmed live on
+2026-07-29, while live check/remove acceptance remains unrecorded.
 
 ### Self-host with Docker
 

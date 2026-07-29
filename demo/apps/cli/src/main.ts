@@ -628,6 +628,23 @@ const domain = program
       'unverified until `domain check` confirms DNS points at the deploy target.',
   );
 
+const requiredDnsRecordsBlock = (
+  records: {
+    type: string;
+    name: string;
+    value: string;
+    purpose: 'ownership-verification' | 'pointing';
+  }[],
+): string =>
+  records.length === 0
+    ? ''
+    : `\n\nConfigure these DNS records\n${records
+        .map(
+          (record) =>
+            `${record.type}  ${record.name}  ${record.value}\n  Purpose: ${record.purpose}`,
+        )
+        .join('\n')}`;
+
 domain.command('list').description('List the tenant custom domains and the DNS target').action(async () => {
   const ctx = cliCtx();
   emit(await ctx.api.listDomains(), ctx.json, (data) => {
@@ -653,9 +670,10 @@ domain
     const ctx = cliCtx();
     const input = parseArgs(domainAddInputSchema, { domain: domainArg }, ctx.json);
     if (input === undefined) return;
-    emit(await ctx.api.addDomain(input), ctx.json, (data) =>
-      `attached: ${data.domain.domain} (${data.domain.verified ? 'verified' : 'pending'})`,
-    );
+    emit(await ctx.api.addDomain(input), ctx.json, (data) => {
+      const summary = `attached: ${data.domain.domain} (${data.domain.verified ? 'verified' : 'pending'})`;
+      return `${summary}${requiredDnsRecordsBlock(data.requiredDnsRecords ?? [])}`;
+    });
   });
 
 domain
@@ -665,9 +683,10 @@ domain
     const ctx = cliCtx();
     const input = parseArgs(domainAddInputSchema, { domain: domainArg }, ctx.json);
     if (input === undefined) return;
-    emit(await ctx.api.checkDomain(input), ctx.json, (data) =>
-      `${data.domain.domain}: ${data.domain.verified ? 'verified' : 'pending'} — ${data.check.detail}`,
-    );
+    emit(await ctx.api.checkDomain(input), ctx.json, (data) => {
+      const summary = `${data.domain.domain}: ${data.domain.verified ? 'verified' : 'pending'} — ${data.check.detail}`;
+      return `${summary}${requiredDnsRecordsBlock(data.requiredDnsRecords ?? [])}`;
+    });
   });
 
 domain

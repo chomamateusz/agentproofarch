@@ -1,6 +1,6 @@
 import { resolve4, resolveCname } from 'node:dns/promises';
 
-import type { DomainCheck, DomainPort } from '#core/server/index.js';
+import type { DomainCheck, DomainPort, RequiredDnsRecord } from '#core/server/index.js';
 
 /** The DNS surface the check needs, injected so tests drive it without a network. */
 export interface DomainResolver {
@@ -22,7 +22,35 @@ const nodeResolver: DomainResolver = { resolveCname, resolve4 };
 const sameHost = (a: string, b: string): boolean =>
   a.replace(/\.$/, '').toLowerCase() === b.replace(/\.$/, '').toLowerCase();
 
-const rejected = (detail: string): DomainCheck => ({ resolved: false, detail });
+const requiredDnsRecords = (
+  domain: string,
+  config: CaddyDomainPortConfig,
+): RequiredDnsRecord[] =>
+  config.targetCname
+    ? [
+        {
+          type: 'CNAME',
+          name: domain,
+          value: config.targetCname,
+          purpose: 'pointing',
+        },
+      ]
+    : config.targetIp
+      ? [
+          {
+            type: 'A',
+            name: domain,
+            value: config.targetIp,
+            purpose: 'pointing',
+          },
+        ]
+      : [];
+
+const rejected = (detail: string, records: RequiredDnsRecord[]): DomainCheck => ({
+  resolved: false,
+  detail,
+  requiredDnsRecords: records,
+});
 
 /**
  * Caddy on-demand TLS DomainPort. Provisioning is Caddy's job (it issues a cert
@@ -33,26 +61,39 @@ const rejected = (detail: string): DomainCheck => ({ resolved: false, detail });
 export const createCaddyDomainPort = (config: CaddyDomainPortConfig): DomainPort => {
   const resolver = config.resolver ?? nodeResolver;
   return {
-    provision: async () => {},
+    provision: async (domain) => ({ requiredDnsRecords: requiredDnsRecords(domain, config) }),
     remove: async () => {},
     check: async (domain) => {
+      const records = requiredDnsRecords(domain, config);
       if (config.targetCname) {
         const cnames = await resolver.resolveCname(domain).catch((): string[] => []);
         const match = cnames.some((cname) => sameHost(cname, config.targetCname ?? ''));
         return match
-          ? { resolved: true, detail: `${domain} is a CNAME to ${config.targetCname}` }
+          ? {
+              resolved: true,
+              detail: `${domain} is a CNAME to ${config.targetCname}`,
+              requiredDnsRecords: [],
+            }
           : rejected(
               `${domain} does not CNAME to ${config.targetCname} (found: ${cnames.join(', ') || 'none'})`,
+              records,
             );
       }
       if (config.targetIp) {
         const ips = await resolver.resolve4(domain).catch((): string[] => []);
         const match = ips.includes(config.targetIp);
         return match
-          ? { resolved: true, detail: `${domain} resolves to ${config.targetIp}` }
-          : rejected(`${domain} does not resolve to ${config.targetIp} (found: ${ips.join(', ') || 'none'})`);
+          ? {
+              resolved: true,
+              detail: `${domain} resolves to ${config.targetIp}`,
+              requiredDnsRecords: [],
+            }
+          : rejected(
+              `${domain} does not resolve to ${config.targetIp} (found: ${ips.join(', ') || 'none'})`,
+              records,
+            );
       }
-      return rejected('No SELF_HOST_TARGET_CNAME or SELF_HOST_TARGET_IP configured');
+      return rejected('No SELF_HOST_TARGET_CNAME or SELF_HOST_TARGET_IP configured', records);
     },
   };
 };

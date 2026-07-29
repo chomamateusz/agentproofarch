@@ -161,10 +161,24 @@ export interface HealthPort {
   pingDatabase(): Promise<boolean>;
 }
 
+export type DnsRecordPurpose = 'ownership-verification' | 'pointing';
+
+export interface RequiredDnsRecord {
+  readonly type: string;
+  readonly name: string;
+  readonly value: string;
+  readonly purpose: DnsRecordPurpose;
+}
+
+export interface DomainProvision {
+  readonly requiredDnsRecords: RequiredDnsRecord[];
+}
+
 /** Whether a tenant domain points at the deploy's public target, with a human detail. */
 export interface DomainCheck {
   readonly resolved: boolean;
   readonly detail: string;
+  readonly requiredDnsRecords: RequiredDnsRecord[];
 }
 
 /**
@@ -179,7 +193,7 @@ export interface DomainCheck {
  *   - `noop` (dev/default): every method resolves without side effects.
  */
 export interface DomainPort {
-  provision(domain: string): Promise<void>;
+  provision(domain: string): Promise<DomainProvision>;
   check(domain: string): Promise<DomainCheck>;
   remove(domain: string): Promise<void>;
 }

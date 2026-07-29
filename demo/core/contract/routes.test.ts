@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   API_PATHS,
   API_ROUTES,
+  domainAddOutputSchema,
+  domainCheckOutputSchema,
   healthLiveOutputSchema,
   healthOutputSchema,
   healthReadyOutputSchema,
@@ -170,5 +172,46 @@ describe('route schemas parse their example payloads', () => {
   it('memberRemoveOutputSchema reports the cascade counts', () => {
     const example = { memberId: 'm1', deleted: { members: 1 } };
     expect(memberRemoveOutputSchema.parse(example)).toEqual(example);
+  });
+
+  it('domain add/check outputs accept additive required DNS records', () => {
+    const domain = {
+      id: 'd1',
+      tenantId: 'acme',
+      domain: 'shop.example.com',
+      kind: 'custom',
+      verified: false,
+    };
+    const requiredDnsRecords = [
+      {
+        type: 'TXT',
+        name: '_vercel.example.com',
+        value: 'vc-domain-verify=shop.example.com,token-123',
+        purpose: 'ownership-verification',
+      },
+    ];
+
+    expect(domainAddOutputSchema.parse({ domain, requiredDnsRecords })).toEqual({
+      domain,
+      requiredDnsRecords,
+    });
+    expect(
+      domainCheckOutputSchema.parse({
+        domain,
+        check: { resolved: false, detail: 'pending' },
+        requiredDnsRecords,
+      }),
+    ).toEqual({
+      domain,
+      check: { resolved: false, detail: 'pending' },
+      requiredDnsRecords,
+    });
+    expect(domainAddOutputSchema.safeParse({ domain }).success).toBe(true);
+    expect(
+      domainAddOutputSchema.safeParse({
+        domain,
+        requiredDnsRecords: [{ ...requiredDnsRecords[0], purpose: 'other' }],
+      }).success,
+    ).toBe(false);
   });
 });

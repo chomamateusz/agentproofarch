@@ -236,8 +236,8 @@ the entry graduated into a built adapter with its residual still recorded.
 The register is explicitly **descriptive, not normative**: if an entry contradicts
 `architecture.md`, the architecture wins until the entry is adjudicated. And the
 residuals are recorded even when they are uncomfortable — the Vercel domain
-adapter, for instance, is built and offline-tested but has still never run against
-the live Domains API, and the register says so.
+adapter, for instance, now has a live-confirmed add path while live check/remove
+acceptance remains unrecorded, and the register says so.
 
 Audit findings get fixed like anything else: the last session-audit pass landed as
 [#61](https://github.com/chomamateusz/agentproofarch/pull/61), hardening the
