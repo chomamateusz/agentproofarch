@@ -45,7 +45,8 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
    branch. Staging/prod migrations are forward-only; destructive changes ship
    expand → contract across two deploys.
 4. **Entry**: `demo/api/index.ts` exports a node-style handler through
-   `@hono/node-server/vercel` (with `NODEJS_HELPERS=0`, see PRs #11/#15);
+   `getRequestListener` from `@hono/node-server` (with `NODEJS_HELPERS=0`, see
+   PRs #11/#15);
    `vercel.json` routes `/api/*` to the function and everything else to the
    static SPA build with an SPA fallback. Root directory = `demo`.
 5. **Function and database are co-located in Europe**: the function runs in

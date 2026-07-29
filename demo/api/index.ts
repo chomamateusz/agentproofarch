@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { handle } from '@hono/node-server/vercel';
+import { getRequestListener } from '@hono/node-server';
 
 import { buildApp } from '../apps/server/src/app.js';
 import { createDeps } from '../apps/server/src/composition.js';
@@ -14,7 +14,7 @@ process.env.APP_COMMIT_SHA ??= process.env.VERCEL_GIT_COMMIT_SHA;
 
 const flush = startServerObservability();
 const app = buildApp(createDeps(loadEnv()));
-const handler = handle(app);
+const handler = getRequestListener(app.fetch);
 
 // Requires NODEJS_HELPERS=0 on the Vercel project: with helpers on, the
 // runtime drains the request stream to parse req.body and every POST hangs

@@ -176,7 +176,7 @@ Same commit, env only — live on Vercel today
 
 | | Vercel | Docker self-host |
 |---|---|---|
-| API | Hono handler as a function (`api/index.ts` via `@hono/node-server/vercel`) | Node container (`entry.node.ts`) |
+| API | Hono handler as a function (`api/index.ts` via `getRequestListener`) | Node container (`entry.node.ts`) |
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static build | served by the same Node process |
 | Tenant domains | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`) — each host attached to the project, HTTP-01 cert per host | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` — Caddy on-demand TLS |
