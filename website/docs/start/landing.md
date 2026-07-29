@@ -29,9 +29,9 @@ The architecture is written down first (`docs/architecture.md` is normative),
 the enforcers are written down next, and `demo/` is a running reference
 implementation of both.
 
-A free, open project by **Mateusz Choma**, developed privately in collaboration
-with **[CodeRoad.pl](https://coderoad.pl)** and
-**[AmazingDesign.eu](https://amazingdesign.eu)**.
+A free, open project — [MIT licensed](https://github.com/chomamateusz/agentproofarch/blob/main/LICENSE) —
+by **Mateusz Choma**, developed privately in collaboration with
+**[CodeRoad.pl](https://coderoad.pl)** and **[AmazingDesign.eu](https://amazingdesign.eu)**.
 
 ## What problem does it solve 🎯 \{#what-problem-does-it-solve}
 

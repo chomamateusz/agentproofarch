@@ -14,6 +14,12 @@ before that lives in the git history only.
 
 ## 2026-07-29
 
+### Added
+
+- Adds the MIT LICENSE file, `license` field in `demo/package.json` and
+  `website/package.json`, and an explicit MIT mention on the README and the
+  docs landing page (#TBD)
+
 ### Fixed
 
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
