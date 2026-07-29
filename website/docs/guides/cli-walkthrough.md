@@ -138,17 +138,21 @@ failure emits its envelope as JSON when you asked for JSON.
 `--json` emits the `Result` re-wrapped as an envelope, pretty-printed with two
 spaces:
 
+{/*release-version*/}
+
 ```json
 {
   "ok": true,
   "data": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"
   }
 }
 ```
+
+{/*/release-version*/}
 
 ```json
 {

@@ -18,6 +18,11 @@ before that lives in the git history only.
 
 ### Added
 
+- `doc-lint` verifies the release version quoted by the documentation against
+  `demo/package.json`, so a version bump that leaves those pages stale fails
+  `pnpm run check`
+  ([#106](https://github.com/chomamateusz/agentproofarch/pull/106))
+
 - Domain add/check responses now surface provisioner-required ownership and
   pointing DNS records through the API, CLI, and domains settings view
   ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).

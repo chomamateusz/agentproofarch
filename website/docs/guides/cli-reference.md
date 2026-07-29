@@ -19,9 +19,13 @@ from `demo/`; `--silent` keeps pnpm's own output off stdout.
 pnpm --silent run cli health
 ```
 
+{/*release-version*/}
+
 ```text
-status=ok db=up v1.0.0 sha=unknown
+status=ok db=up v1.1.0 sha=unknown
 ```
+
+{/*/release-version*/}
 
 `version` is `package.json`'s version — the single release-identity source — and
 `sha` is the build attestation (`APP_COMMIT_SHA`), reported as `unknown` locally
