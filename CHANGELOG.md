@@ -17,7 +17,8 @@ before that lives in the git history only.
 ### Added
 
 - Domain add/check responses now surface provisioner-required ownership and
-  pointing DNS records through the API, CLI, and domains settings view (#TBD).
+  pointing DNS records through the API, CLI, and domains settings view
+  ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
 
 ## v1.0.0 — 2026-07-28
 
