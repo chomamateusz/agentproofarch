@@ -18,7 +18,8 @@ before that lives in the git history only.
 
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
   export, and moves Drizzle Kit to v1 migration tooling without the vulnerable
-  `@esbuild-kit/*` dependency chain (#TBD)
+  `@esbuild-kit/*` dependency chain
+  ([#102](https://github.com/chomamateusz/agentproofarch/pull/102))
 
 ## v1.0.0 — 2026-07-28
 
