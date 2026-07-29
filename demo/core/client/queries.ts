@@ -49,6 +49,7 @@ type DefineQueryInput<TQueryFnData, TQueryKey extends QueryKey> = Omit<
   'queryFn'
 > & { call: ReadCall<TQueryFnData, TQueryKey> };
 
+/** @public */
 export const defineQuery = <TQueryFnData, TQueryKey extends QueryKey>(
   input: DefineQueryInput<TQueryFnData, TQueryKey>,
 ): QueryDescriptor<TQueryFnData, TQueryKey> => {
@@ -69,6 +70,7 @@ type DefineMutationInput<TData, TVariables> = Omit<
   'mutationFn'
 > & { call: WriteCall<TData, TVariables> };
 
+/** @public */
 export const defineMutation = <TData, TVariables>(
   input: DefineMutationInput<TData, TVariables>,
 ): MutationDescriptor<TData, TVariables> => {
@@ -109,20 +111,24 @@ export const membersScopes = {
   lists: () => ['members', 'list'] as const,
 };
 
+/** @public */
 export const staffScopes = {
   all: () => ['staff'] as const,
   lists: () => ['staff', 'list'] as const,
 };
 
+/** @public */
 export const domainsScopes = {
   all: () => ['domains'] as const,
   lists: () => ['domains', 'list'] as const,
 };
 
+/** @public */
 export const authScopes = {
   all: () => ['auth'] as const,
 };
 
+/** @public */
 export const passkeysScopes = {
   all: () => ['passkeys'] as const,
 };
@@ -130,6 +136,7 @@ export const passkeysScopes = {
 /** Register/remove change the roster, so both invalidate the passkey list scope. */
 export const passkeysInvalidates = () => ({ queryKey: passkeysScopes.all() });
 
+/** @public */
 export const configScopes = {
   all: () => ['config'] as const,
 };
@@ -140,6 +147,7 @@ export const configQuery = (api: ApiClient) =>
     call: ({ signal }) => api.config(signal),
   });
 
+/** @public */
 export const healthScopes = {
   all: () => ['health'] as const,
 };

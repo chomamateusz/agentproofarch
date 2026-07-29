@@ -38,7 +38,7 @@ import {
  * the build's commit SHA. `smoke:remote` compares the SHA against the deploy
  * event's SHA to prove it verified the deployment it thinks it did.
  */
-export const attestationSchema = z.object({
+const attestationSchema = z.object({
   version: z.string(),
   sha: z.string(),
 });
@@ -207,6 +207,8 @@ export const staffRevokeOutputSchema = z.object({
  * Both nullable: the `noop` provisioner (dev default) configures neither, so the
  * UI falls back to generic guidance; `caddy` self-host and the Vercel target
  * (`SELF_HOST_TARGET_CNAME`) set exactly one.
+ *
+ * @public
  */
 export const domainTargetSchema = z.object({
   cname: z.string().nullable(),

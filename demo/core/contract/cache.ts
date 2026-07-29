@@ -10,6 +10,8 @@
  * Authenticated envelopes never reach here: they keep the `respond()` default of
  * `no-store`, and errors on public routes are pinned to `no-store` at that seam
  * too, so a transient failure can never be cached at the edge.
+ *
+ * @public
  */
 export const PUBLIC_CACHE_PROFILES = {
   /**

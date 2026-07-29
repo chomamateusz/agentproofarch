@@ -38,9 +38,6 @@ export const PRINCIPALS = ['owner', 'admin', 'member', 'visitor'] as const;
 
 export type Principal = (typeof PRINCIPALS)[number];
 
-/** The staff principals — the `owner|admin` grant that §Identity calls "staff". */
-export const STAFF_PRINCIPALS = ['owner', 'admin'] as const satisfies readonly Principal[];
-
 export const TENANT_CREATION_MODES = ['open', 'staff', 'closed'] as const;
 
 export type TenantCreationMode = (typeof TENANT_CREATION_MODES)[number];

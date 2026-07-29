@@ -195,15 +195,17 @@ imports cannot quietly accumulate. Its rule severities are a deliberate split
 | `unresolved` | **error** | an import that resolves to nothing |
 | `binaries` | **error** | a script calling a binary no dependency provides |
 | `duplicates` | **error** | the same export exposed twice |
-| `exports` / `types` / `nsExports` / `nsTypes` / `enumMembers` | **warn** | reported, does **not** fail `check` |
+| `exports` / `types` / `nsExports` / `nsTypes` / `enumMembers` | **error** | an export nothing imports is dead — delete it or declare it |
 
-:::caution[Honest caveat: unused *exports* are warnings, not errors]
-`exports` and `types` are `warn` on purpose. The foundation ships API surface
-ahead of its consumers (theme tokens, island-core interfaces, contract schemas,
-client query helpers) while the PRD build-out wires them in, so export-level
-pruning would thrash against work in flight. `knip.jsonc` records the intent to
-tighten them to `error` once that scope is built — until then, "no unused export"
-is *not* a guarantee this repo makes.
+:::caution[Unused exports fail `check` — declare the surface you mean to ship]
+Every knip rule is an `error`. The build-out tolerance that kept `exports` and
+`types` advisory while the foundation shipped API surface ahead of its consumers
+ended on 2026-07-29: the dead exports are cut and a new unused export now fails
+`pnpm run check`. Surface that is deliberately public without an in-repo
+importer is declared explicitly in `knip.jsonc` — as an `entry` (the island-core
+seams `features/*/core/index.ts`, the `features/*/index.web.ts` composition
+sites, `api/index.ts`, scripts, specs) or by tagging the export `@public`.
+Anything not declared has to be reachable.
 :::
 
 Entries knip cannot infer are declared explicitly: `api/index.ts` (the Vercel

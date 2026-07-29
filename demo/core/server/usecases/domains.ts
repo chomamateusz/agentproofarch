@@ -22,7 +22,11 @@ import type {
   TenantDomainRepository,
 } from '../ports.js';
 
-/** The deploy-wide public target tenants point a custom domain at (env-driven). */
+/**
+ * The deploy-wide public target tenants point a custom domain at (env-driven).
+ *
+ * @public
+ */
 export interface DomainTarget {
   cname: string | null;
   ip: string | null;
