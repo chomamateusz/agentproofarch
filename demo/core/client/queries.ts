@@ -140,6 +140,16 @@ export const configQuery = (api: ApiClient) =>
     call: ({ signal }) => api.config(signal),
   });
 
+export const healthScopes = {
+  all: () => ['health'] as const,
+};
+
+export const healthQuery = (api: ApiClient) =>
+  defineQuery({
+    queryKey: healthScopes.all(),
+    call: ({ signal }) => api.health(signal),
+  });
+
 export const meQuery = (api: ApiClient) =>
   defineQuery({
     queryKey: meScopes.all(),

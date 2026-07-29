@@ -12,7 +12,7 @@ module.exports = {
       name: 'core-server-pure',
       severity: 'error',
       from: { path: '^core/server' },
-      to: { path: '^(core/(contract|client)|adapters|apps)' },
+      to: { path: '^(core/client|adapters|apps)' },
     },
     {
       name: 'core-contract-only-domain',
@@ -110,6 +110,16 @@ module.exports = {
       from: { path: '^apps/web/src/components/ui' },
       to: {
         path: '^(core|adapters|apps/web/src/(features|routes))|node_modules/@tanstack/react-(query|router)(/|$)',
+      },
+    },
+    {
+      name: 'web-layouts-are-structure-only',
+      severity: 'error',
+      comment:
+        'components/layout: structure consumes theme, ui and lib only; no core, adapters, features, routes, api.ts or TanStack (ADR-0011)',
+      from: { path: '^apps/web/src/components/layout' },
+      to: {
+        path: '^(core|adapters|apps/web/src/(features|routes)|apps/web/src/api\\.)|node_modules/@tanstack/react-(query|router)(/|$)',
       },
     },
     {

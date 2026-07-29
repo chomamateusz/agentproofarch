@@ -19,8 +19,9 @@ import { RefreshSnackbar } from './RefreshSnackbar.js';
 import { renderRootErrorFallback } from './RootErrorFallback.js';
 import { BoardRoute } from './routes/board.js';
 import { LoginRoute } from './routes/login.js';
+import { buildBannerLine } from './lib/build-info.js';
 import { MembersRoute } from './routes/members.js';
-import { AppLayout } from './features/settings/AppLayout.js';
+import { AppLayout } from './AppLayout.js';
 import { RegisterRoute } from './routes/register.js';
 import { DomainsRoute } from './routes/settings-domains.js';
 import { StaffSettingsRoute } from './routes/settings-staff.js';
@@ -132,6 +133,7 @@ declare module '@tanstack/react-router' {
   }
 }
 
+console.info(buildBannerLine());
 initWebObservability();
 
 const container = document.getElementById('root');

@@ -1,12 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "api/index.ts", // Vercel serverless entry (vercel.json), not inferable from an npm script
+    "api/index.ts", // Vercel serverless entry (vercel.json), not inferable from a package script
     "eslint-plugin-agentproofarch/index.js", // loaded by eslint.config.js
     "eslint-plugin-agentproofarch/rules/*.test.js", // rule unit tests (vitest node project)
     "adapters/auth/auth.generate.ts", // @better-auth/cli generate config: codegen only, never imported
-    "scripts/*.{ts,mjs}", // each script runs via an npm script or by hand
+    "scripts/*.{ts,mjs}", // each script runs via a package script or by hand
     "e2e/*.spec.ts", // Playwright specs
+    "visual/*.spec.ts", // Playwright visual-regression specs (ADR-0008)
     "**/*.test.{ts,tsx}" // vitest suites (the config uses nested projects the plugin can't fully infer)
   ],
   "project": [
@@ -22,6 +23,15 @@
     // Peer of the @opentelemetry/sdk-trace-* packages, pinned in devDependencies
     // for version alignment across the OTel graph; never imported directly.
     "@opentelemetry/core"
+  ],
+  "ignoreBinaries": [
+    // System binary (psmisc) the e2e harness shells out to free a stuck port on
+    // Linux CI; not a package dependency, so knip cannot resolve it.
+    "fuser",
+    // `scripts/release.ts` cuts the docs snapshot with `pnpm --dir ../website
+    // run docusaurus`; the binary belongs to website/'s own manifest, which is
+    // outside this knip project.
+    "docusaurus"
   ],
   "rules": {
     // Gate on the unambiguous dead weight: dead files, undeclared/unused

@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { DEFAULT_DEV_PORT } from '#core/contract/index.js';
+import { TENANT_CREATION_MODES } from '#core/domain/index.js';
+
 /**
  * The single source of environment configuration (DECIDE F4). One module owns
  * every env key and its parse rule; the runtime server, the migrate/seed
@@ -30,7 +33,7 @@ const dbDriverField = dbDriverSchema.default(
 
 /** Runtime server env — the full set the Hono process boots on. */
 export const serverEnvSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(47100),
+  PORT: z.coerce.number().int().positive().default(DEFAULT_DEV_PORT),
   // Self-host only: the private port the internal control-plane app binds
   // (Caddy's on-demand-TLS `ask` endpoint). Set exclusively in the compose
   // stack, where it is reachable only on the container network and never
@@ -38,16 +41,27 @@ export const serverEnvSchema = z.object({
   // e2e and Vercel never expose the domain-check surface).
   INTERNAL_PORT: z.coerce.number().int().positive().optional(),
   // Domain-provisioning adapter selector (composition root). `caddy` on the
-  // self-host target (on-demand TLS + DNS check), `noop` everywhere else.
-  DOMAIN_PROVISIONER: z.enum(['caddy', 'noop']).default('noop'),
+  // self-host target (on-demand TLS + DNS check), `vercel` on the Vercel target
+  // (per-host attach over the Domains API), `noop` everywhere else.
+  DOMAIN_PROVISIONER: z.enum(['vercel', 'caddy', 'noop']).default('noop'),
   // The public target self-host tenants must point a custom domain at; the caddy
   // DomainPort's `check` verifies DNS resolves here. Set one, not both.
   SELF_HOST_TARGET_CNAME: z.string().optional(),
   SELF_HOST_TARGET_IP: z.string().optional(),
+  // Vercel Domains API credentials, read only when DOMAIN_PROVISIONER=vercel is
+  // selected explicitly — presence of the platform's own VERCEL* vars never
+  // selects the provisioner, because the platform env carries no API token.
+  // Optional here (every other target runs without them) and required by the
+  // composition root, which refuses to boot on an incomplete block.
+  VERCEL_TOKEN: z.string().optional(),
+  VERCEL_PROJECT_ID: z.string().optional(),
+  // Only for a team-owned project; omitted on a personal one.
+  VERCEL_TEAM_ID: z.string().optional(),
   DATABASE_URL: databaseUrlField,
   DB_DRIVER: dbDriverField,
   APP_BASE_DOMAIN: z.string().default('localhost'),
   APP_BASE_URL: z.url().optional(),
+  TENANT_CREATION: z.enum(TENANT_CREATION_MODES).default('open'),
   // Set by Vercel on every deployment (`VERCEL=1`). Presence is the "we are
   // deployed on Vercel" signal the hardening refinements key off.
   VERCEL: z.string().optional(),

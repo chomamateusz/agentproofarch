@@ -38,8 +38,8 @@ never carries silent gaps.
   HTTP servers, databases, auth providers and platforms are replaceable
   adapters behind ports.
 - **Machine-enforced boundaries**: layer rules are lint rules
-  (eslint-plugin-boundaries + dependency-cruiser), not conventions. `npm run
-  check` is the static gate; `npm run smoke` is the runtime gate — it verifies
+  (eslint-plugin-boundaries + dependency-cruiser), not conventions. `pnpm run
+  check` is the static gate; `pnpm run smoke` is the runtime gate — it verifies
   the installed dependency tree matches the lockfile, boots the real server
   against a real database and drives health → sign-in → todos through the
   CLI, asserting taxonomy exit codes. Static-green is not done; the app must
@@ -49,14 +49,14 @@ never carries silent gaps.
   is live today; the Docker/Caddy packaging (`Dockerfile`, `docker-compose.prod.yml`,
   `Caddyfile`, `docker-entrypoint.sh`) now ships in the tree (US-022, DECIDE A2),
   and Caddy on-demand TLS is wired to an internal domain-check endpoint proven by
-  unit + real-Postgres integration tests (US-021). The one self-host capability
-  still deferred is the **Vercel** Domains API adapter (US-020) — a Vercel-target
-  concern folded into the A1 custom-domains slice; self-host issues TLS via Caddy
-  and needs no such adapter. **Vendor packages are contained**: `@vercel/*` and
+  unit + real-Postgres integration tests (US-021). The Vercel Domains API adapter
+  (US-020) ships too — per-tenant hosts attached to the Vercel project over the
+  REST API, offline-tested against a stubbed `fetch`, with live verification
+  pending the owner's `VERCEL_TOKEN`. **Vendor packages are contained**: `@vercel/*` and
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
-  read in `env.ts`, `composition.ts` and `adapters/db/migrate.ts` to select
+  read in `apps/server/src/env.ts` and `core/server/config.ts` to select
   behavior, and that is fine; what must not leak into core is the coupling to a
   vendor SDK.
 
@@ -65,10 +65,10 @@ never carries silent gaps.
 ```
 core/domain     entities, Result, error taxonomy, zod schemas   → zod only
 core/contract   API routes + I/O schemas + error envelope       → domain
-core/server     use-cases + ports (interfaces)                  → domain
+core/server     use-cases + ports (interfaces)                  → domain, contract
 core/client     typed HTTP client + query definitions           → contract
 adapters/*      implement ports (db, auth, domain provisioning:
-                caddy + noop built; vercel deferred US-020)   → core
+                vercel + caddy + noop)                        → core
 apps/server     HTTP wiring + composition root                  → everything server-side
 apps/web        SPA (no SSR)                                    → core/client (+ auth client adapter)
 apps/cli        commands                                        → core/client
@@ -83,7 +83,8 @@ Dependency rules (enforced):
 - Server adapters are instantiated exclusively in the composition root
   (`apps/server/src/composition.ts`), where env decides implementations
   (`DB_DRIVER` selects the db driver; `DOMAIN_PROVISIONER` selects the
-  domain-provisioning adapter — `caddy` on self-host, `noop` by default). The
+  domain-provisioning adapter — `vercel` on the Vercel target, `caddy` on
+  self-host, `noop` by default). The
   one deliberate exception is the
   auth *client* adapter, constructed in `apps/web/src/api.ts` (web) and the
   CLI's `cliCtx`; the operational entry `adapters/db/migrate.ts` also reads
@@ -144,17 +145,83 @@ apps/web/src/
   main.tsx          composition root: providers + router wiring only
   api.ts            binds core/client action factories once — the only module
                     that sees ApiClient, AuthClientPort and adapters
+  AppLayout.tsx     the stateful shell composition (ADR-0011): auth guard,
+                    tenant switcher, onboarding — renders components/layout/AppShell
   routes/           route components — thin: parse params, render a feature
   features/<name>/  feature folders (islands): core/ — the island core (events
                     in, selectors out) — plus views, hooks, <Name>.logic.ts
   components/ui/    design-system primitives → theme, lib only (no core, no features)
+  components/layout/ page skeletons: structure only → theme, components/ui, lib
+                    (no core, no features, no routes, no api, no TanStack)
   lib/              pure TS utilities → no react
   theme.ts          the entire visual language (MUI theme); no colors/fonts elsewhere
 ```
 
+### The layout layer (page skeletons)
+
+Decided in [ADR-0011](decisions/0011-layout-layer.md). `components/layout/` is
+the one legal home for a component that owns a **page's shape** — the grid, the
+widths, the sticky rails, the header/content/footer regions, the `Outlet` slot.
+Before it existed a stateful shell was *unrepresentable*: features are islands so
+no feature may consume one, and `components/ui/` is banned from TanStack, so the
+app shell lived inside `features/settings/` for want of anywhere else. Three
+properties define the layer and travel together:
+
+- **Structure only** — grid, flex, spacing, sizing and position live here; every
+  colour, font, background and border comes from `theme.ts` atoms. That is what
+  makes a skeleton survive a theme change untouched.
+- **Content arrives through slots** — callers pass `ReactNode` (`header`,
+  `action`, `rail`, `children`); a skeleton never fetches, never names a domain
+  type, never reads a route param.
+- **Non-happy branches render inside the skeleton** — loading, error, empty and
+  not-found are states *of* the page, not replacements for it, so width never
+  jumps between a pending render and a loaded one.
+
+**(a) Layouts are structure only.** `components/layout/**` imports `theme.ts`,
+`components/ui/` and `lib/` and nothing else in the app: no `core/**`, no
+`adapters/**`, no `features/**`, no `routes/**`, no `api.ts`, no TanStack.
+— **TYPE**: n/a (an import edge is not a type) · **LINT**:
+`web-layouts-are-structure-only` (dependency-cruiser), the same edge shape as
+`web-ui-is-presentational`, plus the boundaries element type for the directory ·
+**TEST**: config-regression probe — a fixture importing a feature from a layout
+must fail `check` · **REVIEW+AI**: n/a (mechanically covered).
+
+**(b) Features consume layouts; they do not define them.** A page skeleton — a
+component owning a `Container`/max-width/page grid — may be defined only under
+`components/layout/`. This is a rule about the *content* of a file, not about an
+edge in the graph, so the mechanical half is honestly incomplete until the
+structural `sx` tier below is triggered.
+— **TYPE**: n/a · **LINT**: n/a today (a dependency rule cannot see a
+`Container` declared in place; closes with the structural tier) · **TEST**: n/a ·
+**REVIEW+AI**: the review tier owns this one — flag a feature growing its own
+page grid or max-width instead of consuming a skeleton, and flag a skeleton that
+appears in two features at once (that duplication is also the named trigger
+below).
+
+**Visual specs** (NORMATIVE NOW, non-required gate): every layout skeleton
+carries screenshots of its states in the existing `demo/visual/` suite on the
+ADR-0008 harness — lint catches scattered `sx`, pixels catch rendered drift, and
+one gate owns the pixels. No second screenshot engine.
+
+**Structural `sx` tier** (NORMATIVE WHEN TRIGGERED — *the first case of a
+duplicated page skeleton outside `components/layout/` in an app on the
+foundation*): a second key category in `agentproofarch/sx-layout-only` reserving
+`display`, `grid*`, `flex*` on containers, `position: sticky|fixed`, `width` and
+`maxWidth` for `components/layout/**` and `theme.ts`, on the same per-file,
+shrink-only, stale-erroring baseline mechanism the visual tier already uses. It
+waits because the tier is unproven — it is designed in the app this layer was
+graduated from and never shipped there — so the first app to hit the trigger is
+also its first honest test. **Optional technique** for apps on MUI: a
+`no-restricted-imports` ban on `Container`/`AppBar`/`Drawer`/`Toolbar` outside
+the layout directory closes the same hole cheaply; it is MUI-specific and is not
+part of the portable artifact.
+
 **Route tree** (US-015): the public routes are `/login` and `/register`; every
-authenticated surface lives under `/app`, whose layout route (`AppLayout`, a
-feature under `features/settings/`) is the shell. The shell guards auth
+authenticated surface lives under `/app`, whose layout route is the shell — split
+per [ADR-0011](decisions/0011-layout-layer.md) into the chrome skeleton
+(`components/layout/AppShell.tsx`: app bar, nav slots, widths, the `Outlet` slot,
+no server state) and a thin stateful composition (`AppLayout.tsx`, beside
+`main.tsx`) that renders it. The shell guards auth
 (an anonymous hit on any `/app/*` route redirects to `/login`), owns the shared
 chrome — the header **tenant switcher** (lists the caller's tenants; selecting one
 navigates to that tenant's host, the same subdomain mechanism `lib/tenant.ts`
@@ -197,8 +264,8 @@ State rules:
   other or sharing client state. Shared code extracts downward
   (`components/ui`, `lib`, `core/client`), never sideways.
 - **No stringly-typed client event bus.** An untyped bus hides coupling from
-  the dependency graph — the enforcers stop telling the truth and agents
-  cannot trace control flow. The sanctioned shape — a closed union of typed
+  the dependency graph — the enforcers go incomplete and control flow becomes
+  slower and less reliable for agents to trace. The sanctioned shape — a closed union of typed
   events in one module (like `ErrorCode`) that both sides import — was
   reserved "at first proven need"; ADR-0005 declares that need proven and
   defines the bus channel below. Two features that constantly coordinate are
@@ -471,7 +538,7 @@ rung 1, honestly: no other feature fires a graduation
 trigger. The pre-existing features (todos, auth) predate the seam and carry
 no explicit `core/` folder yet; they gain one when first touched by real
 client state, and every **new** island starts from the scaffolder —
-`npm run new:island -- <name>` generates the rung-1 seam (events, selectors,
+`pnpm run new:island -- <name>` generates the rung-1 seam (events, selectors,
 core test, view, route) with marked extension points for the machine.
 
 The action set is CQRS-partitioned: every action is either a query (safe
@@ -493,7 +560,7 @@ single resource with rollback. Errors surface as `ApiError` carrying the
 is mandatory. Non-trivial behavior is extracted to `*.logic.ts` and unit-tested
 without rendering; component tests use real providers + MSW, never hook mocks.
 React correctness (`react-hooks`, compiler, a11y, query plugins) runs at error
-level in the same `npm run check` gate.
+level in the same `pnpm run check` gate.
 
 ## Errors
 
@@ -517,6 +584,13 @@ client and server — a split this architecture does not have. **No version
 namespace, no version header, no content negotiation.** The contract's types are
 the version, checked at build for every consumer at once; a breaking change that
 reaches production un-migrated is a red `check`, not a runtime surprise.
+
+Today's unprefixed `/api/*` is the v1 contract. Inside v1, changes are
+additive-only under the rules below. A breaking change requires `/api/v2`
+mounted alongside v1, with a deprecation window announced in the changelog and
+lasting at least one subsequent release before v1 is removed. No `/api/v1`
+alias or v2 machinery exists today. [ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)
+decides this escalation path.
 
 **NORMATIVE NOW** (every change to `core/contract`):
 
@@ -550,7 +624,7 @@ check is prescribed (the Vercel target has no resident channel).
 
 | Trigger | Rule |
 |---|---|
-| First **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | Introduce explicit versioning — the compiled-contract argument no longer holds. Cheapest first: additive-only with a dated capability field; then a `/v1` URL prefix per major; then per-request `Accept-Version`. Internal `X-Tenant` clients do not count. |
+| First **external consumer** not built from this commit (public API, third-party integrator, separately-released mobile app) | The compiled-contract argument no longer holds. A breaking change introduces `/api/v2` alongside v1, with an announced deprecation window lasting at least one subsequent release before v1 is removed ([ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)). Internal `X-Tenant` clients do not count. |
 | First **webhook we emit** to creators/integrators | Version the **payload**, not the URL: embed a `schemaVersion` in the event body, keep old fields additively, let subscribers pin. Delivery/idempotency reuse the inbound-webhook pattern (§Background jobs and webhooks) — this covers only the payload contract. |
 
 **OUT OF SCOPE:** per-tenant/per-product API variants, GraphQL-style field-level
@@ -618,7 +692,7 @@ where they diverge, so the split is honest rather than cosmetic. The policy is a
 principals that hold it and **nothing is granted by wildcard** — a principal
 absent from a capability's list is denied. The demo policy (staff-shared rows
 collapsed to one `owner+admin` column; only `staff:grant`/`staff:revoke` split
-them):
+them; `tenant:create` is the one row derived from an env-selected mode, below):
 
 | capability       | owner | admin | member | visitor (tenant-less) |
 | ---------------- | ----- | ----- | ------ | --------------------- |
@@ -632,7 +706,9 @@ them):
 | `staff:revoke`   | allow | deny  | deny   | deny                  |
 | `domain:read`    | allow | allow | deny   | deny                  |
 | `domain:write`   | allow | deny  | deny   | deny                  |
-| `tenant:create`  | allow | allow | deny   | allow                 |
+| `tenant:create` — `TENANT_CREATION=open` (default) | allow | allow | deny | allow |
+| `tenant:create` — `TENANT_CREATION=staff` | allow | allow | deny | deny |
+| `tenant:create` — `TENANT_CREATION=closed` | deny | deny | deny | deny |
 
 Members are full collaborators on the tenant's boards (todos and cards are
 collaborative aggregates) but may not administer tenants; owners and admins share
@@ -645,13 +721,28 @@ when the email has no account. Custom domains (US-019) follow the same
 owner/admin split: `domain:read` (the settings roster) is staff-readable, but
 `domain:write` — attaching, verifying and detaching a domain — is owner-only, so
 an admin runs the tenant without changing where it is reachable. `tenant:create` is
-tenant-less self-service (the caller becomes owner), so a visitor holds it while
-a member of one tenant may not provision others. The member-deny cell is
-**use-case-layer only**: over HTTP the create route deliberately sits above
-tenant resolution, every authenticated caller presents as visitor, and a member
-could in any case drop the tenant header and present as one legitimately — the
-cell exists as defense-in-depth for future callers that carry a member context,
-not as an HTTP-reachable barrier.
+tenant-less self-service (the caller becomes owner atomically —
+`createTenantWithOwner`), and its grant row is the one **mode-dependent** row in
+the table ([ADR-0010](decisions/0010-tenant-creation-policy.md)): the env key
+**`TENANT_CREATION`** (single env schema, `core/server/config.ts`) selects `open`
+(default — a visitor holds it, so any authenticated account addressing the base
+domain self-serves a tenant: the public-SaaS shape), `staff` (only existing
+owners/admins spawn further tenants; the first one comes from seed/operator) or
+`closed` (operator-only, via seed/ops). The policy stays data — the mode derives
+that row's principal list, `decide` gains no branch, no new principal exists and
+default-deny is unchanged, so `closed`'s empty list denies by the ordinary rule
+and a denied create surfaces as the existing `forbidden` error, with no new error
+code. Under every mode a member of one tenant may not provision others; the
+member-deny cell is **use-case-layer only**: over HTTP the create route
+deliberately sits above tenant resolution, every authenticated caller presents as
+visitor, and a member could in any case drop the tenant header and present as one
+legitimately — the cell exists as defense-in-depth for future callers that carry
+a member context, not as an HTTP-reachable barrier. That same property is what
+the `staff` mode has to overcome: because the create route builds a tenant-less
+identity, an owner or admin also arrives as a visitor there, so `staff` is only
+distinguishable from `closed` once the create path derives the principal from the
+caller's staff grants **across the instance** (`listTenantsForStaff`, the read
+behind `listMyTenants`) rather than from a resolved tenant.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
@@ -745,9 +836,10 @@ transitively: "delete everything for tenant X" is one
 guaranteeing no orphans. Global/shared tables (accounts, the shared account pool)
 are deliberately outside that chain: one account spans many tenants (§Identity and
 multi-tenancy), so it must never cascade from a single tenant's deletion. The
-invariant is mechanically checkable — a smoke/integration test seeds every
-aggregate for a throwaway tenant, deletes the tenant row, and asserts zero rows
-remain for that `tenantId` (pattern normative, demo implements on first need).
+invariant is mechanically checked — the offboarding-cascade integration test
+(`adapters/db/repositories.integration.test.ts`) seeds every aggregate for a
+throwaway tenant, deletes the tenant row, and asserts zero rows remain for that
+`tenantId` while a sibling tenant is untouched.
 
 **GDPR mechanics** (NORMATIVE WHEN TRIGGERED — trigger: first real end-user
 personal data in production, beyond the demo seed). Right to access/portability is
@@ -1119,26 +1211,49 @@ code.
 - `IdGenerator`, `Clock`: the two injected primitives (id minting, ISO now) that
   keep use-cases pure and deterministic in tests.
 
-**BUILT** (US-021, DECIDE A2):
+**BUILT** (US-021 + US-020, DECIDE A2):
 
 - `DomainPort` (`provision`/`check`/`remove` tenant domains) lives in
-  `core/server/ports.ts`. Two adapters ship in `adapters/domain-provisioning/`,
+  `core/server/ports.ts`. Three adapters ship in `adapters/domain-provisioning/`,
   selected by `DOMAIN_PROVISIONER` in the composition root:
 
   | provisioner | target | `provision`/`remove` | `check` |
   |---|---|---|---|
+  | `vercel` | Vercel | attach/detach the host on the Vercel project (Domains API) | the project's domain + config endpoints report `verified` and not `misconfigured` |
   | `caddy` | Docker self-host | no-op (Caddy issues on demand) | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME`/`_IP` |
-  | `noop` (default) | dev / Vercel | no-op | always accepts |
+  | `noop` (default) | dev | no-op | always accepts |
 
   `DomainPort` now also backs the US-019 web/CLI domain surface: `addDomain`
   provisions then writes an unverified row, `checkDomain` runs `check` and
   persists the resulting `verified` flag, and `removeDomain` detaches then
   releases. On self-host, TLS is issued with zero per-tenant config: Caddy's
   `on_demand_tls { ask … }` calls an **internal-only** domain-check endpoint
-  (see §Self-host custom domains and TLS) before minting a certificate. The
-  Vercel Domains API adapter (**US-020**) is the one remaining implementation,
-  **deferred to the A1 custom-domains slice** — a Vercel-target concern; self-host
-  needs no such adapter.
+  (see §Self-host custom domains and TLS) before minting a certificate.
+
+  **The Vercel adapter (US-020) — why per-host attach, not a wildcard.** A
+  wildcard cert on Vercel needs an ACME DNS-01 challenge, which needs NS
+  delegation (§Tenant addressing). Where the base domain is a company zone that
+  cannot be delegated — the demo's own case, one plain wildcard CNAME record
+  `*.agentproofarch.coderoad.pl → cname.vercel-dns.com` bridged through company
+  DNS — every tenant host resolves, but certs are **per host over HTTP-01**, so
+  each host must be attached to the Vercel project individually. That attach is
+  exactly what this adapter does: `provision` POSTs the host to the project's
+  domains, `remove` deletes it, `check` reads the domain and its config back.
+  Attach is convergent, so an already-attached host (`409`) is a success — the
+  use-case may retry. `DOMAIN_PROVISIONER=vercel` must be selected
+  **explicitly** together with `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+
+  `VERCEL_TEAM_ID` for a team-owned project); it is never inferred from running
+  on Vercel, because the platform env carries no API token, and composition
+  **fails fast at boot** when `vercel` is selected without that block (the
+  `EMAIL_TRANSPORT=ses` rule, same shape). The token travels only in the
+  `Authorization` header — never logged, never echoed into an error detail; auth
+  failures name the misconfigured env key instead. Every API response is
+  zod-parsed at the boundary, and the injected `fetch` makes the whole adapter
+  testable offline (success, idempotent `409`, `401`/`403`, `5xx`, network
+  failure, corrupted JSON). **Honest status: verified only against a stubbed
+  `fetch`.** Live verification against the real Domains API is pending the
+  owner's `VERCEL_TOKEN` — until that runs, no claim is made about the live API's
+  behaviour beyond the documented contract.
 
 **BUILT** (US-026/US-028a, A1 sub-package 4): the provider auth methods that were
 "normative when triggered" are now wired — this package was the trigger.
@@ -1247,9 +1362,10 @@ app + an `edge`-profiled Caddy; migrations run on startup via
 `docker-entrypoint.sh`; healthchecks throughout) and `Caddyfile` (on-demand TLS).
 The same commit runs on either target, and a dedicated CI job (`selfhost.yml`)
 proves it: it builds the image, boots the compose stack, and drives the same
-smoke CLI suite the Vercel post-deploy gate runs — against the container. The only
-remaining follow-up is the Vercel Domains API adapter (US-020, deferred to the A1
-custom-domains slice).
+smoke CLI suite the Vercel post-deploy gate runs — against the container. Both
+targets now provision tenant domains through their own `DomainPort` adapter
+(`DOMAIN_PROVISIONER=vercel` / `caddy`); the Vercel one awaits its first live run
+against the real API (pending the owner's `VERCEL_TOKEN`).
 
 | | Vercel | Docker self-host |
 |---|---|---|
@@ -1258,7 +1374,8 @@ custom-domains slice).
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
 | Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
-| TLS for tenant domains | Vercel Domains API (US-020, deferred) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, built; live run pending `VERCEL_TOKEN`) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly — boot refuses if the block is incomplete | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
 | CI proof | `post-deploy-smoke.yml` (smoke the live deploy) | `selfhost.yml` (build image → boot compose → smoke the container) |
 
@@ -1307,54 +1424,101 @@ Two properties make this safe:
 | Issue/refuse decision | `GET /internal/domain-check?domain=` → 200/404 | `apps/server/src/internal-app.ts` |
 | Endpoint isolation | separate app on `INTERNAL_PORT`, never published | `entry.node.ts`, `docker-compose.prod.yml` |
 | DNS precondition (verify UI) | `caddy` `DomainPort.check` resolves domain → `SELF_HOST_TARGET_CNAME`/`_IP` | `adapters/domain-provisioning/caddy.ts` |
-| Provisioner selection | `DOMAIN_PROVISIONER=caddy` (self-host) / `noop` (default) | `apps/server/src/composition.ts` |
+| Provisioner selection | `DOMAIN_PROVISIONER=caddy` (self-host) / `vercel` (Vercel target) / `noop` (default) | `apps/server/src/composition.ts` |
 
 The `DomainPort.check` (DNS resolution) and the ask endpoint are complementary:
 the endpoint gates certificate issuance at handshake time on *verified* state;
 `check` is what a future domains-settings "Verify" action (US-019) calls to
 confirm the operator pointed DNS at the deploy before flipping `verified`. The
-Vercel Domains API `DomainPort` (US-020) is deferred to the A1 custom-domains
-slice; it is a Vercel-target concern and does not affect self-host.
+Vercel Domains API `DomainPort` (US-020) is the same seam on the other target and
+does not affect self-host: it attaches each host to the Vercel project instead of
+resolving DNS itself (see §Ports).
 
 ## Environments (Vercel target)
 
 Four environments, mapped onto Vercel's native model
 ([ADR-0003](decisions/0003-vercel-environments.md)), under one hard security
-boundary: **no GitHub event can reach production.** Agents are given *maximum*
-GitHub freedom by design — full `gh` access as the repo owner, no machine
-account, merge and workflow-dispatch rights — precisely because the wall that
-matters sits elsewhere: the path from any push, merge, workflow run or bot action
-to a production deployment simply does not exist. CI/CD is fully automatic up to
-and including staging; production is promoted by hand, by the owner, inside the
-platform. This refines ADR-0003's "Production = `main`" mechanic — the
-environment model is unchanged; only the trigger for the production environment
-moves from a Git push to a human dashboard action.
+boundary: **only the owner can release to production, and the owner's diff review
+happens before the build that sees production secrets runs.** The wall is *not*
+"no GitHub event can reach production" — a merge to the `production` branch **is**
+the release trigger. The wall is that the merge which triggers a production build
+requires a pull request the owner alone can approve, enforced by a GitHub ruleset
+with an **empty bypass list**.
 
-The operating hygiene for running this safely under agents — secrets only in the
-platform store, no production access on agent machines, the human-only promotion
-gate, fail-closed review, and SHA attestation — is in the README's *Operating
+**Identity split (the base of the wall).** The repo is **public**. Agents act
+through a machine GitHub account, `chomamateusz-agent`, added as a **collaborator
+with Write, never Admin**; the owner's own credentials (gh sessions, PATs) never
+live on the agent machine. The owner's SSH key may remain on the machine, but the
+rulesets neutralize it for production: SSH can push a ref but **cannot call the
+API to edit a ruleset or approve a pull request**, and production requires an
+approved PR. Write-not-Admin means the agent cannot edit or delete the rulesets
+that bind it.
+
+**Topology.** `main` is trunk **and** staging: every merge to `main` auto-builds a
+Preview on a stable URL — the shared integration surface. The `production` branch
+is the release branch, and **Vercel Production Branch Tracking is set to
+`production`**. A release is the **owner** opening (or approving) a pull request
+`main → production` and merging it; the approval comes from a device the agent
+does not control. Because the merge to `production` is what triggers the
+production build, **the owner's diff review at the PR happens *before* the
+production build runs** — the correct ordering, and the specific correction over
+the old dashboard-promote model, where the review ran *after* the build. The
+former `staging` branch relic is deleted; `main` replaces it.
+
+**The two rulesets (the enforced wall).** Both carry an **empty bypass list**, so
+no identity — Admin included — merges past them.
+
+| Ruleset | Branch | Enforces |
+|---|---|---|
+| `production-protection` | `production` | require a PR + **1 approval**, stale approvals dismissed on push, last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
+| `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
+
+The `visual` job (pixel comparison,
+[ADR-0008](decisions/0008-visual-regression.md)) is deliberately **absent** from
+both lists: it reports a screenshot regression without blocking a merge until the
+owner adds it to the required set, and it comes back out the moment it flakes.
+How that report is read and answered is the review loop
+([ADR-0013](decisions/0013-visual-review-loop.md), wired 2026-07-27):
+CI posts the before/after/diff gallery into the pull request, and an
+owner-only `/approve-visuals` comment re-renders the baselines and **commits**
+them onto the PR branch — the approval is a commit here, never a click in a
+vendor's UI.
+
+Agents have full `main` freedom (0 approvals, gated only by the five green checks
+and up-to-date-ness); `production` needs an approval the agent cannot supply for
+its own PR — GitHub forbids self-approval, and the only other identity that can
+approve is the owner's. That single approval, from an owner device, is the
+release gate. The operating hygiene for running this under agents — secrets only
+in the platform store, no production platform-CLI access on agent machines, the
+owner-only release gate, and SHA attestation — is in the README's *Operating
 hygiene for agent-driven repos* section (recommendations for the platform owner;
-the enforced rules below are this section's). The click-by-click runbook for the
-one-time topology flip and the promotion ritual is
-[deploy-promotion.md](deploy-promotion.md).
+the enforced rules below are this section's). The click-by-click release runbook
+is [deploy-promotion.md](deploy-promotion.md).
 
 | Env | Git → deploy | Database | Host |
 |---|---|---|---|
-| Production | **none** — manual promotion only (Production Branch set to an unused ref, e.g. `production-manual`) | Neon branch `production` | project custom domain (+ wildcard when added) |
-| Staging | `main` → auto Preview deployment on a stable staging alias | Neon branch `staging` | staging alias URL |
+| Production | merge to `production` (owner-approved PR, `production-protection` ruleset) → Vercel Production build | Neon branch `production` | project custom domain (+ wildcard when added) |
+| Staging | `main` → auto Preview deployment on a stable URL | Neon branch `staging` | stable staging URL |
 | Preview | every PR → auto Preview deployment | **ephemeral Neon branch per PR** (marketplace integration) | per-PR URL |
 | Development | local | Docker Postgres (or a Neon `dev` branch) | `*.localhost` |
 
 **Preview + staging ARE the development environment** — there is no separate
 deployed dev environment. Per-PR previews are where a change is exercised in a
-real deployment; `main`'s auto-published staging deployment is the shared
-integration surface. Both are fully automatic and fully agent-reachable. Local
-(`*.localhost`) is the machine loop; every *deployed* non-production environment
-is a preview or the staging alias.
+real deployment; `main`'s auto-published staging deployment (Production Branch
+Tracking points at `production`, so `main` builds a Preview, not Production) is
+the shared integration surface. Both are fully automatic and fully
+agent-reachable. Local (`*.localhost`) is the machine loop; every *deployed*
+non-production environment is a preview or the stable staging URL.
 
 **Tenant addressing per environment.** Tenants live on subdomains of the app's
 base domain — but what "base domain" means differs per environment, and the code
-handles each honestly:
+handles each honestly. The server resolves a tenant per request in one fixed
+order (`core/server/usecases/resolve-identity.ts`): (1) an **exact
+custom-domain** match in `tenant_domains`, else (2) the **subdomain label of
+`APP_BASE_DOMAIN`** treated as the tenant slug, else (3) the **`X-Tenant`
+header** (CLI and other non-browser clients). The consequence of step 2: with a
+real owned base domain, a **single wildcard domain makes every tenant resolve
+automatically by subdomain — no per-tenant registration needed.**
 
 - **Local dev**: full subdomain tenancy on `*.localhost`
   (`acme.localhost:47100`). One caveat browsers impose: `Domain=.localhost`
@@ -1362,36 +1526,69 @@ handles each honestly:
   login is per-subdomain. This is a browser rule, not a bug; the e2e harness
   works within it.
 - **Vercel's shared apex (`<project>.vercel.app`)**: tenant subdomains are
-  **impossible by construction** — `acme.<project>.vercel.app` is not a
-  subdomain of your project; sibling names under `vercel.app` belong to OTHER
-  Vercel projects. `tenantUrl()` therefore returns `null` on this apex and the
-  web app runs single-tenant per deployment URL (tenant switching via the CLI's
-  `--tenant`); linking "sibling subdomains" here would send users to strangers'
-  deployments.
+  **impossible by platform restriction, confirmed live.** Vercel refuses to add
+  a subdomain under a project's own `*.vercel.app`; the dashboard error is
+  verbatim *"`<team>` does not have access to `*.<project>.vercel.app`
+  domains"*. So `acme.<project>.vercel.app` cannot be attached at all.
+  `tenantUrl()` therefore returns `null` on this apex and the web app runs
+  single-tenant per deployment URL (tenant switching via the CLI's `--tenant`).
 - **A real base domain with a wildcard** (`*.example.com` attached to the
-  project): full subdomain tenancy returns, and one session spans sibling
-  subdomains (the cookie domain is the real base). This is the production
-  shape; ADR-0003 and the domains feature (tenant_domains + provisioner ports)
-  are built for it.
+  project): full subdomain tenancy returns, one wildcard resolves all tenants
+  (step 2 above), and one session spans sibling subdomains (the cookie domain is
+  the real base). This is the production shape; ADR-0003 and the domains feature
+  (`tenant_domains` + provisioner ports) are built for it. **Cert mechanics
+  (from research):** a wildcard cert on Vercel needs an ACME **DNS-01**
+  challenge, which requires **NS delegation to Vercel** (Vercel-hosted DNS) *or*
+  the narrow `_acme-challenge` NS delegation. A records-only path (no NS
+  delegation) can only issue certs for **individual, non-wildcard per-tenant
+  hosts** (HTTP-01 via CNAME) — that is what the built US-020 adapter is for
+  (`DOMAIN_PROVISIONER=vercel`): each tenant host is attached to the project
+  programmatically so it gets its own HTTP-01 cert, no wildcard needed. Hobby
+  caps at **50 custom domains per project**;
+  wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement, not a
+  technical wildcard gate).
 - **Self-host**: Caddy's on-demand TLS serves any custom tenant domain that
   passes the internal domain check (§Docker self-host) — subdomain and
   custom-domain tenancy both work.
 
+**The demo's live setup (in progress, pending eu.org approval — honest).** The
+demo takes a free **eu.org** domain, `agentproofarch.eu.org`, delegated to
+Vercel's nameservers — allowed precisely because it is *not* the company's
+`coderoad.pl` zone, so the delegation carries no risk to production DNS. That NS
+delegation buys the DNS-01 wildcard cert, giving browser multi-tenancy at zero
+cost. Production env is `APP_BASE_DOMAIN=agentproofarch.eu.org` +
+`APP_BASE_URL`. Until the eu.org registration is approved and the wildcard is
+live, the deployed web stays single-tenant on `*.vercel.app` and the CLI's
+`X-Tenant` carries multi-tenancy.
+
+**The company-DNS bridge (the owner's chosen shape for tenant subdomains).** The
+company zone `coderoad.pl` cannot be NS-delegated, so tenants are bridged with a
+single **plain wildcard CNAME record**, `*.agentproofarch.coderoad.pl →
+cname.vercel-dns.com`, added in company DNS. That record resolves every tenant
+host, but records-only means **no DNS-01 wildcard cert** — so each per-tenant host
+must be attached to the Vercel project to get its own HTTP-01 cert, which is
+precisely the US-020 adapter's job (`DOMAIN_PROVISIONER=vercel`, §Ports). On that
+target `SELF_HOST_TARGET_CNAME=cname.vercel-dns.com` is what US-019's UI shows a
+tenant bringing its own domain. Pending the owner's `VERCEL_TOKEN`, the attach
+path is offline-tested only.
+
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):
 
-- **No Git-integration path to production** (control 1 of 5). The Vercel
-  project's Production Branch points at an unused ref (`production-manual`, never
-  pushed), so a push or merge to `main` produces a *Preview* deployment, never a
-  production one. Nothing an agent can do on GitHub — merge, force-push, dispatch
-  a workflow, retrigger a deploy hook — reaches production, because production has
-  no automatic trigger to reach.
-- **Production promotion is 100% manual, owner-only, inside Vercel.** The owner
-  picks a green staging/preview deployment and clicks **Promote to Production** in
-  the dashboard (works from a phone), or runs `vercel promote` from a human-only
-  device. Never from GitHub, never by an agent. Promotion re-points the production
-  alias at an *existing, already-gated* build — it does not rebuild, so the
-  promoted artifact is byte-identical to the one that passed `check`/`smoke`.
+- **Production release goes through an owner-approved PR to `production`**
+  (control 1 of 5). Production Branch Tracking points at the real `production`
+  branch, and the `production-protection` ruleset (require PR + 1 approval, empty
+  bypass, four required status checks) means the only way to trigger a production
+  build is a pull request `main → production` that the owner approves and merges.
+  An agent (`chomamateusz-agent`, Write, not Admin) can open the PR but cannot
+  approve its own PR, cannot edit the ruleset, and cannot force-push past it — so
+  no agent action reaches production without an owner approval from a device the
+  agent does not control.
+- **The release is owner-only and diff-reviewed before the build.** The owner
+  reads the diff on the `main → production` PR and approves it; the merge is what
+  triggers the production build. So the review precedes the build that sees
+  production secrets — the correct ordering. Never an agent, never a
+  self-approval.
 - **Two teams, one login** (paid-app topology). The commercial app's production
   lives on its own **Pro** team; the **Hobby** team hosts non-commercial work. One
   login spans both, but a pause, suspension or plan-limit hit on one team does not
@@ -1406,50 +1603,82 @@ foundation):
 - **Migrations run at build time** against that environment's own database
   (previews migrate their ephemeral branch — always safe; staging/prod are
   forward-only: destructive changes ship as two deploys, expand → contract). The
-  drizzle migration sequence is mechanically gated (DECIDE F2): `npm run doc-lint`
+  drizzle migration sequence is mechanically gated (DECIDE F2): `pnpm run doc-lint`
   runs `lintMigrations`, which fails the build on a duplicate, gapped or
   non-`<NNNN>` prefix or a `meta/_journal.json` that does not match the `.sql`
   files on disk — a config-regression probe plants a duplicate to prove the gate
-  still fires. A migration in the promoted diff takes a Neon snapshot/PITR point
-  first (§Constraint-adding migrations; runbook step in
+  still fires. A migration in the `main → production` diff takes a Neon
+  snapshot/PITR point first (§Constraint-adding migrations; runbook step in
   [deploy-promotion.md](deploy-promotion.md)).
-- **Tenant subdomains need the custom wildcard domain**; until one is
+- **Tenant subdomains need a real wildcard base domain**; until one is
   attached, web runs single-tenant on `*.vercel.app` while the API and CLI
   stay fully multi-tenant via `X-Tenant` — which is also how `smoke` drives a
-  deployed environment (`npm run smoke:remote` = the same CLI suite against a
+  deployed environment (`pnpm run smoke:remote` = the same CLI suite against a
   deployment URL).
 
 **The five standing controls** (WHY and the click-by-click checklist in
-[deploy-promotion.md](deploy-promotion.md) §c): (1) **no Git-integration path to
-prod** — Production Branch is an unused ref; (2) **zero platform-CLI sessions on
-agent machines** — no `vercel`/`neonctl` login persists where an agent runs, and
-the agent harness's Bash hook bans launching them; (3) **all production env vars
-marked Sensitive** (write-only); (4) **passkey/2FA on the Vercel login**, sessions
-only on owner devices; (5) **platform-independent DR** — a cold standby on the
-owner's VPS via the Docker deploy target, an hourly `pg_dump` cron on the VPS, and
-Neon PITR, so a total-platform loss is recoverable off Vercel/Neon entirely.
+[deploy-promotion.md](deploy-promotion.md) §c): (1) **owner-approved PR to
+`production`** — the `production-protection` ruleset (PR + 1 approval, empty
+bypass) is the only path to a production build, and the agent's account is
+Write-not-Admin so it can neither self-approve nor edit the ruleset; (2) **zero
+platform-CLI sessions on agent machines** — no `vercel`/`neonctl` login persists
+where an agent runs, and the agent harness's Bash hook bans launching them;
+(3) **all production env vars marked Sensitive** (write-only); (4) **passkey/2FA
+on the Vercel login**, sessions only on owner devices; (5) **platform-independent
+DR** — a cold standby on the owner's VPS via the Docker deploy target, an hourly
+`pg_dump` cron on the VPS, and Neon PITR, so a total-platform loss is recoverable
+off Vercel/Neon entirely.
 
-**The irreducible residue, stated honestly.** These controls stop a GitHub event
-or a compromised agent from *triggering* a production deploy; they do not change
-the fact that **promoted code runs with production secrets at runtime.** An agent
-that lands malicious code in a deployment the owner then promotes has reached
-production secrets — the only defense at that seam is **the owner's diff review at
-promotion time** (review the diff since the last promoted SHA before clicking
-Promote). If production ever moves to self-host, an **egress allowlist** on the
-production host is the next control to add (bounding where exfiltrated secrets
-could be sent); on Vercel's managed functions that control is not available.
+**The irreducible residue, stated honestly.** The controls above stop an agent
+from *releasing* to production without an owner approval; they do **not** remove
+the fact that a **production build executes with production env vars available**
+(Vercel exposes them at build, sensitive vars included) **at merge time.**
+Therefore malicious build code merged to `production` could exfiltrate secrets
+**before any human sees the running result** — so the defense is the owner's diff
+review **at the PR, before the merge/build**, never after it. This is why the
+event ordering matters: on a single Git-connected Vercel project, an agent with
+repo access could, *absent the ruleset*, force a production build; the
+`production-protection` ruleset (PR + owner approval, owner-only) is exactly what
+closes that. But a human diff review is fallible, so build-time secret exposure
+is not fully closed here. **Full closure requires either a Git-*disconnected*
+production project** (secrets never reach a build triggered by a repo push) **or
+production off Vercel entirely** (self-host / k3s, where an **egress allowlist**
+on the production host bounds where exfiltrated secrets could go — a control
+Vercel's managed functions do not offer). Both are the escalation path — the
+three-tier ladder: **today** a shared laptop with the identity split above;
+**at Together go-live** a managed IdP plus cheap/revocable secrets (§Two
+security doctrines); **when it grows** a dedicated prod-ops machine or off-Vercel
+production.
 
-**Demo — current state (honest).** The demo project **still auto-deploys
-production from `main`** (the ADR-0003 topology); it has **not** yet been flipped
-to the manual-promotion topology above. Flipping it is a dashboard action, not a
-code change — the one-time procedure is [deploy-promotion.md](deploy-promotion.md)
-§a. One caveat is explicitly **unverified**: after the flip, the post-deploy
-**production** smoke trigger must be re-checked, because a manual "Promote to
-Production" may emit *different* GitHub deployment events than a `main` push does
-— possibly no `deployment_status` at all — and `post-deploy-smoke.yml` fires on
-`deployment_status`. Verify on the first promoted deploy and adjust the workflow
-trigger if promotion emits no usable event (tracked in [backlog.md](backlog.md)
-§Verification residuals).
+**Two security doctrines** (they keep the claims above honest):
+
+- **TIMELINE-TRACE.** Every security claim in these docs must be justified by
+  tracing the **actual** event order — who acts, when, with what privilege — not
+  the *intended* order. This session alone caught three claims that were true "in
+  intent" but false in timeline: an "unpushable ref" that was actually a naming
+  convention; a promotion diff-review that ran **after** the build (so it could
+  not defend the secret-exposure seam); and an owner SSH key assumed neutral that
+  could still merge via a plain push. A claim that has not been walked step by
+  step is a hypothesis, not a control.
+- **CHEAP SECRETS.** The build sees **every** production secret (residue above),
+  so every production secret must be **least-privilege, revocable, and
+  asymmetric-verify where possible.** Offline-forge-class secrets — a symmetric
+  session-signing key such as a self-hosted auth secret — should not exist on the
+  platform at all: prefer an **external managed IdP** that holds the signing key
+  and exposes only JWKS **verification** (a leaked verification key forges
+  nothing). Managed-IdP migration is a **Together-scope** item.
+
+**Demo — current state (honest).** The demo runs the topology above: Vercel
+Production Branch Tracking is set to `production`, and the `production-protection`
+and `main-gates` rulesets are in place with empty bypass lists. Agents act as
+`chomamateusz-agent` (Write, not Admin); the `main → production` release PR is
+owner-approved. The one item still **in progress** is the wildcard base domain:
+the `agentproofarch.eu.org` registration + NS delegation to Vercel is pending
+approval, so until it lands the deployed web is single-tenant on `*.vercel.app`
+and multi-tenancy is CLI-only via `X-Tenant`. Because a merge to `production` is
+an ordinary branch push, it emits the normal `deployment_status` for the
+`Production` environment, so `post-deploy-smoke.yml` fires as-is — the
+dashboard-promote trigger caveat that the old model carried no longer applies.
 
 **Per-app deployment specifics live with the app.** This section is the
 foundation's recommended topology; an individual application's concrete
@@ -1498,9 +1727,12 @@ touches:
   `TEAM_WIP_LIMITS`), and the team card walks the full legal chain
   `todo→in-dev→review→done`. So repeated runs never accumulate in the bounded
   `in-dev`/`review` columns and can never hit a WIP limit that would turn the
-  deploy gate false-red. A per-environment `concurrency` group
+  deploy gate false-red. A per-shared-target `concurrency` group
   (`post-deploy-smoke.yml`, `cancel-in-progress: false`) serializes runs so
-  overlapping deploys don't race the `before + 1` assertions.
+  overlapping deploys don't race the `before + 1` assertions: production keys on
+  a constant, since every production deploy drives the same alias and canary
+  tenant, while previews key on the deployment SHA, since they share the single
+  `Preview` environment but neither their URLs nor their data.
 - **Credentials via CI secrets; forks override the defaults.** `SMOKE_EMAIL` /
   `SMOKE_PASSWORD` / `SMOKE_TENANT` / `BASE_URL` come from repository secrets in
   CI, not the repo. The script's baked-in defaults are the local canary only; a
@@ -1511,7 +1743,11 @@ touches:
 
 Health is split by the two questions an operator actually asks, and every health
 response carries a build attestation (release `version` + commit `sha`) so a
-smoke run can prove *which* deploy it verified. The `sha` is a vendor-neutral
+smoke run can prove *which* deploy it verified. `version` is strict SemVer from
+`demo/package.json`, bumped only by the release-cut pull request that precedes a
+promotion
+([ADR-0014](decisions/0014-release-versioning-and-version-surfaces.md)). The
+`sha` is a vendor-neutral
 `APP_COMMIT_SHA`; the platform entry (`api/index.ts`) maps Vercel's
 `VERCEL_GIT_COMMIT_SHA` into it, so the vendor name stays contained to the one
 platform boundary (§Layers). Unset (local dev) it reports `unknown`.
@@ -1637,11 +1873,19 @@ live smoke assertion.
   under `VERCEL` · **REVIEW+AI**: flag any new deploy-only requirement added as
   prose-only instead of a schema refinement, and any widening of the "deployed"
   heuristic that would catch local dev.
-- **Dependency hygiene.** `package-lock.json` is committed and validated by
-  lock-lint in `check`. `npm audit --omit=dev --audit-level=high` runs in CI as an
-  **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
+- **Dependency hygiene.** The lockfile is committed and validated by lock-lint in
+  `check`. A production-only dependency audit at `--audit-level=high` runs in CI
+  as an **advisory** (reported, non-blocking — audit's false-positive rate makes a hard
   gate a build-breaker on transitive noise); a high/critical advisory is triaged,
   and version bumps come through Dependabot/Renovate PRs that pass both gates.
+  The package manager is **pnpm**, chosen for install-time supply-chain hardening
+  ([ADR-0009](decisions/0009-package-manager-pnpm.md)): dependency lifecycle
+  scripts do not run unless the package is named in a reviewed
+  `onlyBuiltDependencies` allowlist, a minimum-release-age cooldown keeps freshly
+  published versions out of the install until they have aged, and the strict
+  non-hoisted `node_modules` makes phantom dependencies unresolvable rather than
+  merely linted. It hardens **installation**: a compromised package's runtime
+  code still executes when the app imports it.
 - **Trace-id exposure is safe.** The W3C trace id in the error fallback is a random
   correlation id — no PII, no capability, actionable only to someone who already
   has backend log access — so surfacing it turns a support ticket into a one-line
@@ -1763,7 +2007,8 @@ structurally rather than describing it: `eslint.config.js` +
 `eslint-plugin-agentproofarch/` (the `query-descriptors-only`, `sx-layout-only`
 and `event-suffix-taxonomy` rules) + `.dependency-cruiser.cjs` (`no-frameworks-in-core`,
 `core-domain-depends-on-nothing`, `vercel-and-neon-only-in-adapters`,
-`web-features-are-islands`) for the layer and frontend graph; and `tsconfig.json`
+`web-features-are-islands`, `web-layouts-are-structure-only`) for the layer and
+frontend graph; and `tsconfig.json`
 strictness, `scripts/doc-lint.ts`, `scripts/smoke*.ts`, the
 `check`/`smoke`/`lock-lint` scripts, `config-regression/` and the CI workflow for
 the gates.

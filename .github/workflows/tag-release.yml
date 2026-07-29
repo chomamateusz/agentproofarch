@@ -1,0 +1,45 @@
+# Idempotent release tagging never moves an existing tag.
+name: tag-release
+
+on:
+  push:
+    branches: [production]
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - id: version
+        run: printf 'value=%s\n' "$(node -p "require('./demo/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
+        with:
+          script: |
+            const version = process.env.APP_VERSION ?? '';
+            if (!/^\d+\.\d+\.\d+$/.test(version)) {
+              core.setFailed(`demo/package.json version is not SemVer: "${version}"`);
+              return;
+            }
+            const tag = `v${version}`;
+            const ref = `tags/${tag}`;
+            const existing = await github.rest.git
+              .getRef({ ...context.repo, ref })
+              .catch((error) => (error.status === 404 ? null : Promise.reject(error)));
+            if (existing === null) {
+              await github.rest.git.createRef({ ...context.repo, ref: `refs/${ref}`, sha: context.sha });
+              core.notice(`Tagged ${tag} at ${context.sha}`);
+              return;
+            }
+            if (existing.data.object.sha !== context.sha) {
+              core.setFailed(`${tag} already points at ${existing.data.object.sha}; refusing to move it.`);
+              return;
+            }
+            core.notice(`${tag} already points at ${context.sha}`);

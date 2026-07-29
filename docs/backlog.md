@@ -44,6 +44,27 @@ enterprise customer questionnaire)
 - A11y: WCAG target + axe pass in e2e — trigger: first public-facing product UI.
 - i18n insurance rules — trigger: first non-English tenant requirement.
 - Product analytics + consent — trigger: first growth instrumentation ask.
+- Visual-regression tooling — **none today** (decision recorded, not built). The
+  recommended path is Playwright `toHaveScreenshot()` reusing the existing e2e
+  Chromium harness, with **baselines generated in CI, never on a dev Mac** (the
+  flake doctrine — a Mac-rendered baseline drifts against the Linux CI runner).
+  Storybook + Lost Pixel is the component-isolation alternative when the need is
+  per-component rather than per-page. Chromatic is excluded (paid). Trigger: the
+  first UI-heavy consumer of the foundation.
+- ~~US-020 Vercel domain-provisioning adapter (`DomainPort`)~~ — **BUILT** (the
+  trigger fired: tenant subdomains bridged through company DNS with one plain
+  wildcard CNAME `*.agentproofarch.coderoad.pl → cname.vercel-dns.com`, and a
+  records-only zone can carry no DNS-01 wildcard cert, so every per-tenant host
+  needs its own HTTP-01 cert and therefore its own programmatic attach).
+  `adapters/domain-provisioning/vercel.ts` + `DOMAIN_PROVISIONER=vercel` ship with
+  `VERCEL_TOKEN`/`VERCEL_PROJECT_ID`(+`VERCEL_TEAM_ID`) and a boot refusal when
+  the block is incomplete (see
+  [architecture.md](architecture.md#ports-complete-list)). Hobby
+  caps at 50 custom domains per project. **Residual, still open: the adapter has
+  never run against the live Domains API** — its behaviour is proven only against
+  a stubbed `fetch`, because CI and the build machine have no token. The owner
+  supplying `VERCEL_TOKEN` in the Vercel env (A1-S5) is what closes that gap; the
+  first live add/check/remove against a real project is the acceptance run.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -66,8 +87,8 @@ enterprise customer questionnaire)
 ## Unlegislated demo decisions (trigger: the next edit touching each)
 
 - `maxDuration: 30` as the de-facto latency budget.
-- Theme-mode / tenant-accent theming seam; visual tooling (screenshot/diff)
-  role.
+- Theme-mode / tenant-accent theming seam. (Visual-regression tooling role is
+  now recorded under §Product platform.)
 - dist-freshness cross-reference; coverage-ratchet ownership.
 - Client retry/GC numbers; CLI config precedence; SPA fallback semantics.
 
@@ -85,17 +106,31 @@ enterprise customer questionnaire)
 - Cross-subdomain session on a real base domain (switcher keeps the session in
   prod) is documented but not locally testable (S6). Trigger: first custom
   base-domain deployment — verify live, then delete this row.
-- Post-deploy production smoke trigger under manual promotion — verify on the
-  first promoted deploy, adjust the workflow trigger if promotion emits no
-  `deployment_status` (`post-deploy-smoke.yml` fires on `deployment_status`; a
-  dashboard "Promote to Production" may emit different GitHub deployment events
-  than a `main` push, unverified). Trigger: the demo flip to the manual-promotion
-  topology ([deploy-promotion.md](deploy-promotion.md) §a).
+- Post-deploy production smoke trigger — **resolved by the topology.** Production
+  is now released by merging an owner-approved PR to the `production` branch, and
+  a branch merge is an ordinary push that emits `deployment_status` for the
+  `Production` environment, so `post-deploy-smoke.yml` fires as-is. The old
+  concern (a dashboard "Promote to Production" possibly emitting a different or no
+  `deployment_status`) does not apply to the PR-merge model
+  ([deploy-promotion.md](deploy-promotion.md) §b step 6).
+
+## Optional second reviewer (shipped 2026-07-26)
+
+- **CodeRabbit runs as the optional second reviewer.** The owner installed the
+  GitHub App and `.coderabbit.yaml` configures it: chill profile, no
+  request-changes, doctrine-pointing path instructions, noise exclusions. It is
+  **advisory only** — it comments and posts a non-required `CodeRabbit` status;
+  the fail-closed `ai-review` gate remains the sole enforcement tier, so
+  CodeRabbit can never turn a real `FAIL` green nor block a merge itself.
 
 ## Open owner decisions (not deferred — awaiting answers)
 
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
-A1-S4 (magic-link email provider, social OAuth credentials), A1-S5
-(`VERCEL_TOKEN` for US-020) and F1 (AI-reviewer gate key).
+A1-S4 (magic-link email provider, social OAuth credentials) and A1-S5
+(`VERCEL_TOKEN` for US-020 — the adapter is built and offline-tested; the token
+is what remains, and only the live verification depends on it).
+**F1 (AI-reviewer gate) is decided and built** — the
+fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
+[../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
+import net from 'node:net';
 import { join } from 'node:path';
 
 import pg from 'pg';
@@ -34,7 +35,7 @@ const setupDatabase = async (adminUrl: string): Promise<void> => {
     await client.query(`CREATE DATABASE ${E2E_DB}`);
   } catch (cause) {
     fail(
-      `Could not prepare the e2e database "${E2E_DB}". Is the dev Postgres up (npm run db:up)?\n${String(cause)}`,
+      `Could not prepare the e2e database "${E2E_DB}". Is the dev Postgres up (pnpm run db:up)?\n${String(cause)}`,
     );
   } finally {
     await client.end();
@@ -79,6 +80,29 @@ const buildWebIfStale = async (): Promise<void> => {
     'apps/web/vite.config.ts',
   ], {});
   assert(build.code === 0, `build:web failed:\n${build.stdout}${build.stderr}`);
+};
+
+const isPortFree = (port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.once('listening', () => probe.close(() => resolve(true)));
+    probe.listen(port, '0.0.0.0');
+  });
+
+// A hardcoded port keeps the Playwright baseURL static, but on CI a leftover
+// listener or a TIME_WAIT socket from an earlier run in the same job makes the
+// server's bind fail with EADDRINUSE — killing the whole e2e job before any
+// test runs, which `retries` cannot recover. Wait the transient out, and after
+// a grace period force-free the port (fuser is Linux-only; the exec no-ops
+// elsewhere — dev reuses the existing server anyway).
+const ensurePortFree = async (port: number): Promise<void> => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (await isPortFree(port)) return;
+    if (attempt === 4) await new Promise<void>((resolve) => exec(`fuser -k ${port}/tcp`, () => resolve()));
+    await delay(500);
+  }
+  throw new SmokeFailure(`port ${port} is still occupied after 10s; cannot boot the e2e server`);
 };
 
 const bootServer = (): void => {
@@ -135,10 +159,11 @@ try {
   await registerLocalhostTenant(e2eDatabaseUrl);
   console.log('e2e: waiting for Mailpit...');
   await waitForMailpit(MAILPIT_API_URL).catch((cause: unknown) => {
-    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (npm run db:up)?\n${String(cause)}`);
+    fail(`Mailpit is not reachable at ${MAILPIT_API_URL}. Is it up (pnpm run db:up)?\n${String(cause)}`);
   });
   await clearMailpit(MAILPIT_API_URL);
   await buildWebIfStale();
+  await ensurePortFree(PORT);
   console.log(`e2e: booting server on port ${PORT}...`);
   bootServer();
   await waitForHealth();

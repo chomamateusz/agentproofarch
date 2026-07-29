@@ -66,7 +66,7 @@ features/board/                      features/team-board/
 binds the portable core to api.ts (gateway + bound descriptors, injected into the
 factory) and re-exports the seam the view imports. The core itself imports no
 api.ts, so it typechecks under the DOM-free `tsconfig.islands.json`
-(`npm run typecheck:islands`) and is node-tested through its public factory — the
+(`pnpm run typecheck:islands`) and is node-tested through its public factory — the
 same for both boards, one rung apart.
 
 ### What stayed identical
@@ -113,7 +113,7 @@ it is mechanically enforced:
 | Property (both boards) | Enforcer |
 | --- | --- |
 | Core imports no api.ts / no web path outside its dir | `no-restricted-imports` parent-relative ban · depcruise `island-core-is-portable` · config-regression probe |
-| Core typechecks without DOM | `tsconfig.islands.json` (no DOM lib) → `npm run typecheck:islands` in `check` |
+| Core typechecks without DOM | `tsconfig.islands.json` (no DOM lib) → `pnpm run typecheck:islands` in `check` |
 | Public seam runs in plain node | `board.test.ts` / `team-board.test.ts` drive `createBoardCore`/`createTeamBoardCore` with a fake gateway (no jsdom) |
 | Composition is one lawful site | `features/<name>/index.web.ts`; api.ts stays feature-free (structural gateway) |
 

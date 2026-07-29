@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
  * Structural guards for the public contract group (US-028, §Public surface,
  * §Authorization, §HTTP caching). Regex/text scans over the real sources — honest
  * limits noted at each probe — so a future edit that silently erases a stance
- * fails `npm run check` rather than shipping.
+ * fails `pnpm run check` rather than shipping.
  */
 
 const demoRoot = join(import.meta.dirname, '..');

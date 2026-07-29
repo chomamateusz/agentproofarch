@@ -15,6 +15,8 @@ const signIn = async (page: Page, password: string): Promise<void> => {
 test('login lands on the tenant ledger with seeded todos', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'agentproofarch' })).toBeVisible();
+  await expect(page.getByTestId('build-stamp')).toBeVisible();
+  await expect(page.getByTestId('build-stamp')).toHaveText(/^v\d+\.\d+\.\d+/);
 
   await page.locator('#login-email').fill(DEMO_EMAIL);
   await page.locator('#login-password').fill(DEMO_PASSWORD);
@@ -24,6 +26,8 @@ test('login lands on the tenant ledger with seeded todos', async ({ page }) => {
   // and shows it in the header switcher; the seeded ledger renders below.
   await expect(page.getByRole('button', { name: 'Switch tenant' })).toContainText('Acme');
   await expect(page.getByText(SEEDED_TODO)).toBeVisible();
+  await expect(page.getByTestId('build-stamp')).toBeVisible();
+  await expect(page.getByTestId('build-stamp')).toHaveText(/^v\d+\.\d+\.\d+/);
 });
 
 test('adding a todo shows it in the list without a reload', async ({ page }) => {
@@ -57,6 +61,7 @@ test('liveness is 200 with attestation and never gates on the database', async (
   expect(body.data.status).toBe('ok');
   expect(typeof body.data.sha).toBe('string');
   expect(typeof body.data.version).toBe('string');
+  expect(body.data.version).toMatch(/^\d+\.\d+\.\d+$/);
 });
 
 test('readiness is 200 with database up when the stack is healthy', async ({ page }) => {

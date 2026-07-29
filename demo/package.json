@@ -1,6 +1,6 @@
 {
   "name": "agentproofarch",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Agent-first, strictly layered full-stack TypeScript foundation for multi-tenant SaaS",
@@ -11,9 +11,9 @@
   "scripts": {
     "dev:server": "tsx watch apps/server/src/entry.node.ts",
     "dev:web": "vite --config apps/web/vite.config.ts",
-    "build": "npm run build:web && npm run typecheck",
+    "build": "pnpm run build:web && pnpm run typecheck",
     "build:web": "vite build --config apps/web/vite.config.ts",
-    "vercel-build": "npm run db:migrate && npm run build",
+    "vercel-build": "pnpm run db:migrate && pnpm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "VITEST_INTEGRATION=1 vitest run --project integration --no-file-parallelism",
@@ -23,8 +23,8 @@
     "depcruise": "depcruise core adapters apps scripts api",
     "knip": "knip",
     "doc-lint": "tsx scripts/doc-lint.ts",
-    "check": "npm run typecheck && npm run typecheck:islands && npm run lint && npm run lock-lint && npm run depcruise && npm run knip && npm run doc-lint && npm run test:coverage",
-    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "check": "pnpm run typecheck && pnpm run typecheck:islands && pnpm run lint && pnpm run lock-lint && pnpm run depcruise && pnpm run knip && pnpm run doc-lint && pnpm run test:coverage",
+    "db:up": "tsx scripts/db-up-preflight.ts && docker compose -f docker-compose.dev.yml up -d",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx adapters/db/migrate.ts",
     "db:seed": "tsx adapters/db/seed.ts",
@@ -32,15 +32,30 @@
     "new:resource": "tsx scripts/new-resource.ts",
     "new:island": "tsx scripts/new-island.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "quickstart:probe": "tsx scripts/quickstart-probe.ts",
+    "release": "tsx scripts/release.ts",
     "e2e": "playwright test",
+    "visual": "playwright test --config playwright.visual.config.ts",
+    "visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
+    "visual:report": "tsx scripts/visual-report.ts",
+    "visual:verdict-input": "tsx scripts/visual-verdict-input.ts",
     "smoke:remote": "tsx scripts/smoke-remote.ts",
-    "lock-lint": "npx -y npm@10 ls --all --package-lock-only >/dev/null"
+    "lock-lint": "pnpm install --frozen-lockfile --lockfile-only"
   },
   "engines": {
-    "node": "22.x",
-    "npm": ">=10 <11"
+    "node": "24.x",
+    "pnpm": ">=10"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "pnpm@10.34.5",
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@1": "1.1.16",
+      "brace-expansion@5": "5.0.8",
+      "fast-uri@3": "3.1.4",
+      "handlebars@4": "4.7.9",
+      "postcss@8": "8.5.22"
+    }
+  },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1091.0",
     "@better-auth/passkey": "^1.6.23",
@@ -52,6 +67,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "@sentry/node": "^10.67.0",
@@ -74,7 +90,6 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@opentelemetry/core": "^2.9.0",
-    "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@playwright/test": "^1.61.1",
     "@tanstack/eslint-plugin-query": "^5.101.2",
     "@tanstack/react-query-devtools": "^5.101.2",

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from '@tanstack/react-router';
 
 import { actions } from '../../api.js';
+import { BuildInfoSection } from './BuildInfoSection.js';
 import { CreateTenantForm } from './CreateTenantForm.js';
 import { PasskeySection } from './PasskeySection.js';
 import { TwoFactorSection } from './TwoFactorSection.js';
@@ -86,6 +87,7 @@ export const SettingsPage = () => {
 
       <TwoFactorSection />
       <PasskeySection />
+      <BuildInfoSection />
     </Container>
   );
 };

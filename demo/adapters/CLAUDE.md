@@ -42,5 +42,5 @@ Concrete implementations of `core/server` ports: the database repositories
 ## Verify you didn't break this layer
 
 ```bash
-npm run depcruise
+pnpm run depcruise
 ```

@@ -1,0 +1,120 @@
+name: visual-baselines
+
+# ADR-0008: baselines are rendered by this linux runner and never on a developer
+# mac. Dispatch with `update: true` to re-render them and download the artifact
+# to commit; dispatch with the default to run the comparison on demand. ADR-0013
+# adds `commit: true`, which pushes the re-rendered PNGs onto the dispatched
+# branch instead — that is what `/approve-visuals` triggers.
+on:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: 'Re-render the baselines (--update-snapshots) instead of comparing'
+        type: boolean
+        default: false
+      commit:
+        description: 'Commit and push the gated baselines to the dispatched branch'
+        type: boolean
+        default: false
+      sha:
+        description: 'Exact commit to render; defaults to the dispatched ref'
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  visual-baselines:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    services:
+      postgres:
+        image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
+        env:
+          POSTGRES_USER: agentproofarch
+          POSTGRES_PASSWORD: agentproofarch
+          POSTGRES_DB: agentproofarch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentproofarch"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailpit:
+        image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
+        ports:
+          - 47925:1025
+          - 47980:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+          MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    env:
+      DATABASE_URL: postgresql://agentproofarch:agentproofarch@localhost:5432/agentproofarch
+    steps:
+      # ADR-0013: `commit` only means anything on an authoring run of a branch.
+      # Any other combination is a mis-dispatch, and a mis-dispatch that quietly
+      # uploaded an artifact instead would look like a successful re-baseline.
+      - if: inputs.commit && (!inputs.update || github.ref_type != 'branch')
+        run: |
+          echo "commit: true requires update: true dispatched on a branch." >&2
+          exit 1
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          ref: ${{ inputs.sha || github.ref }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run build:web
+      # Playwright reports a newly written snapshot as a failed test, so the
+      # authoring run itself cannot gate the upload that carries the PNGs out of
+      # CI. The comparison below gates it instead: it re-renders against what was
+      # just written, so an authoring run that died before the harness booted
+      # cannot ship an empty or partial artifact as a baseline set.
+      - if: inputs.update
+        run: pnpm run visual:update
+        continue-on-error: true
+      - if: inputs.update
+        run: pnpm run visual
+      - if: inputs.update
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-baselines
+          path: demo/visual/__screenshots__
+          retention-days: 7
+      # ADR-0013: the same comparison that gates the upload gates this push, so
+      # a partial baseline set can no more be committed than it can be shipped.
+      # `main` and `production` are ruleset-protected with empty bypass lists, so
+      # this token can only reach the unprotected branch it was dispatched on.
+      # A moved branch tip must reject the exact-SHA result as non-fast-forward.
+      - if: inputs.update && inputs.commit
+        env:
+          TARGET_REF: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add visual/__screenshots__
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Update visual baselines"
+          git push origin "HEAD:refs/heads/${TARGET_REF}"
+      - if: ${{ !inputs.update }}
+        run: pnpm run visual
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ failure() }}
+        with:
+          name: visual-diff
+          path: demo/test-results
+          retention-days: 7

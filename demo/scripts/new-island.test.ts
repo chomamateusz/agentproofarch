@@ -99,7 +99,7 @@ describe('generateIsland', () => {
       repoRoot: sandbox,
       dryRun: true,
     });
-    expect(checklist).toContain('npm run check` will stay RED');
+    expect(checklist).toContain('pnpm run check` will stay RED');
     expect(checklist).toContain('apps/web/src/api.ts');
     expect(checklist).toContain('apps/web/src/main.tsx');
     // The generated web composition is named as the one binding site.
@@ -109,7 +109,7 @@ describe('generateIsland', () => {
     expect(checklist).toContain('RESOLVED (ADR-0005)');
     expect(checklist).toContain('--machine=store');
     expect(checklist).not.toContain('DECISION-PENDING');
-    expect(checklist).toContain('npm run check && npm run smoke');
+    expect(checklist).toContain('pnpm run check && pnpm run smoke');
   });
 
   it('scaffolds a rung-2 store island and every file parses', () => {

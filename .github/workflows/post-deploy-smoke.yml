@@ -3,13 +3,21 @@ name: post-deploy-smoke
 on:
   deployment_status:
 
-# Serialize smoke runs per environment+ref so two overlapping runs can't race on
-# the shared canary tenant (the `before + 1` todo assertion and the team board's
-# WIP guards assume a single writer). Never cancel in progress: a running smoke
-# is a live production verification that must finish, not be pre-empted.
+# Serialize per shared target, not per environment. Production deploys all drive
+# one alias and one canary tenant, so they take a constant group component and run
+# one at a time. Previews share the single Preview environment but neither their
+# URLs nor their data, so they key on the deployment SHA — on the environment name
+# alone, an unrelated branch's smoke would supersede a pending one. Never cancel in
+# progress: a running smoke is a live verification that must finish. GitHub keeps
+# only the newest pending run, so a queued production smoke can be dropped once a
+# newer deploy holds the alias — that older SHA is not what the alias serves, and
+# EXPECTED_SHA would fail it anyway.
 concurrency:
-  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.sha }}
+  group: post-deploy-smoke-${{ github.event.deployment.environment }}-${{ github.event.deployment.environment == 'Production' && 'shared' || github.event.deployment.sha }}
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   smoke-remote:
@@ -23,24 +31,29 @@ jobs:
       run:
         working-directory: demo
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           ref: ${{ github.event.deployment.sha }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: demo/package.json
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-      - run: npm ci
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: demo/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
       # Drive the production ALIAS, not environment_url (the per-deployment URL):
       # the alias is what users hit, Better Auth only trusts APP_BASE_URL as the
       # CSRF origin, and testing the alias also proves promotion/aliasing worked.
       # Production drives the alias (what users hit, proves promotion worked);
       # previews/staging drive their own deployment URL — auth trusts it via
       # the VERCEL_URL-derived origin.
-      - run: npm run smoke:remote
+      - run: pnpm run smoke:remote
         env:
           BASE_URL: ${{ github.event.deployment.environment == 'Production' && 'https://agentproofarch.vercel.app' || github.event.deployment_status.environment_url }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
           # Deploy attestation: the smoke asserts the live health SHA equals the
           # SHA this deployment event carried, so it can never green a stale deploy.
           EXPECTED_SHA: ${{ github.event.deployment.sha }}

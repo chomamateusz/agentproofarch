@@ -17,6 +17,7 @@ import { createSesEmailPort } from '#adapters/email/ses.js';
 import { createSmtpEmailPort } from '#adapters/email/smtp.js';
 import { createCaddyDomainPort } from '#adapters/domain-provisioning/caddy.js';
 import { createNoopDomainPort } from '#adapters/domain-provisioning/noop.js';
+import { createVercelDomainPort } from '#adapters/domain-provisioning/vercel.js';
 import type {
   AuthPort,
   BackfillPort,
@@ -46,7 +47,7 @@ export interface AppDeps {
   staff: StaffRepository;
   users: UserDirectory;
   tenantDomains: TenantDomainRepository;
-  /** Domain provisioning/verification: caddy on self-host, noop elsewhere. */
+  /** Domain provisioning/verification: vercel or caddy per target, noop elsewhere. */
   domainPort: DomainPort;
   /**
    * Outbound email: the real `smtp` relay (dev/CI point it at a local Mailpit
@@ -72,6 +73,7 @@ export interface AppDeps {
   ids: IdGenerator;
   clock: Clock;
   baseDomain: string;
+  tenantCreationMode: Env['TENANT_CREATION'];
   /** Build attestation surfaced by the health routes; 'unknown' outside a deploy. */
   commitSha: string;
 }
@@ -83,13 +85,28 @@ export interface AppDeps {
 // Exported for unit tests: selecting the adapter must be testable without
 // constructing the full graph — a real Better Auth instance eagerly queries
 // tenant_domains for trustedOrigins, which has no database on the check runner.
-export const selectDomainPort = (env: Env): DomainPort =>
-  env.DOMAIN_PROVISIONER === 'caddy'
-    ? createCaddyDomainPort({
-        targetCname: env.SELF_HOST_TARGET_CNAME,
-        targetIp: env.SELF_HOST_TARGET_IP,
-      })
-    : createNoopDomainPort();
+export const selectDomainPort = (env: Env): DomainPort => {
+  // `vercel` is never inferred from running on Vercel (the platform env carries no
+  // API token): selecting it without its credentials is a composition error, not a
+  // deploy that silently stops attaching tenant domains.
+  if (env.DOMAIN_PROVISIONER === 'vercel') {
+    if (!env.VERCEL_TOKEN || !env.VERCEL_PROJECT_ID) {
+      throw new Error('DOMAIN_PROVISIONER=vercel requires VERCEL_TOKEN and VERCEL_PROJECT_ID');
+    }
+    return createVercelDomainPort({
+      token: env.VERCEL_TOKEN,
+      projectId: env.VERCEL_PROJECT_ID,
+      ...(env.VERCEL_TEAM_ID === undefined ? {} : { teamId: env.VERCEL_TEAM_ID }),
+    });
+  }
+  if (env.DOMAIN_PROVISIONER === 'caddy') {
+    return createCaddyDomainPort({
+      targetCname: env.SELF_HOST_TARGET_CNAME,
+      targetIp: env.SELF_HOST_TARGET_IP,
+    });
+  }
+  return createNoopDomainPort();
+};
 
 /**
  * Selects the outbound-email transport (composition root). `ses` (Amazon SES
@@ -189,6 +206,7 @@ export const createDeps = (env: Env): AppDeps => {
     ids: { nextId: () => randomUUID() },
     clock: { nowIso: () => new Date().toISOString() },
     baseDomain: env.APP_BASE_DOMAIN,
+    tenantCreationMode: env.TENANT_CREATION,
     commitSha: env.APP_COMMIT_SHA ?? 'unknown',
   };
 };

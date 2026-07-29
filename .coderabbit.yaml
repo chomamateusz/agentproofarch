@@ -1,0 +1,36 @@
+# CodeRabbit is the OPTIONAL second reviewer (docs/backlog.md §Optional second
+# reviewer): advisory-only, never a required check — the enforcement tier is the
+# fail-closed `ai-review` gate. This file overrides the CodeRabbit UI settings.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!**/pnpm-lock.yaml"
+    - "!demo/visual/__screenshots__/**"
+    - "!website/build/**"
+  path_instructions:
+    - path: "demo/**"
+      instructions: >-
+        Judge against docs/architecture.md and demo/CLAUDE.md: strict layer
+        boundaries (core/** is pure TS — no hono/react/drizzle/pg/better-auth),
+        zero-narration comment doctrine (a comment is allowed only for a
+        non-obvious WHY), no `any`, no `as` except `as const`, domain errors
+        returned as Result rather than thrown, authorize-first tenant-scoped
+        use-cases.
+    - path: ".github/**"
+      instructions: >-
+        CI gates are fail-closed by doctrine: flag anything that weakens a
+        gate, lets a check go green without its proof, or unpins an action
+        from its commit SHA.
+    - path: "docs/**"
+      instructions: >-
+        These files are normative. Flag any claim that drifts from the code,
+        configuration or live behaviour it describes.
+chat:
+  auto_reply: true

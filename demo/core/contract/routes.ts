@@ -204,8 +204,9 @@ export const staffRevokeOutputSchema = z.object({
 /**
  * The public target a tenant points a custom domain at, surfaced with the domain
  * list so the web add-flow can render the exact DNS record to create (US-019).
- * Both nullable: the `noop` provisioner (dev/Vercel) configures neither, so the
- * UI falls back to generic guidance; `caddy` self-host sets exactly one.
+ * Both nullable: the `noop` provisioner (dev default) configures neither, so the
+ * UI falls back to generic guidance; `caddy` self-host and the Vercel target
+ * (`SELF_HOST_TARGET_CNAME`) set exactly one.
  */
 export const domainTargetSchema = z.object({
   cname: z.string().nullable(),

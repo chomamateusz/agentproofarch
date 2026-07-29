@@ -96,13 +96,13 @@ const carlos: DirectoryUser = { userId: 'u-carlos', email: 'carlos@example.com',
 describe('staff use-cases — authorization matrix', () => {
   it('listStaff is readable by owner AND admin, forbidden to member and tenant-less visitor', async () => {
     const { staff, users } = fakes([ownerGrant()]);
-    expect((await listStaff({ identity: owner }, deps(staff, users))).ok).toBe(true);
-    expect((await listStaff({ identity: admin }, deps(staff, users))).ok).toBe(true);
-    expect(await listStaff({ identity: member }, deps(staff, users))).toMatchObject({
+    expect((await listStaff({ identity: owner, tenantCreationMode: 'open' }, deps(staff, users))).ok).toBe(true);
+    expect((await listStaff({ identity: admin, tenantCreationMode: 'open' }, deps(staff, users))).ok).toBe(true);
+    expect(await listStaff({ identity: member, tenantCreationMode: 'open' }, deps(staff, users))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
-    expect(await listStaff({ identity: visitor }, deps(staff, users))).toMatchObject({
+    expect(await listStaff({ identity: visitor, tenantCreationMode: 'open' }, deps(staff, users))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -110,14 +110,14 @@ describe('staff use-cases — authorization matrix', () => {
 
   it('grantAdmin is owner-only: an admin is forbidden before any lookup', async () => {
     const { staff, users, store } = fakes([ownerGrant()], [carlos]);
-    const result = await grantAdmin({ identity: admin }, { email: carlos.email }, deps(staff, users));
+    const result = await grantAdmin({ identity: admin, tenantCreationMode: 'open' }, { email: carlos.email }, deps(staff, users));
     expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
     expect(store()).toHaveLength(1);
   });
 
   it('revokeAdmin is owner-only: an admin is forbidden', async () => {
     const { staff, users } = fakes([ownerGrant(), { id: 'g2', tenantId: 't-acme', userId: 'u-carlos', role: 'admin' }], [carlos]);
-    expect(await revokeAdmin({ identity: admin }, { userId: 'u-carlos' }, deps(staff, users))).toMatchObject({
+    expect(await revokeAdmin({ identity: admin, tenantCreationMode: 'open' }, { userId: 'u-carlos' }, deps(staff, users))).toMatchObject({
       ok: false,
       error: { code: 'forbidden' },
     });
@@ -127,7 +127,7 @@ describe('staff use-cases — authorization matrix', () => {
 describe('grantAdmin — existing-account requirement and idempotency', () => {
   it('grants admin to an existing account and reports granted: true', async () => {
     const { staff, users, store } = fakes([ownerGrant()], [carlos]);
-    const result = await grantAdmin({ identity: owner }, { email: carlos.email }, deps(staff, users));
+    const result = await grantAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: carlos.email }, deps(staff, users));
     expect(result).toMatchObject({
       ok: true,
       value: { granted: true, staff: { userId: 'u-carlos', email: carlos.email, role: 'admin' } },
@@ -137,13 +137,13 @@ describe('grantAdmin — existing-account requirement and idempotency', () => {
 
   it('normalizes the email before the directory lookup', async () => {
     const { staff, users } = fakes([ownerGrant()], [carlos]);
-    const result = await grantAdmin({ identity: owner }, { email: '  Carlos@Example.com ' }, deps(staff, users));
+    const result = await grantAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: '  Carlos@Example.com ' }, deps(staff, users));
     expect(result).toMatchObject({ ok: true, value: { granted: true, staff: { userId: 'u-carlos' } } });
   });
 
   it('returns not_found when the email has no account (FR-8: no invitations)', async () => {
     const { staff, users, store } = fakes([ownerGrant()], []);
-    const result = await grantAdmin({ identity: owner }, { email: 'ghost@example.com' }, deps(staff, users));
+    const result = await grantAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: 'ghost@example.com' }, deps(staff, users));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
     expect(store()).toHaveLength(1);
   });
@@ -153,7 +153,7 @@ describe('grantAdmin — existing-account requirement and idempotency', () => {
       [ownerGrant(), { id: 'g-carlos', tenantId: 't-acme', userId: 'u-carlos', role: 'admin' }],
       [carlos],
     );
-    const result = await grantAdmin({ identity: owner }, { email: carlos.email }, deps(staff, users));
+    const result = await grantAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: carlos.email }, deps(staff, users));
     expect(result).toMatchObject({
       ok: true,
       value: { granted: false, staff: { id: 'g-carlos', role: 'admin' } },
@@ -163,7 +163,7 @@ describe('grantAdmin — existing-account requirement and idempotency', () => {
 
   it('never downgrades an existing owner on a re-grant (idempotent, keeps owner)', async () => {
     const { staff, users } = fakes([ownerGrant({ userId: 'u-carlos', id: 'g-carlos' })], [carlos]);
-    const result = await grantAdmin({ identity: owner }, { email: carlos.email }, deps(staff, users));
+    const result = await grantAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: carlos.email }, deps(staff, users));
     expect(result).toMatchObject({ ok: true, value: { granted: false, staff: { role: 'owner' } } });
   });
 });
@@ -174,7 +174,7 @@ describe('revokeAdmin — last-owner lockout protection', () => {
       [ownerGrant(), { id: 'g-carlos', tenantId: 't-acme', userId: 'u-carlos', role: 'admin' }],
       [carlos],
     );
-    const result = await revokeAdmin({ identity: owner }, { userId: 'u-carlos' }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { userId: 'u-carlos' }, deps(staff, users));
     expect(result).toMatchObject({ ok: true, value: { userId: 'u-carlos', revoked: 1 } });
     expect(store()).toHaveLength(1);
   });
@@ -184,13 +184,13 @@ describe('revokeAdmin — last-owner lockout protection', () => {
       [ownerGrant(), { id: 'g-carlos', tenantId: 't-acme', userId: 'u-carlos', role: 'admin' }],
       [carlos],
     );
-    const result = await revokeAdmin({ identity: owner }, { email: carlos.email }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: carlos.email }, deps(staff, users));
     expect(result).toMatchObject({ ok: true, value: { userId: 'u-carlos', revoked: 1 } });
   });
 
   it('refuses to revoke the last owner (lockout guard) with a validation error', async () => {
     const { staff, users, store } = fakes([ownerGrant()], []);
-    const result = await revokeAdmin({ identity: owner }, { userId: 'u-owner' }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { userId: 'u-owner' }, deps(staff, users));
     expect(result).toMatchObject({ ok: false, error: { code: 'validation' } });
     expect(store()).toHaveLength(1);
   });
@@ -200,26 +200,26 @@ describe('revokeAdmin — last-owner lockout protection', () => {
       [ownerGrant(), ownerGrant({ id: 'g-carlos', userId: 'u-carlos' })],
       [carlos],
     );
-    const result = await revokeAdmin({ identity: owner }, { userId: 'u-carlos' }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { userId: 'u-carlos' }, deps(staff, users));
     expect(result).toMatchObject({ ok: true, value: { revoked: 1 } });
     expect(store()).toHaveLength(1);
   });
 
   it('returns not_found when there is no grant for the target in this tenant', async () => {
     const { staff, users } = fakes([ownerGrant()], [carlos]);
-    const result = await revokeAdmin({ identity: owner }, { userId: 'u-carlos' }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { userId: 'u-carlos' }, deps(staff, users));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 
   it('returns not_found when revoking an email with no account', async () => {
     const { staff, users } = fakes([ownerGrant()], []);
-    const result = await revokeAdmin({ identity: owner }, { email: 'ghost@example.com' }, deps(staff, users));
+    const result = await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, { email: 'ghost@example.com' }, deps(staff, users));
     expect(result).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 
   it('rejects a reference naming neither userId nor email with validation', async () => {
     const { staff, users } = fakes([ownerGrant()], []);
-    expect(await revokeAdmin({ identity: owner }, {}, deps(staff, users))).toMatchObject({
+    expect(await revokeAdmin({ identity: owner, tenantCreationMode: 'open' }, {}, deps(staff, users))).toMatchObject({
       ok: false,
       error: { code: 'validation' },
     });

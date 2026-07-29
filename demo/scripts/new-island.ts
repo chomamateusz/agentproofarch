@@ -33,7 +33,7 @@ import type { GeneratedFile, ResourceNames } from './new-resource.js';
  *
  * Every mode carries marked `<<EXTENSION POINT>>`s where the seam grows. Like
  * new-resource, it does NOT edit shared files: the generated code imports symbols
- * that do not exist yet (a bound descriptor, a gateway), so `npm run check` stays
+ * that do not exist yet (a bound descriptor, a gateway), so `pnpm run check` stays
  * RED through the type-forced steps. The web-route registration in main.tsx is
  * NOT type-forced — it typechecks while unwired — so the printed checklist, not
  * the compiler, is what guarantees the route is registered.
@@ -236,7 +236,7 @@ by this island):
 ${generated}
 
 These GENERATED files import a bound descriptor that does not exist yet, so
-\`npm run check\` will stay RED through the type-forced steps below. The web-route
+\`pnpm run check\` will stay RED through the type-forced steps below. The web-route
 registration (step 2) is NOT type-forced — it typechecks while unwired — so the
 checklist, not the compiler, guarantees it. The island core is RUNG 1: server-state
 descriptors behind the seam and a stubbed \`send\`; the client machine is
@@ -248,7 +248,7 @@ deliberately absent (see the machine note at the end). Work top to bottom:
    web composition (features/${n.singularKebab}/index.web.ts), which passes
    \`actions.${n.singularCamel}\` into \`create${n.singularPascal}Core\`. Either reuse
    an EXISTING resource query (edit index.web.ts to \`list: actions.todos\`), or
-   scaffold a new resource (\`npm run new:resource -- <name>\`), wire its checklist,
+   scaffold a new resource (\`pnpm run new:resource -- <name>\`), wire its checklist,
    and bind it here:
    apps/web/src/api.ts
      1a. anchor:  todosQuery,        (the '#core/client/index.js' import)
@@ -281,7 +281,7 @@ MACHINE (rung 2 / rung 3) — RESOLVED (ADR-0005): graduate via --machine.
    This island ships at RUNG 1 (no client store) — the honest default until a
    graduation trigger fires. When one does, scaffold the machine instead of
    hand-rolling it: rung 2 = island store (@xstate/store; zustand is NOT a demo
-   dependency) via \`npm run new:island -- <name> --machine=store\`; rung 3 =
+   dependency) via \`pnpm run new:island -- <name> --machine=store\`; rung 3 =
    statechart (an XState oracle DERIVED from a core/domain transition table) via
    \`--machine=statechart\` — or grow this island at the marked
    <<EXTENSION POINT>>s in core/index.ts and core/selectors.ts following those
@@ -289,7 +289,7 @@ MACHINE (rung 2 / rung 3) — RESOLVED (ADR-0005): graduate via --machine.
    either way. See docs/architecture.md §Client application state (ADR-0005).
 
 Verify (write core tests before wiring the UI):
-  npm run check && npm run smoke
+  pnpm run check && pnpm run smoke
 `;
 };
 
@@ -301,7 +301,7 @@ const sharedWiringSteps = (n: ResourceNames): string => `
    web composition (features/${n.singularKebab}/index.web.ts), which passes
    \`actions.${n.singularCamel}\` into \`create${n.singularPascal}Core\`. Reuse an
    EXISTING resource query (edit index.web.ts to \`list: actions.todos\`), or
-   scaffold a new resource (\`npm run new:resource -- <name>\`), wire its checklist,
+   scaffold a new resource (\`pnpm run new:resource -- <name>\`), wire its checklist,
    and bind it:
    apps/web/src/api.ts
      1a. anchor:  todosQuery,        (the '#core/client/index.js' import)
@@ -339,7 +339,7 @@ const buildMachineChecklist = (
    persists it through an injected gateway (${n.singularPascal}Gateway). The web
    composition (features/${n.singularKebab}/index.web.ts) imports
    \`${n.singularCamel}Gateway\` from apps/web/src/api.ts and injects it into the core
-   — it does not exist yet, so \`npm run check\` stays RED until you bind one.
+   — it does not exist yet, so \`pnpm run check\` stays RED until you bind one.
    anchor:  todos: todosQuery(apiClient),   (near the actions object)
    add a gateway that maps each method to a core/client mutation:
      export const ${n.singularCamel}Gateway: ${n.singularPascal}Gateway = {
@@ -348,7 +348,7 @@ const buildMachineChecklist = (
        removeItem: (input) => apiClient.remove${n.singularPascal}Item(input).then(toResult),
      };
    (Import ${n.singularPascal}Gateway from the island core; scaffold the mutations
-    via \`npm run new:resource\` and wire them through core/client.)
+    via \`pnpm run new:resource\` and wire them through core/client.)
 
 4. STORE TEST — apps/web/src/features/${n.singularKebab}/core/${n.singularKebab}.test.ts
    is generated with the rung-2 store tests (optimistic apply + undo, driven by a
@@ -407,14 +407,14 @@ ${generated}
 
 These GENERATED files import symbols that do not exist yet — a bound descriptor${
     machine === 'store' ? ' and a gateway' : ''
-  } — so \`npm run check\` will stay RED through the type-forced steps below. The
+  } — so \`pnpm run check\` will stay RED through the type-forced steps below. The
 web-route registration (step 2) is NOT type-forced — it typechecks while unwired
 — so the checklist, not the compiler, guarantees it. Work top to bottom:
 ${sharedWiringSteps(n)}
 ${machine === 'store' ? storeSection : statechartSection}
 
 Verify (write core tests before wiring the UI):
-  npm run check && npm run smoke
+  pnpm run check && pnpm run smoke
 `;
 };
 
@@ -451,7 +451,7 @@ const runCli = (): void => {
   const name = args.find((arg) => !arg.startsWith('--'));
   if (name === undefined) {
     process.stderr.write(
-      'Usage: npm run new:island -- <name> [--machine=store|statechart] [--rules=domain|local] [--dry-run]\n',
+      'Usage: pnpm run new:island -- <name> [--machine=store|statechart] [--rules=domain|local] [--dry-run]\n',
     );
     process.exit(1);
   }

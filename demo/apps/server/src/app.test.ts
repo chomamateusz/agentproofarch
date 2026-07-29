@@ -17,6 +17,7 @@ import type { AuthenticatedUser } from '#core/server/index.js';
 
 import { buildApp } from './app.js';
 import type { AppDeps } from './composition.js';
+import { APP_VERSION } from './version.js';
 
 // A real Better Auth instance satisfies the AppDeps.auth field without a cast.
 // It is never exercised here: no test hits the auth handler route, and the
@@ -106,6 +107,7 @@ const baseDeps = (): AppDeps => ({
   ids: { nextId: () => 'test-id' },
   clock: { nowIso: () => '2026-07-15T00:00:00.000Z' },
   baseDomain: 'localhost',
+  tenantCreationMode: 'open',
   commitSha: 'test-sha',
 });
 
@@ -299,7 +301,7 @@ describe('buildApp routes', () => {
     if (body.ok) {
       const live = healthLiveOutputSchema.parse(body.data);
       expect(live.sha).toBe('test-sha');
-      expect(live.version).toBeTruthy();
+      expect(live.version).toBe(APP_VERSION);
     }
   });
 

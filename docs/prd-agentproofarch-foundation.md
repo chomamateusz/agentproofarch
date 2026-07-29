@@ -86,7 +86,7 @@ Two deployment targets are first-class and must work from the same commit:
 
 ## 2. Goals
 
-- A repository where architectural rules are machine-enforced (ESLint boundaries + dependency-cruiser), so an AI agent physically cannot violate layering without failing `npm run check`.
+- A repository where architectural rules are machine-enforced (ESLint boundaries + dependency-cruiser), so an AI agent physically cannot violate layering without failing `pnpm run check`.
 - Full multi-tenant auth: registration, login, organizations, invitations, tenant switching. One email = one global account that can belong to many tenants.
 - Custom domains per tenant working on both targets: Vercel Domains API and Caddy on-demand TLS.
 - A CLI that covers 100% of the foundation's API surface with `--json` output and mapped exit codes — the reference client and the agent verification loop.
@@ -110,7 +110,7 @@ core/
   server/      # use-cases + ports (interfaces): AuthPort, DomainPort,
                # repository interfaces. Pure TS. No HTTP, no React, no Node
                # platform APIs beyond std types.
-               # dependencies: core/domain
+               # dependencies: core/domain, core/contract
   client/      # typed HTTP client built from contract + query/mutation
                # definitions on @tanstack/query-core + AuthClientPort interface.
                # dependencies: core/contract, @tanstack/query-core
@@ -134,7 +134,7 @@ tasks/         # PRDs and agent task files
 
 - `core/domain` → zod only.
 - `core/contract` → `core/domain`.
-- `core/server` → `core/domain`. Never imports contract, adapters, apps, hono, react.
+- `core/server` → `core/domain`, `core/contract`. Never imports adapters, apps, hono, react.
 - `core/client` → `core/contract`, `@tanstack/query-core`. Never imports core/server or adapters.
 - `adapters/*` → `core/server` (to implement ports), `core/domain`.
 - `apps/server` → everything server-side (composition root). The ONLY place adapters are instantiated.
@@ -273,7 +273,7 @@ server-side rendering of pages, only of embed widgets.
 
 ## 4. User Stories
 
-Stories are ordered; each is one focused session. "Check passes" means `npm run check` (typecheck + lint + dependency-cruiser + knip + tests) is green.
+Stories are ordered; each is one focused session. "Check passes" means `pnpm run check` (typecheck + lint + dependency-cruiser + knip + tests) is green.
 
 ### US-001: Repository scaffold and toolchain
 **Description:** As a developer, I need the repo skeleton with strict TypeScript and test tooling so all later work has a foundation.
@@ -293,7 +293,7 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 - [ ] ESLint flat config: `eslint-plugin-boundaries` encoding all rules from §3.2; `@typescript-eslint` strict preset; `no-explicit-any` and `consistent-type-assertions` (forbid `as` except `as const`) as errors
 - [ ] dependency-cruiser config: layer rules, no-circular, forbidden `@vercel/*` / `@neondatabase/*` outside allowed paths
 - [ ] knip configured for dead code/exports
-- [ ] Proof test: a temporary file importing `core/server` from `apps/web` makes `npm run check` fail; file removed after demonstrating (document the demonstration in the story log)
+- [ ] Proof test: a temporary file importing `core/server` from `apps/web` makes `pnpm run check` fail; file removed after demonstrating (document the demonstration in the story log)
 - [ ] Check passes
 
 ### US-003: Domain primitives — Result, errors, env
@@ -568,7 +568,7 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 
 **Architecture & enforcement**
 - FR-1: The system must be a single-package repository (no workspaces, no published packages) with the layout of §3.1 and path aliases.
-- FR-2: All dependency rules of §3.2 must be enforced by ESLint boundaries and dependency-cruiser; any violation must fail `npm run check`.
+- FR-2: All dependency rules of §3.2 must be enforced by ESLint boundaries and dependency-cruiser; any violation must fail `pnpm run check`.
 - FR-3: TypeScript must run with `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`; `any` and non-const `as` assertions are lint errors.
 - FR-4: All external input (HTTP bodies, CLI args, env) must be zod-parsed at the boundary; no unvalidated casts.
 - FR-5: Use-cases must return `Result`; the HTTP layer must translate to the envelope of §3.3; no exception may cross the HTTP boundary as a 500 with stack trace.
@@ -645,11 +645,11 @@ Stories are ordered; each is one focused session. "Check passes" means `npm run 
 
 ## 9. Success Metrics
 
-- `npm run check` is the single gate: green means typecheck, lint, boundaries, dependency graph, dead code, and tests all pass.
+- `pnpm run check` is the single gate: green means typecheck, lint, boundaries, dependency graph, dead code, and tests all pass.
 - Fresh clone → `docker compose up` → working registration/login in under 5 minutes with no manual steps beyond copying `.env.example`.
 - The same commit deploys to Vercel with only env configuration.
 - An agent can verify any foundation capability via CLI `--json` + exit code without a browser.
-- Deliberate boundary violations (e.g. importing `core/server` from `apps/web`, importing `@vercel/*` from core) fail `npm run check` — demonstrated, not assumed.
+- Deliberate boundary violations (e.g. importing `core/server` from `apps/web`, importing `@vercel/*` from core) fail `pnpm run check` — demonstrated, not assumed.
 
 ## 10. Open Questions
 
