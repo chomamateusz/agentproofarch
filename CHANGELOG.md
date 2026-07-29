@@ -12,6 +12,14 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-07-29
+
+### Fixed
+
+- Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
+  export, and moves Drizzle Kit to v1 migration tooling without the vulnerable
+  `@esbuild-kit/*` dependency chain (#TBD)
+
 ## v1.0.0 — 2026-07-28
 
 ## 2026-07-28
