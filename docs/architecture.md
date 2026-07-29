@@ -1265,11 +1265,15 @@ code.
   testable offline (success, idempotent `409`, `401`/`403`, `5xx`, network
   failure, corrupted JSON) — and those automated tests stay stubbed; nothing
   below is asserted by a gate. The production add path was exercised against the
-  live Domains API on 2026-07-29 and confirmed that attach succeeds and the
-  response carries the DNS action the operator must take: an owner-supervised
-  run through the public CLI attached two real tenant hosts, cleared the parent
-  domain's ownership TXT challenge and ended with both hosts verified and
-  serving. That run is written down once, with its identifiers and final state,
+  live Domains API on 2026-07-29 and confirmed two things: that attach succeeds,
+  and that the provider demands an ownership TXT before it will verify. An
+  owner-supervised run through the public CLI attached two real tenant hosts,
+  cleared the parent domain's ownership TXT challenge — reading those records
+  off the provider's dashboard, because the deployed app of that day discarded
+  the verification payload — and ended with both hosts verified and serving.
+  Surfacing those records through the port, the contract and the CLI is the
+  change made here, and it is **offline-tested only**, against stubbed provider
+  responses. That run is written down once, with its identifiers and final state,
   in [backlog.md §US-020 live adjudication
   record](backlog.md#us-020-live-adjudication-record-2026-07-29) — the only
   place this repository states it. The token that made the run possible exists
@@ -1597,9 +1601,12 @@ host, but records-only means **no DNS-01 wildcard cert** — so each per-tenant 
 must be attached to the Vercel project to get its own HTTP-01 cert, which is
 precisely the US-020 adapter's job (`DOMAIN_PROVISIONER=vercel`, §Ports). The
 add/check contract and CLI surface both provider ownership TXT challenges and
-the CNAME/A record still required to point the host. This bridge is the exact
-shape the 2026-07-29 live run exercised, ownership TXT included
-([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)).
+the CNAME/A record still required to point the host. The 2026-07-29 live run
+exercised this bridge and confirmed the attach and the TXT requirement itself
+([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)); the
+owner read the TXT values off the provider's dashboard during that run, so the
+surfacing path described here is offline-tested only, against stubbed provider
+responses.
 
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):

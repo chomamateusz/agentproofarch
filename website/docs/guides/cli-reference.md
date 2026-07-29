@@ -399,9 +399,13 @@ owner-supervised live run on 2026-07-29, written down in
 Host and token are redacted to the documentation's example domain.
 :::
 
-**Observed.** That run attached a tenant subdomain under a parent already
-claimed by another hosting account, so the response carried an ownership TXT
-challenge alongside the pointing record:
+**Observed — the requirement, not this output.** That run attached a tenant
+subdomain under a parent already claimed by another hosting account, and the
+provider demanded an ownership TXT before it would verify. The app deployed that
+day discarded the provider's verification payload, so the owner read the TXT
+values off the provider's dashboard and configured DNS by hand. The block below
+is the **documented shape** the CLI prints for that same case after this change,
+covered by the offline suite — it is not what the run printed:
 
 ```text
 attached: shop.example.com (pending)
@@ -414,7 +418,8 @@ CNAME  shop.example.com  cname.vercel-dns.com
 ```
 
 **Observed.** `domain check` was invoked exactly once in that run, while the
-ownership challenge was still pending, and answered:
+ownership challenge was still pending; an abridged excerpt of its answer as
+captured in the session log:
 
 ```json
 {"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"shop.example.com is attached to the Vercel project but not verified yet"}}}

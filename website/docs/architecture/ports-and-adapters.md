@@ -180,7 +180,12 @@ The production add path was confirmed live on 2026-07-29 by a single
 owner-supervised run, recorded once as a dated adjudication record; the
 adapter's automated tests remain stubbed-`fetch`, and no gate holds a provider
 token. That run also carried one pre-verification `check`; live acceptance of
-`check` after verification, and of `remove`, remains unrecorded:
+`check` after verification, and of `remove`, remains unrecorded. So does
+`requiredDnsRecords` itself: the run confirmed the attach and the provider's
+ownership-TXT requirement, but the app deployed that day discarded the
+verification payload, so the owner read those records off the provider's
+dashboard — carrying them through the port, the contract and the CLI is
+offline-tested only:
 [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 :::
 

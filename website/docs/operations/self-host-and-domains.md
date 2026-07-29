@@ -208,17 +208,21 @@ mapping. **No gate touches the provider.** The
 build machine hold none, by design.
 
 **What the live run adds.** The one thing the gates structurally cannot: that
-the production runtime path works end to end against the real API — attach,
-ownership challenge, verification, certificate, and a tenant resolved from the
-`Host` header on a real custom domain. It is a human-witnessed observation,
-recorded once and cited everywhere else.
+the production runtime path works end to end against the real API — attach, the
+ownership-TXT requirement itself, verification, certificate, and a tenant
+resolved from the `Host` header on a real custom domain. It is a
+human-witnessed observation, recorded once and cited everywhere else.
 
 **What remains unrecorded.** The live run covered `add` end to end plus exactly
 one `domain check`, taken while ownership verification was still pending. No
 check ran after verification succeeded — the verified state was established by
 TLS and `/api/health` over HTTPS — and `remove` was never invoked, so both
-remain offline-tested only. Self-host needs no provider API; Caddy issues
-per-tenant certificates on demand.
+remain offline-tested only. So is the record surfacing on this page: the app
+deployed that day discarded the provider's verification payload, so the owner
+read the TXT values off the provider's dashboard and configured DNS by hand;
+carrying those records through the port, the contract and the CLI is tested
+against stubbed provider responses only. Self-host needs no provider API; Caddy
+issues per-tenant certificates on demand.
 
 ## Bring-your-own domain 🌍 \{#bring-your-own-domain}
 

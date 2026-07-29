@@ -146,12 +146,17 @@ developer state.
    *attached, unverified*.
 3. The parent domain was already claimed by another hosting account, so the API
    demanded an ownership challenge — a TXT record
-   `vc-domain-verify=<host>,<token>` at `_vercel.coderoad.pl` — which the
-   response carried through the port, the contract and the CLI unchanged. The
-   owner configured both TXT values at the parent.
+   `vc-domain-verify=<host>,<token>` at `_vercel.coderoad.pl`. The deployed app
+   the run drove (sha `5138f884…`, which predates this change) could not show
+   it: `DomainPort.provision` returned `void` and the provider's verification
+   payload was discarded, so nothing reached the port, the contract or the CLI.
+   The owner read both `vc-domain-verify` values off the **hosting provider's
+   dashboard** and configured them at the parent by hand. That manual detour is
+   exactly the gap the `requiredDnsRecords` change in this PR closes.
 4. `domain check` was invoked **exactly once** in the whole run, on
    `acme.agentproofarch.coderoad.pl`, while the ownership challenge was still
-   pending. Its envelope, verbatim:
+   pending. An abridged excerpt as captured in the session log — the full stored
+   `tenantDomain` fields were not preserved in the capture:
 
    ```json
    {"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"acme.agentproofarch.coderoad.pl is attached to the Vercel project but not verified yet"}}}
@@ -173,7 +178,11 @@ developer state.
 - Unrecorded: `domain check` **after** verification succeeded — no such
   invocation happened, so its acceptance rests on the offline suite alone — and
   `domain remove`, never invoked at all. The verification residual above stands
-  for both.
+  for both. The **record-surfacing path added in this PR** is unrecorded too:
+  the run confirmed that attach succeeds and that the provider demands the
+  ownership TXT, but the records themselves came off the provider dashboard, so
+  carrying them through the port, the contract and the CLI is offline-tested
+  only, against stubbed provider responses.
 - **No gate can repeat it.** The `VERCEL_TOKEN` that made the run possible lives
   only in the production runtime environment; CI and the build machine hold
   none, by design. This record is a human-witnessed observation, not a
