@@ -50,12 +50,14 @@ commit.
 curl -sS https://agentproofarch.vercel.app/api/health/live
 ```
 
+{/*release-version*/}
+
 ```json
 {
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612"
   }
 }
@@ -66,23 +68,29 @@ Local dev, where `APP_COMMIT_SHA` is unset:
 ```json
 {
   "ok": true,
-  "data": { "status": "ok", "version": "1.0.0", "sha": "unknown" }
+  "data": { "status": "ok", "version": "1.1.0", "sha": "unknown" }
 }
 ```
 
+{/*/release-version*/}
+
 **Readiness, database up** — `200`:
+
+{/*release-version*/}
 
 ```json
 {
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "up"
   }
 }
 ```
+
+{/*/release-version*/}
 
 **Readiness, database down** — `HTTP 503`, and the body is the ordinary error envelope, not a special health shape:
 
@@ -100,29 +108,37 @@ The status code is not hand-written at the route. `respond()` maps the error cod
 
 **Compat `/api/health`** — the readiness *information* at `200`, without the gate:
 
+{/*release-version*/}
+
 ```json
 {
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "down"
   }
 }
 ```
 
+{/*/release-version*/}
+
 That `"database": "down"` at `200` is exactly why new callers should use `/ready`: this route reports readiness semantics but does not gate on them.
 
 **From the CLI** — the same data through the agent contract:
 
+{/*release-version*/}
+
 ```bash
 pnpm run cli health
-# status=ok db=up v1.0.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
+# status=ok db=up v1.1.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
 
 pnpm run cli --json health
 # exactly one JSON document on stdout: { "ok": true, "data": { … } }
 ```
+
+{/*/release-version*/}
 
 ## Why the split matters ✂️ \{#why-the-split-matters}
 

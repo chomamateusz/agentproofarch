@@ -318,7 +318,7 @@ request to `main`, promoted to `production` and tagged `vX.Y.Z`. The
 [changelog](../changelog.md) keeps its UTC date groups and gains a marker at each
 cut; the docs site freezes one snapshot per major.
 
-The version in `demo/package.json` — `1.0.0` in this release cut — is the
+The version in `demo/package.json` — bumped only by a release-cut PR — is the
 build's single release identity, served by every successful health response. The
 website's `package.json` holds an inert `0.0.0` placeholder. See
 [Versioning & releases](../operations/versioning-and-releases.md) for the

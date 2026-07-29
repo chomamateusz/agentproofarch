@@ -10,7 +10,8 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
   knip (dead files + dependency hygiene; unused exports/types are errors that
   fail this gate — surface with no in-repo importer must be declared in
   `knip.jsonc`, as an `entry` or via a `@public` tag) +
-  doc-lint (docs↔config enforcer coverage, injected count tokens, env-schema ⊆
+  doc-lint (docs↔config enforcer coverage, injected count tokens,
+  release-version tokens checked against `package.json`, env-schema ⊆
   `.env.example`, dead relative and site-absolute links) + vitest with `--coverage` — the
   **static** gate; coverage thresholds are a ratchet floor (measured minimum
   rounded down, per-metric) enforced here, so a coverage regression fails

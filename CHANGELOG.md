@@ -12,9 +12,16 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## v1.1.0 — 2026-07-29
+
 ## 2026-07-29
 
 ### Added
+
+- `doc-lint` verifies the release version quoted by the documentation against
+  `demo/package.json`, so a version bump that leaves those pages stale fails
+  `pnpm run check`
+  ([#106](https://github.com/chomamateusz/agentproofarch/pull/106))
 
 - Domain add/check responses now surface provisioner-required ownership and
   pointing DNS records through the API, CLI, and domains settings view
