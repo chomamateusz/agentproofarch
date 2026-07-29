@@ -179,7 +179,7 @@ environment, and the code handles each case explicitly rather than pretending.
 | **Local dev** (`*.localhost`) | full subdomain tenancy — `acme.localhost:47100` | **per-subdomain** | browsers reject `Domain=.localhost` cookies, so a session does not span siblings; `crossSubDomainCookies` is off for `localhost` |
 | **Vercel shared apex** (`<project>.vercel.app`) | **impossible** — see below | single deployment URL | `tenantUrl()` returns `null`; web runs single-tenant, multi-tenancy is CLI-only via `X-Tenant` |
 | **Real base domain + wildcard** (`*.example.com`) | full subdomain tenancy, one wildcard resolves all tenants | spans sibling subdomains (`crossSubDomainCookies` on) | wildcard cert needs an ACME **DNS-01** challenge → NS delegation to Vercel (or `_acme-challenge` delegation) |
-| **Custom domain** (`shop.acme.com`) | step 1 of resolution, once `verified` | **its own cookie world** — sign-in per domain, deliberate isolation | Vercel attaches each host through the US-020 Domains API adapter (production add confirmed live); self-host needs nothing |
+| **Custom domain** (`shop.acme.com`) | step 1 of resolution, once `verified` | **its own cookie world** — sign-in per domain, deliberate isolation | Vercel attaches each host through the US-020 Domains API adapter (production add confirmed live — [the dated record](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live)); self-host needs nothing |
 | **Docker self-host** | subdomain *and* custom domain both work | as configured | Caddy `on_demand_tls` asks an internal endpoint before minting a cert |
 
 ### The `*.vercel.app` impossibility 🚫 \{#the-vercelapp-impossibility}

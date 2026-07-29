@@ -195,9 +195,13 @@ migrations on startup). A dedicated CI job (`selfhost.yml`) builds the image,
 boots the stack and runs the smoke CLI against the container on every push.
 Self-host issues TLS via Caddy and needs no platform API; the **Vercel** Domains
 API adapter (US-020, `DOMAIN_PROVISIONER=vercel`) is the other target's
-equivalent — it attaches each tenant host to the Vercel project, and is tested
-against a stubbed `fetch`; the production add path was confirmed live on
-2026-07-29, while live check/remove acceptance remains unrecorded.
+equivalent — it attaches each tenant host to the Vercel project. Its automated
+tests are stubbed-`fetch` and stay that way; the production add path was
+confirmed live on 2026-07-29 by an owner-supervised run through the public CLI,
+written down once in
+[docs/backlog.md §US-020 live adjudication record](../docs/backlog.md#us-020-live-adjudication-record-2026-07-29).
+CI holds no `VERCEL_TOKEN`, so no gate repeats that run, and live check/remove
+acceptance remains unrecorded.
 
 ### Self-host with Docker
 

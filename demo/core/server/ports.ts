@@ -162,7 +162,7 @@ export interface HealthPort {
   pingDatabase(): Promise<boolean>;
 }
 
-export type DnsRecordPurpose = 'ownership-verification' | 'pointing';
+type DnsRecordPurpose = 'ownership-verification' | 'pointing';
 
 export interface RequiredDnsRecord {
   readonly type: string;
@@ -171,7 +171,7 @@ export interface RequiredDnsRecord {
   readonly purpose: DnsRecordPurpose;
 }
 
-export interface DomainProvision {
+interface DomainProvision {
   readonly requiredDnsRecords: RequiredDnsRecord[];
 }
 

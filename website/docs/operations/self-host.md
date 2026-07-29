@@ -25,7 +25,7 @@ Both columns are built. Vercel is live today; the Docker packaging ships in the 
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
 | Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
-| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host — **built** (US-020), production add confirmed live; check/remove acceptance unrecorded | Caddy `on_demand_tls` + internal domain-check endpoint — **built** |
+| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host — **built** (US-020), production add confirmed live per the [dated US-020 record](./self-host-and-domains.md#us-020-production-add-confirmed-live); check/remove acceptance unrecorded | Caddy `on_demand_tls` + internal domain-check endpoint — **built** |
 | Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
 | CI proof | `post-deploy-smoke.yml` (smoke the live deploy) | `selfhost.yml` (build image → boot compose → smoke the container) |

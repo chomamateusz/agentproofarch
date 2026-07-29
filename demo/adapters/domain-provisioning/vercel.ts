@@ -185,7 +185,11 @@ export const createVercelDomainPort = (config: VercelDomainPortConfig): DomainPo
       if (attached.ok) {
         return { requiredDnsRecords: requiredRecords(domain, attached.data) };
       }
-      return { requiredDnsRecords: [] };
+      // Returning no records here would be an affirmative "nothing to configure"
+      // read off a state nobody could observe.
+      throw new Error(
+        `Vercel reported "${domain}" as already attached but its state could not be read: ${attached.detail}`,
+      );
     }
     throw new Error(`Vercel could not attach "${domain}": ${result.detail}`);
   },

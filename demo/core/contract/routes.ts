@@ -222,7 +222,7 @@ export const domainListOutputSchema = z.object({
 
 export type DomainAddInput = z.input<typeof domainAddInputSchema>;
 
-export const requiredDnsRecordSchema = z.object({
+const requiredDnsRecordSchema = z.object({
   type: z.string(),
   name: z.string(),
   value: z.string(),

@@ -334,6 +334,12 @@ remove are owner-only. `domain add` and `domain check` print every DNS action
 returned by the active provisioner. `--json` carries the same
 `requiredDnsRecords` array without reformatting it.
 
+**The transcripts below are the default.** `DOMAIN_PROVISIONER` is unset out of
+the box, which selects the `noop` provisioner: it accepts every domain and
+returns **no** DNS records, so no `Configure these DNS records` block is printed
+at all. A real provisioner (`vercel`, `caddy`) is what puts records there — see
+[the labelled provider example](#a-real-provisioner-observed) below.
+
 ```bash
 pnpm --silent run cli --tenant acme domain list
 ```
@@ -348,9 +354,53 @@ self-host deployment sets exactly one; if both are present, the Caddy
 provisioner prefers the CNAME. Provider-specific ownership challenges are not
 part of this list response: they arrive from `domain add` and `domain check`.
 
+A newly added domain starts **unverified**, so `add` reports it as pending. With
+the default `noop` provisioner the required-record list is empty and the block is
+omitted:
+
 ```bash
 pnpm --silent run cli domain add shop.example.com
 ```
+
+```text
+attached: shop.example.com (pending)
+```
+
+`domain check` then asks the provisioner and persists the answer. The `noop`
+provisioner accepts every domain, so the first check already verifies it — and
+again prints no record block:
+
+```bash
+pnpm --silent run cli domain check shop.example.com
+```
+
+```text
+shop.example.com: verified — shop.example.com accepted (noop provisioner)
+```
+
+```bash
+pnpm --silent run cli domain remove shop.example.com
+# → removed: shop.example.com (rows: 1)
+```
+
+Exit codes are unchanged: pending DNS is a successful check result (exit 0),
+while authorization, validation and transport failures retain their taxonomy
+codes.
+
+### A real provisioner, as observed 🔎 \{#a-real-provisioner-observed}
+
+:::note[Not the default output]
+The block below is **not** what these commands print out of the box. It is the
+shape a real hosting provider returns, and the record values are the ones
+**observed against the production provisioner (`DOMAIN_PROVISIONER=vercel`)
+during the owner-supervised live run on 2026-07-29** — the run written down in
+[`docs/backlog.md` §US-020 live adjudication record](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md#us-020-live-adjudication-record-2026-07-29).
+Host and token are redacted to the documentation's example domain.
+:::
+
+That run attached a tenant subdomain under a parent already claimed by another
+hosting account, so the response carried an ownership TXT challenge alongside
+the pointing record:
 
 ```text
 attached: shop.example.com (pending)
@@ -362,13 +412,9 @@ CNAME  shop.example.com  cname.vercel-dns.com
   Purpose: pointing
 ```
 
-The TXT challenge appears when the parent domain is already claimed by another
-hosting account. After configuring it, `domain check` reports the remaining
-work rather than collapsing the domain to a pending boolean:
-
-```bash
-pnpm --silent run cli domain check shop.example.com
-```
+After the TXT was configured, `domain check` reported the remaining work rather
+than collapsing the domain to a pending boolean, and a later check returned the
+verified summary with no DNS block:
 
 ```text
 shop.example.com: pending — shop.example.com is verified but Vercel reports its DNS as misconfigured
@@ -378,21 +424,12 @@ CNAME  shop.example.com  cname.vercel-dns.com
   Purpose: pointing
 ```
 
-For an apex such as `example.com`, the pointing row is
-`A  example.com  76.76.21.21`. A successful later check prints the verified
-summary with no DNS block. The default `noop` provisioner returns an empty list;
-the Caddy provisioner returns its configured CNAME or A record until the DNS
-lookup matches.
-
-```bash
-pnpm --silent run cli domain remove shop.example.com
-# → removed: shop.example.com (rows: 1)
-```
-
-A newly added domain starts **unverified**; `domain check` asks the provisioner
-and persists the answer. Exit codes are unchanged: pending DNS is a successful
-check result (exit 0), while authorization, validation and transport failures
-retain their taxonomy codes. See
+The live run used subdomains only. For an **apex** such as `example.com` the
+adapter emits `A  example.com  76.76.21.21` instead of the CNAME
+(`adapters/domain-provisioning/vercel.ts`, covered by the offline suite) — that
+branch was not part of the 2026-07-29 observation. The `caddy` provisioner
+returns its configured `SELF_HOST_TARGET_CNAME` or `_IP` record until the DNS
+lookup matches. See
 [Self-host and domains](../operations/self-host-and-domains.md) for the
 platform-subdomain and bring-your-own flows.
 

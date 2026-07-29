@@ -116,7 +116,7 @@ The internal app carries one other route — the backfill batch executor. That i
 
 | provisioner | target | `provision` / `remove` | `check` |
 |---|---|---|---|
-| `vercel` | the Vercel target | attach / detach the host on the Vercel project over the Domains API; an already-attached host (`409`) is a success, so a retry is safe | the project's domain + config endpoints report `verified` and not `misconfigured` |
+| `vercel` | the Vercel target | attach / detach the host on the Vercel project over the Domains API; an already-attached host (`409`) is a success once its state reads back, so a retry is safe | the project's domain + config endpoints report `verified` and not `misconfigured` |
 | `caddy` | Docker self-host | **no-op** — Caddy issues on demand at handshake time | DNS lookup that the domain CNAMEs to `SELF_HOST_TARGET_CNAME` or resolves to `SELF_HOST_TARGET_IP`; trailing-dot- and case-insensitive comparison |
 | `noop` (default) | dev | no-op | always accepts (`"<domain> accepted (noop provisioner)"`) |
 
@@ -178,27 +178,41 @@ A failed check reports why, not just that it failed — `shop.acme.com does not 
 
 ## US-020: production add confirmed live \{#us-020-production-add-confirmed-live}
 
-The production add path ran against the live Domains API on 2026-07-29. It
-confirmed that the adapter attaches the host and that the response contains the
-ownership challenge the operator must configure.
+The production add path ran against the live Domains API on **2026-07-29**. That
+claim rests on one dated adjudication record, not on this page:
+[`docs/backlog.md` §US-020 live adjudication record](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md#us-020-live-adjudication-record-2026-07-29)
+carries the full observation — who ran it, how, the tenant and domain
+identifiers, the ownership-TXT step, and the final verified state down to the
+health `sha`. Every other page that mentions the live run points back to it.
 
 **What exists.** `adapters/domain-provisioning/vercel.ts` implements the full
 `DomainPort`: `provision` attaches a host to the Vercel project, `remove`
 detaches it, `check` reads the domain and its DNS config back. Both writes are
 convergent — an already-attached host (`409`) and an unknown host on delete
-(`404`) are successes — so the use-case may retry. The token travels only in the
-`Authorization` header, never into a log or an error detail, and every response
-is zod-parsed at the boundary.
+(`404`) are successes — so the use-case may retry. A `409` whose follow-up read
+of the attached domain fails is *not* convergent: the state is unknown, so
+`provision` throws rather than answering "no DNS action required". The token
+travels only in the `Authorization` header, never into a log or an error detail,
+and every response is zod-parsed at the boundary.
 
-**What proves it.** An offline suite against a stubbed `fetch`, 23 tests:
-success, team scoping, the convergent `409`/`404`, `401` and `403` (naming the
+**What the gates prove.** An offline suite against a stubbed `fetch`, 24 tests —
+and stubbed is what it stays: success, team scoping, the convergent `409`/`404`,
+the two unknown-state `409` follow-up failures, `401` and `403` (naming the
 misconfigured env, never echoing the token), `5xx`, transport failures, and
 corrupted payloads on both the domain and DNS-config reads, plus ownership TXT,
-subdomain CNAME and apex A mapping. The production add was also observed live.
+subdomain CNAME and apex A mapping. **No gate touches the provider.** The
+`VERCEL_TOKEN` exists only in the production runtime environment; CI and the
+build machine hold none, by design.
 
-**What remains unrecorded.** The live acceptance run covered add, not
-check/remove. Those paths remain offline-tested only. Self-host needs no provider
-API; Caddy issues per-tenant certificates on demand.
+**What the live run adds.** The one thing the gates structurally cannot: that
+the production runtime path works end to end against the real API — attach,
+ownership challenge, verification, certificate, and a tenant resolved from the
+`Host` header on a real custom domain. It is a human-witnessed observation,
+recorded once and cited everywhere else.
+
+**What remains unrecorded.** The live run covered add, not check/remove. Those
+paths remain offline-tested only. Self-host needs no provider API; Caddy issues
+per-tenant certificates on demand.
 
 ## Bring-your-own domain 🌍 \{#bring-your-own-domain}
 

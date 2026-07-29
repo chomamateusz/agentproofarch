@@ -52,7 +52,9 @@ never carries silent gaps.
   unit + real-Postgres integration tests (US-021). The Vercel Domains API adapter
   (US-020) ships too — per-tenant hosts attached to the Vercel project over the
   REST API, offline-tested against a stubbed `fetch`, with the production add
-  path confirmed live on 2026-07-29. **Vendor packages are contained**: `@vercel/*` and
+  path confirmed live on 2026-07-29
+  ([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)).
+  **Vendor packages are contained**: `@vercel/*` and
   `@neondatabase/*` may be imported only inside `adapters/` and platform entry
   files (lint-enforced). This is dependency containment, not a ban on the
   vendor's *name* — the bare platform-detection string `VERCEL` is legitimately
@@ -1248,7 +1250,10 @@ code.
   exactly what this adapter does: `provision` POSTs the host to the project's
   domains, `remove` deletes it, `check` reads the domain and its config back.
   Attach is convergent, so an already-attached host (`409`) is a success — the
-  use-case may retry. `DOMAIN_PROVISIONER=vercel` must be selected
+  use-case may retry. Convergence stops where knowledge does: a `409` whose
+  follow-up read of the domain fails leaves the required DNS actions unknown, so
+  `provision` throws for `app.onError` to normalize rather than reporting an
+  empty record list the operator would read as "nothing to configure". `DOMAIN_PROVISIONER=vercel` must be selected
   **explicitly** together with `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+
   `VERCEL_TEAM_ID` for a team-owned project); it is never inferred from running
   on Vercel, because the platform env carries no API token, and composition
@@ -1258,10 +1263,18 @@ code.
   failures name the misconfigured env key instead. Every API response is
   zod-parsed at the boundary, and the injected `fetch` makes the whole adapter
   testable offline (success, idempotent `409`, `401`/`403`, `5xx`, network
-  failure, corrupted JSON). The production add path was exercised against the
+  failure, corrupted JSON) — and those automated tests stay stubbed; nothing
+  below is asserted by a gate. The production add path was exercised against the
   live Domains API on 2026-07-29 and confirmed that attach succeeds and the
-  response carries the DNS action the operator must take. Live check/remove
-  acceptance remains unrecorded.
+  response carries the DNS action the operator must take: an owner-supervised
+  run through the public CLI attached two real tenant hosts, cleared the parent
+  domain's ownership TXT challenge and ended with both hosts verified and
+  serving. That run is written down once, with its identifiers and final state,
+  in [backlog.md §US-020 live adjudication
+  record](backlog.md#us-020-live-adjudication-record-2026-07-29) — the only
+  place this repository states it. The token that made the run possible exists
+  only in the production runtime environment, so CI cannot repeat it. Live
+  check/remove acceptance remains unrecorded.
 
 **BUILT** (US-026/US-028a, A1 sub-package 4): the provider auth methods that were
 "normative when triggered" are now wired — this package was the trigger.
@@ -1373,7 +1386,9 @@ proves it: it builds the image, boots the compose stack, and drives the same
 smoke CLI suite the Vercel post-deploy gate runs — against the container. Both
 targets now provision tenant domains through their own `DomainPort` adapter
 (`DOMAIN_PROVISIONER=vercel` / `caddy`); the Vercel production add path was
-confirmed live on 2026-07-29, while check/remove acceptance remains unrecorded.
+confirmed live on 2026-07-29
+([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)),
+while check/remove acceptance remains unrecorded.
 
 | | Vercel | Docker self-host |
 |---|---|---|
@@ -1552,7 +1567,9 @@ automatically by subdomain — no per-tenant registration needed.**
   hosts** (HTTP-01 via CNAME) — that is what the built US-020 adapter is for
   (`DOMAIN_PROVISIONER=vercel`): each tenant host is attached to the project
   programmatically so it gets its own HTTP-01 cert, no wildcard needed. The
-  production add path was confirmed live on 2026-07-29. Hobby caps at **50
+  production add path was confirmed live on 2026-07-29
+  ([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)).
+  Hobby caps at **50
   custom domains per project**;
   wildcard is not itself Pro-gated (Pro is a ToS/commercial requirement, not a
   technical wildcard gate).
@@ -1578,7 +1595,9 @@ host, but records-only means **no DNS-01 wildcard cert** — so each per-tenant 
 must be attached to the Vercel project to get its own HTTP-01 cert, which is
 precisely the US-020 adapter's job (`DOMAIN_PROVISIONER=vercel`, §Ports). The
 add/check contract and CLI surface both provider ownership TXT challenges and
-the CNAME/A record still required to point the host.
+the CNAME/A record still required to point the host. This bridge is the exact
+shape the 2026-07-29 live run exercised, ownership TXT included
+([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)).
 
 Rules (RECOMMENDED topology — the normative path for apps built on this
 foundation):

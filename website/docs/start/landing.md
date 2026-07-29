@@ -285,8 +285,11 @@ stay fully multi-tenant via the `X-Tenant` header.
   with an `edge`-profiled Caddy for on-demand TLS, and migrations run by the
   container entrypoint.
 - **The Vercel Domains provisioning adapter (US-020) has a live-confirmed
-  production add path** as of 2026-07-29. Check/remove acceptance remains
-  unrecorded and covered offline. Full statement:
+  production add path** as of 2026-07-29 — one owner-supervised run, written
+  down as a dated adjudication record rather than asserted page by page. The
+  adapter's own tests stay offline against a stubbed `fetch`, and CI holds no
+  provider token. Check/remove acceptance remains unrecorded. Full statement and
+  the record:
   [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 - **Some CI jobs run but block nothing.** `visual` (pixel), `docs-build` (this
   site) and `dr-acceptance` report without gating, each for a stated reason —

@@ -130,7 +130,7 @@ describe('createVercelDomainPort — provision', () => {
     });
   });
 
-  it('keeps an already-attached host convergent when its follow-up read fails', async () => {
+  it('fails when the 409 follow-up read breaks — never an empty record list from unknown state', async () => {
     const fetchImpl = stubFetch(
       {
         status: 409,
@@ -139,9 +139,24 @@ describe('createVercelDomainPort — provision', () => {
       { status: 503 },
     );
 
-    await expect(port(fetchImpl).provision('shop.acme.com')).resolves.toEqual({
-      requiredDnsRecords: [],
-    });
+    const failure = await failureOf(port(fetchImpl).provision('shop.acme.com'));
+
+    expect(failure).toContain('already attached but its state could not be read');
+    expect(failure).toContain('HTTP 503');
+  });
+
+  it('fails when the 409 follow-up read 404s — the host is attached to something else', async () => {
+    const fetchImpl = stubFetch(
+      {
+        status: 409,
+        body: { error: { code: 'domain_already_in_use', message: 'already in use' } },
+      },
+      { status: 404, body: { error: { code: 'not_found', message: 'domain not found' } } },
+    );
+
+    await expect(port(fetchImpl).provision('shop.acme.com')).rejects.toThrow(
+      /already attached but its state could not be read.*HTTP 404/s,
+    );
   });
 
   it('fails on 401 naming the misconfigured env, never the token value', async () => {

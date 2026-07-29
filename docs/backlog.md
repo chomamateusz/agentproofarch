@@ -61,8 +61,11 @@ enterprise customer questionnaire)
   the block is incomplete (see
   [architecture.md](architecture.md#ports-complete-list)). Hobby
   caps at 50 custom domains per project. The production add path was confirmed
-  live on 2026-07-29. **Residual, still open:** live check/remove acceptance
-  remains unrecorded; both paths are covered by the stubbed-`fetch` suite.
+  live on 2026-07-29 — the observation is written down in
+  [§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
+  below, and that record is the only thing any other page may cite for it.
+  **Residual, still open:** live check/remove acceptance remains unrecorded;
+  both paths are covered by the stubbed-`fetch` suite.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -112,6 +115,57 @@ enterprise customer questionnaire)
   `deployment_status`) does not apply to the PR-merge model
   ([deploy-promotion.md](deploy-promotion.md) §b step 6).
 
+## US-020 live adjudication record (2026-07-29)
+
+The one dated record behind every "production add path confirmed live" sentence
+in this repository and on the published site. Nothing else may assert that claim
+on its own; pages cite this record.
+
+**Story / queue item.** US-020 (Vercel domain-provisioning adapter,
+`DOMAIN_PROVISIONER=vercel`); closes DECIDE **A1-S5**.
+
+**Who and when.** Owner-supervised session on **2026-07-29**. The owner held the
+DNS and the credential; the agent drove the commands and read the output back.
+
+**Method.** A live run against the deployed production app at
+`https://agentproofarch.vercel.app`, driven end-to-end through the **public
+CLI** — no test harness, no stub, no direct call to the provider API. A fresh
+account was registered for the run, so nothing was reused from seeded or
+developer state.
+
+**What was observed, in order.**
+
+1. The fresh account created two tenants: `acme-livetest-c1f63c2a`
+   (`9bc62c75-c453-4aea-b08f-25e9ad449c0a`) and `globex-livetest-c1f63c2a`
+   (`043c0505-3fa1-4eff-b792-1d102855b26b`).
+2. `domain add` attached `acme.agentproofarch.coderoad.pl` (domain row
+   `1abfbd0e-8bea-45fe-a8ca-557633b850f3`) and
+   `globex.agentproofarch.coderoad.pl` (`b9f55f7d-b6a9-40e4-a187-2b234b09e28e`)
+   to the hosting project through the **real Domains API**. Both came back
+   *attached, unverified*.
+3. The parent domain was already claimed by another hosting account, so the API
+   demanded an ownership challenge — a TXT record
+   `vc-domain-verify=<host>,<token>` at `_vercel.coderoad.pl` — which the
+   response carried through the port, the contract and the CLI unchanged. The
+   owner configured both TXT values at the parent.
+4. Verification completed and certificates were issued for both hosts.
+5. Final state: both hosts serve **HTTP 200**; `/api/health` returns
+   `{"version":"1.0.0","sha":"5138f8846aac9516eba47a7ee47b0351360c8a61"}`; and
+   the login page renders the tenant slug resolved from the `Host` header, so
+   host → tenant resolution works on a real custom domain.
+
+**What this record does and does not cover.**
+
+- It covers the **production runtime path of `provision`** (`domain add`) only.
+  Live acceptance of `check` and `remove` remains **unrecorded** — the
+  verification residual above stands.
+- **No gate can repeat it.** The `VERCEL_TOKEN` that made the run possible lives
+  only in the production runtime environment; CI and the build machine hold
+  none, by design. This record is a human-witnessed observation, not a
+  reproducible check.
+- **The adapter's automated tests are unchanged by it**: they still run offline
+  against a stubbed `fetch`. Nothing in this run is asserted by `check`.
+
 ## Optional second reviewer (shipped 2026-07-26)
 
 - **CodeRabbit runs as the optional second reviewer.** The owner installed the
@@ -126,9 +180,17 @@ enterprise customer questionnaire)
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
-A1-S4 (magic-link email provider, social OAuth credentials). A1-S5 is closed:
-the production domain-add path ran live on 2026-07-29; live check/remove
-acceptance remains the US-020 verification residual above.
+A1-S4 (magic-link email provider, social OAuth credentials).
+
+**A1-S5 is closed on evidence, not on assertion.** It closed on **2026-07-29**,
+when an owner-supervised live run drove `domain add` through the public CLI
+against the deployed production app and attached two real tenant hosts over the
+Domains API, through the ownership-TXT challenge, to verified hosts serving
+HTTP 200. The full observation — who, when, method, tenant and domain
+identifiers, and the final health `sha` — is
+[§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
+above; that record is what closes this item. Live check/remove acceptance is out
+of its scope and remains the US-020 verification residual.
 **F1 (AI-reviewer gate) is decided and built** — the
 fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
 [../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

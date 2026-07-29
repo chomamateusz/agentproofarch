@@ -31,6 +31,11 @@ before that lives in the git history only.
 
 ### Fixed
 
+- The Vercel domain provisioner no longer answers an already-attached host
+  (`409`) whose follow-up read fails with an empty required-record list: the DNS
+  state is unknown, so `provision` throws and the error taxonomy reports it
+  ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
+
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
   export, and moves Drizzle Kit to v1 migration tooling without the vulnerable
   `@esbuild-kit/*` dependency chain
