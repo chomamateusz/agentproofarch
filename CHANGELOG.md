@@ -18,7 +18,8 @@ before that lives in the git history only.
 
 - Adds the MIT LICENSE file, `license` field in `demo/package.json` and
   `website/package.json`, and an explicit MIT mention on the README and the
-  docs landing page (#TBD)
+  docs landing page
+  ([#105](https://github.com/chomamateusz/agentproofarch/pull/105))
 
 ### Fixed
 
