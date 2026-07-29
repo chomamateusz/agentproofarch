@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 import type { Card } from './card.js';
 
 /**
@@ -18,8 +16,6 @@ import type { Card } from './card.js';
 export const TEAM_BOARD_COLUMNS = ['todo', 'in-dev', 'review', 'done'] as const;
 
 export type TeamColumn = (typeof TEAM_BOARD_COLUMNS)[number];
-
-export const teamColumnSchema = z.enum(TEAM_BOARD_COLUMNS);
 
 export const isTeamColumn = (value: string): value is TeamColumn =>
   TEAM_BOARD_COLUMNS.some((column) => column === value);

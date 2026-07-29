@@ -14,6 +14,10 @@ before that lives in the git history only.
 
 ## 2026-07-29
 
+### Changed
+
+- Dead exports are cut, the Knip gate declares the intended public API explicitly and rejects new unused exports, and the duplicate `scripts/screenshot.mjs` engine is removed ([#104](https://github.com/chomamateusz/agentproofarch/pull/104))
+
 ### Fixed
 
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry

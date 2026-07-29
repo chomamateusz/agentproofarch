@@ -33,20 +33,20 @@ export interface BoardDeps {
 }
 
 /** A card the user just typed — client-originated, not a server record copy. */
-export interface OverlayCard {
+interface OverlayCard {
   readonly id: string;
   readonly title: string;
   readonly column: string;
 }
 
 /** The single reversible move: where the card sat before its last committed move. */
-export interface UndoMove {
+interface UndoMove {
   readonly cardId: string;
   readonly toColumn: string;
   readonly toIndex: number;
 }
 
-export type PendingOp =
+type PendingOp =
   | { readonly opId: string; readonly kind: 'add'; readonly card: OverlayCard }
   | {
       readonly opId: string;
