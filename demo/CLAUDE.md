@@ -7,8 +7,9 @@ Architecture spec: `../docs/prd-agentproofarch-foundation.md` (see also `../docs
 - `pnpm run check` = typecheck + ESLint (boundaries) + lock-lint (proves
   `pnpm-lock.yaml` matches `package.json` with the same frozen-lockfile
   semantics as the Node 24 CI runner) + dependency-cruiser +
-  knip (dead files + dependency hygiene; unused exports/types stay advisory
-  during the PRD build-out — see `knip.jsonc`) +
+  knip (dead files + dependency hygiene; unused exports/types are errors that
+  fail this gate — surface with no in-repo importer must be declared in
+  `knip.jsonc`, as an `entry` or via a `@public` tag) +
   doc-lint (docs↔config enforcer coverage, injected count tokens, env-schema ⊆
   `.env.example`, dead relative and site-absolute links) + vitest with `--coverage` — the
   **static** gate; coverage thresholds are a ratchet floor (measured minimum

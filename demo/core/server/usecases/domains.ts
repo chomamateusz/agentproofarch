@@ -16,7 +16,11 @@ import { authorizeTenant } from '../authorize.js';
 import type { Ctx } from '../context.js';
 import type { DomainCheck, DomainPort, IdGenerator, TenantDomainRepository } from '../ports.js';
 
-/** The deploy-wide public target tenants point a custom domain at (env-driven). */
+/**
+ * The deploy-wide public target tenants point a custom domain at (env-driven).
+ *
+ * @public
+ */
 export interface DomainTarget {
   cname: string | null;
   ip: string | null;
