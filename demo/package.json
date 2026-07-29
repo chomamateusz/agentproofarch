@@ -2,6 +2,7 @@
   "name": "agentproofarch",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Agent-first, strictly layered full-stack TypeScript foundation for multi-tenant SaaS",
   "imports": {
