@@ -288,8 +288,9 @@ stay fully multi-tenant via the `X-Tenant` header.
   production add path** as of 2026-07-29 — one owner-supervised run, written
   down as a dated adjudication record rather than asserted page by page. The
   adapter's own tests stay offline against a stubbed `fetch`, and CI holds no
-  provider token. Check/remove acceptance remains unrecorded. Full statement and
-  the record:
+  provider token. That run also carried one pre-verification `domain check`;
+  `check` after verification, and `remove`, were never invoked live and remain
+  unrecorded. Full statement and the record:
   [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 - **Some CI jobs run but block nothing.** `visual` (pixel), `docs-build` (this
   site) and `dr-acceptance` report without gating, each for a stated reason —

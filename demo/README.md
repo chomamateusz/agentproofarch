@@ -200,8 +200,9 @@ tests are stubbed-`fetch` and stay that way; the production add path was
 confirmed live on 2026-07-29 by an owner-supervised run through the public CLI,
 written down once in
 [docs/backlog.md §US-020 live adjudication record](../docs/backlog.md#us-020-live-adjudication-record-2026-07-29).
-CI holds no `VERCEL_TOKEN`, so no gate repeats that run, and live check/remove
-acceptance remains unrecorded.
+CI holds no `VERCEL_TOKEN`, so no gate repeats that run. The run also carried
+one pre-verification `domain check`; live acceptance of `check` *after*
+verification, and of `remove`, remains unrecorded.
 
 ### Self-host with Docker
 

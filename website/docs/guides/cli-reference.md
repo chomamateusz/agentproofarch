@@ -390,17 +390,18 @@ codes.
 ### A real provisioner, as observed 🔎 \{#a-real-provisioner-observed}
 
 :::note[Not the default output]
-The block below is **not** what these commands print out of the box. It is the
-shape a real hosting provider returns, and the record values are the ones
-**observed against the production provisioner (`DOMAIN_PROVISIONER=vercel`)
-during the owner-supervised live run on 2026-07-29** — the run written down in
+The blocks below are **not** what these commands print out of the box; they are
+the shape a real hosting provider returns. Each block says whether it is an
+observation or the adapter's documented shape. The observations come from the
+production provisioner (`DOMAIN_PROVISIONER=vercel`) during the
+owner-supervised live run on 2026-07-29, written down in
 [`docs/backlog.md` §US-020 live adjudication record](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md#us-020-live-adjudication-record-2026-07-29).
 Host and token are redacted to the documentation's example domain.
 :::
 
-That run attached a tenant subdomain under a parent already claimed by another
-hosting account, so the response carried an ownership TXT challenge alongside
-the pointing record:
+**Observed.** That run attached a tenant subdomain under a parent already
+claimed by another hosting account, so the response carried an ownership TXT
+challenge alongside the pointing record:
 
 ```text
 attached: shop.example.com (pending)
@@ -412,9 +413,22 @@ CNAME  shop.example.com  cname.vercel-dns.com
   Purpose: pointing
 ```
 
-After the TXT was configured, `domain check` reported the remaining work rather
-than collapsing the domain to a pending boolean, and a later check returned the
-verified summary with no DNS block:
+**Observed.** `domain check` was invoked exactly once in that run, while the
+ownership challenge was still pending, and answered:
+
+```json
+{"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"shop.example.com is attached to the Vercel project but not verified yet"}}}
+```
+
+Nothing else about `check` was witnessed: no check ran after the TXT
+verification completed — the final verified state was established by TLS and
+`/api/health` over HTTPS instead — and `domain remove` was never invoked.
+
+**Documented shape, read off the code** (`adapters/domain-provisioning/vercel.ts`,
+covered by the offline suite) — not an observation. Once ownership succeeds but
+routing is still misconfigured, `check` reports the remaining work rather than
+collapsing the domain to a pending boolean; when both checks pass it prints the
+verified summary with no record block at all:
 
 ```text
 shop.example.com: pending — shop.example.com is verified but Vercel reports its DNS as misconfigured

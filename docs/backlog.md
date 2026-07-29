@@ -64,8 +64,9 @@ enterprise customer questionnaire)
   live on 2026-07-29 — the observation is written down in
   [§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
   below, and that record is the only thing any other page may cite for it.
-  **Residual, still open:** live check/remove acceptance remains unrecorded;
-  both paths are covered by the stubbed-`fetch` suite.
+  **Residual, still open:** the run also carried one pre-verification
+  `domain check`, but post-verification `check` acceptance and `remove` remain
+  unrecorded live; both rest on the stubbed-`fetch` suite.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -148,17 +149,31 @@ developer state.
    `vc-domain-verify=<host>,<token>` at `_vercel.coderoad.pl` — which the
    response carried through the port, the contract and the CLI unchanged. The
    owner configured both TXT values at the parent.
-4. Verification completed and certificates were issued for both hosts.
-5. Final state: both hosts serve **HTTP 200**; `/api/health` returns
+4. `domain check` was invoked **exactly once** in the whole run, on
+   `acme.agentproofarch.coderoad.pl`, while the ownership challenge was still
+   pending. Its envelope, verbatim:
+
+   ```json
+   {"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"acme.agentproofarch.coderoad.pl is attached to the Vercel project but not verified yet"}}}
+   ```
+
+5. Verification completed and certificates were issued for both hosts. No
+   further `domain check` was run: the verified state was established by TLS and
+   `/api/health` over HTTPS, not by the command.
+6. Final state: both hosts serve **HTTP 200**; `/api/health` returns
    `{"version":"1.0.0","sha":"5138f8846aac9516eba47a7ee47b0351360c8a61"}`; and
    the login page renders the tenant slug resolved from the `Host` header, so
    host → tenant resolution works on a real custom domain.
 
 **What this record does and does not cover.**
 
-- It covers the **production runtime path of `provision`** (`domain add`) only.
-  Live acceptance of `check` and `remove` remains **unrecorded** — the
-  verification residual above stands.
+- Live-observed: the **production runtime path of `provision`** (`domain add`)
+  end to end, plus the **one pre-verification `domain check`** in step 4 and its
+  envelope.
+- Unrecorded: `domain check` **after** verification succeeded — no such
+  invocation happened, so its acceptance rests on the offline suite alone — and
+  `domain remove`, never invoked at all. The verification residual above stands
+  for both.
 - **No gate can repeat it.** The `VERCEL_TOKEN` that made the run possible lives
   only in the production runtime environment; CI and the build machine hold
   none, by design. This record is a human-witnessed observation, not a
@@ -189,8 +204,9 @@ Domains API, through the ownership-TXT challenge, to verified hosts serving
 HTTP 200. The full observation — who, when, method, tenant and domain
 identifiers, and the final health `sha` — is
 [§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
-above; that record is what closes this item. Live check/remove acceptance is out
-of its scope and remains the US-020 verification residual.
+above; that record is what closes this item. The same run carried one
+pre-verification `domain check`; post-verification `check` acceptance and
+`remove` stay outside its scope and remain the US-020 verification residual.
 **F1 (AI-reviewer gate) is decided and built** — the
 fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
 [../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

@@ -232,7 +232,14 @@ export const createVercelDomainPort = (config: VercelDomainPortConfig): DomainPo
       { method: 'GET', path: `/v6/domains/${encodeURIComponent(domain)}/config` },
       domainConfigSchema,
     );
-    if (!dns.ok) return rejected(`${domain}: ${dns.detail}`);
+    // The host reads back as verified, so an empty record list would assert
+    // "nothing left to configure" about routing nobody could observe — the same
+    // unknown state the 409 follow-up above refuses to answer.
+    if (!dns.ok) {
+      throw new Error(
+        `Vercel reported "${domain}" as verified but its DNS configuration could not be read: ${dns.detail}`,
+      );
+    }
     return dns.data.misconfigured
       ? rejected(
           `${domain} is verified but Vercel reports its DNS as misconfigured`,

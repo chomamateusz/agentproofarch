@@ -191,16 +191,19 @@ detaches it, `check` reads the domain and its DNS config back. Both writes are
 convergent — an already-attached host (`409`) and an unknown host on delete
 (`404`) are successes — so the use-case may retry. A `409` whose follow-up read
 of the attached domain fails is *not* convergent: the state is unknown, so
-`provision` throws rather than answering "no DNS action required". The token
-travels only in the `Authorization` header, never into a log or an error detail,
-and every response is zod-parsed at the boundary.
+`provision` throws rather than answering "no DNS action required". `check`
+applies the same rule: once the host reads back as verified, a failed DNS-config
+read leaves the routing truth unknown, so it throws instead of returning an
+empty record list. The token travels only in the `Authorization` header, never
+into a log or an error detail, and every response is zod-parsed at the boundary.
 
-**What the gates prove.** An offline suite against a stubbed `fetch`, 24 tests —
+**What the gates prove.** An offline suite against a stubbed `fetch`, 25 tests —
 and stubbed is what it stays: success, team scoping, the convergent `409`/`404`,
-the two unknown-state `409` follow-up failures, `401` and `403` (naming the
-misconfigured env, never echoing the token), `5xx`, transport failures, and
-corrupted payloads on both the domain and DNS-config reads, plus ownership TXT,
-subdomain CNAME and apex A mapping. **No gate touches the provider.** The
+the two unknown-state `409` follow-up failures, the two unknown-state
+DNS-config read failures on `check`, `401` and `403` (naming the misconfigured
+env, never echoing the token), `5xx`, transport failures, and a corrupted
+payload on the domain read, plus ownership TXT, subdomain CNAME and apex A
+mapping. **No gate touches the provider.** The
 `VERCEL_TOKEN` exists only in the production runtime environment; CI and the
 build machine hold none, by design.
 
@@ -210,8 +213,11 @@ ownership challenge, verification, certificate, and a tenant resolved from the
 `Host` header on a real custom domain. It is a human-witnessed observation,
 recorded once and cited everywhere else.
 
-**What remains unrecorded.** The live run covered add, not check/remove. Those
-paths remain offline-tested only. Self-host needs no provider API; Caddy issues
+**What remains unrecorded.** The live run covered `add` end to end plus exactly
+one `domain check`, taken while ownership verification was still pending. No
+check ran after verification succeeded — the verified state was established by
+TLS and `/api/health` over HTTPS — and `remove` was never invoked, so both
+remain offline-tested only. Self-host needs no provider API; Caddy issues
 per-tenant certificates on demand.
 
 ## Bring-your-own domain 🌍 \{#bring-your-own-domain}

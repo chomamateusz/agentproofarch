@@ -32,8 +32,10 @@ before that lives in the git history only.
 ### Fixed
 
 - The Vercel domain provisioner no longer answers an already-attached host
-  (`409`) whose follow-up read fails with an empty required-record list: the DNS
-  state is unknown, so `provision` throws and the error taxonomy reports it
+  (`409`) whose follow-up read fails with an empty required-record list, and
+  `check` no longer does so when a verified host's DNS-config read fails: the
+  DNS state is unknown in both cases, so the adapter throws and the error
+  taxonomy reports it
   ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
 
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry

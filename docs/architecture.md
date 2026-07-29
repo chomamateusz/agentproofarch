@@ -1273,8 +1273,9 @@ code.
   in [backlog.md §US-020 live adjudication
   record](backlog.md#us-020-live-adjudication-record-2026-07-29) — the only
   place this repository states it. The token that made the run possible exists
-  only in the production runtime environment, so CI cannot repeat it. Live
-  check/remove acceptance remains unrecorded.
+  only in the production runtime environment, so CI cannot repeat it. That run
+  also carried one pre-verification `domain check`; `check` after verification
+  succeeded, and `remove`, were never invoked live and remain unrecorded.
 
 **BUILT** (US-026/US-028a, A1 sub-package 4): the provider auth methods that were
 "normative when triggered" are now wired — this package was the trigger.
@@ -1388,7 +1389,8 @@ targets now provision tenant domains through their own `DomainPort` adapter
 (`DOMAIN_PROVISIONER=vercel` / `caddy`); the Vercel production add path was
 confirmed live on 2026-07-29
 ([the dated record](backlog.md#us-020-live-adjudication-record-2026-07-29)),
-while check/remove acceptance remains unrecorded.
+together with one pre-verification `domain check`, while post-verification
+`check` acceptance and `remove` remain unrecorded.
 
 | | Vercel | Docker self-host |
 |---|---|---|
@@ -1397,7 +1399,7 @@ while check/remove acceptance remains unrecorded.
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
 | Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
-| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, production add confirmed live; check/remove acceptance unrecorded) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
+| TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, production add confirmed live plus one pre-verification `check`; post-verification `check` and `remove` acceptance unrecorded) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
 | Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly — boot refuses if the block is incomplete | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
 | CI proof | `post-deploy-smoke.yml` (smoke the live deploy) | `selfhost.yml` (build image → boot compose → smoke the container) |

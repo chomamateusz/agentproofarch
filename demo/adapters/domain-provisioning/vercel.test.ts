@@ -331,14 +331,28 @@ describe('createVercelDomainPort — check', () => {
     expect(result.detail).toContain('did not match');
   });
 
-  it('rejects on a corrupted DNS-config payload', async () => {
+  it('fails on a corrupted DNS-config payload — never an empty record list from unknown state', async () => {
     const fetchImpl = stubFetch(
       { body: { verified: true, apexName: 'acme.com' } },
       { body: { misconfigured: 'maybe' } },
     );
-    const result = await port(fetchImpl).check('shop.acme.com');
 
-    expect(result.resolved).toBe(false);
-    expect(result.detail).toContain('did not match');
+    const failure = await failureOf(port(fetchImpl).check('shop.acme.com'));
+
+    expect(failure).toContain('verified but its DNS configuration could not be read');
+    expect(failure).toContain('did not match');
+  });
+
+  it('fails when the DNS-config read 5xxs, without echoing the token', async () => {
+    const fetchImpl = stubFetch(
+      { body: { verified: true, apexName: 'acme.com' } },
+      { status: 503 },
+    );
+
+    const failure = await failureOf(port(fetchImpl).check('shop.acme.com'));
+
+    expect(failure).toContain('verified but its DNS configuration could not be read');
+    expect(failure).toContain('HTTP 503');
+    expect(failure).not.toContain(TOKEN);
   });
 });

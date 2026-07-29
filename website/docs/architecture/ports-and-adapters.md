@@ -170,7 +170,8 @@ project individually — which is exactly what `provision` does. Attach is
 convergent: an already-attached host (`409`) is a success, so the use-case may
 retry — but only once the follow-up read of that host succeeds. If the read
 fails, the DNS state is unknown and `provision` throws instead of reporting an
-empty record list. The token travels only in the `Authorization` header, never
+empty record list; `check` throws on the same grounds when a verified host's
+DNS-config read fails. The token travels only in the `Authorization` header, never
 into a log or an error detail, and every API response is zod-parsed at the
 boundary.
 
@@ -178,7 +179,8 @@ boundary.
 The production add path was confirmed live on 2026-07-29 by a single
 owner-supervised run, recorded once as a dated adjudication record; the
 adapter's automated tests remain stubbed-`fetch`, and no gate holds a provider
-token. Live check/remove acceptance remains unrecorded:
+token. That run also carried one pre-verification `check`; live acceptance of
+`check` after verification, and of `remove`, remains unrecorded:
 [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 :::
 
