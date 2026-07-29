@@ -38,7 +38,7 @@ export interface TeamBoardDeps {
 }
 
 /** A card the user just typed — client-originated, not a server record copy. */
-export interface OverlayCard {
+interface OverlayCard {
   readonly id: string;
   readonly title: string;
   readonly column: TeamColumn;
@@ -51,7 +51,7 @@ export interface Rejection {
   readonly rule: RuleId;
 }
 
-export type PendingOp =
+type PendingOp =
   | { readonly opId: string; readonly kind: 'add'; readonly card: OverlayCard }
   | {
       readonly opId: string;

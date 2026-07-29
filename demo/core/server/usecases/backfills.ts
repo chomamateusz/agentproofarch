@@ -19,7 +19,7 @@ export interface BackfillJob {
  * "deweloper ani agent nigdy nie działa bezpośrednio na produkcji"). The demo
  * entry is a no-op normalisation re-stamp (idempotent email lowercasing).
  */
-export const BACKFILLS: Readonly<Record<string, BackfillJob>> = {
+const BACKFILLS: Readonly<Record<string, BackfillJob>> = {
   'members-email-normalize': {
     name: 'members-email-normalize',
     runBatch: (port, cursor, limit) => port.normalizeMemberEmails(cursor, limit),

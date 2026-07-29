@@ -20,7 +20,7 @@ export const staffMemberSchema = z.object({
 export type StaffMember = z.infer<typeof staffMemberSchema>;
 
 /** Normalized at the boundary so a grant/revoke matches the account case-insensitively. */
-export const staffEmailSchema = z.string().trim().toLowerCase().pipe(z.email().max(320));
+const staffEmailSchema = z.string().trim().toLowerCase().pipe(z.email().max(320));
 
 /**
  * `grantAdmin` input (FR-8, owner-only). `role` is fixed to `admin`: an owner is
@@ -50,5 +50,3 @@ export const revokeAdminInputSchema = z
     (value) => (value.userId === undefined) !== (value.email === undefined),
     { message: 'Provide exactly one of userId or email' },
   );
-
-export type RevokeAdminInput = z.input<typeof revokeAdminInputSchema>;

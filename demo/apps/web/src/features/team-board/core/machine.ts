@@ -133,7 +133,7 @@ const buildStates = () =>
     ]),
   );
 
-export const teamBoardMachine = factory.createMachine({
+const teamBoardMachine = factory.createMachine({
   initial: 'todo',
   context: contextCarrier,
   states: buildStates(),

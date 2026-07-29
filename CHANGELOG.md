@@ -12,6 +12,12 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-07-29
+
+### Changed
+
+- Dead exports are cut, the Knip gate declares the intended public API explicitly and rejects new unused exports, and the duplicate `scripts/screenshot.mjs` engine is removed (#TBD)
+
 ## v1.0.0 — 2026-07-28
 
 ## 2026-07-28

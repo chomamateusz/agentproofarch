@@ -71,6 +71,7 @@ export interface TenantDomainRepository {
   removeByTenantAndDomain(tenantId: string, domain: string): Promise<number>;
 }
 
+/** @public */
 export type TenantLookup = { tenantId: string } | { tenantSlug: string };
 
 export interface TenantRepository {
@@ -189,6 +190,8 @@ export interface DomainPort {
  * mail carries (a magic link, a verification link); a transport embeds it in
  * `text`/`html` and otherwise ignores the field. Keeping the port at `sendMail`
  * makes the magic link ONE consumer of the seam, not the port's shape.
+ *
+ * @public
  */
 export interface EmailMessage {
   to: string;

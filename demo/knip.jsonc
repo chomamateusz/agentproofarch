@@ -8,7 +8,9 @@
     "scripts/*.{ts,mjs}", // each script runs via a package script or by hand
     "e2e/*.spec.ts", // Playwright specs
     "visual/*.spec.ts", // Playwright visual-regression specs (ADR-0008)
-    "**/*.test.{ts,tsx}" // vitest suites (the config uses nested projects the plugin can't fully infer)
+    "**/*.test.{ts,tsx}", // vitest suites (the config uses nested projects the plugin can't fully infer)
+    "apps/web/src/features/*/core/index.ts", // island-core seam: events in, selectors out (architecture.md §Client application state, ADR-0005)
+    "apps/web/src/features/*/index.web.ts" // the ONE web composition site views import from
   ],
   "project": [
     "core/**/*.ts",
@@ -19,6 +21,7 @@
     "eslint-plugin-agentproofarch/**/*.js",
     "config-regression/**/*.ts"
   ],
+  "tags": ["-@public"], // `@public` marks a deliberately shipped surface; everything else must be reachable
   "ignoreDependencies": [
     // Peer of the @opentelemetry/sdk-trace-* packages, pinned in devDependencies
     // for version alignment across the OTel graph; never imported directly.
@@ -34,23 +37,16 @@
     "docusaurus"
   ],
   "rules": {
-    // Gate on the unambiguous dead weight: dead files, undeclared/unused
-    // dependencies, unresolved imports, duplicate exports. Unused *exports* and
-    // *types* are surfaced but do NOT fail `check` — this foundation deliberately
-    // ships its API surface (theme tokens, island-core interfaces, client
-    // query/mutation helpers, contract schemas) ahead of the consumers that the
-    // in-progress PRD build-out (DECIDE A1) wires in, so export-level pruning
-    // would thrash against that work. Tighten to "error" once the scope is built.
     "files": "error",
     "dependencies": "error",
     "unlisted": "error",
     "unresolved": "error",
     "binaries": "error",
     "duplicates": "error",
-    "exports": "warn",
-    "types": "warn",
-    "nsExports": "warn",
-    "nsTypes": "warn",
-    "enumMembers": "warn"
+    "exports": "error",
+    "types": "error",
+    "nsExports": "error",
+    "nsTypes": "error",
+    "enumMembers": "error"
   }
 }
