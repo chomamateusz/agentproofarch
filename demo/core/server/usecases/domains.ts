@@ -14,7 +14,13 @@ import {
 
 import { authorizeTenant } from '../authorize.js';
 import type { Ctx } from '../context.js';
-import type { DomainCheck, DomainPort, IdGenerator, TenantDomainRepository } from '../ports.js';
+import type {
+  DomainCheck,
+  DomainPort,
+  IdGenerator,
+  RequiredDnsRecord,
+  TenantDomainRepository,
+} from '../ports.js';
 
 /**
  * The deploy-wide public target tenants point a custom domain at (env-driven).
@@ -36,6 +42,12 @@ export interface DomainDeps {
 export interface CheckDomainResult {
   domain: TenantDomain;
   check: DomainCheck;
+  requiredDnsRecords: RequiredDnsRecord[];
+}
+
+export interface AddDomainResult {
+  domain: TenantDomain;
+  requiredDnsRecords: RequiredDnsRecord[];
 }
 
 export interface RemoveDomainResult {
@@ -65,7 +77,7 @@ export const addDomain = async (
   ctx: Ctx,
   input: unknown,
   deps: DomainDeps,
-): Promise<Result<TenantDomain, AppError>> => {
+): Promise<Result<AddDomainResult, AppError>> => {
   const scope = authorizeTenant(ctx, 'domain:write');
   if (!scope.ok) return scope;
 
@@ -76,7 +88,7 @@ export const addDomain = async (
   const conflict = await deps.tenantDomains.findAnyByDomain(domain);
   if (conflict) return err(appError('conflict', `Domain "${domain}" is already attached`));
 
-  await deps.domainPort.provision(domain);
+  const provision = await deps.domainPort.provision(domain);
   const row = await deps.tenantDomains.add({
     id: deps.ids.nextId(),
     tenantId: scope.value,
@@ -84,7 +96,7 @@ export const addDomain = async (
     kind: 'custom',
     verified: false,
   });
-  return ok(row);
+  return ok({ domain: row, requiredDnsRecords: provision.requiredDnsRecords });
 };
 
 /**
@@ -110,7 +122,11 @@ export const checkDomain = async (
 
   const check = await deps.domainPort.check(domain);
   const updated = await deps.tenantDomains.setVerified(scope.value, domain, check.resolved);
-  return ok({ domain: updated ?? { ...existing, verified: check.resolved }, check });
+  return ok({
+    domain: updated ?? { ...existing, verified: check.resolved },
+    check,
+    requiredDnsRecords: check.requiredDnsRecords,
+  });
 };
 
 /**

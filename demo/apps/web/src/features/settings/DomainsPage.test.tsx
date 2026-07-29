@@ -71,7 +71,20 @@ describe('DomainsPage', () => {
       http.post('/api/domains', async ({ request }) => {
         const body = domainBodySchema.parse(await request.json());
         added = body.domain;
-        return HttpResponse.json({ ok: true, data: { domain: { ...pendingDomain, domain: body.domain } } });
+        return HttpResponse.json({
+          ok: true,
+          data: {
+            domain: { ...pendingDomain, domain: body.domain },
+            requiredDnsRecords: [
+              {
+                type: 'TXT',
+                name: '_vercel.acme.com',
+                value: 'vc-domain-verify=shop.acme.com,token-123',
+                purpose: 'ownership-verification',
+              },
+            ],
+          },
+        });
       }),
     );
 
@@ -81,6 +94,11 @@ describe('DomainsPage', () => {
 
     await screen.findByRole('button', { name: 'add domain' });
     expect(added).toBe('shop.acme.com');
+    expect(screen.getByText('Configure these DNS records')).toBeInTheDocument();
+    expect(
+      screen.getByText('TXT _vercel.acme.com vc-domain-verify=shop.acme.com,token-123'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Purpose: ownership-verification')).toBeInTheDocument();
   });
 
   it('runs a per-domain check', async () => {

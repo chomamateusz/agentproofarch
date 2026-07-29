@@ -60,11 +60,13 @@ enterprise customer questionnaire)
   `VERCEL_TOKEN`/`VERCEL_PROJECT_ID`(+`VERCEL_TEAM_ID`) and a boot refusal when
   the block is incomplete (see
   [architecture.md](architecture.md#ports-complete-list)). Hobby
-  caps at 50 custom domains per project. **Residual, still open: the adapter has
-  never run against the live Domains API** — its behaviour is proven only against
-  a stubbed `fetch`, because CI and the build machine have no token. The owner
-  supplying `VERCEL_TOKEN` in the Vercel env (A1-S5) is what closes that gap; the
-  first live add/check/remove against a real project is the acceptance run.
+  caps at 50 custom domains per project. The production add path was confirmed
+  live on 2026-07-29 — the observation is written down in
+  [§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
+  below, and that record is the only thing any other page may cite for it.
+  **Residual, still open:** the run also carried one pre-verification
+  `domain check`, but post-verification `check` acceptance and `remove` remain
+  unrecorded live; both rest on the stubbed-`fetch` suite.
 - Cost guards and attribution — trigger: first surprising vendor bill.
 - CLI distribution + version handshake — trigger: first external CLI consumer.
 - Per-tenant IdP / enterprise SSO (tenant-configured SAML/OIDC federation) — trigger: first enterprise customer ask.
@@ -114,6 +116,80 @@ enterprise customer questionnaire)
   `deployment_status`) does not apply to the PR-merge model
   ([deploy-promotion.md](deploy-promotion.md) §b step 6).
 
+## US-020 live adjudication record (2026-07-29)
+
+The one dated record behind every "production add path confirmed live" sentence
+in this repository and on the published site. Nothing else may assert that claim
+on its own; pages cite this record.
+
+**Story / queue item.** US-020 (Vercel domain-provisioning adapter,
+`DOMAIN_PROVISIONER=vercel`); closes DECIDE **A1-S5**.
+
+**Who and when.** Owner-supervised session on **2026-07-29**. The owner held the
+DNS and the credential; the agent drove the commands and read the output back.
+
+**Method.** A live run against the deployed production app at
+`https://agentproofarch.vercel.app`, driven end-to-end through the **public
+CLI** — no test harness, no stub, no direct call to the provider API. A fresh
+account was registered for the run, so nothing was reused from seeded or
+developer state.
+
+**What was observed, in order.**
+
+1. The fresh account created two tenants: `acme-livetest-c1f63c2a`
+   (`9bc62c75-c453-4aea-b08f-25e9ad449c0a`) and `globex-livetest-c1f63c2a`
+   (`043c0505-3fa1-4eff-b792-1d102855b26b`).
+2. `domain add` attached `acme.agentproofarch.coderoad.pl` (domain row
+   `1abfbd0e-8bea-45fe-a8ca-557633b850f3`) and
+   `globex.agentproofarch.coderoad.pl` (`b9f55f7d-b6a9-40e4-a187-2b234b09e28e`)
+   to the hosting project through the **real Domains API**. Both came back
+   *attached, unverified*.
+3. The parent domain was already claimed by another hosting account, so the API
+   demanded an ownership challenge — a TXT record
+   `vc-domain-verify=<host>,<token>` at `_vercel.coderoad.pl`. The deployed app
+   the run drove (sha `5138f884…`, which predates this change) could not show
+   it: `DomainPort.provision` returned `void` and the provider's verification
+   payload was discarded, so nothing reached the port, the contract or the CLI.
+   The owner read both `vc-domain-verify` values off the **hosting provider's
+   dashboard** and configured them at the parent by hand. That manual detour is
+   exactly the gap the `requiredDnsRecords` change in this PR closes.
+4. `domain check` was invoked **exactly once** in the whole run, on
+   `acme.agentproofarch.coderoad.pl`, while the ownership challenge was still
+   pending. An abridged excerpt as captured in the session log — the full stored
+   `tenantDomain` fields were not preserved in the capture:
+
+   ```json
+   {"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"acme.agentproofarch.coderoad.pl is attached to the Vercel project but not verified yet"}}}
+   ```
+
+5. Verification completed and certificates were issued for both hosts. No
+   further `domain check` was run: the verified state was established by TLS and
+   `/api/health` over HTTPS, not by the command.
+6. Final state: both hosts serve **HTTP 200**; `/api/health` returns
+   `{"version":"1.0.0","sha":"5138f8846aac9516eba47a7ee47b0351360c8a61"}`; and
+   the login page renders the tenant slug resolved from the `Host` header, so
+   host → tenant resolution works on a real custom domain.
+
+**What this record does and does not cover.**
+
+- Live-observed: the **production runtime path of `provision`** (`domain add`)
+  end to end, plus the **one pre-verification `domain check`** in step 4 and its
+  envelope.
+- Unrecorded: `domain check` **after** verification succeeded — no such
+  invocation happened, so its acceptance rests on the offline suite alone — and
+  `domain remove`, never invoked at all. The verification residual above stands
+  for both. The **record-surfacing path added in this PR** is unrecorded too:
+  the run confirmed that attach succeeds and that the provider demands the
+  ownership TXT, but the records themselves came off the provider dashboard, so
+  carrying them through the port, the contract and the CLI is offline-tested
+  only, against stubbed provider responses.
+- **No gate can repeat it.** The `VERCEL_TOKEN` that made the run possible lives
+  only in the production runtime environment; CI and the build machine hold
+  none, by design. This record is a human-witnessed observation, not a
+  reproducible check.
+- **The adapter's automated tests are unchanged by it**: they still run offline
+  against a stubbed `fetch`. Nothing in this run is asserted by `check`.
+
 ## Optional second reviewer (shipped 2026-07-26)
 
 - **CodeRabbit runs as the optional second reviewer.** The owner installed the
@@ -128,9 +204,18 @@ enterprise customer questionnaire)
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions
 doctrine on neon-http), C3 (invariant placement), C4 (backfill executor),
 F2 (concurrent-change protocol); plus the provider/secret choices blocking
-A1-S4 (magic-link email provider, social OAuth credentials) and A1-S5
-(`VERCEL_TOKEN` for US-020 — the adapter is built and offline-tested; the token
-is what remains, and only the live verification depends on it).
+A1-S4 (magic-link email provider, social OAuth credentials).
+
+**A1-S5 is closed on evidence, not on assertion.** It closed on **2026-07-29**,
+when an owner-supervised live run drove `domain add` through the public CLI
+against the deployed production app and attached two real tenant hosts over the
+Domains API, through the ownership-TXT challenge, to verified hosts serving
+HTTP 200. The full observation — who, when, method, tenant and domain
+identifiers, and the final health `sha` — is
+[§US-020 live adjudication record](#us-020-live-adjudication-record-2026-07-29)
+above; that record is what closes this item. The same run carried one
+pre-verification `domain check`; post-verification `check` acceptance and
+`remove` stay outside its scope and remain the US-020 verification residual.
 **F1 (AI-reviewer gate) is decided and built** — the
 fail-closed `ai-review` workflow ships with `CLAUDE_CODE_OAUTH_TOKEN_1`; see
 [../demo/README.md](../demo/README.md) §Operating hygiene for agent-driven repos.

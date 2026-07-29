@@ -284,10 +284,14 @@ stay fully multi-tenant via the `X-Tenant` header.
   to `main` by the `docker-smoke` job — a multi-stage `Dockerfile`, `docker-compose.prod.yml`
   with an `edge`-profiled Caddy for on-demand TLS, and migrations run by the
   container entrypoint.
-- **The Vercel Domains provisioning adapter (US-020) is built but has never run
-  against the live API** — proven against a stubbed `fetch` only, because no
-  `VERCEL_TOKEN` exists on CI or the build machine. Full statement:
-  [US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
+- **The Vercel Domains provisioning adapter (US-020) has a live-confirmed
+  production add path** as of 2026-07-29 — one owner-supervised run, written
+  down as a dated adjudication record rather than asserted page by page. The
+  adapter's own tests stay offline against a stubbed `fetch`, and CI holds no
+  provider token. That run also carried one pre-verification `domain check`;
+  `check` after verification, and `remove`, were never invoked live and remain
+  unrecorded. Full statement and the record:
+  [US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 - **Some CI jobs run but block nothing.** `visual` (pixel), `docs-build` (this
   site) and `dr-acceptance` report without gating, each for a stated reason —
   [CI gates](../operations/ci-gates.md#deliberately-non-required) is the one

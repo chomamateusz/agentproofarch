@@ -35,6 +35,15 @@ const visitor = identity({
   tenantName: null,
 });
 
+const requiredDnsRecords = [
+  {
+    type: 'CNAME',
+    name: 'shop.acme.com',
+    value: 'apps.example.com',
+    purpose: 'pointing' as const,
+  },
+];
+
 const fakes = (seed: TenantDomain[] = [], resolved = true) => {
   let store = [...seed];
   const tenantDomains: TenantDomainRepository = {
@@ -65,11 +74,16 @@ const fakes = (seed: TenantDomain[] = [], resolved = true) => {
   const domainPort: DomainPort = {
     provision: async (domain) => {
       provisioned.push(domain);
+      return { requiredDnsRecords };
     },
     remove: async (domain) => {
       removed.push(domain);
     },
-    check: async (domain) => ({ resolved, detail: `${domain} ${resolved ? 'ok' : 'no'}` }),
+    check: async (domain) => ({
+      resolved,
+      detail: `${domain} ${resolved ? 'ok' : 'no'}`,
+      requiredDnsRecords: resolved ? [] : requiredDnsRecords,
+    }),
   };
   const deps: DomainDeps = {
     tenantDomains,
@@ -130,7 +144,13 @@ describe('addDomain', () => {
   it('attaches a normalized custom domain unverified and provisions it', async () => {
     const { deps, store, provisioned } = fakes();
     const result = await addDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'HTTPS://Shop.Acme.com/' }, deps);
-    expect(result).toMatchObject({ ok: true, value: { domain: 'shop.acme.com', verified: false } });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        domain: { domain: 'shop.acme.com', verified: false },
+        requiredDnsRecords,
+      },
+    });
     expect(store()).toHaveLength(1);
     expect(provisioned).toEqual(['shop.acme.com']);
   });
@@ -163,7 +183,10 @@ describe('checkDomain', () => {
   it('keeps verified false when the provisioner does not resolve the domain', async () => {
     const { deps } = fakes([seededDomain({ verified: true })], false);
     const result = await checkDomain({ identity: owner, tenantCreationMode: 'open' }, { domain: 'shop.acme.com' }, deps);
-    expect(result).toMatchObject({ ok: true, value: { domain: { verified: false } } });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { domain: { verified: false }, requiredDnsRecords },
+    });
   });
 
   it('returns not_found for a domain not attached to this tenant', async () => {

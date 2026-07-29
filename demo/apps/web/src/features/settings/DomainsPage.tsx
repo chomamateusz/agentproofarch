@@ -23,6 +23,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { actions } from '../../api.js';
 
 type DomainTarget = { cname: string | null; ip: string | null };
+type RequiredDnsRecord = {
+  type: string;
+  name: string;
+  value: string;
+  purpose: 'ownership-verification' | 'pointing';
+};
 
 const dnsInstruction = (target: DomainTarget): string =>
   target.cname
@@ -30,6 +36,25 @@ const dnsInstruction = (target: DomainTarget): string =>
     : target.ip
       ? `Create an A record pointing your domain at ${target.ip}.`
       : 'Point your domain at this deployment, then press check.';
+
+const DnsRecords = ({ records }: { records: RequiredDnsRecord[] }) =>
+  records.length === 0 ? null : (
+    <Alert severity="warning" sx={{ mt: '0.8rem' }}>
+      <Typography variant="overline" sx={{ display: 'block' }}>
+        Configure these DNS records
+      </Typography>
+      <Stack sx={{ gap: '0.6rem' }}>
+        {records.map((record) => (
+          <Box key={`${record.type}:${record.name}:${record.value}`}>
+            <Typography>
+              {record.type} {record.name} {record.value}
+            </Typography>
+            <Typography variant="caption">Purpose: {record.purpose}</Typography>
+          </Box>
+        ))}
+      </Stack>
+    </Alert>
+  );
 
 /**
  * Domains settings (US-019): the tenant's custom domains with verified status,
@@ -42,15 +67,23 @@ export const DomainsPage = () => {
   const domains = useQuery(actions.domains);
   const [domain, setDomain] = useState('');
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [requiredDnsRecords, setRequiredDnsRecords] = useState<RequiredDnsRecord[]>([]);
 
   const invalidate = () => queryClient.invalidateQueries(actions.domainsInvalidates());
 
   const add = useMutation({
     ...actions.addDomain,
-    onSuccess: () => setDomain(''),
+    onSuccess: (data) => {
+      setDomain('');
+      setRequiredDnsRecords(data.requiredDnsRecords ?? []);
+    },
     onSettled: invalidate,
   });
-  const check = useMutation({ ...actions.checkDomain, onSettled: invalidate });
+  const check = useMutation({
+    ...actions.checkDomain,
+    onSuccess: (data) => setRequiredDnsRecords(data.requiredDnsRecords ?? []),
+    onSettled: invalidate,
+  });
   const remove = useMutation({ ...actions.removeDomain, onSettled: invalidate });
 
   const target: DomainTarget = domains.data?.target ?? { cname: null, ip: null };
@@ -140,6 +173,7 @@ export const DomainsPage = () => {
             {add.isPending ? 'adding…' : 'add domain'}
           </Button>
         </Box>
+        <DnsRecords records={requiredDnsRecords} />
       </Paper>
       {add.isError ? <Alert sx={{ mt: '0.6rem' }}>{add.error.message}</Alert> : null}
       {check.isError ? <Alert sx={{ mt: '0.6rem' }}>{check.error.message}</Alert> : null}

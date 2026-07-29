@@ -29,13 +29,13 @@ const callOf = (fetchImpl: ReturnType<typeof stubFetch>, index = 0) => {
   return { url: String(url), init: init ?? {} };
 };
 
-const failureOf = (attempt: Promise<void>): Promise<string> =>
+const failureOf = (attempt: Promise<unknown>): Promise<string> =>
   attempt.then(() => 'resolved', (cause: unknown) => String(cause));
 
 describe('createVercelDomainPort — provision', () => {
   it('attaches the host to the project, authorizing with a bearer token only', async () => {
-    const fetchImpl = stubFetch({ body: { verified: false } });
-    await port(fetchImpl).provision('shop.acme.com');
+    const fetchImpl = stubFetch({ body: { verified: false, apexName: 'acme.com' } });
+    const result = await port(fetchImpl).provision('shop.acme.com');
 
     const { url, init } = callOf(fetchImpl);
     expect(url).toBe('https://api.vercel.com/v10/projects/prj_123/domains');
@@ -43,10 +43,68 @@ describe('createVercelDomainPort — provision', () => {
     expect(init.body).toBe(JSON.stringify({ name: 'shop.acme.com' }));
     expect(init.headers).toMatchObject({ authorization: `Bearer ${TOKEN}` });
     expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(result.requiredDnsRecords).toEqual([
+      {
+        type: 'CNAME',
+        name: 'shop.acme.com',
+        value: 'cname.vercel-dns.com',
+        purpose: 'pointing',
+      },
+    ]);
+  });
+
+  it('maps ownership verification and subdomain pointing records from the add response', async () => {
+    const fetchImpl = stubFetch({
+      body: {
+        verified: false,
+        apexName: 'acme.com',
+        verification: [
+          {
+            type: 'TXT',
+            domain: '_vercel.acme.com',
+            value: 'vc-domain-verify=shop.acme.com,token-123',
+          },
+        ],
+      },
+    });
+
+    const result = await port(fetchImpl).provision('shop.acme.com');
+
+    expect(result.requiredDnsRecords).toEqual([
+      {
+        type: 'TXT',
+        name: '_vercel.acme.com',
+        value: 'vc-domain-verify=shop.acme.com,token-123',
+        purpose: 'ownership-verification',
+      },
+      {
+        type: 'CNAME',
+        name: 'shop.acme.com',
+        value: 'cname.vercel-dns.com',
+        purpose: 'pointing',
+      },
+    ]);
+  });
+
+  it('uses the apex A record when the attached host is the apex', async () => {
+    const fetchImpl = stubFetch({
+      body: { verified: false, apexName: 'acme.com', verification: [] },
+    });
+
+    const result = await port(fetchImpl).provision('acme.com');
+
+    expect(result.requiredDnsRecords).toEqual([
+      {
+        type: 'A',
+        name: 'acme.com',
+        value: '76.76.21.21',
+        purpose: 'pointing',
+      },
+    ]);
   });
 
   it('scopes the call to a team when a team id is configured', async () => {
-    const fetchImpl = stubFetch({ body: { verified: true } });
+    const fetchImpl = stubFetch({ body: { verified: true, apexName: 'acme.com' } });
     await port(fetchImpl, { teamId: 'team_42' }).provision('shop.acme.com');
     expect(callOf(fetchImpl).url).toBe(
       'https://api.vercel.com/v10/projects/prj_123/domains?teamId=team_42',
@@ -57,8 +115,48 @@ describe('createVercelDomainPort — provision', () => {
     const fetchImpl = stubFetch({
       status: 409,
       body: { error: { code: 'domain_already_in_use', message: 'already in use' } },
+    }, {
+      body: { verified: false, apexName: 'acme.com' },
     });
-    await expect(port(fetchImpl).provision('shop.acme.com')).resolves.toBeUndefined();
+    await expect(port(fetchImpl).provision('shop.acme.com')).resolves.toEqual({
+      requiredDnsRecords: [
+        {
+          type: 'CNAME',
+          name: 'shop.acme.com',
+          value: 'cname.vercel-dns.com',
+          purpose: 'pointing',
+        },
+      ],
+    });
+  });
+
+  it('fails when the 409 follow-up read breaks — never an empty record list from unknown state', async () => {
+    const fetchImpl = stubFetch(
+      {
+        status: 409,
+        body: { error: { code: 'domain_already_in_use', message: 'already in use' } },
+      },
+      { status: 503 },
+    );
+
+    const failure = await failureOf(port(fetchImpl).provision('shop.acme.com'));
+
+    expect(failure).toContain('already attached but its state could not be read');
+    expect(failure).toContain('HTTP 503');
+  });
+
+  it('fails when the 409 follow-up read 404s — the host is attached to something else', async () => {
+    const fetchImpl = stubFetch(
+      {
+        status: 409,
+        body: { error: { code: 'domain_already_in_use', message: 'already in use' } },
+      },
+      { status: 404, body: { error: { code: 'not_found', message: 'domain not found' } } },
+    );
+
+    await expect(port(fetchImpl).provision('shop.acme.com')).rejects.toThrow(
+      /already attached but its state could not be read.*HTTP 404/s,
+    );
   });
 
   it('fails on 401 naming the misconfigured env, never the token value', async () => {
@@ -127,10 +225,14 @@ describe('createVercelDomainPort — remove', () => {
 
 describe('createVercelDomainPort — check', () => {
   it('resolves when the domain is verified and its DNS is configured', async () => {
-    const fetchImpl = stubFetch({ body: { verified: true } }, { body: { misconfigured: false } });
+    const fetchImpl = stubFetch(
+      { body: { verified: true, apexName: 'acme.com' } },
+      { body: { misconfigured: false } },
+    );
     const result = await port(fetchImpl).check('shop.acme.com');
 
     expect(result.resolved).toBe(true);
+    expect(result.requiredDnsRecords).toEqual([]);
     expect(callOf(fetchImpl, 0).url).toBe(
       'https://api.vercel.com/v9/projects/prj_123/domains/shop.acme.com',
     );
@@ -138,20 +240,57 @@ describe('createVercelDomainPort — check', () => {
   });
 
   it('reports pending verification without asking for the DNS config', async () => {
-    const fetchImpl = stubFetch({ body: { verified: false } });
+    const fetchImpl = stubFetch({
+      body: {
+        verified: false,
+        apexName: 'acme.com',
+        verification: [
+          {
+            type: 'TXT',
+            domain: '_vercel.acme.com',
+            value: 'vc-domain-verify=shop.acme.com,token-123',
+          },
+        ],
+      },
+    });
     const result = await port(fetchImpl).check('shop.acme.com');
 
     expect(result.resolved).toBe(false);
     expect(result.detail).toContain('not verified yet');
+    expect(result.requiredDnsRecords).toEqual([
+      {
+        type: 'TXT',
+        name: '_vercel.acme.com',
+        value: 'vc-domain-verify=shop.acme.com,token-123',
+        purpose: 'ownership-verification',
+      },
+      {
+        type: 'CNAME',
+        name: 'shop.acme.com',
+        value: 'cname.vercel-dns.com',
+        purpose: 'pointing',
+      },
+    ]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('reports a verified domain whose DNS Vercel calls misconfigured', async () => {
-    const fetchImpl = stubFetch({ body: { verified: true } }, { body: { misconfigured: true } });
+    const fetchImpl = stubFetch(
+      { body: { verified: true, apexName: 'acme.com' } },
+      { body: { misconfigured: true } },
+    );
     const result = await port(fetchImpl).check('shop.acme.com');
 
     expect(result.resolved).toBe(false);
     expect(result.detail).toContain('misconfigured');
+    expect(result.requiredDnsRecords).toEqual([
+      {
+        type: 'CNAME',
+        name: 'shop.acme.com',
+        value: 'cname.vercel-dns.com',
+        purpose: 'pointing',
+      },
+    ]);
   });
 
   it('reports a host that is not attached to the project (404)', async () => {
@@ -192,11 +331,28 @@ describe('createVercelDomainPort — check', () => {
     expect(result.detail).toContain('did not match');
   });
 
-  it('rejects on a corrupted DNS-config payload', async () => {
-    const fetchImpl = stubFetch({ body: { verified: true } }, { body: { misconfigured: 'maybe' } });
-    const result = await port(fetchImpl).check('shop.acme.com');
+  it('fails on a corrupted DNS-config payload — never an empty record list from unknown state', async () => {
+    const fetchImpl = stubFetch(
+      { body: { verified: true, apexName: 'acme.com' } },
+      { body: { misconfigured: 'maybe' } },
+    );
 
-    expect(result.resolved).toBe(false);
-    expect(result.detail).toContain('did not match');
+    const failure = await failureOf(port(fetchImpl).check('shop.acme.com'));
+
+    expect(failure).toContain('verified but its DNS configuration could not be read');
+    expect(failure).toContain('did not match');
+  });
+
+  it('fails when the DNS-config read 5xxs, without echoing the token', async () => {
+    const fetchImpl = stubFetch(
+      { body: { verified: true, apexName: 'acme.com' } },
+      { status: 503 },
+    );
+
+    const failure = await failureOf(port(fetchImpl).check('shop.acme.com'));
+
+    expect(failure).toContain('verified but its DNS configuration could not be read');
+    expect(failure).toContain('HTTP 503');
+    expect(failure).not.toContain(TOKEN);
   });
 });

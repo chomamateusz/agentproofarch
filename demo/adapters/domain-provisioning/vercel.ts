@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-import type { DomainCheck, DomainPort } from '#core/server/index.js';
+import type {
+  DomainCheck,
+  DomainPort,
+  RequiredDnsRecord,
+} from '#core/server/index.js';
 
 export interface VercelDomainPortConfig {
   readonly token: string;
@@ -15,11 +19,23 @@ export interface VercelDomainPortConfig {
 const API_ORIGIN = 'https://api.vercel.com';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-/** The one field of the project-domain object this port reads. */
-const projectDomainSchema = z.object({ verified: z.boolean() });
+const verificationSchema = z.object({
+  type: z.string(),
+  domain: z.string(),
+  value: z.string(),
+});
+
+const projectDomainSchema = z.object({
+  verified: z.boolean(),
+  apexName: z.string(),
+  verification: z.array(verificationSchema).optional(),
+});
 
 /** Whether the host's DNS actually points at the deployment. */
-const domainConfigSchema = z.object({ misconfigured: z.boolean() });
+const domainConfigSchema = z.object({
+  misconfigured: z.boolean(),
+  verification: z.array(verificationSchema).optional(),
+});
 
 const apiErrorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 
@@ -94,7 +110,53 @@ const projectDomainsPath = (config: VercelDomainPortConfig): string =>
 const projectDomainPath = (config: VercelDomainPortConfig, domain: string): string =>
   `/v9/projects/${encodeURIComponent(config.projectId)}/domains/${encodeURIComponent(domain)}`;
 
-const rejected = (detail: string): DomainCheck => ({ resolved: false, detail });
+type ProjectDomain = z.output<typeof projectDomainSchema>;
+type Verification = z.output<typeof verificationSchema>;
+
+const verificationRecords = (verification: Verification[] | undefined): RequiredDnsRecord[] =>
+  (verification ?? []).map((record) => ({
+    type: record.type,
+    name: record.domain,
+    value: record.value,
+    purpose: 'ownership-verification',
+  }));
+
+const pointingRecord = (domain: string, apexName: string): RequiredDnsRecord =>
+  domain === apexName
+    ? {
+        type: 'A',
+        name: domain,
+        value: '76.76.21.21',
+        purpose: 'pointing',
+      }
+    : {
+        type: 'CNAME',
+        name: domain,
+        value: 'cname.vercel-dns.com',
+        purpose: 'pointing',
+      };
+
+const requiredRecords = (domain: string, attached: ProjectDomain): RequiredDnsRecord[] => [
+  ...verificationRecords(attached.verification),
+  pointingRecord(domain, attached.apexName),
+];
+
+const uniqueRecords = (records: RequiredDnsRecord[]): RequiredDnsRecord[] =>
+  records.filter(
+    (record, index) =>
+      records.findIndex(
+        (candidate) =>
+          candidate.type === record.type &&
+          candidate.name === record.name &&
+          candidate.value === record.value &&
+          candidate.purpose === record.purpose,
+      ) === index,
+  );
+
+const rejected = (
+  detail: string,
+  requiredDnsRecords: RequiredDnsRecord[] = [],
+): DomainCheck => ({ resolved: false, detail, requiredDnsRecords });
 
 /**
  * Vercel Domains API DomainPort (US-020). Certificates on a records-only zone are
@@ -111,11 +173,25 @@ export const createVercelDomainPort = (config: VercelDomainPortConfig): DomainPo
       { method: 'POST', path: projectDomainsPath(config), body: { name: domain } },
       projectDomainSchema,
     );
-    // Attaching is convergent: 409 means the host is already on the project, so a
-    // retry (or a re-added tenant domain) must succeed rather than fail the flow.
-    if (!result.ok && result.status !== 409) {
-      throw new Error(`Vercel could not attach "${domain}": ${result.detail}`);
+    if (result.ok) {
+      return { requiredDnsRecords: requiredRecords(domain, result.data) };
     }
+    if (result.status === 409) {
+      const attached = await call(
+        config,
+        { method: 'GET', path: projectDomainPath(config, domain) },
+        projectDomainSchema,
+      );
+      if (attached.ok) {
+        return { requiredDnsRecords: requiredRecords(domain, attached.data) };
+      }
+      // Returning no records here would be an affirmative "nothing to configure"
+      // read off a state nobody could observe.
+      throw new Error(
+        `Vercel reported "${domain}" as already attached but its state could not be read: ${attached.detail}`,
+      );
+    }
+    throw new Error(`Vercel could not attach "${domain}": ${result.detail}`);
   },
 
   remove: async (domain) => {
@@ -145,7 +221,10 @@ export const createVercelDomainPort = (config: VercelDomainPortConfig): DomainPo
       );
     }
     if (!attached.data.verified) {
-      return rejected(`${domain} is attached to the Vercel project but not verified yet`);
+      return rejected(
+        `${domain} is attached to the Vercel project but not verified yet`,
+        requiredRecords(domain, attached.data),
+      );
     }
 
     const dns = await call(
@@ -153,9 +232,27 @@ export const createVercelDomainPort = (config: VercelDomainPortConfig): DomainPo
       { method: 'GET', path: `/v6/domains/${encodeURIComponent(domain)}/config` },
       domainConfigSchema,
     );
-    if (!dns.ok) return rejected(`${domain}: ${dns.detail}`);
+    // The host reads back as verified, so an empty record list would assert
+    // "nothing left to configure" about routing nobody could observe — the same
+    // unknown state the 409 follow-up above refuses to answer.
+    if (!dns.ok) {
+      throw new Error(
+        `Vercel reported "${domain}" as verified but its DNS configuration could not be read: ${dns.detail}`,
+      );
+    }
     return dns.data.misconfigured
-      ? rejected(`${domain} is verified but Vercel reports its DNS as misconfigured`)
-      : { resolved: true, detail: `${domain} is attached and verified on the Vercel project` };
+      ? rejected(
+          `${domain} is verified but Vercel reports its DNS as misconfigured`,
+          uniqueRecords([
+            ...verificationRecords(attached.data.verification),
+            ...verificationRecords(dns.data.verification),
+            pointingRecord(domain, attached.data.apexName),
+          ]),
+        )
+      : {
+          resolved: true,
+          detail: `${domain} is attached and verified on the Vercel project`,
+          requiredDnsRecords: [],
+        };
   },
 });

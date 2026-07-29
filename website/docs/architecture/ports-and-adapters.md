@@ -156,19 +156,37 @@ single verified sender; per-tenant branded senders are a when-triggered extensio
 | `caddy` | Docker self-host | no-ops — Caddy issues certificates on demand | DNS lookup that the domain resolves to `SELF_HOST_TARGET_CNAME` or `SELF_HOST_TARGET_IP` |
 | `noop` (default) | dev | no-ops | always accepts |
 
+`provision` and `check` also return the remaining DNS actions as
+`requiredDnsRecords`: provider ownership challenges plus CNAME/A pointing for
+the Vercel adapter, configured CNAME/A pointing for Caddy, and `[]` for noop.
+The API and CLI carry these records without reconstructing them outside the
+adapter.
+
 The `vercel` adapter (US-020) exists because a wildcard cert on Vercel needs an
 ACME DNS-01 challenge, hence NS delegation. Where the base domain is a company
 zone that cannot be delegated, a plain wildcard CNAME resolves every tenant host
 but certs are **per host over HTTP-01**, so each host must be attached to the
 project individually — which is exactly what `provision` does. Attach is
 convergent: an already-attached host (`409`) is a success, so the use-case may
-retry. The token travels only in the `Authorization` header, never into a log or
-an error detail, and every API response is zod-parsed at the boundary.
+retry — but only once the follow-up read of that host succeeds. If the read
+fails, the DNS state is unknown and `provision` throws instead of reporting an
+empty record list; `check` throws on the same grounds when a verified host's
+DNS-config read fails. The token travels only in the `Authorization` header, never
+into a log or an error detail, and every API response is zod-parsed at the
+boundary.
 
-:::caution[`vercel` is proven against a stubbed `fetch` only]
-The adapter has **never run against the live Domains API**. That caveat has one
-canonical home so it can be deleted in one place the day it stops being true:
-[US-020: built, and never run live](../operations/self-host-and-domains.md#us-020-built-and-never-run-live).
+:::caution[Live acceptance is partial]
+The production add path was confirmed live on 2026-07-29 by a single
+owner-supervised run, recorded once as a dated adjudication record; the
+adapter's automated tests remain stubbed-`fetch`, and no gate holds a provider
+token. That run also carried one pre-verification `check`; live acceptance of
+`check` after verification, and of `remove`, remains unrecorded. So does
+`requiredDnsRecords` itself: the run confirmed the attach and the provider's
+ownership-TXT requirement, but the app deployed that day discarded the
+verification payload, so the owner read those records off the provider's
+dashboard — carrying them through the port, the contract and the CLI is
+offline-tested only:
+[US-020 status](../operations/self-host-and-domains.md#us-020-production-add-confirmed-live).
 :::
 
 The US-019 use-cases sit on top: `addDomain` provisions then writes an unverified

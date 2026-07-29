@@ -16,6 +16,10 @@ before that lives in the git history only.
 
 ### Added
 
+- Domain add/check responses now surface provisioner-required ownership and
+  pointing DNS records through the API, CLI, and domains settings view
+  ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
+
 - Adds the MIT LICENSE file, `license` field in `demo/package.json` and
   `website/package.json`, and an explicit MIT mention on the README and the
   docs landing page
@@ -26,6 +30,13 @@ before that lives in the git history only.
 - Dead exports are cut, the Knip gate declares the intended public API explicitly and rejects new unused exports, and the duplicate `scripts/screenshot.mjs` engine is removed ([#104](https://github.com/chomamateusz/agentproofarch/pull/104))
 
 ### Fixed
+
+- The Vercel domain provisioner no longer answers an already-attached host
+  (`409`) whose follow-up read fails with an empty required-record list, and
+  `check` no longer does so when a verified host's DNS-config read fails: the
+  DNS state is unknown in both cases, so the adapter throws and the error
+  taxonomy reports it
+  ([#103](https://github.com/chomamateusz/agentproofarch/pull/103)).
 
 - Demo upgrades the Hono Node adapter to v2, replaces its removed platform-entry
   export, and moves Drizzle Kit to v1 migration tooling without the vulnerable

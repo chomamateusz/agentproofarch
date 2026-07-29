@@ -13,8 +13,31 @@ const resolver = (over: Partial<DomainResolver>): DomainResolver => ({
 describe('createCaddyDomainPort — provision/remove', () => {
   it('provision and remove are no-ops (Caddy self-provisions on demand)', async () => {
     const port = createCaddyDomainPort({ targetCname: 'apps.example.com' });
-    await expect(port.provision('shop.acme.com')).resolves.toBeUndefined();
+    await expect(port.provision('shop.acme.com')).resolves.toEqual({
+      requiredDnsRecords: [
+        {
+          type: 'CNAME',
+          name: 'shop.acme.com',
+          value: 'apps.example.com',
+          purpose: 'pointing',
+        },
+      ],
+    });
     await expect(port.remove('shop.acme.com')).resolves.toBeUndefined();
+  });
+
+  it('returns the configured A record when no CNAME target exists', async () => {
+    const port = createCaddyDomainPort({ targetIp: '203.0.113.10' });
+    await expect(port.provision('acme.com')).resolves.toEqual({
+      requiredDnsRecords: [
+        {
+          type: 'A',
+          name: 'acme.com',
+          value: '203.0.113.10',
+          purpose: 'pointing',
+        },
+      ],
+    });
   });
 });
 
@@ -94,8 +117,8 @@ describe('createCaddyDomainPort — misconfiguration', () => {
 describe('createNoopDomainPort', () => {
   it('accepts every domain and no-ops provision/remove', async () => {
     const port = createNoopDomainPort();
-    await expect(port.provision('x.com')).resolves.toBeUndefined();
+    await expect(port.provision('x.com')).resolves.toEqual({ requiredDnsRecords: [] });
     await expect(port.remove('x.com')).resolves.toBeUndefined();
-    expect((await port.check('x.com')).resolved).toBe(true);
+    expect(await port.check('x.com')).toMatchObject({ resolved: true, requiredDnsRecords: [] });
   });
 });

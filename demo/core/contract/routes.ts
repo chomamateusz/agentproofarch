@@ -222,13 +222,24 @@ export const domainListOutputSchema = z.object({
 
 export type DomainAddInput = z.input<typeof domainAddInputSchema>;
 
-export const domainAddOutputSchema = z.object({ domain: tenantDomainSchema });
+const requiredDnsRecordSchema = z.object({
+  type: z.string(),
+  name: z.string(),
+  value: z.string(),
+  purpose: z.enum(['ownership-verification', 'pointing']),
+});
+
+export const domainAddOutputSchema = z.object({
+  domain: tenantDomainSchema,
+  requiredDnsRecords: z.array(requiredDnsRecordSchema).optional(),
+});
 
 export type DomainCheckInput = z.input<typeof domainCheckInputSchema>;
 
 export const domainCheckOutputSchema = z.object({
   domain: tenantDomainSchema,
   check: z.object({ resolved: z.boolean(), detail: z.string() }),
+  requiredDnsRecords: z.array(requiredDnsRecordSchema).optional(),
 });
 
 export type DomainRemoveInput = z.input<typeof domainRemoveInputSchema>;
