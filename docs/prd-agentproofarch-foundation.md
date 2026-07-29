@@ -15,7 +15,7 @@ the body disagree, this block wins.
 
 - **Platform entry file (§2 Goals, §3.1 `apps/server`, §3.2, US-023).** There is
   no `entry.vercel.ts`. The Vercel entry is `demo/api/index.ts`, which exports a
-  node-style handler via `@hono/node-server/vercel` (see
+  node-style handler via `getRequestListener` from `@hono/node-server` (see
   [ADR-0003](decisions/0003-vercel-environments.md) §4). Everywhere the PRD says
   `entry.vercel.ts` (including the `@vercel/*`/`@neondatabase/*` containment
   exemption), read `api/index.ts`.
