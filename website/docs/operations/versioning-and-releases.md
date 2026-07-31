@@ -66,6 +66,11 @@ then:
 3. open the owner-approved `main → production` promotion pull request, which
    carries the bump to production.
 
+The documentation pages that quote the current version wrap it in a
+`release-version` token that `doc-lint` checks against `demo/package.json`, so a
+bump which leaves them stale fails `pnpm run check` instead of waiting for a
+reviewer to notice.
+
 After that merge, `tag-release` creates `vX.Y.Z` at the production commit. A
 repeat run is harmless when the tag already points there and fails if the tag
 points anywhere else. The owner-side sequence is in the

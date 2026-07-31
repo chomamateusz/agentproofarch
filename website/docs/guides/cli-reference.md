@@ -19,9 +19,13 @@ from `demo/`; `--silent` keeps pnpm's own output off stdout.
 pnpm --silent run cli health
 ```
 
+{/*release-version*/}
+
 ```text
-status=ok db=up v1.0.0 sha=unknown
+status=ok db=up v1.1.0 sha=unknown
 ```
+
+{/*/release-version*/}
 
 `version` is `package.json`'s version — the single release-identity source — and
 `sha` is the build attestation (`APP_COMMIT_SHA`), reported as `unknown` locally
@@ -330,13 +334,15 @@ is refused — the tenant cannot be left ownerless.
 ## `domain`: `list`, `add`, `check`, `remove` 🌐 \{#domain-list-add-check-remove}
 
 Custom domains for the active tenant. Reading is staff-readable; add, check and
-remove are owner-only.
+remove are owner-only. `domain add` and `domain check` print every DNS action
+returned by the active provisioner. `--json` carries the same
+`requiredDnsRecords` array without reformatting it.
 
-Every transcript in this section is **shown with the `noop` provisioner** — the
-dev and Vercel default. The same commands against the `caddy` self-host
-provisioner print a configured DNS target and a real verification detail; that
-transcript is on
-[Self-host & custom domains](../operations/self-host-and-domains.md#driving-it-from-the-cli).
+**The transcripts below are the default.** `DOMAIN_PROVISIONER` is unset out of
+the box, which selects the `noop` provisioner: it accepts every domain and
+returns **no** DNS records, so no `Configure these DNS records` block is printed
+at all. A real provisioner (`vercel`, `caddy`) is what puts records there — see
+[the labelled provider example](#a-real-provisioner-observed) below.
 
 ```bash
 pnpm --silent run cli --tenant acme domain list
@@ -347,30 +353,108 @@ pnpm --silent run cli --tenant acme domain list
 (no DNS target configured)
 ```
 
-The target line is what the web add-flow renders as the DNS record to create.
-The target comes from the `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP` env
-vars, not from the provisioner — dev and Vercel leave both unset, so it reports
-`no DNS target configured`. A self-host deployment sets exactly one of them —
-"set one, not both", per `core/server/config.ts` and `.env.example` — and the
-`caddy` provisioner's check verifies DNS resolves to it. If both are set the
-provisioner prefers the CNAME and never inspects the A record: defensive
-behaviour, not a supported configuration.
+The target line comes from `SELF_HOST_TARGET_CNAME`/`SELF_HOST_TARGET_IP`. A
+self-host deployment sets exactly one; if both are present, the Caddy
+provisioner prefers the CNAME. Provider-specific ownership challenges are not
+part of this list response: they arrive from `domain add` and `domain check`.
+
+A newly added domain starts **unverified**, so `add` reports it as pending. With
+the default `noop` provisioner the required-record list is empty and the block is
+omitted:
 
 ```bash
 pnpm --silent run cli domain add shop.example.com
-# → attached: shop.example.com (pending)
+```
+
+```text
+attached: shop.example.com (pending)
+```
+
+`domain check` then asks the provisioner and persists the answer. The `noop`
+provisioner accepts every domain, so the first check already verifies it — and
+again prints no record block:
+
+```bash
 pnpm --silent run cli domain check shop.example.com
-# → shop.example.com: verified — shop.example.com accepted (noop provisioner)
+```
+
+```text
+shop.example.com: verified — shop.example.com accepted (noop provisioner)
+```
+
+```bash
 pnpm --silent run cli domain remove shop.example.com
 # → removed: shop.example.com (rows: 1)
 ```
 
-A newly added domain starts **unverified**; `domain check` asks the provisioner
-and persists the answer. The `noop` provisioner accepts every domain without a
-DNS lookup — only `caddy` performs a real check that DNS points at the
-configured target. See
-[Self-host and domains](../operations/self-host-and-domains.md) for the two
-provisioning paths.
+Exit codes are unchanged: pending DNS is a successful check result (exit 0),
+while authorization, validation and transport failures retain their taxonomy
+codes.
+
+### A real provisioner, as observed 🔎 \{#a-real-provisioner-observed}
+
+:::note[Not the default output]
+The blocks below are **not** what these commands print out of the box; they are
+the shape a real hosting provider returns. Each block says whether it is an
+observation or the adapter's documented shape. The observations come from the
+production provisioner (`DOMAIN_PROVISIONER=vercel`) during the
+owner-supervised live run on 2026-07-29, written down in
+[`docs/backlog.md` §US-020 live adjudication record](https://github.com/chomamateusz/agentproofarch/blob/main/docs/backlog.md#us-020-live-adjudication-record-2026-07-29).
+Host and token are redacted to the documentation's example domain.
+:::
+
+**Observed — the requirement, not this output.** That run attached a tenant
+subdomain under a parent already claimed by another hosting account, and the
+provider demanded an ownership TXT before it would verify. The app deployed that
+day discarded the provider's verification payload, so the owner read the TXT
+values off the provider's dashboard and configured DNS by hand. The block below
+is the **documented shape** the CLI prints for that same case after this change,
+covered by the offline suite — it is not what the run printed:
+
+```text
+attached: shop.example.com (pending)
+
+Configure these DNS records
+TXT  _vercel.example.com  vc-domain-verify=shop.example.com,2b1f4d8a
+  Purpose: ownership-verification
+CNAME  shop.example.com  cname.vercel-dns.com
+  Purpose: pointing
+```
+
+**Observed.** `domain check` was invoked exactly once in that run, while the
+ownership challenge was still pending; an abridged excerpt of its answer as
+captured in the session log:
+
+```json
+{"ok":true,"data":{"domain":{"verified":false},"check":{"resolved":false,"detail":"shop.example.com is attached to the Vercel project but not verified yet"}}}
+```
+
+Nothing else about `check` was witnessed: no check ran after the TXT
+verification completed — the final verified state was established by TLS and
+`/api/health` over HTTPS instead — and `domain remove` was never invoked.
+
+**Documented shape, read off the code** (`adapters/domain-provisioning/vercel.ts`,
+covered by the offline suite) — not an observation. Once ownership succeeds but
+routing is still misconfigured, `check` reports the remaining work rather than
+collapsing the domain to a pending boolean; when both checks pass it prints the
+verified summary with no record block at all:
+
+```text
+shop.example.com: pending — shop.example.com is verified but Vercel reports its DNS as misconfigured
+
+Configure these DNS records
+CNAME  shop.example.com  cname.vercel-dns.com
+  Purpose: pointing
+```
+
+The live run used subdomains only. For an **apex** such as `example.com` the
+adapter emits `A  example.com  76.76.21.21` instead of the CNAME
+(`adapters/domain-provisioning/vercel.ts`, covered by the offline suite) — that
+branch was not part of the 2026-07-29 observation. The `caddy` provisioner
+returns its configured `SELF_HOST_TARGET_CNAME` or `_IP` record until the DNS
+lookup matches. See
+[Self-host and domains](../operations/self-host-and-domains.md) for the
+platform-subdomain and bring-your-own flows.
 
 ## `public`: `profile` 📣 \{#public-profile}
 

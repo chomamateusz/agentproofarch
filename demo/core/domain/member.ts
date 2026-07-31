@@ -11,25 +11,25 @@ import { z } from 'zod';
  * rows; a lost profile edit costs a re-type, per §Data conventions).
  */
 
+/** @public */
 export const marketingChannelSchema = z.enum(['email', 'sms', 'postal']);
 
+/** @public */
 export type MarketingChannel = z.infer<typeof marketingChannelSchema>;
 
 /** A per-tenant marketing consent record; `updatedAt` is server-stamped. */
-export const marketingConsentSchema = z.object({
+const marketingConsentSchema = z.object({
   channel: marketingChannelSchema,
   granted: z.boolean(),
   updatedAt: z.string(),
 });
-
-export type MarketingConsent = z.infer<typeof marketingConsentSchema>;
 
 const displayNameSchema = z.string().trim().min(1).max(200);
 const tagsSchema = z.array(z.string().trim().min(1).max(64)).max(50);
 const externalCustomerIdsSchema = z.array(z.string().trim().min(1).max(128)).max(50);
 
 /** Client-supplied consent: the server stamps `updatedAt` at write time. */
-export const marketingConsentInputSchema = z.object({
+const marketingConsentInputSchema = z.object({
   channel: marketingChannelSchema,
   granted: z.boolean(),
 });
@@ -76,8 +76,6 @@ export const memberUpdateSchema = z.object({
 export type MemberUpdate = z.infer<typeof memberUpdateSchema>;
 
 export const memberRefSchema = z.object({ id: z.string().min(1) });
-
-export type MemberRef = z.infer<typeof memberRefSchema>;
 
 /**
  * A GDPR access/portability dump for one member (ADR-0002: member-level export

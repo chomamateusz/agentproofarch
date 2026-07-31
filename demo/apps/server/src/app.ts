@@ -381,7 +381,7 @@ export const buildApp = (deps: AppDeps) => {
       return respond(err(validation('Invalid domain payload', parsed.error.flatten())));
     }
     const result = await addDomain(ctxOf(c.get('identity')), parsed.data, deps);
-    return respond(result.ok ? ok({ domain: result.value }) : result);
+    return respond(result.ok ? ok(result.value) : result);
   });
 
   app.post(API_PATHS.domainsCheck, async (c) => {

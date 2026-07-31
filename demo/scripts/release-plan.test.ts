@@ -69,6 +69,11 @@ describe('release plan', () => {
     expect(nextSteps('2.0.1', 'patch')).not.toContain('re-cut');
   });
 
+  it('sends every bump to the doc-lint-checked version tokens', () => {
+    expect(nextSteps('2.0.1', 'patch')).toContain('release-version tokens to 2.0.1');
+    expect(nextSteps('2.0.0', 'major')).toContain('pnpm run doc-lint names every page');
+  });
+
   it('names major snapshots and selects only major bumps', () => {
     expect(snapshotName('12.3.4')).toBe('12.x');
     expect(() => snapshotName('12.x')).toThrow(/strict SemVer/);

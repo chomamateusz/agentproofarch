@@ -55,18 +55,18 @@ export interface MergedItem {
 }
 
 /** An item the user just typed — client-originated, not a server record copy. */
-export interface OverlayItem {
+interface OverlayItem {
   readonly id: string;
   readonly title: string;
 }
 
 /** The single reversible op: how to replay the inverse of the last committed move. */
-export interface UndoMove {
+interface UndoMove {
   readonly itemId: string;
   readonly toIndex: number;
 }
 
-export type PendingOp =
+type PendingOp =
   | { readonly opId: string; readonly kind: 'add'; readonly item: OverlayItem }
   | { readonly opId: string; readonly kind: 'move'; readonly itemId: string; readonly toIndex: number }
   | { readonly opId: string; readonly kind: 'remove'; readonly itemId: string };

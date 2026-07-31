@@ -3,6 +3,8 @@ import { createRequire } from 'node:module';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 
+import { z } from 'zod';
+
 import { observabilityEnvSchema, serverEnvSchema } from '#core/server/config.js';
 
 import { lintLinks } from './link-lint.js';
@@ -24,6 +26,11 @@ import { lintMigrations } from './migration-lint.js';
  *     (see COUNT_TOKEN_SYNTAXES). REQUIRED_COUNT_TOKENS pins which surface
  *     must carry which counter, so a rewrite cannot drop a checked number
  *     back to unverifiable prose.
+ *   versions:       the pages that quote the *current* release identity wrap it
+ *     in a `release-version` region (same two comment spellings as the counts),
+ *     checked against `demo/package.json`; VERSION_PINNED_FILES additionally
+ *     forbids an unwrapped version claim on those pages, so a release bump fails
+ *     `check` until the docs follow instead of relying on review to notice.
  *   env schema:     every key the config schema reads is documented in
  *     `.env.example`.
  *   links:          every link in a tracked `.md` resolves to a file — relative
@@ -312,6 +319,104 @@ for (const [rel, required] of Object.entries(REQUIRED_COUNT_TOKENS)) {
   }
 }
 
+// ── Release version: guarded regions must quote demo/package.json's version. ─
+const appVersion = z
+  .object({ version: z.string() })
+  .parse(JSON.parse(readFileSync(join(demoRoot, 'package.json'), 'utf8'))).version;
+
+const VERSION_REGION_SYNTAXES: readonly RegExp[] = [
+  /<!--release-version-->([\s\S]*?)<!--\/release-version-->/g,
+  /\{\/\*release-version\*\/\}([\s\S]*?)\{\/\*\/release-version\*\/\}/g,
+];
+
+/** The two shapes a release-identity claim takes in the samples: the manifest field and the `vX.Y.Z` stamp. */
+const VERSION_CLAIM = /"version":\s*"(\d+\.\d+\.\d+)"|\bv(\d+\.\d+\.\d+)\b/g;
+
+/**
+ * Pages whose version claims describe the release being cut, not history. On
+ * these, every claim must sit inside a region — a new unwrapped sample is the
+ * drift the token would otherwise miss. Pages that discuss past cuts (ADR-0014,
+ * versioning-and-releases, the changelog) are deliberately absent: their `v1.0.0`
+ * is a fact about that release and must not be rewritten by a later bump.
+ */
+const VERSION_PINNED_FILES: readonly string[] = [
+  'website/docs/start/quickstart.md',
+  'website/docs/operations/health-and-attestation.md',
+  'website/docs/guides/cli-reference.md',
+  'website/docs/guides/cli-walkthrough.md',
+];
+
+const versionClaimsIn = (text: string): string[] => {
+  const claims: string[] = [];
+  for (const match of text.matchAll(VERSION_CLAIM)) {
+    const claimed = match[1] ?? match[2];
+    if (claimed !== undefined) claims.push(claimed);
+  }
+  return claims;
+};
+
+const withoutVersionRegions = (text: string): string =>
+  VERSION_REGION_SYNTAXES.reduce((stripped, syntax) => stripped.replace(syntax, ''), text);
+
+const pinnedVersionFiles = new Set(VERSION_PINNED_FILES);
+let versionClaimsSeen = 0;
+const versionRegionsByFile = new Map<string, number>();
+const unguardedVersionsByFile = new Map<string, string[]>();
+for (const rel of trackedMarkdown) {
+  if (isFrozenDoc(rel)) continue;
+  const text = readFileSync(join(repoRoot, rel), 'utf8');
+  let regions = 0;
+  for (const syntax of VERSION_REGION_SYNTAXES) {
+    for (const match of text.matchAll(syntax)) {
+      regions += 1;
+      const claims = versionClaimsIn(match[1] ?? '');
+      if (claims.length === 0) {
+        problems.push(
+          `[version] ${rel}: a release-version region guards no version string — ` +
+            `wrap the sample that states the version, or drop the region.`,
+        );
+        continue;
+      }
+      versionClaimsSeen += claims.length;
+      for (const claimed of claims) {
+        if (claimed !== appVersion) {
+          problems.push(
+            `[version] ${rel}: release-version region claims ${claimed} but demo/package.json ` +
+              `is ${appVersion} — update the page to ${appVersion}.`,
+          );
+        }
+      }
+    }
+  }
+  versionRegionsByFile.set(rel, regions);
+  if (pinnedVersionFiles.has(rel)) {
+    unguardedVersionsByFile.set(rel, versionClaimsIn(withoutVersionRegions(text)));
+  }
+}
+
+for (const rel of VERSION_PINNED_FILES) {
+  const regions = versionRegionsByFile.get(rel);
+  if (regions === undefined) {
+    problems.push(
+      `[version] ${rel} is listed in VERSION_PINNED_FILES but is not a tracked .md file — ` +
+        `commit it, or drop the entry if the page is gone.`,
+    );
+    continue;
+  }
+  if (regions === 0) {
+    problems.push(
+      `[version] ${rel} must state the release version inside a release-version region but ` +
+        `carries none — restore the region, or drop the entry if the page stopped quoting it.`,
+    );
+  }
+  for (const claimed of unguardedVersionsByFile.get(rel) ?? []) {
+    problems.push(
+      `[version] ${rel}: "${claimed}" states a release version outside a release-version ` +
+        `region — wrap it so the gate checks it.`,
+    );
+  }
+}
+
 // ── env schema ⊆ .env.example: every key the config schema reads is documented. ─
 const envExample = readFileSync(join(demoRoot, '.env.example'), 'utf8');
 const declaredEnvKeys = new Set([
@@ -357,6 +462,7 @@ if (problems.length > 0) {
 const summary =
   `doc-lint: OK — ${DOC_PROMISED_ENFORCERS.length} promised enforcer(s) present, ` +
   `${ruleFiles.length} custom rule(s) documented, ${countTokensSeen} count token(s) verified, ` +
+  `${versionClaimsSeen} release-version claim(s) at ${appVersion}, ` +
   `${declaredEnvKeys.size} env key(s) in .env.example, ` +
   `${trackedMarkdown.length} tracked .md file(s) clean of dead links and leaked delimiters, ` +
   `migration sequence + journal consistent.`;

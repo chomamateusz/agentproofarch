@@ -71,6 +71,7 @@ export interface TenantDomainRepository {
   removeByTenantAndDomain(tenantId: string, domain: string): Promise<number>;
 }
 
+/** @public */
 export type TenantLookup = { tenantId: string } | { tenantSlug: string };
 
 export interface TenantRepository {
@@ -161,10 +162,24 @@ export interface HealthPort {
   pingDatabase(): Promise<boolean>;
 }
 
+type DnsRecordPurpose = 'ownership-verification' | 'pointing';
+
+export interface RequiredDnsRecord {
+  readonly type: string;
+  readonly name: string;
+  readonly value: string;
+  readonly purpose: DnsRecordPurpose;
+}
+
+interface DomainProvision {
+  readonly requiredDnsRecords: RequiredDnsRecord[];
+}
+
 /** Whether a tenant domain points at the deploy's public target, with a human detail. */
 export interface DomainCheck {
   readonly resolved: boolean;
   readonly detail: string;
+  readonly requiredDnsRecords: RequiredDnsRecord[];
 }
 
 /**
@@ -179,7 +194,7 @@ export interface DomainCheck {
  *   - `noop` (dev/default): every method resolves without side effects.
  */
 export interface DomainPort {
-  provision(domain: string): Promise<void>;
+  provision(domain: string): Promise<DomainProvision>;
   check(domain: string): Promise<DomainCheck>;
   remove(domain: string): Promise<void>;
 }
@@ -189,6 +204,8 @@ export interface DomainPort {
  * mail carries (a magic link, a verification link); a transport embeds it in
  * `text`/`html` and otherwise ignores the field. Keeping the port at `sendMail`
  * makes the magic link ONE consumer of the seam, not the port's shape.
+ *
+ * @public
  */
 export interface EmailMessage {
   to: string;

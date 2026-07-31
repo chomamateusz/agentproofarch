@@ -38,7 +38,7 @@ import {
  * the build's commit SHA. `smoke:remote` compares the SHA against the deploy
  * event's SHA to prove it verified the deployment it thinks it did.
  */
-export const attestationSchema = z.object({
+const attestationSchema = z.object({
   version: z.string(),
   sha: z.string(),
 });
@@ -207,6 +207,8 @@ export const staffRevokeOutputSchema = z.object({
  * Both nullable: the `noop` provisioner (dev default) configures neither, so the
  * UI falls back to generic guidance; `caddy` self-host and the Vercel target
  * (`SELF_HOST_TARGET_CNAME`) set exactly one.
+ *
+ * @public
  */
 export const domainTargetSchema = z.object({
   cname: z.string().nullable(),
@@ -220,13 +222,24 @@ export const domainListOutputSchema = z.object({
 
 export type DomainAddInput = z.input<typeof domainAddInputSchema>;
 
-export const domainAddOutputSchema = z.object({ domain: tenantDomainSchema });
+const requiredDnsRecordSchema = z.object({
+  type: z.string(),
+  name: z.string(),
+  value: z.string(),
+  purpose: z.enum(['ownership-verification', 'pointing']),
+});
+
+export const domainAddOutputSchema = z.object({
+  domain: tenantDomainSchema,
+  requiredDnsRecords: z.array(requiredDnsRecordSchema).optional(),
+});
 
 export type DomainCheckInput = z.input<typeof domainCheckInputSchema>;
 
 export const domainCheckOutputSchema = z.object({
   domain: tenantDomainSchema,
   check: z.object({ resolved: z.boolean(), detail: z.string() }),
+  requiredDnsRecords: z.array(requiredDnsRecordSchema).optional(),
 });
 
 export type DomainRemoveInput = z.input<typeof domainRemoveInputSchema>;

@@ -4,8 +4,8 @@
 
 **agentproofarch** — an agent-first, strictly-layered TypeScript foundation for
 multi-tenant SaaS.
-A free, open project by **Mateusz Choma**, developed privately in collaboration
-with **[CodeRoad.pl](https://coderoad.pl)** and
+A free, open project — [MIT licensed](LICENSE) — by **Mateusz Choma**, developed
+privately in collaboration with **[CodeRoad.pl](https://coderoad.pl)** and
 **[AmazingDesign.eu](https://amazingdesign.eu)**.
 
 The idea in one paragraph: a pure-TypeScript core (domain, API contract,

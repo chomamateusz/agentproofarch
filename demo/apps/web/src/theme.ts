@@ -1,6 +1,6 @@
 import type { ElementType } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
-import { alpha, createTheme, styled, type Theme } from '@mui/material/styles';
+import { Typography } from '@mui/material';
+import { createTheme, styled, type Theme } from '@mui/material/styles';
 
 /**
  * The entire "engineer's logbook" visual language lives in this theme:
@@ -17,12 +17,12 @@ const FONT_MONO = "ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, mo
 const FONT_DISPLAY =
   "'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif";
 
-export const PAPER = '#f6f2ea';
-export const PAPER_RAISED = '#fdfbf6';
-export const INK = '#191512';
-export const INK_SOFT = '#5c5348';
-export const LINE = 'rgba(25, 21, 18, 0.14)';
-export const LINE_STRONG = 'rgba(25, 21, 18, 0.55)';
+const PAPER = '#f6f2ea';
+const PAPER_RAISED = '#fdfbf6';
+const INK = '#191512';
+const INK_SOFT = '#5c5348';
+const LINE = 'rgba(25, 21, 18, 0.14)';
+const LINE_STRONG = 'rgba(25, 21, 18, 0.55)';
 
 export type ThemeMode = 'logbook' | 'material';
 
@@ -53,7 +53,7 @@ export const createThemeForMode = (mode: ThemeMode, accentHue?: number): Theme =
  * UI in logbook mode, keep vertical paddings + borders summing to GRID
  * multiples.
  */
-export const GRID = 24;
+const GRID = 24;
 
 export const createAppTheme = (accentHue = 24): Theme => {
   const accent = `hsl(${accentHue} 62% 42%)`;
@@ -292,7 +292,7 @@ export const createAppTheme = (accentHue = 24): Theme => {
 
 type AsElement = { component?: ElementType };
 
-export const CardTitle = styled(Typography)({ fontSize: '1.6rem' });
+const CardTitle = styled(Typography)({ fontSize: '1.6rem' });
 
 // Bold tenant name inside a ListItemText primary slot: the weight is a
 // typography decision, so it lives here in theme.ts rather than an inline sx.
@@ -301,10 +301,6 @@ export const TenantName = styled('span')({ fontWeight: 700 });
 export const Wordmark = styled(CardTitle)({ letterSpacing: 'normal' });
 
 export const Eyebrow = styled(Typography)<AsElement>({ fontSize: '0.78rem' });
-
-export const HeaderMeta = styled(Eyebrow)({ letterSpacing: '0.09em' });
-
-export const HeaderMetaBreak = styled(HeaderMeta)({ wordBreak: 'break-all' });
 
 export const FinePrint = styled(Typography)<AsElement>({ fontSize: '0.75rem' });
 
@@ -318,12 +314,3 @@ export const EntryDate = styled(Typography)<AsElement & { dateTime?: string }>({
 });
 
 export const DemoValue = styled('code')(({ theme }) => ({ color: theme.palette.primary.dark }));
-
-export const LedgerHeader = styled(Box)<AsElement>({ borderBottom: `3px double ${LINE_STRONG}` });
-
-export const TenantSwatch = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.primary.main,
-  boxShadow: `0.3rem 0.3rem 0 ${alpha(theme.palette.primary.main, 0.09)}`,
-}));
-
-export const LedgerNav = styled(Stack)<AsElement>({ borderBottom: `1px solid ${LINE}` });

@@ -51,6 +51,8 @@ export const needsSnapshot = (bump: Bump): boolean => bump === 'major';
 export const nextSteps = (version: string, bump: Bump): string =>
   `${[
     'review the diff',
+    `update the docs release-version tokens to ${version} — pnpm run doc-lint names every page ` +
+      'that still quotes the old one',
     `commit it on release/v${version}`,
     ...(needsSnapshot(bump)
       ? [
