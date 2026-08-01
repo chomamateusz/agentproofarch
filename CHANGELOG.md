@@ -20,7 +20,7 @@ before that lives in the git history only.
   baseline PNG a pull request re-renders and commits, read from the pull-request
   file list and served from the base and head commits — the deliberate UI change
   compares green by construction and GitHub collapses its image diff, so this was
-  the one case the gallery could not show (#TBD)
+  the one case the gallery could not show ([#112](https://github.com/chomamateusz/agentproofarch/pull/112))
 
 ## v1.1.1 — 2026-08-01
 
