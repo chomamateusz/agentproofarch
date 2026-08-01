@@ -26,7 +26,8 @@ before that lives in the git history only.
   Lighthouse CI as the lab instrument), and two advisory non-required jobs
   feeding them: `scorecard.yml` (weekly OpenSSF Scorecard, SARIF to the Security
   tab) and `lhci.yml` (Lighthouse CI over the built documentation site, every
-  assertion at `warn`) (#TBD)
+  assertion at `warn`)
+  ([#115](https://github.com/chomamateusz/agentproofarch/pull/115))
 
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
