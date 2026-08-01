@@ -166,9 +166,19 @@ describe('createCliAuthAdapter social + 2FA', () => {
     expect(await adapter.disableTwoFactor({ password: 'pw' })).toEqual({ ok: true, value: undefined });
   });
 
-  it('changePassword posts the session bearer token and revoke choice', async () => {
-    const call = mockJsonFetch(() => ({ ok: true, status: 200, json: { status: true } }));
-    const adapter = createCliAuthAdapter('http://localhost:47100', () => {}, () => 'tok-1');
+  it('changePassword posts the session bearer token and persists the rotated one', async () => {
+    const call = mockJsonFetch(() => ({
+      ok: true,
+      status: 200,
+      json: { token: 'tok-2', user: { id: 'u1' } },
+      headers: { 'set-auth-token': 'tok-2' },
+    }));
+    const persisted: string[] = [];
+    const adapter = createCliAuthAdapter(
+      'http://localhost:47100',
+      (next) => persisted.push(next),
+      () => 'tok-1',
+    );
 
     expect(
       await adapter.changePassword({
@@ -186,6 +196,26 @@ describe('createCliAuthAdapter social + 2FA', () => {
         revokeOtherSessions: true,
       },
     });
+    expect(persisted).toEqual(['tok-2']);
+  });
+
+  it('changePassword keeps the stored token when no rotation is emitted', async () => {
+    mockJsonFetch(() => ({ ok: true, status: 200, json: { token: null, user: { id: 'u1' } } }));
+    const persisted: string[] = [];
+    const adapter = createCliAuthAdapter(
+      'http://localhost:47100',
+      (next) => persisted.push(next),
+      () => 'tok-1',
+    );
+
+    expect(
+      await adapter.changePassword({
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+        revokeOtherSessions: false,
+      }),
+    ).toEqual({ ok: true, value: undefined });
+    expect(persisted).toEqual([]);
   });
 });
 

@@ -17,7 +17,8 @@ before that lives in the git history only.
 ### Added
 
 - Account passwords can be changed from web settings or the CLI, with an
-  option to invalidate every other active session
+  option to invalidate every other active session; the CLI stores the session
+  token that revoke rotates, so it keeps working afterwards
   ([#114](https://github.com/chomamateusz/agentproofarch/pull/114))
 
 - The visual review gallery comment now shows a **Before / After** pair for every

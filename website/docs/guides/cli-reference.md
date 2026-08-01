@@ -119,6 +119,13 @@ Both password flags are required, matching `login`'s non-interactive flag
 style. `--sign-out-other-sessions` is optional; when present, every other
 active session is invalidated while the current CLI session remains usable.
 
+That last guarantee is not free. The revoke drops **every** session of the
+account — the calling one included — and issues a replacement, which the CLI
+stores over its own token before printing the result. The smoke gate proves it
+end to end: two live sessions of one scratch account, then a change from the
+first, after which the first still answers `whoami` and the second gets
+`unauthorized` (exit 3).
+
 ```bash
 pnpm --silent run cli --json account change-password \
   --current-password demo1234 \
