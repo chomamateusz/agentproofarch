@@ -38,5 +38,8 @@ use a fixed emoji from the table below; anything else picks the closest match.
 | 🖼️ | UI/visual baselines |
 | ♻️ | refactor |
 
-This is a convention enforced by review (REVIEW+AI tier), **not** by a hook.
+PR titles are enforced by human review — nothing mechanical checks them; the
+`ai-review` gate reads only the diff and has no GitHub API access to the PR
+title. Commit messages are visible to the gate via `git log`, but the
+convention as a whole is REVIEW-tier, not gate-tier.
 `CHANGELOG.md` entries stay emoji-free — factual lines only.
