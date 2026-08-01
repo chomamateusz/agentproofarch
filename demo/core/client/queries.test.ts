@@ -12,6 +12,7 @@ import {
   cardsInvalidates,
   cardsQuery,
   cardsScopes,
+  changePasswordMutation,
   createTenantMutation,
   ensureMemberInvalidates,
   ensureMemberMutation,
@@ -227,6 +228,7 @@ const fakeAuth = (): AuthClientPort => ({
   signUp: async () => ok({ token: 'signed-up' }),
   signIn: async () => ok({ token: 'signed-in' }),
   signOut: async () => ok(undefined),
+  changePassword: async () => ok(undefined),
   requestMagicLink: async () => ok(undefined),
   signInSocial: async () => ok({ url: 'https://accounts.google.example/authorize' }),
   enableTwoFactor: async () => ok({ totpURI: 'otpauth://totp/demo', backupCodes: ['aaaa-bbbb'] }),
@@ -255,6 +257,13 @@ describe('auth mutation descriptors', () => {
     ).resolves.toEqual({ token: 'signed-in' });
     await expect(
       new MutationObserver(client, signOutMutation(auth)).mutate(),
+    ).resolves.toBeUndefined();
+    await expect(
+      new MutationObserver(client, changePasswordMutation(auth)).mutate({
+        currentPassword: 'demo1234',
+        newPassword: 'changed1234',
+        revokeOtherSessions: true,
+      }),
     ).resolves.toBeUndefined();
   });
 

@@ -106,6 +106,38 @@ The CLI attempts server-side revocation first, then clears the active origin's
 local token even if revocation fails. Only that origin's profile is touched;
 sessions stored for other origins stay signed in.
 
+## `account`: `change-password` 🔑 \{#account-change-password}
+
+```bash
+pnpm --silent run cli account change-password \
+  --current-password demo1234 \
+  --new-password changed1234 \
+  --sign-out-other-sessions
+```
+
+Both password flags are required, matching `login`'s non-interactive flag
+style. `--sign-out-other-sessions` is optional; when present, every other
+active session is invalidated while the current CLI session remains usable.
+
+```bash
+pnpm --silent run cli --json account change-password \
+  --current-password demo1234 \
+  --new-password changed1234
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "changed": true,
+    "revokedOtherSessions": false
+  }
+}
+```
+
+A wrong current password returns the ordinary `validation` auth error envelope
+and exits 2 through the taxonomy mapping.
+
 ## `origin`: `list`, `use` 🌍 \{#origin-list-use}
 
 The CLI keeps one session profile — token and selected tenant — per canonical

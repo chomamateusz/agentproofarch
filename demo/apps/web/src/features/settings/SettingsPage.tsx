@@ -6,6 +6,7 @@ import { actions } from '../../api.js';
 import { BuildInfoSection } from './BuildInfoSection.js';
 import { CreateTenantForm } from './CreateTenantForm.js';
 import { PasskeySection } from './PasskeySection.js';
+import { PasswordSection } from './PasswordSection.js';
 import { TwoFactorSection } from './TwoFactorSection.js';
 import { tenantUrl } from '../../lib/tenant.js';
 
@@ -85,6 +86,7 @@ export const SettingsPage = () => {
         <CreateTenantForm />
       </Paper>
 
+      <PasswordSection />
       <TwoFactorSection />
       <PasskeySection />
       <BuildInfoSection />

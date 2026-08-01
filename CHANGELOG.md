@@ -16,6 +16,10 @@ before that lives in the git history only.
 
 ### Added
 
+- Account passwords can be changed from web settings or the CLI, with an
+  option to invalidate every other active session
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
   file list and served from the base and head commits — the deliberate UI change

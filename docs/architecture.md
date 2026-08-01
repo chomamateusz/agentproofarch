@@ -1186,8 +1186,8 @@ client port in `core/client`). It is the *built* set — keep it in sync with th
 code.
 
 - `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
-- `AuthClientPort` (client): sign-up/in/out **plus the provider auth methods**
-  (US-026/US-028a) — `requestMagicLink`, `signInSocial`, TOTP 2FA
+- `AuthClientPort` (client): sign-up/in/out, authenticated password change
+  (`changePassword`), **plus the provider auth methods** (US-026/US-028a) — `requestMagicLink`, `signInSocial`, TOTP 2FA
   (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
   (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
   `listPasskeys` is the one read-tagged method, since the roster lives on the

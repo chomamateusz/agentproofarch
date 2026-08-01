@@ -150,6 +150,11 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       return toResult({ token }, response.error);
     },
     signOut: async () => toResult(undefined, (await client.signOut()).error),
+    changePassword: async ({ currentPassword, newPassword, revokeOtherSessions }) =>
+      toResult(
+        undefined,
+        (await client.changePassword({ currentPassword, newPassword, revokeOtherSessions })).error,
+      ),
     requestMagicLink: async ({ email, callbackURL }) => {
       const response = await client.signIn.magicLink({ email, ...(callbackURL ? { callbackURL } : {}) });
       return toResult(undefined, response.error);
@@ -239,6 +244,10 @@ export const createCliAuthAdapter = (
       const current = token();
       if (current === null) return ok(undefined);
       const result = await postCliAuth(baseUrl, '/api/auth/sign-out', {}, current);
+      return result.ok ? ok(undefined) : result;
+    },
+    changePassword: async (input) => {
+      const result = await postCliAuth(baseUrl, '/api/auth/change-password', input, token());
       return result.ok ? ok(undefined) : result;
     },
     requestMagicLink: async ({ email, callbackURL }) => {
