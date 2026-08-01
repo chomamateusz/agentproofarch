@@ -9,6 +9,13 @@ claims they resolve to. `pnpm run check`'s doc-lint already catches dead
 *relative* and *site-absolute* links; this audit is specifically the
 external, off-site half doc-lint does not cover.
 
+## Standard reference
+
+**None — and that is the honest answer.** There is no standard for link
+integrity, and naming one to fill the field would be exactly the kind of
+unearned citation the rest of this roster exists to catch. This spec is
+anchored to the live web and nothing else.
+
 ## Reference standard
 
 The live target of each link (HTTP 200 + content matching the citation
@@ -40,6 +47,18 @@ periodically rather than treating a clean pass as durable.
   `website/docs/guides/agent-workflow.md` — no production DB reachable from
   an agent shell, but that rule is about production infrastructure, not
   read-only GET requests to public docs/GitHub, which this audit requires).
+
+## Automatable checks
+
+Resolution is automatable and the crawl should be scripted (authenticated
+`gh api` for GitHub targets, plain requests for the rest); `doc-lint` and the
+Docusaurus build already cover the relative and site-absolute half. Nothing
+automatable decides the two findings this audit actually cares about: whether
+a link's *current content* still supports the sentence citing it, and whether
+a 200 came from the cited page or from a homepage the vendor redirected to.
+No such job is wired in CI — a scheduled crawl would report link rot that
+predates the pull request it lands on, which is noise on a gate and fine in an
+audit.
 
 ## What counts as a finding
 

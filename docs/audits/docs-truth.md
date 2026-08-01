@@ -7,6 +7,21 @@ had. This is the audit for drift, not for absence — see
 [`completeness.md`](completeness.md) for the complementary "what's missing
 entirely" question this one cannot answer.
 
+## Standard reference
+
+**ISO/IEC/IEEE 26514:2022** (design and maintenance of software user
+information) as the named standard for documentation quality, and
+**[Diátaxis](https://diataxis.fr/)** as the free structural rubric (tutorial /
+how-to / reference / explanation) for judging whether a claim sits where a
+reader will find it.
+
+**What is not claimed — and this matters more here than in any other spec:**
+both are frameworks, not conformance tests. 26514 prescribes process and is
+paywalled; it is named, not read, and this repo does not cite clauses it has
+not opened. Diátaxis shape mismatches are *style* notes in this spec's
+vocabulary, never findings. No report may state or imply 26514 conformance,
+and the tooling proxies below demonstrate nothing about it either.
+
 ## Reference standard
 
 The code itself. `docs/architecture.md` and `docs/prd-agentproofarch-foundation.md`
@@ -39,6 +54,17 @@ it disagrees with what `demo/` actually does, regardless of which one is
 - Sample commit-linked claims (PR numbers, ADR numbers referenced from prose)
   and confirm the referenced artifact says what the citing text claims it
   says.
+
+## Automatable checks
+
+`doc-lint` inside `pnpm run check` (docs ↔ enforcer config in both directions,
+env-var schema, migration-sequence lint) and the Docusaurus build itself,
+which throws on broken links, anchors and markdown links. Both are already
+green on every merged commit, so neither finds anything this audit is for: a
+sentence can be perfectly linted and still describe behaviour the code lost
+two releases ago. Every claim-level check in the method above is a manual
+grep. A prose linter (Vale) would add style enforcement, not truth
+enforcement, and is not proposed.
 
 ## What counts as a finding
 

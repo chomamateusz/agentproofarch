@@ -25,6 +25,7 @@ flowchart TD
     pr --> ai["ai-review.yml<br/>PRs to main, non-draft"]
     pr --> dci["docs-ci.yml<br/>path-filtered on website/** + CHANGELOG.md"]
     pr --> dr["dr-acceptance.yml<br/>backup-package paths"]
+    pr --> lh["lhci.yml<br/>path-filtered on website/**"]
 
     ci --> check["check — REQUIRED<br/>pnpm install --frozen-lockfile + pnpm run check"]
     ci --> smoke["smoke — REQUIRED<br/>postgres:16 + mailpit<br/>integration tests, runtime smoke,<br/>quickstart probe"]
@@ -35,6 +36,10 @@ flowchart TD
     ai --> aireview["ai-review — required on main<br/>fail-closed doctrine review"]
     dci --> docsbuild["docs-build — not required<br/>Docusaurus build + typecheck<br/>+ mermaid parse check"]
     dr --> drjob["dr-acceptance — not required<br/>k3d backup + restore"]
+    lh --> lhdocs["lhci-docs — not required<br/>Lighthouse assertions at warn"]
+
+    weekly["weekly schedule / dispatch"] --> sc["scorecard.yml"]
+    sc --> scjob["analysis — not required<br/>OpenSSF Scorecard SARIF"]
 
     deploy["deployment_status success<br/>Production or Preview"] --> pds["post-deploy-smoke.yml<br/>smoke:remote + EXPECTED_SHA"]
     dispatch["workflow_dispatch"] --> vb["visual-baselines.yml<br/>re-render baselines in linux CI"]
@@ -55,6 +60,8 @@ flowchart TD
 | `docs-ci.yml` | `pull_request`, path-filtered | `docs-build` (build + `typecheck` + `check:mermaid`) | no |
 | `dr-acceptance.yml` | `pull_request`, `push` to `main` (both path-filtered), weekly schedule, manual dispatch | `dr-acceptance` | no |
 | `docs-deploy.yml` | `push` to `main`, path-filtered | `build`, `deploy` | n/a — publishes this site |
+| `scorecard.yml` | weekly `schedule`, manual dispatch | `analysis` (OpenSSF Scorecard → SARIF) | no — and unrequirable, see below |
+| `lhci.yml` | `pull_request`, path-filtered on `website/**` | `lhci-docs` (Lighthouse CI over the built site) | no |
 
 `tag-release` keeps `contents: read` at workflow level and elevates only its
 `tag` job to `contents: write`. It creates the manifest's `vX.Y.Z` tag
@@ -129,7 +136,7 @@ Note what this buys: the *same* CLI smoke suite the Vercel post-deploy gate runs
 
 ## Deliberately non-required 🚫 \{#deliberately-non-required}
 
-Exactly four jobs run and report without blocking: **`visual`**, **`visual-report`**, **`docs-build`** and **`dr-acceptance`**. One external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
+Exactly six jobs run and report without blocking: **`visual`**, **`visual-report`**, **`docs-build`**, **`dr-acceptance`**, **`analysis`** (OpenSSF Scorecard) and **`lhci-docs`** (Lighthouse CI). One external app reviews without any job at all. Each non-required status is a stated design decision, not an oversight.
 
 `ai-review` is not on this list any more. It shipped non-required to accumulate a verdict track record first, and **graduated to a required `main-gates` check on 2026-07-26** when the owner added its job-name context to the ruleset — an Admin-only action.
 
@@ -139,6 +146,8 @@ Exactly four jobs run and report without blocking: **`visual`**, **`visual-repor
 | `visual-report` | It is the sticky gallery publisher, not a comparison gate; fork PRs skip it because their token cannot write the utility branch or comments. | Deliberately never; `visual` is the status that could be armed. |
 | `docs-build` | It is **path-filtered** on `website/**` and `CHANGELOG.md`, so on a PR that leaves both alone it never runs — and a required check that never runs is unmergeable. | Not possible as written; the path filter would have to go first. |
 | `dr-acceptance` | It is path-filtered to the backup package and its workflow, and k3d/MinIO/Compose prove disposable package behavior rather than the real k3s, Neon and offsite environment. | Not possible as written; remove the path filter before considering ruleset changes. |
+| `analysis` (`scorecard.yml`) | `ossf/scorecard-action` supports `push` and `schedule` on the default branch only and documents `pull_request` and `workflow_dispatch` as experimental, so it never produces a per-PR status — this one is a property of the tool, not a policy call. Results go to the Security tab and are read by the [`ci-security` audit](audits.md), which records where this repo's doctrine deliberately diverges from a check. | Not possible as written; upstream would have to make the PR trigger supported first. |
+| `lhci-docs` (`lhci.yml`) | Every Lighthouse assertion is a **`warn`**, on a pre-1.0 tool measuring a static site from a shared runner. Wiring lab scores to `error` under the flake ruling — where a red gate is never rerun to green — would manufacture exactly the failure the ruling forbids absorbing. It is also path-filtered on `website/**`. | Stable numbers over weeks, an owner decision to promote assertions to `error`, and the path filter removed — in that order. |
 | `CodeRabbit` (GitHub App, no workflow) | An advisory second opinion configured by `.coderabbit.yaml` (chill profile, `request_changes_workflow: false`): it comments and reports a status but must never gate — the doctrinal enforcement tier is `ai-review`, and a second AI reviewer stays a perspective, not a wall. | Deliberately never; if it ever gated, a config PR would have to say so here first. |
 
 On failure `visual` uploads `demo/test-results` as a `visual-diff` artifact, kept 7 days. A developer on macOS needs it: baselines are platform-scoped, and `ignoreSnapshots` is on for every non-linux platform, so there is no local comparison at all.

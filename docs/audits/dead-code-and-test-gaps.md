@@ -7,6 +7,20 @@ because both are found by the same method (walk the call/coverage graph
 looking for a dead end) and both erode the same guarantee: that what's in the
 repo is either exercised or explicitly declared inert.
 
+## Standard reference
+
+**ISO/IEC 25010:2023** — *Maintainability*, and within it the *Testability*
+and *Modifiability* sub-characteristics — as the named quality attribute this
+audit defends. That is the whole of the anchor's job: it gives a defensible
+answer to "why is dead code a defect?" beyond taste.
+
+**What is not claimed:** 25010 is a quality taxonomy, not an executable
+checklist. It has no requirement IDs to cite, no conformance test, and the
+published standard is paywalled — this spec names the vocabulary, not the
+document's clauses, and no report may imply a 25010 assessment was performed.
+Nothing here is anchored beyond that label; the method below is entirely this
+repo's own.
+
 ## Reference standard
 
 The dependency graph the codebase itself defines (imports, exports, route
@@ -47,6 +61,16 @@ ratchet floor, which only stops regression — it doesn't find code that was
 - For domain/core logic (`core/`), confirm every exported use-case has at
   least one unit test file; a use-case with only integration coverage is not
   a finding by itself, but a use-case with *no* test file anywhere is.
+
+## Automatable checks
+
+knip and the vitest coverage ratchet, both already inside `pnpm run check` —
+so both are green on every merged commit by construction, and neither is what
+this audit reads. The audit reads what they *suppress*: `knip.jsonc` entries
+and `@public` tags knip is told to ignore, and per-file branch coverage
+sitting under the aggregate floor. A tool cannot tell a justified suppression
+from a stale one, and no tool enumerates a third-party router's blanket-mounted
+sub-paths.
 
 ## What counts as a finding
 

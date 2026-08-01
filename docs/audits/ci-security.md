@@ -7,6 +7,39 @@ code, exfiltrate credentials, or push unreviewed changes past the gates
 described in [`website/docs/operations/ci-gates.md`](../../website/docs/operations/ci-gates.md)
 and [`website/docs/operations/ai-review-gate.md`](../../website/docs/operations/ai-review-gate.md).
 
+## Standard reference
+
+**OpenSSF Scorecard 5.5.0** check definitions
+([`docs/checks.md`](https://github.com/ossf/scorecard/blob/main/docs/checks.md))
+for the repository-posture half, and **SLSA v1.2** Build track for the
+artifact half.
+
+Scorecard names, in its own vocabulary, most of what this spec already greps
+for by hand:
+
+| Scorecard check | This spec's method step |
+|---|---|
+| `Token-Permissions` | The `permissions:` block; repo-default is a finding |
+| `Dangerous-Workflow` | `pull_request_target` and script-injection checks |
+| `Pinned-Dependencies` | Mutable action tag vs commit SHA |
+| `Branch-Protection` | `main-gates` actually listing the documented required checks |
+| `Code-Review`, `CI-Tests` | Review and test enforcement on the default branch |
+| `Security-Policy`, `Binary-Artifacts`, `SAST`, `Webhooks` | Posture checks this spec did not previously name |
+| `Vulnerabilities` | Owned by [`dependencies.md`](dependencies.md), not here |
+
+**SLSA position, stated rather than left unexamined:** the release artifacts
+(the Docker image from `selfhost.yml`, the GitHub release from
+`tag-release.yml`) carry no provenance, which is **Build L0**. That is a
+position, not a target — L1 (provenance exists) and L2 (signed provenance
+from a hosted platform) are owner decisions, not defaults this audit assumes.
+An audit run states the level; it does not treat L0 as a finding.
+
+**What is not claimed:** a Scorecard score is not a security verdict, and
+this repo deliberately diverges from several checks (see *Automatable
+checks*). Scorecard scores a repository against a general model; it does not
+know this repository's doctrine, and a run that chases the number instead of
+reading the check is doing the opposite of this audit.
+
 ## Reference standard
 
 GitHub Actions hardening practice (least-privilege `permissions:`, pinned
@@ -51,6 +84,34 @@ DB URL reachable from an agent shell).
 - Check that no workflow with write permissions can be triggered by an
   edited comment, issue title, or other user-controlled string interpolated
   directly into a `run:` shell step (classic script-injection vector).
+
+## Automatable checks
+
+`scorecard.yml` (weekly cron plus manual dispatch, **advisory and unrequirable
+— see below**) runs `ossf/scorecard-action` and uploads SARIF to the Security
+tab. Read its latest run **before** starting an audit and treat every check as
+*input*, then record each place this repo's doctrine deliberately diverges.
+
+| Check | Expected here | Why |
+|---|---|---|
+| `Token-Permissions`, `Pinned-Dependencies` | Should score well | Every workflow declares `permissions:` and every action is SHA-pinned |
+| `Security-Policy` | 0 | No `SECURITY.md` — owner decision, not an oversight this audit fixes silently |
+| `Dependency-Update-Tool` | 0 | No bot; a bot must respect the `minimumReleaseAge: 4320` cooldown, so "fix the score" is the wrong instinct — see [`dependencies.md`](dependencies.md) |
+| `Code-Review` | Weakened | No `CODEOWNERS`; the rulesets do require a pull request, which the check only partly detects |
+| `SAST` | Low | ESLint plus the custom layer rules are not detected as SAST |
+| `Branch-Protection` | Reads poorly | Repository rules read with the default `GITHUB_TOKEN`; the required set is verified by `gh api …/rulesets` in the method above, not by this score |
+| `Fuzzing`, `Packaging`, `Signed-Releases`, `CII-Best-Practices` | Not applicable | Ignore rather than chase |
+
+The job cannot be a gate and never will be: `ossf/scorecard-action` supports
+`push` and `schedule` on the default branch, and documents `pull_request` and
+`workflow_dispatch` as experimental — it produces no per-PR status to require.
+That is a fact about the tool, not a policy choice.
+
+Not automatable at all, and therefore the reason this spec exists: the flake
+ruling, whether the required-check set matches what the docs claim, the
+`ai-review` token being a subscription credential rather than a repo-write
+PAT, the agent-boundary rules, whether the advisory `pnpm audit` step is
+genuinely advisory, and the first-party-publisher nuance on mutable tags.
 
 ## What counts as a finding
 
