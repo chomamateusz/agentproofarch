@@ -22,7 +22,7 @@ pnpm --silent run cli health
 {/*release-version*/}
 
 ```text
-status=ok db=up v1.1.1 sha=unknown
+status=ok db=up v1.2.0 sha=unknown
 ```
 
 {/*/release-version*/}

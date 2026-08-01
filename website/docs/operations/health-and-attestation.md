@@ -57,7 +57,7 @@ curl -sS https://agentproofarch.vercel.app/api/health/live
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612"
   }
 }
@@ -68,7 +68,7 @@ Local dev, where `APP_COMMIT_SHA` is unset:
 ```json
 {
   "ok": true,
-  "data": { "status": "ok", "version": "1.1.1", "sha": "unknown" }
+  "data": { "status": "ok", "version": "1.2.0", "sha": "unknown" }
 }
 ```
 
@@ -83,7 +83,7 @@ Local dev, where `APP_COMMIT_SHA` is unset:
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "up"
   }
@@ -115,7 +115,7 @@ The status code is not hand-written at the route. `respond()` maps the error cod
   "ok": true,
   "data": {
     "status": "ok",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612",
     "database": "down"
   }
@@ -132,7 +132,7 @@ That `"database": "down"` at `200` is exactly why new callers should use `/ready
 
 ```bash
 pnpm run cli health
-# status=ok db=up v1.1.1 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
+# status=ok db=up v1.2.0 sha=9f2c1ab8d4e37c05f1b6a2d9c8e40371bb5ad612
 
 pnpm run cli --json health
 # exactly one JSON document on stdout: { "ok": true, "data": { … } }
