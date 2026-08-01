@@ -1,0 +1,53 @@
+name: lhci
+
+# NON-REQUIRED, and warn-only: every assertion in website/lighthouserc.json is
+# a `warn`, so this job reports lab scores for the documentation site without
+# blocking a merge. Wiring a pre-1.0 tool measuring a shared runner straight to
+# `error` would manufacture flakes the flake ruling forbids absorbing.
+# It is also path-filtered, which by itself makes it unrequirable — same reason
+# docs-ci.yml documents for itself.
+#
+# It measures THIS SITE, not the application: no route of the demo web app has
+# a performance number attached to it. docs/audits/performance.md states that
+# blind spot rather than letting a green job imply otherwise.
+
+on:
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/lhci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lhci-docs:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: website/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      # There is no official Lighthouse CI action; the documented recipe is the
+      # CLI plus `autorun`. Chrome ships preinstalled on ubuntu-latest.
+      # `docusaurus serve` is what serves the /agentproofarch/ base URL
+      # correctly — serving build/ at the server root 404s every asset and
+      # scores meaningless numbers.
+      - run: pnpm dlx @lhci/cli@0.15.1 autorun
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: website/.lighthouseci
+          retention-days: 7

@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'operations/ci-gates',
         'operations/ai-review-gate',
         'guides/agent-workflow',
+        'operations/audits',
       ],
     },
     {

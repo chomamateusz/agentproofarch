@@ -16,6 +16,18 @@ before that lives in the git history only.
 
 ### Added
 
+- Every audit spec under `docs/audits/` now names the versioned standard it is
+  anchored to and which of its checks a tool actually performs — application
+  security and identity against OWASP ASVS 5.0.0 (V6, V7) as an ASVS-derived L2
+  profile plus NIST SP 800-63B-4, supply chain against OpenSSF Scorecard 5.5.0
+  checks and SLSA v1.2 as a stated position, authorization parity against ASVS
+  V8 — with two new specs, accessibility (WCAG 2.2 AA and axe-core, carrying the
+  57.38% automated-detection caveat) and performance (Core Web Vitals with
+  Lighthouse CI as the lab instrument), and two advisory non-required jobs
+  feeding them: `scorecard.yml` (weekly OpenSSF Scorecard, SARIF to the Security
+  tab) and `lhci.yml` (Lighthouse CI over the built documentation site, every
+  assertion at `warn`) (#TBD)
+
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
   file list and served from the base and head commits — the deliberate UI change
