@@ -23,7 +23,7 @@ export interface AuthSettings {
   secureCookies: boolean;
   /** Off only in test harnesses (e2e drives many sign-ins from one bucket). */
   rateLimitEnabled: boolean;
-  /** Delivers the magic link; the dev transport captures it instead of sending. */
+  /** Delivers the transactional links (magic sign-in, password reset); dev/CI capture them in Mailpit. */
   email: EmailPort;
   /** Wired only when both env keys are present (FR-26), like SENTRY_DSN gating. */
   google?: GoogleSettings;
@@ -32,6 +32,14 @@ export interface AuthSettings {
 export const BETTER_AUTH_API_PATH_PATTERN = '/api/auth/*';
 
 const magicLinkSubject = 'Your Agentproofarch sign-in link';
+const passwordResetSubject = 'Reset your Agentproofarch password';
+
+/**
+ * Long enough to survive a mail relay and a distracted human, short enough that a
+ * leaked inbox stops being a standing credential. Better Auth's own default, made
+ * explicit because it is a security parameter.
+ */
+const PASSWORD_RESET_TOKEN_TTL_SECONDS = 60 * 60;
 
 export const createAuth = (db: Db, settings: AuthSettings) =>
   betterAuth({
@@ -39,7 +47,23 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     secret: settings.secret,
     baseURL: settings.baseUrl,
     trustedOrigins: settings.trustedOrigins,
-    emailAndPassword: { enabled: true },
+    emailAndPassword: {
+      enabled: true,
+      resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_TTL_SECONDS,
+      // A reset is what someone does after losing control of the account, so the
+      // sessions opened with the old password must not survive it (off by default).
+      revokeSessionsOnPasswordReset: true,
+      // `url` is the provider's callback: it validates the token and redirects to
+      // the caller's `redirectTo` (the app's /reset-password form) carrying it.
+      sendResetPassword: async ({ user, url }) => {
+        await settings.email.sendMail({
+          to: user.email,
+          subject: passwordResetSubject,
+          text: `Reset your Agentproofarch password:\n\n${url}\n\nThe link opens the reset form and expires in an hour. If you did not ask for it, ignore this email — nothing changes until the form is submitted.`,
+          link: url,
+        });
+      },
+    },
     ...(settings.google
       ? { socialProviders: { google: { clientId: settings.google.clientId, clientSecret: settings.google.clientSecret } } }
       : {}),

@@ -15,7 +15,9 @@ layer boundary is machine-enforced by lint. The CLI covers the day-to-day
 capability surface with JSON output and deterministic exit codes, so AI agents
 can build, run and verify features in a closed loop. Known exceptions: passkeys
 and Google sign-in are browser-bound (a WebAuthn ceremony and a consent
-redirect), while TOTP enrolment and the internal backfill executor work over
+redirect), completing a password reset is link-bound (the CLI requests the mail,
+but the token that finishes it exists only inside the emailed link, which opens
+the web app), while TOTP enrolment and the internal backfill executor work over
 plain HTTP but have no CLI command yet. Password change is available through
 both web settings and the CLI. The same commit deploys to Vercel today
 **and** to a self-hosted Docker stack.

@@ -56,6 +56,27 @@ test('register page', async ({ page }) => {
   await expect(page).toHaveScreenshot('register.png', { fullPage: true });
 });
 
+test('forgot-password page', async ({ page }) => {
+  await page.goto('/forgot-password');
+  await expect(page.getByRole('button', { name: 'email me a reset link' })).toBeVisible();
+
+  await expect(page).toHaveScreenshot('forgot-password.png', { fullPage: true });
+});
+
+test('reset-password page with a token', async ({ page }) => {
+  await page.goto('/reset-password?token=visual-baseline-token');
+  await expect(page.getByRole('button', { name: 'set new password' })).toBeVisible();
+
+  await expect(page).toHaveScreenshot('reset-password.png', { fullPage: true });
+});
+
+test('reset-password page reached without a token', async ({ page }) => {
+  await page.goto('/reset-password');
+  await expect(page.getByRole('alert')).toBeVisible();
+
+  await expect(page).toHaveScreenshot('reset-password-invalid.png', { fullPage: true });
+});
+
 // The seeded ledger rows share one createdAt, so their order is a database tie
 // and their rendered date is the day the seed ran: the list is not a stable
 // surface. The shell chrome around it is fully determined by the seed.

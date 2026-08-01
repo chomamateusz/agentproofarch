@@ -33,6 +33,15 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('build-stamp')).toBeInTheDocument();
   });
 
+  it('offers the password-reset route to a member who cannot sign in', async () => {
+    await renderLoginPage();
+
+    expect(screen.getByRole('link', { name: 'forgot password?' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
+    );
+  });
+
   it('renders the AppError from a failed sign-in mutation', async () => {
     server.use(
       http.post('*', () =>

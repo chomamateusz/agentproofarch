@@ -16,6 +16,15 @@ before that lives in the git history only.
 
 ### Added
 
+- Forgot-password flow: a `forgot password?` link on the login card leads to an
+  email-only request form whose answer is identical for an address with an
+  account and one without, the reset mail goes out through the existing
+  `EmailPort`, and its link opens a `/reset-password` form that applies the
+  registration password policy and hands the visitor back to sign-in. The CLI
+  covers the request half as `account request-password-reset`; the completion
+  half needs the emailed token and stays in the web app
+  ([#116](https://github.com/chomamateusz/agentproofarch/pull/116))
+
 - Every audit spec under `docs/audits/` now names the versioned standard it is
   anchored to and which of its checks a tool actually performs — application
   security and identity against OWASP ASVS 5.0.0 (V6, V7) as an ASVS-derived L2
