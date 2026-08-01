@@ -147,7 +147,7 @@ spaces:
 {
   "ok": true,
   "data": {
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"
