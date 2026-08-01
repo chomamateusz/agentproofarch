@@ -16,6 +16,11 @@ before that lives in the git history only.
 
 ### Added
 
+- Account passwords can be changed from web settings or the CLI, with an
+  option to invalidate every other active session; the CLI stores the session
+  token that revoke rotates, so it keeps working afterwards
+  ([#114](https://github.com/chomamateusz/agentproofarch/pull/114))
+
 - Every recurring audit type now has a written spec under `docs/audits/`
   (docs-truth, ci-security, dependencies, dead-code-and-test-gaps,
   consistency, external-links, and the new completeness audit checked

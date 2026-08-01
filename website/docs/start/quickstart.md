@@ -44,9 +44,9 @@ with every layer connected and actually working — not a scaffold of stubs.
 What walks through it, each capability flowing through *every* layer and
 drivable from both the web app and the CLI:
 
-- authentication: password, magic link, TOTP two-factor, passkeys, plus a
-  Google seam that stays dormant unless both of its env vars are set — password
-  and magic link from either surface; TOTP, passkeys and Google are web-only
+- authentication: password sign-in and change, magic link, TOTP two-factor,
+  passkeys, plus a Google seam that stays dormant unless both of its env vars
+  are set — password sign-in/change and magic link from either surface; TOTP, passkeys and Google are web-only
   (browser ceremonies the CLI ships no commands for);
 - foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
   custom domain or subdomain;
