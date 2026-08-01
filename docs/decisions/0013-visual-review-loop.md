@@ -115,6 +115,35 @@ The inline gallery is the *first* look, deliberately: it must be enough to answe
 "is this the change I made" without leaving the PR. The artifact is the second
 look, for the cases where it is not.
 
+**Update (2026-08-01): the deliberate change was the invisible one.** A pull
+request that re-renders the baselines and commits them — the normal way to ship
+a UI change here, and the end state of every `/approve-visuals` — makes the
+comparison green *by construction*: no mismatch, no artifact, nothing in the
+table above. GitHub then collapses the committed PNG diff in **Files changed**,
+so precisely where before/after matters most, it is one click away at best and
+unseen at worst. The gallery therefore gained a second section, in the same
+upserted comment:
+
+- **"Deliberate baseline changes in this PR"** — one row per changed baseline,
+  `Before (base)` and `After (head)` images side by side. A new baseline shows
+  *new surface* in the Before cell, a deleted one *baseline removed* in the
+  After cell, and a rename reads its Before from the previous path.
+- **The pair is built from commits, not from a diff.** The job checks out the
+  trusted base and has no head tree, so the changed files come from the
+  pull-request files API and each side is a `raw.githubusercontent.com` URL
+  pinned to `base.sha` or `head.sha` — both in the event payload, both
+  immutable, so the caching problem the run-ID path solves does not arise here.
+  This repository is public, so those URLs need no token; the job keeps
+  `contents: read` on the repository plus its comment scope.
+- **The file names are pull-request-authored input**, so only paths under
+  `demo/visual/__screenshots__/`, in `[A-Za-z0-9._-]` segments, ending in
+  `.png`, and carrying no `..` segment become a URL. The head SHA enters the job
+  as a URL component and never as a checkout ref — the structural probe pins
+  that distinction.
+- **The mismatch table keeps its own heading** ("Pixel mismatches against the
+  committed baselines"), so a reader is never left guessing which of the two
+  situations a row describes. A run with neither still posts nothing new.
+
 ### 2. Approval closes the loop IN GIT
 
 **A maintainer comments `/approve-visuals`.** A new workflow, `approve-visuals.yml`,

@@ -69,7 +69,14 @@ describe('visual-report publisher', () => {
   it('checks out the trusted base commit and never the pull-request head', () => {
     expect(publisher).toContain('ref: ${{ github.event.pull_request.base.sha }}');
     expect(publisher).not.toMatch(/ref:.*pull_request\.head/);
-    expect(publisher).not.toContain('github.event.pull_request.head.sha');
+  });
+
+  it('takes the head commit as data only — a URL component, never a ref', () => {
+    const headSha = publisher
+      .split('\n')
+      .filter((line) => line.includes('github.event.pull_request.head.sha'))
+      .map((line) => line.trim());
+    expect(headSha).toEqual(['HEAD_SHA: ${{ github.event.pull_request.head.sha }}']);
   });
 
   it('skips a fork pull request instead of failing on its read-only token', () => {

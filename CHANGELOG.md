@@ -12,6 +12,16 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-08-01
+
+### Added
+
+- The visual review gallery comment now shows a **Before / After** pair for every
+  baseline PNG a pull request re-renders and commits, read from the pull-request
+  file list and served from the base and head commits — the deliberate UI change
+  compares green by construction and GitHub collapses its image diff, so this was
+  the one case the gallery could not show (#TBD)
+
 ## v1.1.1 — 2026-08-01
 
 ## 2026-08-01

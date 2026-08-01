@@ -6,6 +6,12 @@ import { join } from 'node:path';
 import { z } from 'zod';
 
 import {
+  baselineChangesFrom,
+  baselineSection,
+  pullFileSchema,
+  type BaselineChange,
+} from './visual-baseline-changes.js';
+import {
   collectFiles,
   kinds,
   publishedName,
@@ -18,7 +24,10 @@ import {
  * The visual review gallery (ADR-0013): it turns the `visual-diff` artifact into
  * one sticky pull-request comment showing baseline · actual · diff inline
  * (Playwright's "expected" renamed for readers — artifact names keep its
- * vocabulary, published names and the column header say baseline).
+ * vocabulary, published names and the column header say baseline), plus the
+ * before/after of the baselines the pull request re-renders and commits
+ * (`visual-baseline-changes.ts`) — that case is green by construction and
+ * therefore invisible in the mismatch table.
  *
  * It runs in the `visual-report` job, which checks out the trusted base commit
  * and never the pull-request head, so everything reaching this script from the
@@ -47,6 +56,8 @@ const envSchema = z.object({
   RUN_ID: z.coerce.number().int().positive(),
   VISUAL_OUTCOME: z.enum(['success', 'failure']),
   VISUAL_ARTIFACT_DIR: z.string().min(1),
+  BASE_SHA: z.string().regex(/^[0-9a-f]{40}$/),
+  HEAD_SHA: z.string().regex(/^[0-9a-f]{40}$/),
   AI_VERDICTS: z.string().optional(),
 });
 
@@ -215,15 +226,7 @@ const aiReadSection = (screenshots: Screenshot[]): string => {
   return `### AI read\n\n${lines.join('\n')}\n\n${note}`;
 };
 
-const galleryBody = (screenshots: Screenshot[]): string => {
-  if (screenshots.length === 0) {
-    return env.VISUAL_OUTCOME === 'success'
-      ? `${marker}\n## Visual review\n\nNo visual changes. [Workflow run](${runUrl}).`
-      : `${marker}\n## Visual review\n\nThe comparison produced no complete baseline/actual/diff ` +
-          `set to show — a screenshot with no baseline yet, or a run that died before writing one. ` +
-          `[Read the run and its artifacts](${runUrl}#artifacts).`;
-  }
-
+const mismatchSection = (screenshots: Screenshot[]): string => {
   const rows = screenshots
     .map(
       (screenshot) =>
@@ -240,7 +243,7 @@ const galleryBody = (screenshots: Screenshot[]): string => {
     .join('\n');
 
   return (
-    `${marker}\n## Visual review\n\n` +
+    `### Pixel mismatches against the committed baselines\n\n` +
     `<table><thead><tr><th>Screenshot</th><th>Baseline</th><th>Actual</th><th>Diff</th></tr></thead>` +
     `<tbody>${rows}</tbody></table>\n\n` +
     `${aiReadSection(screenshots)}\n\n` +
@@ -250,6 +253,32 @@ const galleryBody = (screenshots: Screenshot[]): string => {
     `\`VISUAL_APPROVERS\` repository variable — comments \`/approve-visuals\` to re-render the ` +
     `baselines and commit them onto this branch.`
   );
+};
+
+const galleryBody = (screenshots: Screenshot[], changes: BaselineChange[]): string => {
+  const sections: string[] = [];
+  if (screenshots.length > 0) {
+    sections.push(mismatchSection(screenshots));
+  } else if (env.VISUAL_OUTCOME === 'failure') {
+    sections.push(
+      `The comparison produced no complete baseline/actual/diff set to show — a screenshot with ` +
+        `no baseline yet, or a run that died before writing one. ` +
+        `[Read the run and its artifacts](${runUrl}#artifacts).`,
+    );
+  }
+  if (changes.length > 0) {
+    sections.push(
+      baselineSection(changes, {
+        repository: env.GITHUB_REPOSITORY,
+        baseSha: env.BASE_SHA,
+        headSha: env.HEAD_SHA,
+      }),
+    );
+  }
+  if (sections.length === 0) {
+    return `${marker}\n## Visual review\n\nNo visual changes. [Workflow run](${runUrl}).`;
+  }
+  return `${marker}\n## Visual review\n\n${sections.join('\n\n')}`;
 };
 
 const upsertComment = async (body: string, createWhenMissing: boolean): Promise<void> => {
@@ -276,10 +305,17 @@ const upsertComment = async (body: string, createWhenMissing: boolean): Promise<
 };
 
 const screenshots = screenshotsFrom(collectFiles(env.VISUAL_ARTIFACT_DIR));
+const baselineChanges = baselineChangesFrom(
+  await paginate(
+    `/repos/${env.GITHUB_REPOSITORY}/pulls/${env.PR_NUMBER}/files`,
+    {},
+    pullFileSchema,
+  ),
+);
 await publish(screenshots);
-// A clean run never opens a gallery comment; it only corrects one that a red run
-// left behind.
+// A clean run with nothing to show never opens a gallery comment; it only
+// corrects one that a red run left behind.
 await upsertComment(
-  galleryBody(screenshots),
-  screenshots.length > 0 || env.VISUAL_OUTCOME === 'failure',
+  galleryBody(screenshots, baselineChanges),
+  screenshots.length > 0 || baselineChanges.length > 0 || env.VISUAL_OUTCOME === 'failure',
 );
