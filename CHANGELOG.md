@@ -22,16 +22,14 @@ before that lives in the git history only.
   compares green by construction and GitHub collapses its image diff, so this was
   the one case the gallery could not show ([#112](https://github.com/chomamateusz/agentproofarch/pull/112))
 
+- Commits and PR titles follow a gitmoji-style convention with a fixed emoji
+  per recurring PR type, documented in root `CLAUDE.md` and the agent workflow
+  guide; enforced by human review, not a hook
+  ([#111](https://github.com/chomamateusz/agentproofarch/pull/111))
+
 ## v1.1.1 — 2026-08-01
 
 ## 2026-08-01
-
-### Added
-
-- Commits and PR titles follow a gitmoji-style convention with a fixed emoji
-  per recurring PR type, documented in root `CLAUDE.md` and the agent workflow
-  guide; enforced by review (REVIEW+AI tier), not a hook
-  ([#111](https://github.com/chomamateusz/agentproofarch/pull/111))
 
 ### Fixed
 

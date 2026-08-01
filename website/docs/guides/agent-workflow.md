@@ -114,7 +114,7 @@ PR types use a fixed emoji so the history is scannable at a glance:
 
 Anything outside these recurring types picks the closest of the ten. PR titles
 are enforced by HUMAN review — nothing mechanical checks them, since the
-`ai-review` gate reads only the diff (`git diff origin/main...HEAD`, above)
+`ai-review` gate (below) reads only the diff (`git diff origin/main...HEAD`)
 and has no GitHub API access to the PR's title. Commit messages are written
 by agents under `CLAUDE.md` and are visible to the gate via `git log`, but
 the convention as a whole is REVIEW-tier, not gate-tier.
