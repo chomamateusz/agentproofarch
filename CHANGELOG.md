@@ -12,6 +12,16 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-08-01
+
+### Fixed
+
+- The web app shows a branded boot splash — wordmark, tenant host, an
+  indeterminate rule and the version stamp — while the session and tenant
+  bootstrap is unresolved, so the authenticated navigation no longer flashes for
+  logged-out visitors, and a cold start admits "warming up the server…" after
+  four seconds (#TBD)
+
 ## v1.1.0 — 2026-07-29
 
 ## 2026-07-29

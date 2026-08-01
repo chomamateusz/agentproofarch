@@ -410,7 +410,16 @@ shareable filters**, and neither is duplicated into component state.
   features, routes, `api.ts` or TanStack. The mirror rule — a feature consumes
   skeletons instead of declaring its own — is review-tier until the structural
   `sx` tier triggers. Both are decided in
-  [ADR-0011](../decisions/0011-layout-layer.md).
+  [ADR-0011](../decisions/0011-layout-layer.md). Three skeletons live there today:
+  `AppShell` (the authenticated chrome), `FocusCard` (the centred card) and
+  `BrandSplash` (the boot state).
+- **Boot renders one thing.** Until the session/tenant bootstrap resolves, the
+  shell composition renders `BrandSplash` and nothing else — a full-viewport,
+  `aria-busy` boot skeleton with the wordmark, the tenant host, an indeterminate
+  rule that goes static under `prefers-reduced-motion`, the version stamp, and a
+  "warming up the server…" line after four seconds of a cold start. Authenticated
+  chrome, including the navigation, may not render before the app knows who is
+  looking at it; the slow-start timer is component-lifetime `useState`, not data.
 - `lib/` is pure TypeScript with no React and no app-internal imports.
 - `theme.ts` is the entire visual language — no colors or fonts anywhere else, held
   by `agentproofarch/sx-layout-only` above rather than by convention.

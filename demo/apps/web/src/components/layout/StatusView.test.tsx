@@ -6,9 +6,9 @@ import { StatusView } from './StatusView.js';
 
 describe('StatusView', () => {
   it('renders the loading label', () => {
-    render(<StatusView state={{ kind: 'loading', label: 'opening the app…' }} />);
+    render(<StatusView state={{ kind: 'loading', label: 'reading the ledger…' }} />);
 
-    expect(screen.getByText('opening the app…')).toBeInTheDocument();
+    expect(screen.getByText('reading the ledger…')).toBeInTheDocument();
   });
 
   it('renders an error with a working retry action', async () => {
