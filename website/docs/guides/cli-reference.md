@@ -103,7 +103,8 @@ The request half of the forgot-password flow is a plain POST, so the CLI owns it
 ```bash
 pnpm --silent run cli account request-password-reset --email mag@example.com
 # → password-reset link requested for mag@example.com — if that account exists,
-#   open the link from your inbox (dev/CI: Mailpit at http://localhost:47980)
+#   open the link from your inbox (dev/CI: Mailpit)
+#   read it at http://localhost:47980
 ```
 
 The answer is the same whether or not the address has an account — the command
