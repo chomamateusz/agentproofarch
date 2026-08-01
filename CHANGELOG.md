@@ -22,7 +22,8 @@ before that lives in the git history only.
   `EmailPort`, and its link opens a `/reset-password` form that applies the
   registration password policy and hands the visitor back to sign-in. The CLI
   covers the request half as `account request-password-reset`; the completion
-  half needs the emailed token and stays in the web app (#TBD)
+  half needs the emailed token and stays in the web app
+  ([#116](https://github.com/chomamateusz/agentproofarch/pull/116))
 
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
