@@ -16,6 +16,14 @@ before that lives in the git history only.
 
 ### Added
 
+- Forgot-password flow: a `forgot password?` link on the login card leads to an
+  email-only request form whose answer is identical for an address with an
+  account and one without, the reset mail goes out through the existing
+  `EmailPort`, and its link opens a `/reset-password` form that applies the
+  registration password policy and hands the visitor back to sign-in. The CLI
+  covers the request half as `account request-password-reset`; the completion
+  half needs the emailed token and stays in the web app (#TBD)
+
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
   file list and served from the base and head commits — the deliberate UI change

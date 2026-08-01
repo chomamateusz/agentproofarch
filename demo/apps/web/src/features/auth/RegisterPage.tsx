@@ -21,10 +21,12 @@ import { ApiError } from '#core/client/index.js';
 import { actions } from '../../api.js';
 import { Eyebrow, Wordmark } from '../../theme.js';
 
+import { passwordPolicy } from './password-policy.js';
+
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'Enter your name'),
   email: z.string().trim().pipe(z.email('Enter a valid email')),
-  password: z.string().min(8, 'Use at least 8 characters'),
+  password: passwordPolicy,
 });
 
 type Field = 'name' | 'email' | 'password';

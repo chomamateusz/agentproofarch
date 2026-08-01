@@ -84,6 +84,7 @@ const loginArgsSchema = z.object({
   password: z.string().min(1),
 });
 const magicLinkArgsSchema = z.object({ email: z.string().trim().min(1) });
+const passwordResetArgsSchema = z.object({ email: z.string().trim().min(1) });
 const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
 
 // Merged global options (Commander parses them onto the root program). They flow
@@ -258,6 +259,33 @@ program
     }
     saveActiveProfile(ctx, { token: followed.value.token });
     emit(ok({ signedIn: true, email: input.email }), ctx.json, () => `signed in as ${input.email} via magic link`);
+  });
+
+const account = program.command('account').description('Account credentials');
+
+account
+  .command('request-password-reset')
+  .description(
+    'Email a password-reset link. The answer is identical whether or not the address has ' +
+      'an account, so this can never be used to probe for one. Completing the reset needs ' +
+      'the token that only the emailed link carries, and that link opens the web app at ' +
+      '/reset-password — the CLI covers the request half only.',
+  )
+  .requiredOption('--email <email>')
+  .action(async (options: { email: string }) => {
+    const ctx = cliCtx();
+    const input = parseArgs(passwordResetArgsSchema, options, ctx.json);
+    if (input === undefined) return;
+    const result = await ctx.auth.requestPasswordReset({
+      email: input.email,
+      redirectTo: new URL('/reset-password', ctx.apiUrl).toString(),
+    });
+    emit(
+      result.ok ? ok({ requested: true, email: input.email }) : result,
+      ctx.json,
+      () =>
+        `password-reset link requested for ${input.email} — if that account exists, open the link from your inbox (dev/CI: Mailpit)`,
+    );
   });
 
 program.command('logout').description('Drop the stored session token').action(async () => {

@@ -20,7 +20,14 @@ import type {
 } from '#core/contract/index.js';
 import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js';
 
-import type { AuthClientPort, AuthSessionResult, MagicLinkRequest, SocialSignInInput } from './auth-port.js';
+import type {
+  AuthClientPort,
+  AuthSessionResult,
+  MagicLinkRequest,
+  PasswordResetCompletion,
+  PasswordResetRequest,
+  SocialSignInInput,
+} from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
 
 /**
@@ -301,6 +308,18 @@ export const requestMagicLinkMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'magic-link'],
     call: (input: MagicLinkRequest) => auth.requestMagicLink(input),
+  });
+
+export const requestPasswordResetMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'password-reset', 'request'],
+    call: (input: PasswordResetRequest) => auth.requestPasswordReset(input),
+  });
+
+export const resetPasswordMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'password-reset', 'complete'],
+    call: (input: PasswordResetCompletion) => auth.resetPassword(input),
   });
 
 export const signInSocialMutation = (auth: AuthClientPort) =>

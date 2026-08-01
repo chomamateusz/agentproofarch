@@ -30,6 +30,24 @@ export interface MagicLinkRequest {
 }
 
 /** @public */
+export interface PasswordResetRequest {
+  email: string;
+  /**
+   * Where the emailed link lands the user — the app's reset form, which the
+   * provider's callback reaches with the token on the query string. Required:
+   * the callback refuses a link that carries nowhere to land.
+   */
+  redirectTo: string;
+}
+
+/** @public */
+export interface PasswordResetCompletion {
+  /** The token the emailed link handed to the reset form. */
+  token: string;
+  newPassword: string;
+}
+
+/** @public */
 export interface TwoFactorEnableResult {
   /** otpauth:// URI for an authenticator app (rendered as a QR by the UI). */
   totpURI: string;
@@ -60,6 +78,14 @@ export interface AuthClientPort {
   signOut(): Promise<WriteResult<void>>;
   /** US-026: request a passwordless magic link; no real delivery in dev. */
   requestMagicLink(input: MagicLinkRequest): Promise<WriteResult<void>>;
+  /**
+   * Email a password-reset link. The provider answers identically whether or not
+   * the address has an account, so no caller can turn this into an account
+   * oracle — the always-success UX on top of it is honest, not a pretence.
+   */
+  requestPasswordReset(input: PasswordResetRequest): Promise<WriteResult<void>>;
+  /** Set a new password with the token the emailed reset link carried. */
+  resetPassword(input: PasswordResetCompletion): Promise<WriteResult<void>>;
   /** FR-26: begin a social sign-in, yielding the provider authorization URL. */
   signInSocial(input: SocialSignInInput): Promise<WriteResult<SocialSignInResult>>;
   /** US-028a: turn on TOTP 2FA, returning the enrolment URI + backup codes. */

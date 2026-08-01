@@ -18,11 +18,13 @@ import { queryClient } from './query-client.js';
 import { RefreshSnackbar } from './RefreshSnackbar.js';
 import { renderRootErrorFallback } from './RootErrorFallback.js';
 import { BoardRoute } from './routes/board.js';
+import { ForgotPasswordRoute } from './routes/forgot-password.js';
 import { LoginRoute } from './routes/login.js';
 import { buildBannerLine } from './lib/build-info.js';
 import { MembersRoute } from './routes/members.js';
 import { AppLayout } from './AppLayout.js';
 import { RegisterRoute } from './routes/register.js';
+import { ResetPasswordRoute, resetPasswordSearchSchema } from './routes/reset-password.js';
 import { DomainsRoute } from './routes/settings-domains.js';
 import { StaffSettingsRoute } from './routes/settings-staff.js';
 import { SettingsRoute } from './routes/settings.js';
@@ -69,6 +71,20 @@ const registerRoute = createRoute({
 
 // The authenticated layout owns `/app/*`: it guards auth, redirects anonymous
 // visitors to `/login`, and renders the active child through its `Outlet`.
+// The provider's reset callback validates the token and redirects here with it
+// (or with `error=INVALID_TOKEN`), so the search is parsed at the route edge.
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordRoute,
+});
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: ResetPasswordRoute,
+  validateSearch: resetPasswordSearchSchema,
+});
+
 const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/app',
@@ -115,6 +131,8 @@ const router = createRouter({
     indexRoute,
     loginRoute,
     registerRoute,
+    forgotPasswordRoute,
+    resetPasswordRoute,
     appLayoutRoute.addChildren([
       appIndexRoute,
       boardRoute,

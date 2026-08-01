@@ -6,6 +6,7 @@ import {
   Divider,
   FormControl,
   FormLabel,
+  Link,
   OutlinedInput,
   Paper,
   Stack,
@@ -140,6 +141,9 @@ export const LoginPage = () => {
             </Button>
           ) : null}
         </Stack>
+        <Eyebrow variant="caption" component="p" sx={{ mt: '0.9rem' }}>
+          <Link href="/forgot-password">forgot password?</Link>
+        </Eyebrow>
         {magicLink.isSuccess ? (
           <Alert severity="success" sx={{ mt: '0.6rem' }}>
             Check your email for a sign-in link. In dev the send is captured by Mailpit — open its inbox to follow the link.

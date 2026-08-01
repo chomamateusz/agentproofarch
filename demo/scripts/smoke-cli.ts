@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { EXIT_CODE_BY_ERROR_CODE, publicCacheControl } from '#core/contract/index.js';
 import { probeSignInCookies } from '#adapters/auth/client-adapter.js';
 
-import { fetchMagicLink } from './mailpit.js';
+import { fetchMagicLink, fetchPasswordResetLink } from './mailpit.js';
 
 export const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const tsxBin = join(rootDir, 'node_modules/.bin/tsx');
@@ -98,6 +98,7 @@ const meSchema = z.object({
   tenant: z.object({ slug: z.string(), memberId: z.string().nullable() }).nullable(),
 });
 const magicLinkFollowSchema = z.object({ signedIn: z.literal(true), email: z.string() });
+const passwordResetRequestSchema = z.object({ requested: z.literal(true), email: z.string() });
 
 const staffItemSchema = z.object({
   id: z.string(),
@@ -747,6 +748,33 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     );
 
     expectOk(await cli(memberArgs('remove', provisioned.member.id), authedHome), 'magic member cleanup');
+
+    // --- password reset, request half: the CLI owns it because it is a plain
+    // POST. The answer is identical for an address with an account and one
+    // without (no enumeration oracle), so the only proof that the known address
+    // was served is the mail Mailpit captured. The token is deliberately left
+    // unconsumed — completing the reset happens in the web app, which the e2e
+    // gate drives end to end.
+    const resetRequested = passwordResetRequestSchema.parse(
+      expectOk(
+        await cli(['--json', '--api-url', baseUrl, 'account', 'request-password-reset', '--email', target.email], magicHome),
+        'password reset request',
+      ),
+    );
+    assert(resetRequested.email === target.email, `password reset requested for the wrong email: ${resetRequested.email}`);
+    const resetLink = await fetchPasswordResetLink(mailpitApiUrl, target.email);
+    assert(
+      decodeURIComponent(resetLink).includes(`callbackURL=${baseUrl}/reset-password`),
+      `the reset mail did not point at the app's reset form: ${resetLink}`,
+    );
+
+    expectOk(
+      await cli(
+        ['--json', '--api-url', baseUrl, 'account', 'request-password-reset', '--email', `nobody-${randomUUID()}@example.com`],
+        magicHome,
+      ),
+      'password reset request for an unknown address',
+    );
   }
 
   // --- staff (FR-8): owner grants a second REGISTERED user admin, then revokes ---

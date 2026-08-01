@@ -272,6 +272,7 @@ names a provider route or SDK, and dependency-cruiser proves it
 |---|---|---|
 | Email + password | `signUp`, `signIn`, `signOut` | built |
 | Magic link | `requestMagicLink` | built (US-026) — sent through `EmailPort` |
+| Password reset | `requestPasswordReset`, `resetPassword` | built — the request is sent through the same `EmailPort`; the emailed callback validates the token and redirects to the app's `/reset-password` form, which posts the new password against the registration policy. The token expires in an hour and is consumed on use. A completed reset **revokes every other session** (`revokeSessionsOnPasswordReset`, off by default) — a reset is what someone does after losing control of the account, so sessions opened with the old password must not survive it. The request answers **identically for an address with an account and one without**, so the always-success wording on the form is what the provider actually does, not a UI pretence |
 | Social (Google) | `signInSocial` | built (FR-26) — wired **only** when `GOOGLE_CLIENT_ID` *and* `GOOGLE_CLIENT_SECRET` are both present; the login page reads a public `/api/config` flag to decide whether to show the button |
 | TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `disableTwoFactor` | built (US-028a) |
 | Passkeys | `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | built (US-028a) — `rpID = APP_BASE_DOMAIN`, so one credential works across every tenant subdomain |
