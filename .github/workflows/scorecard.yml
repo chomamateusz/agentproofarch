@@ -1,0 +1,46 @@
+name: scorecard
+
+# NON-REQUIRED, and unrequirable: ossf/scorecard-action supports push and
+# schedule on the default branch only, and documents pull_request and
+# workflow_dispatch as experimental — so it never produces a per-PR status a
+# ruleset could require. Findings land in the Security tab and are triaged by
+# hand against docs/audits/ci-security.md; a low score blocks nothing.
+
+on:
+  schedule:
+    - cron: '37 4 * * 1'
+  # Experimental upstream, kept for a manual re-run on main after a workflow
+  # or ruleset change rather than waiting a week for the cron.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    if: github.repository == 'chomamateusz/agentproofarch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishing to the public OpenSSF API (and the badge) also replaces
+          # OpenSSF's own weekly scan with this run's results — an owner call,
+          # and the only input here that would need `id-token: write`.
+          publish_results: false
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 7
+      - uses: github/codeql-action/upload-sarif@dfbc6164313353db46c80e2fcfd38820bd2c3c46 # v3.37.4
+        with:
+          sarif_file: results.sarif

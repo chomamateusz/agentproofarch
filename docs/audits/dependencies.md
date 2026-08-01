@@ -6,6 +6,24 @@ Confirm the dependency tree is current, correctly locked, appropriately
 licensed, and free of known-vulnerable versions — beyond what the
 non-blocking advisory step in `pnpm run check`/CI already flags.
 
+## Standard reference
+
+**OSV / the GitHub Advisory Database** for known vulnerabilities (already the
+spec's reference below — the anchor only names it explicitly), **OpenSSF
+Scorecard 5.5.0** for the four checks that overlap this audit
+(`Vulnerabilities`, `Dependency-Update-Tool`, `License`,
+`Pinned-Dependencies`), and **SLSA v1.2 Build L1** as the vocabulary for
+"where did this artifact come from" — L1 means provenance exists, which this
+repo's own artifacts do not have (the position is stated in
+[`ci-security.md`](ci-security.md)).
+
+**What is not claimed:** an OSV-clean tree is not a safe tree, and Scorecard's
+`Dependency-Update-Tool` scoring 0 is not automatically a defect here. This
+repo runs a three-day `minimumReleaseAge: 4320` cooldown precisely so a
+freshly-compromised release cannot be pulled in on publish day; an update bot
+is only an improvement if it respects that window. Weigh the check against the
+doctrine and record the reasoning — do not adopt a bot to move a number.
+
 ## Reference standard
 
 `pnpm-lock.yaml` as the ground truth for resolved versions; each package's
@@ -44,6 +62,22 @@ distributing this codebase).
   versions (not just presence) match what `pnpm install --frozen-lockfile`
   would produce fresh, catching drift the structural lock-lint check doesn't
   reach.
+
+## Automatable checks
+
+| Check | Tool | Wired today |
+|---|---|---|
+| Known vulnerabilities, production tree | `pnpm audit --prod` | Yes — advisory step inside the `check` job |
+| Known vulnerabilities, full tree + OSV directly | `pnpm audit`, Scorecard `Vulnerabilities` | `pnpm audit` by hand; Scorecard via `scorecard.yml` |
+| Version drift | `pnpm outdated` | No — run it during the audit |
+| Licenses | `pnpm licenses list`, Scorecard `License` | No — run it during the audit |
+| Lockfile freshness | `lock-lint` in `pnpm run check` | Yes, structurally; resolved-version drift still needs the manual step above |
+| Update-bot presence | Scorecard `Dependency-Update-Tool` | Yes, and expected to score 0 — see the anchor note |
+
+Everything the tools do not decide: whether an advisory is reachable in this
+codebase's usage, whether an `onlyBuiltDependencies` entry is justified,
+whether a major-version gap is worth the migration, and whether a copyleft
+license actually reaches the distributed bundle.
 
 ## What counts as a finding
 

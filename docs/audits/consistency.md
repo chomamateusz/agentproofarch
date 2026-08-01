@@ -10,9 +10,29 @@ built to catch (US-027's member export, PARTIAL in the 2026-08-01 audit
 because it's JSON-only despite the contract/FR-22 promising CSV too, is a
 worked example).
 
+## Standard reference
+
+**OWASP ASVS 5.0.0, V8 Authorization** for the permission-parity half only.
+The rule below — an operation gated behind a role in the server must be gated
+behind the same role check in the UI, and hiding a button is not authorization
+— is a restatement of V8's function-level access control requirements, so a
+parity finding cites the chapter instead of asserting a preference.
+
+**OWASP API Security Top 10:2023** (`API1` Broken Object Level Authorization,
+`API5` Broken Function Level Authorization) is the right vocabulary for naming
+the *risk* in a report. It is an awareness taxonomy, not an auditable control
+set: cite ASVS V8 as the requirement and the API Top 10 entry as the risk
+name, never the reverse.
+
+**What is not claimed:** everything else this audit checks — surface parity
+across contract, server, CLI, UI and docs — has no standard behind it. Naming
+**ISO/IEC 25010:2023** *Compatibility / Interoperability* as the taxonomy
+label is honest shorthand for "this is a recognized quality attribute", not a
+conformance claim; 25010 has no requirement IDs and no test.
+
 ## Reference standard
 
-The contract package (`demo/contracts/` or equivalent — the single source of
+The contract package (`demo/core/contract` — the single source of
 truth for request/response shapes) as the spine; every other surface
 (server route implementation, CLI command, web UI component, docs page) is
 checked against it and against each other.
@@ -47,6 +67,15 @@ checked against it and against each other.
   the server will reject is a consistency finding, and the inverse — server
   allows, UI never offers — is also worth recording even though it's safe,
   because it's usually accidental).
+
+## Automatable checks
+
+**None wired, and little is automatable.** TypeScript proves that a server
+handler and a client caller agree on the *shape* the contract declares; it
+proves nothing about a CLI flag that was never written, a UI that implements
+half a parameter space, a docs page describing last month's behaviour, or two
+surfaces naming the same concept differently. The CRUD matrix is built by
+reading, and the reading is the audit.
 
 ## What counts as a finding
 
