@@ -20,7 +20,8 @@ before that lives in the git history only.
   (docs-truth, ci-security, dependencies, dead-code-and-test-gaps,
   consistency, external-links, and the new completeness audit checked
   against the PRD and a living table-stakes SaaS checklist), plus an index
-  stating the doctrine and a website mirror page (#TBD)
+  stating the doctrine and a website mirror page
+  ([#113](https://github.com/chomamateusz/agentproofarch/pull/113))
 
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
