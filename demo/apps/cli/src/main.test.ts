@@ -77,6 +77,11 @@ interface FakeAuth {
   signUp: Mock<AsyncIn<{ name: string; email: string; password: string }, Session>>;
   signIn: Mock<AsyncIn<{ email: string; password: string }, Session>>;
   signOut: Mock<Async<void>>;
+  changePassword: Mock<AsyncIn<{
+    currentPassword: string;
+    newPassword: string;
+    revokeOtherSessions: boolean;
+  }, void>>;
 }
 
 interface Hoisted {
@@ -125,6 +130,11 @@ const h = vi.hoisted(
       signUp: vi.fn<AsyncIn<{ name: string; email: string; password: string }, Session>>(),
       signIn: vi.fn<AsyncIn<{ email: string; password: string }, Session>>(),
       signOut: vi.fn<Async<void>>(),
+      changePassword: vi.fn<AsyncIn<{
+        currentPassword: string;
+        newPassword: string;
+        revokeOtherSessions: boolean;
+      }, void>>(),
     },
   }),
 );
@@ -253,6 +263,7 @@ beforeEach(() => {
   h.auth.signUp.mockReset();
   h.auth.signIn.mockReset();
   h.auth.signOut.mockReset();
+  h.auth.changePassword.mockReset();
 
   h.api.health.mockResolvedValue(ok({ status: 'ok', database: 'up', version: '1.2.3', sha: 'cafe1234' }));
   h.api.me.mockResolvedValue(ok({ email: 'demo@x', tenant: null }));
@@ -299,6 +310,7 @@ beforeEach(() => {
   h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
   h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
   h.auth.signOut.mockResolvedValue(ok(undefined));
+  h.auth.changePassword.mockResolvedValue(ok(undefined));
 
   logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -853,6 +865,49 @@ describe('auth commands persist the session token', () => {
       singleProfile('http://localhost:47100', null, 'acme'),
     ]);
     expect(process.exitCode).toBe(10);
+  });
+});
+
+describe('account change-password', () => {
+  it('forwards both passwords and emits one JSON success envelope', async () => {
+    await run(
+      '--json',
+      'account',
+      'change-password',
+      '--current-password',
+      'demo1234',
+      '--new-password',
+      'changed1234',
+      '--sign-out-other-sessions',
+    );
+
+    expect(h.auth.changePassword).toHaveBeenCalledExactlyOnceWith({
+      currentPassword: 'demo1234',
+      newPassword: 'changed1234',
+      revokeOtherSessions: true,
+    });
+    expect(soleJson()).toEqual({
+      ok: true,
+      data: { changed: true, revokedOtherSessions: true },
+    });
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('maps a wrong current password to the validation exit code', async () => {
+    h.auth.changePassword.mockResolvedValue(err(appError('validation', 'Invalid password')));
+
+    await run(
+      '--json',
+      'account',
+      'change-password',
+      '--current-password',
+      'wrong-password',
+      '--new-password',
+      'changed1234',
+    );
+
+    expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(process.exitCode).toBe(2);
   });
 });
 

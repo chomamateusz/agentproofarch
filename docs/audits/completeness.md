@@ -52,10 +52,11 @@ Two in-repo references, checked independently against the anchor above:
 
 1. **The PRD** (`docs/prd-agentproofarch-foundation.md`) — every user story's
    acceptance criteria and every functional requirement, checked against
-   what's actually shipped. `docs/backlog.md`'s note that "the board tracking
-   shipped-vs-unshipped is not in the repo" (PRD lines 5-6) means this
-   in-repo ledger is the only artifact that maps stories to status —
-   maintain it here, in this spec, as the living record.
+   what's actually shipped. The PRD's own status note (lines 5-6) says "the
+   sub-packages and their order are tracked on the board, not in this
+   document" — that board isn't in the repo, so this in-repo ledger is the
+   only artifact that maps stories to status — maintain it here, in this
+   spec, as the living record.
 2. **The table-stakes SaaS checklist** below — capabilities users of *any*
    multi-tenant SaaS product expect by default, independent of what this
    repo's own docs promise. A capability failing this list is a finding even
@@ -159,13 +160,13 @@ security verification, and the checklist owns it alone.
 |---|---|---|---|---|---|
 | 1 | Password change | `v5.0.0-6.2.2`, `v5.0.0-6.2.3` (L1) | PARTIAL (provider-only) | `/api/auth/change-password` reachable via the blanket better-auth mount (`apps/server/src/app.ts`); no port, UI, CLI, test or docs coverage. | table-stakes |
 | 2 | Forgot password | `v5.0.0-6.4.3` (L2) | MISSING | Endpoint mounted but refuses — `sendResetPassword` unset in the auth config. `EmailPort` exists and is ready to carry the reset email. | table-stakes |
-| 3 | Email change + re-verify | `v5.0.0-7.5.1` (L2) | MISSING | Gated behind `user.changeEmail.enabled`, never set. Compounded by #3 below (member-email refresh unbuilt) — shipping this without that fix would silently desync `members.email`. | table-stakes |
+| 3 | Email change + re-verify | `v5.0.0-7.5.1` (L2) | MISSING | Gated behind `user.changeEmail.enabled`, never set. `members.email` is a provider-decoupled snapshot with no refresh path of its own (see `docs/provider-coupling-audit.md`) — shipping email-change without also wiring that sync would silently desync it. | table-stakes |
 | 4 | Email verification at signup | ASVS V6.4 (factor lifecycle) | MISSING | Verification flag never set/read despite US-007's AC and FR-25 both demanding it; `AuthenticatedUser` ships as `{userId, email, name}` with no `emailVerified` read path, though the column exists. With ADR-0010's default `TENANT_CREATION=open`, an unverified throwaway email can become a tenant owner. | table-stakes |
-| 5 | Account deletion / export (GDPR) | — | MISSING / PARTIAL | `delete-user` disabled despite PRD §3.4 naming it; tenant-side export is single-member JSON only (see #4 below) with no bulk/CSV path. | table-stakes |
+| 5 | Account deletion / export (GDPR) | — | MISSING / PARTIAL | `delete-user` disabled despite PRD §3.4 naming it; tenant-side export is single-member JSON only, with no bulk/CSV path across a tenant's members. | table-stakes |
 | 6 | Session list + revoke | `v5.0.0-7.4.3` (L2) | PARTIAL (provider-only) | `/list-sessions`, `/revoke-session(s)` mounted and reachable, unsurfaced anywhere in UI/CLI. No "sign out everywhere" flow, which capability #1 (password change) needs to be trustworthy. | table-stakes |
 | 7 | Profile name / avatar | `v5.0.0-7.5.1` (L2, recovery-relevant attributes only) | MISSING | `user.image` and `update-user` exist in the auth config, unused; `/api/me` returns no image field; display name has no edit path anywhere in the app. | name: table-stakes; avatar: nice-to-have |
 | 8 | Member removal / role change | — (authorization parity lives in [`consistency.md`](consistency.md)) | PARTIAL | Staff revoke ships (with a last-owner guard and a confirmation dialog). Role change is absent — `grantAdmin` is a deliberate no-op on an existing grant, so there is no promote/demote path and no ownership transfer. | table-stakes |
-| 9 | Tenant rename / delete | — | MISSING | The capability registry only defines `tenant:create`; tenants are immutable and undeletable once created. | table-stakes |
+| 9 | Tenant rename / delete | — | MISSING | The capability registry (`demo/core/domain/authorization.ts`) defines 14 capabilities, none of them `tenant:rename` or `tenant:delete`; tenants are immutable and undeletable once created. | table-stakes |
 | 10 | Invite resend / revoke | — | MISSING (deliberate, but contradicted) | No invitation concept exists at all; declared out of scope by FR-8/§6 while US-013/US-018 both demand it — see the PRD-internal contradiction noted above. | table-stakes / conscious-defer once adjudicated |
 | 11 | Audit log of auth events | — | MISSING (declared) | Explicitly named OUT OF SCOPE in `docs/architecture.md` with a stated trigger ("a specific compliance or contractual requirement") — this is the register working as intended, not a completeness gap. | nice-to-have / enterprise table-stakes |
 | 12 | Login notification emails | — | MISSING (unregistered) | Not mentioned in PRD, architecture, or backlog — genuinely un-noticed rather than deferred. | nice-to-have |

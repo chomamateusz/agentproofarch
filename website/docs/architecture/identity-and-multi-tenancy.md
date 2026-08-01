@@ -270,7 +270,7 @@ names a provider route or SDK, and dependency-cruiser proves it
 
 | Method | Port surface | Status |
 |---|---|---|
-| Email + password | `signUp`, `signIn`, `signOut` | built |
+| Email + password | `signUp`, `signIn`, `signOut`, `changePassword` | built; password change is available in web settings and through `account change-password` in the CLI |
 | Magic link | `requestMagicLink` | built (US-026) — sent through `EmailPort` |
 | Social (Google) | `signInSocial` | built (FR-26) — wired **only** when `GOOGLE_CLIENT_ID` *and* `GOOGLE_CLIENT_SECRET` are both present; the login page reads a public `/api/config` flag to decide whether to show the button |
 | TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `disableTwoFactor` | built (US-028a) |

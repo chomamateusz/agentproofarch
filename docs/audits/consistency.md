@@ -32,7 +32,7 @@ conformance claim; 25010 has no requirement IDs and no test.
 
 ## Reference standard
 
-The contract package (`demo/contracts/` or equivalent — the single source of
+The contract package (`demo/core/contract` — the single source of
 truth for request/response shapes) as the spine; every other surface
 (server route implementation, CLI command, web UI component, docs page) is
 checked against it and against each other.

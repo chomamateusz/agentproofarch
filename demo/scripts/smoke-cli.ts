@@ -98,6 +98,7 @@ const meSchema = z.object({
   tenant: z.object({ slug: z.string(), memberId: z.string().nullable() }).nullable(),
 });
 const magicLinkFollowSchema = z.object({ signedIn: z.literal(true), email: z.string() });
+const changePasswordSchema = z.object({ changed: z.literal(true), revokedOtherSessions: z.boolean() });
 
 const staffItemSchema = z.object({
   id: z.string(),
@@ -386,8 +387,11 @@ const assertPublicSurface = async (baseUrl: string, tenant: string): Promise<voi
  * member) → staff (FR-8: register a second account → owner grants it admin →
  * idempotent re-grant → the granted user lists todos as admin → admin-cannot-grant
  * (exit 4) → last-owner-revoke blocked (exit 2) → revoke → the revoked user loses
- * tenant access (exit 7), self-cleaning) → unauthorized (exit 3), plus the
- * security/caching response headers and the session-cookie hardening assertion.
+ * tenant access (exit 7), self-cleaning) → account change-password on a scratch
+ * account with two live sessions (`--sign-out-other-sessions` keeps the changing
+ * CLI session usable, revokes the other one, and retires the old password) →
+ * unauthorized (exit 3), plus the security/caching response headers and the
+ * session-cookie hardening assertion.
  *
  * Non-self-poisoning property (architecture §Environments, smoke-account
  * doctrine): every card this run creates is parked in an **unbounded** column
@@ -836,6 +840,102 @@ export const driveCli = async (target: SmokeTarget, homes: string[]): Promise<vo
     'revoked admin loses tenant access',
     EXIT_CODE_BY_ERROR_CODE.tenant_not_found,
     'tenant_not_found',
+  );
+
+  // --- account change-password: the CLI keeps the session it changed from ---
+  // `--sign-out-other-sessions` makes Better Auth delete EVERY session of the
+  // user — the calling one included — and mint a replacement, so a CLI that
+  // ignores the rotated `set-auth-token` signs itself out. The proof runs on two
+  // live sessions of one scratch account: after the change the changing session's
+  // next authenticated call still succeeds while the other one is unauthorized,
+  // and the superseded password no longer authorizes a change. The account is
+  // scratch (unique email, no tenant access, never the shared demo credentials
+  // the rest of this run depends on), so nothing has to be changed back and a
+  // production run leaves only an access-less residue, like the staff phase.
+  const passwordHome = mkdtempSync(join(tmpdir(), 'smoke-password-'));
+  const otherSessionHome = mkdtempSync(join(tmpdir(), 'smoke-password-other-'));
+  homes.push(passwordHome, otherSessionHome);
+  const passwordEmail = `smoke-password-${randomUUID()}@example.com`;
+  const supersededPassword = 'smoke-password-1234';
+  const rotatedPassword = 'smoke-password-5678';
+  const changePasswordArgs = (...args: string[]): string[] => [
+    '--json',
+    '--api-url',
+    baseUrl,
+    'account',
+    'change-password',
+    ...args,
+  ];
+
+  expectOk(
+    await cli(
+      ['--json', '--api-url', baseUrl, 'register', '--name', 'Smoke Password', '--email', passwordEmail, '--password', supersededPassword],
+      passwordHome,
+    ),
+    'register the password-change account',
+  );
+
+  expectOk(
+    await cli(
+      ['--json', '--api-url', baseUrl, 'login', '--email', passwordEmail, '--password', supersededPassword],
+      otherSessionHome,
+    ),
+    'second session login',
+  );
+  const otherBefore = meSchema.parse(
+    expectOk(await cli(['--json', '--api-url', baseUrl, 'whoami'], otherSessionHome), 'second session whoami'),
+  );
+  assert(
+    otherBefore.email === passwordEmail,
+    `the second session holds the wrong account: ${JSON.stringify(otherBefore)}`,
+  );
+
+  const changed = changePasswordSchema.parse(
+    expectOk(
+      await cli(
+        changePasswordArgs(
+          '--current-password',
+          supersededPassword,
+          '--new-password',
+          rotatedPassword,
+          '--sign-out-other-sessions',
+        ),
+        passwordHome,
+      ),
+      'account change-password',
+    ),
+  );
+  assert(
+    changed.revokedOtherSessions,
+    `change-password did not report the revoke: ${JSON.stringify(changed)}`,
+  );
+
+  const survivor = meSchema.parse(
+    expectOk(
+      await cli(['--json', '--api-url', baseUrl, 'whoami'], passwordHome),
+      'whoami on the session that changed the password',
+    ),
+  );
+  assert(
+    survivor.email === passwordEmail,
+    `the changing CLI session did not survive its own password change: ${JSON.stringify(survivor)}`,
+  );
+
+  expectError(
+    await cli(['--json', '--api-url', baseUrl, 'whoami'], otherSessionHome),
+    'the other session was revoked',
+    EXIT_CODE_BY_ERROR_CODE.unauthorized,
+    'unauthorized',
+  );
+
+  expectError(
+    await cli(
+      changePasswordArgs('--current-password', supersededPassword, '--new-password', rotatedPassword),
+      passwordHome,
+    ),
+    'the superseded password no longer authorizes a change',
+    EXIT_CODE_BY_ERROR_CODE.validation,
+    'validation',
   );
 
   // Public surface via the CLI with NO session: anonHome holds no token, so

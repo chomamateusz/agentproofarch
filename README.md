@@ -16,7 +16,8 @@ capability surface with JSON output and deterministic exit codes, so AI agents
 can build, run and verify features in a closed loop. Known exceptions: passkeys
 and Google sign-in are browser-bound (a WebAuthn ceremony and a consent
 redirect), while TOTP enrolment and the internal backfill executor work over
-plain HTTP but have no CLI command yet. The same commit deploys to Vercel today
+plain HTTP but have no CLI command yet. Password change is available through
+both web settings and the CLI. The same commit deploys to Vercel today
 **and** to a self-hosted Docker stack.
 
 ## Documentation
@@ -73,7 +74,7 @@ and [demo/README.md](demo/README.md).
 | Folder | Contents |
 |---|---|
 | [`docs/`](docs/) | Normative: [architecture.md](docs/architecture.md), the [PRD](docs/prd-agentproofarch-foundation.md), [decisions/](docs/decisions/) (ADRs), [first-feature guide](docs/first-feature.md) |
-| [`demo/`](demo/) | The entire implementation: multi-tenant walking skeleton with auth (magic link, TOTP, passkeys), tenant subdomains + custom domains, themed web SPA, full CLI, self-host Docker stack, and the gates that defend it all — see [demo/README.md](demo/README.md) |
+| [`demo/`](demo/) | The entire implementation: multi-tenant walking skeleton with auth (password change, magic link, TOTP, passkeys), tenant subdomains + custom domains, themed web SPA, full CLI, self-host Docker stack, and the gates that defend it all — see [demo/README.md](demo/README.md) |
 | [`website/`](website/) | The Docusaurus documentation site, deployed to GitHub Pages on every merge to `main` |
 
 Changing the architecture means changing [`docs/`](docs/) first, then the code.
