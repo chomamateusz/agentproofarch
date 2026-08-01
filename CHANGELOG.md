@@ -16,6 +16,13 @@ before that lives in the git history only.
 
 ## 2026-08-01
 
+### Added
+
+- Commits and PR titles follow a gitmoji-style convention with a fixed emoji
+  per recurring PR type, documented in root `CLAUDE.md` and the agent workflow
+  guide; enforced by review (REVIEW+AI tier), not a hook
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
 ### Fixed
 
 - The web app shows a branded boot splash — wordmark, tenant host, an

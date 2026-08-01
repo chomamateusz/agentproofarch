@@ -2,6 +2,8 @@
 
 <!-- One or two sentences. Link the issue/PRD section. -->
 
+<!-- PR title: "<emoji> <imperative summary>" — one leading emoji, fixed emoji for recurring types (see CLAUDE.md). -->
+
 ## Checklist (no exceptions)
 
 - [ ] `pnpm run check` is green (typecheck + lint + lock-lint + depcruise + doc-lint + coverage)
