@@ -29,6 +29,12 @@ export interface MagicLinkRequest {
   callbackURL?: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  revokeOtherSessions: boolean;
+}
+
 /** @public */
 export interface PasswordResetRequest {
   email: string;
@@ -76,6 +82,7 @@ export interface AuthClientPort {
   signUp(input: { name: string; email: string; password: string }): Promise<WriteResult<AuthSessionResult>>;
   signIn(input: { email: string; password: string }): Promise<WriteResult<AuthSessionResult>>;
   signOut(): Promise<WriteResult<void>>;
+  changePassword(input: ChangePasswordInput): Promise<WriteResult<void>>;
   /** US-026: request a passwordless magic link; no real delivery in dev. */
   requestMagicLink(input: MagicLinkRequest): Promise<WriteResult<void>>;
   /**

@@ -19,9 +19,8 @@ import { z } from 'zod';
 import { ApiError } from '#core/client/index.js';
 
 import { actions } from '../../api.js';
+import { passwordSchema } from '../../lib/password.js';
 import { Eyebrow, FinePrint, Wordmark } from '../../theme.js';
-
-import { passwordPolicy } from './password-policy.js';
 
 /**
  * What the provider's reset callback redirects here with: the verified token, or
@@ -33,7 +32,7 @@ export const resetPasswordSearchSchema = z.object({
 });
 
 const newPasswordSchema = z
-  .object({ newPassword: passwordPolicy, confirmPassword: z.string() })
+  .object({ newPassword: passwordSchema, confirmPassword: z.string() })
   .refine((value) => value.newPassword === value.confirmPassword, {
     path: ['confirmPassword'],
     message: 'Both passwords must match',

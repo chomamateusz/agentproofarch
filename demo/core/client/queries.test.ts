@@ -12,6 +12,7 @@ import {
   cardsInvalidates,
   cardsQuery,
   cardsScopes,
+  changePasswordMutation,
   createTenantMutation,
   ensureMemberInvalidates,
   ensureMemberMutation,
@@ -229,6 +230,7 @@ const fakeAuth = (): AuthClientPort => ({
   signUp: async () => ok({ token: 'signed-up' }),
   signIn: async () => ok({ token: 'signed-in' }),
   signOut: async () => ok(undefined),
+  changePassword: async () => ok(undefined),
   requestMagicLink: async () => ok(undefined),
   requestPasswordReset: async () => ok(undefined),
   resetPassword: async () => ok(undefined),
@@ -259,6 +261,13 @@ describe('auth mutation descriptors', () => {
     ).resolves.toEqual({ token: 'signed-in' });
     await expect(
       new MutationObserver(client, signOutMutation(auth)).mutate(),
+    ).resolves.toBeUndefined();
+    await expect(
+      new MutationObserver(client, changePasswordMutation(auth)).mutate({
+        currentPassword: 'demo1234',
+        newPassword: 'changed1234',
+        revokeOtherSessions: true,
+      }),
     ).resolves.toBeUndefined();
     await expect(
       new MutationObserver(client, requestPasswordResetMutation(auth)).mutate({

@@ -150,6 +150,11 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       return toResult({ token }, response.error);
     },
     signOut: async () => toResult(undefined, (await client.signOut()).error),
+    changePassword: async ({ currentPassword, newPassword, revokeOtherSessions }) =>
+      toResult(
+        undefined,
+        (await client.changePassword({ currentPassword, newPassword, revokeOtherSessions })).error,
+      ),
     requestMagicLink: async ({ email, callbackURL }) => {
       const response = await client.signIn.magicLink({ email, ...(callbackURL ? { callbackURL } : {}) });
       return toResult(undefined, response.error);
@@ -247,6 +252,14 @@ export const createCliAuthAdapter = (
       const current = token();
       if (current === null) return ok(undefined);
       const result = await postCliAuth(baseUrl, '/api/auth/sign-out', {}, current);
+      return result.ok ? ok(undefined) : result;
+    },
+    // `revokeOtherSessions` makes Better Auth delete EVERY session of the user —
+    // the caller's included — and mint a replacement, emitted as `set-auth-token`.
+    // Going through postWithSession persists that rotated token, so the CLI keeps
+    // a live session instead of being silently signed out by its own request.
+    changePassword: async (input) => {
+      const result = await postWithSession('/api/auth/change-password', input, true);
       return result.ok ? ok(undefined) : result;
     },
     requestMagicLink: async ({ email, callbackURL }) => {

@@ -57,7 +57,7 @@ the body disagree, this block wins.
   state is read over HTTP via `/api/me`, not through the client port. Its further
   methods §3.5 lists are now **built** (US-026/US-028a, A1 sub-package 4 — this
   package was the trigger): `requestMagicLink`, `signInSocial` (Google, gated on
-  `GOOGLE_CLIENT_*`), and TOTP 2FA (`enableTwoFactor`/`verifyTotp`/
+  `GOOGLE_CLIENT_*`), account password change (`changePassword`), and TOTP 2FA (`enableTwoFactor`/`verifyTotp`/
   `disableTwoFactor`). `EmailPort` (deferred in §3.5) is built alongside as the
   magic-link transport (SMTP default / dev-capture; see
   [ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)). Passkeys
@@ -230,7 +230,7 @@ Authentication and relationship data are strictly separated (see
   instance) — this swappability is a requirement, not an accident. The IdP
   topology (embedded in-app / separate container / SaaS) is a composition-root
   decision, default embedded.
-- `AuthClientPort` (client): `signUp/signIn/signOut/getSession` plus the product-required auth methods: magic link, social sign-in, passkeys, 2FA enrol/verify. Every method on the port must exist across candidate providers (Better Auth plugins, Clerk, Auth0) so the port never locks us in. Implementation: Better Auth client.
+- `AuthClientPort` (client): `signUp/signIn/signOut/getSession`, authenticated password change, plus the product-required auth methods: magic link, social sign-in, passkeys, 2FA enrol/verify. Every method on the port must exist across candidate providers (Better Auth plugins, Clerk, Auth0) so the port never locks us in. Implementation: Better Auth client.
 - `DomainPort`: `addDomain(domain)`, `removeDomain(domain)`, `checkDomain(domain)`. Implementations: `vercel` (Domains API), `caddy` (no-op provision; verification = DNS resolves to us; TLS handled by Caddy on-demand), `noop` (local dev).
 - Repository interfaces for `tenant_domains` and any foundation data not owned by Better Auth.
 

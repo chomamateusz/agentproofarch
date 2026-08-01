@@ -83,6 +83,11 @@ const loginArgsSchema = z.object({
   email: z.string().trim().min(1),
   password: z.string().min(1),
 });
+const changePasswordArgsSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(1),
+  signOutOtherSessions: z.boolean(),
+});
 const magicLinkArgsSchema = z.object({ email: z.string().trim().min(1) });
 const passwordResetArgsSchema = z.object({ email: z.string().trim().min(1) });
 const tenantSwitchArgsSchema = z.object({ slug: canonicalSlugSchema });
@@ -261,7 +266,34 @@ program
     emit(ok({ signedIn: true, email: input.email }), ctx.json, () => `signed in as ${input.email} via magic link`);
   });
 
-const account = program.command('account').description('Account credentials');
+const account = program.command('account').description('Manage the signed-in account');
+
+account
+  .command('change-password')
+  .description('Change the account password')
+  .requiredOption('--current-password <password>')
+  .requiredOption('--new-password <password>')
+  .option('--sign-out-other-sessions', 'invalidate every other active session', false)
+  .action(async (options: { currentPassword: string; newPassword: string; signOutOtherSessions: boolean }) => {
+    const ctx = cliCtx();
+    const input = parseArgs(changePasswordArgsSchema, options, ctx.json);
+    if (input === undefined) return;
+    const result = await ctx.auth.changePassword({
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+      revokeOtherSessions: input.signOutOtherSessions,
+    });
+    emit(
+      result.ok
+        ? ok({ changed: true, revokedOtherSessions: input.signOutOtherSessions })
+        : result,
+      ctx.json,
+      () =>
+        input.signOutOtherSessions
+          ? 'password changed; other sessions signed out'
+          : 'password changed',
+    );
+  });
 
 account
   .command('request-password-reset')

@@ -23,6 +23,7 @@ import type { BoardId, CardMove, NewCard, NewTodo } from '#core/domain/index.js'
 import type {
   AuthClientPort,
   AuthSessionResult,
+  ChangePasswordInput,
   MagicLinkRequest,
   PasswordResetCompletion,
   PasswordResetRequest,
@@ -302,6 +303,12 @@ export const signOutMutation = (auth: AuthClientPort): MutationDescriptor<void, 
   defineMutation({
     mutationKey: [...authScopes.all(), 'sign-out'],
     call: () => auth.signOut(),
+  });
+
+export const changePasswordMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'change-password'],
+    call: (input: ChangePasswordInput) => auth.changePassword(input),
   });
 
 export const requestMagicLinkMutation = (auth: AuthClientPort) =>

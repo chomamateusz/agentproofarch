@@ -25,6 +25,18 @@ before that lives in the git history only.
   half needs the emailed token and stays in the web app
   ([#116](https://github.com/chomamateusz/agentproofarch/pull/116))
 
+- Account passwords can be changed from web settings or the CLI, with an
+  option to invalidate every other active session; the CLI stores the session
+  token that revoke rotates, so it keeps working afterwards
+  ([#114](https://github.com/chomamateusz/agentproofarch/pull/114))
+
+- Every recurring audit type now has a written spec under `docs/audits/`
+  (docs-truth, ci-security, dependencies, dead-code-and-test-gaps,
+  consistency, external-links, and the new completeness audit checked
+  against the PRD and a living table-stakes SaaS checklist), plus an index
+  stating the doctrine and a website mirror page
+  ([#113](https://github.com/chomamateusz/agentproofarch/pull/113))
+
 - The visual review gallery comment now shows a **Before / After** pair for every
   baseline PNG a pull request re-renders and commits, read from the pull-request
   file list and served from the base and head commits — the deliberate UI change

@@ -131,7 +131,7 @@ graph LR
   authRoutes["Sign-in ceremonies<br/>driven through the auth adapters"]
 
   subgraph caps["What the demo can do"]
-    auth["Sign in: password · magic link<br/>TOTP · passkey · Google seam"]
+    auth["Auth: password + change · magic link<br/>TOTP · passkey · Google seam"]
     tenants["Tenants + staff grants"]
     members["Members, with GDPR export"]
     work["Todos + two boards"]
@@ -190,7 +190,7 @@ graph LR
   authRoutes["Better Auth /api/auth/*<br/>via the auth adapters"]
 
   subgraph caps["Capabilities in the walking skeleton"]
-    auth["Auth: password · magic link<br/>TOTP · passkey · Google seam"]
+    auth["Auth: password + change · magic link<br/>TOTP · passkey · Google seam"]
     tenants["Tenants + staff grants<br/>owner / admin"]
     members["Members: ensure · update<br/>remove · GDPR export"]
     work["Todos + two boards<br/>personal · guarded team"]
@@ -255,7 +255,7 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}101{/*/count*/}** test files in the database-free
+Underneath those gates sit four counts: **{/*count:test-files*/}102{/*/count*/}** test files in the database-free
 run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}17{/*/count*/}** Playwright tests,
 and **{/*count:config-regression*/}59{/*/count*/}** config-regression probes.
 
