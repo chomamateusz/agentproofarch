@@ -69,15 +69,13 @@ const registerRoute = createRoute({
   component: RegisterRoute,
 });
 
-// The authenticated layout owns `/app/*`: it guards auth, redirects anonymous
-// visitors to `/login`, and renders the active child through its `Outlet`.
-// The provider's reset callback validates the token and redirects here with it
-// (or with `error=INVALID_TOKEN`), so the search is parsed at the route edge.
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot-password',
   component: ForgotPasswordRoute,
 });
+// The provider's reset callback validates the token and redirects here with it
+// (or with `error=INVALID_TOKEN`), so the search is parsed at the route edge.
 const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reset-password',
@@ -85,6 +83,8 @@ const resetPasswordRoute = createRoute({
   validateSearch: resetPasswordSearchSchema,
 });
 
+// The authenticated layout owns `/app/*`: it guards auth, redirects anonymous
+// visitors to `/login`, and renders the active child through its `Outlet`.
 const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/app',
