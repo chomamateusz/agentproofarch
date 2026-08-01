@@ -7,6 +7,7 @@ import { ApiError } from '#core/client/index.js';
 
 import { actions } from './api.js';
 import { AppShell } from './components/layout/AppShell.js';
+import { BrandSplash } from './components/layout/BrandSplash.js';
 import { FocusCard } from './components/layout/FocusCard.js';
 import { StatusView, type PageState } from './components/layout/StatusView.js';
 import { tenantHue, tenantUrl } from './lib/tenant.js';
@@ -39,10 +40,9 @@ export const AppLayout = () => {
     if (unauthorized) void navigate({ to: '/login' });
   }, [unauthorized, navigate]);
 
-  if (me.isPending) {
-    return <Shell state={{ kind: 'loading', label: 'opening the app…' }} />;
-  }
-  if (unauthorized) return null;
+  // Nothing authenticated may render before the session resolves — the shell
+  // chrome would advertise the app's navigation to a logged-out visitor.
+  if (me.isPending || unauthorized) return <BrandSplash host={window.location.hostname} />;
 
   const noTenantHere =
     code === 'forbidden' || code === 'tenant_not_found' || (me.data && !me.data.tenant);

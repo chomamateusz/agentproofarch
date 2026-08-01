@@ -46,6 +46,22 @@ const renderApp = async (initial = '/app') => {
 };
 
 describe('AppLayout', () => {
+  it('renders the boot splash and no navigation while the session is unresolved', async () => {
+    server.use(
+      http.get('/api/me', async () => {
+        await delay('infinite');
+        return HttpResponse.json({ ok: true, data: meAcme });
+      }),
+    );
+
+    await renderApp();
+
+    expect(await screen.findByRole('status', { name: 'opening agentproofarch' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'ledger' })).not.toBeInTheDocument();
+    expect(screen.queryByText('ledger content')).not.toBeInTheDocument();
+  });
+
   it('renders the active child and a tenant switcher listing my tenants', async () => {
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: meAcme })),
@@ -120,6 +136,8 @@ describe('AppLayout', () => {
 
     expect(await screen.findByText('login page')).toBeInTheDocument();
     expect(screen.queryByText('ledger content')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 });
 
