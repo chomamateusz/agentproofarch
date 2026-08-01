@@ -20,7 +20,7 @@ before that lives in the git history only.
   indeterminate rule and the version stamp — while the session and tenant
   bootstrap is unresolved, so the authenticated navigation no longer flashes for
   logged-out visitors, and a cold start admits "warming up the server…" after
-  four seconds (#TBD)
+  four seconds ([#108](https://github.com/chomamateusz/agentproofarch/pull/108))
 
 ## v1.1.0 — 2026-07-29
 
