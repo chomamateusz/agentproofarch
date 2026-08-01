@@ -1,6 +1,6 @@
 import type { ElementType } from 'react';
 import { Typography } from '@mui/material';
-import { createTheme, styled, type Theme } from '@mui/material/styles';
+import { createTheme, keyframes, styled, type Theme } from '@mui/material/styles';
 
 /**
  * The entire "engineer's logbook" visual language lives in this theme:
@@ -314,3 +314,34 @@ export const EntryDate = styled(Typography)<AsElement & { dateTime?: string }>({
 });
 
 export const DemoValue = styled('code')(({ theme }) => ({ color: theme.palette.primary.dark }));
+
+const bootSweep = keyframes({
+  from: { transform: 'translateX(-100%)' },
+  to: { transform: 'translateX(400%)' },
+});
+
+/**
+ * Under `prefers-reduced-motion` the travelling segment widens to the full rule
+ * instead of stopping mid-sweep, so the indeterminate state stays legible with
+ * no animation at all.
+ */
+export const BootIndicator = styled('div')(({ theme }) => ({
+  position: 'relative',
+  width: '100%',
+  height: '1px',
+  overflow: 'hidden',
+  backgroundColor: theme.palette.divider,
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '20%',
+    backgroundColor: theme.palette.primary.dark,
+    animation: `${bootSweep} 1.6s ease-in-out infinite`,
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '&::after': { width: '100%', animation: 'none' },
+  },
+}));

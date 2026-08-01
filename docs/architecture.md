@@ -232,7 +232,13 @@ child through its `Outlet`. When the caller has no accessible tenant on the
 current host (the tenant-less apex, or a tenant domain they lack access to) the
 shell renders the **create-tenant onboarding** instead of a child, which is where
 a freshly-registered user lands (US-016) to create their first tenant (with its
-owner row). The ledger is `/app`; the boards are `/app/board` and
+owner row). **Boot is gated**: until the session/tenant bootstrap resolves the
+composition renders `components/layout/BrandSplash.tsx` — the full-viewport boot
+skeleton (wordmark, tenant host, an `aria-busy` indeterminate rule that goes
+static under `prefers-reduced-motion`, the version stamp, and a "warming up the
+server…" line after four seconds of a cold start) — and *nothing else*, so the
+chrome and its navigation never render before the app knows who is looking at
+it. The ledger is `/app`; the boards are `/app/board` and
 `/app/team-board`; `/app/members` is the staff customer roster; and settings live
 at `/app/settings` (current tenant + role, tenant switch/create), with
 `/app/settings/staff` (the FR-8 staff roster — grant-by-email and confirmed

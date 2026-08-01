@@ -71,13 +71,17 @@ test('authenticated app shell chrome', async ({ page }) => {
   });
 });
 
-test('StatusView loading inside AppShell', async ({ page }) => {
+// A `me` request that never answers pins the boot state; the screenshot waits
+// for the slow-start line so it captures one settled composition rather than
+// racing the four-second threshold. The suite runs with reduced motion, so the
+// indicator renders its static state.
+test('boot splash while the session is unresolved', async ({ page }) => {
   await openLogin(page);
   await page.route('**/api/me', () => undefined);
   await submitSignIn(page);
-  await expect(page.getByText('opening the app…')).toBeVisible();
+  await expect(page.getByText('warming up the server…')).toBeVisible();
 
-  await expect(page).toHaveScreenshot('layout-status-view-loading.png', {
+  await expect(page).toHaveScreenshot('boot-splash.png', {
     fullPage: true,
     mask: [page.getByTestId('build-stamp')],
   });
