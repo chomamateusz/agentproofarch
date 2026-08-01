@@ -115,6 +115,42 @@ The inline gallery is the *first* look, deliberately: it must be enough to answe
 "is this the change I made" without leaving the PR. The artifact is the second
 look, for the cases where it is not.
 
+**Update (2026-08-01): the deliberate change was the invisible one.** A pull
+request that re-renders the baselines and commits them — the normal way to ship
+a UI change here, and the end state of every `/approve-visuals` — makes the
+comparison green *by construction*: no mismatch, no artifact, nothing in the
+table above. GitHub then collapses the committed PNG diff in **Files changed**,
+so precisely where before/after matters most, it is one click away at best and
+unseen at worst. The gallery therefore gained a second section, in the same
+upserted comment:
+
+- **"Deliberate baseline changes in this PR"** — one row per changed baseline,
+  up to 40 rows, `Before (base)` and `After (head)` images side by side. A new
+  baseline shows *new surface* in the Before cell, a deleted one *baseline
+  removed* in the After cell, and a rename reads its Before from the previous
+  path. Past the cap, the comment adds a one-line note naming how many further
+  changes are not shown and pointing at the Files tab instead.
+- **The pair is built from commits, not from a diff.** The job checks out the
+  trusted base and has no head tree, so the changed files come from the
+  pull-request files API and each side is a `raw.githubusercontent.com` URL
+  pinned to `base.sha` or `head.sha` — both in the event payload, both
+  immutable, so the caching problem the run-ID path solves does not arise here.
+  This repository is public, so those URLs need no token. This section is
+  built by the same `visual-report` job described above, so it already holds
+  `contents: write` + `pull-requests: write` — consuming the head SHA here is
+  still safe under those scopes because the job's checkout stays pinned to the
+  trusted base commit and the head SHA reaches it only as a URL component,
+  never as a ref: no PR-authored code executes in this job regardless of which
+  scopes it holds.
+- **The file names are pull-request-authored input**, so only paths under
+  `demo/visual/__screenshots__/`, in `[A-Za-z0-9._-]` segments, ending in
+  `.png`, and carrying no `..` segment become a URL. The head SHA enters the job
+  as a URL component and never as a checkout ref — the structural probe pins
+  that distinction.
+- **The mismatch table keeps its own heading** ("Pixel mismatches against the
+  committed baselines"), so a reader is never left guessing which of the two
+  situations a row describes. A run with neither still posts nothing new.
+
 ### 2. Approval closes the loop IN GIT
 
 **A maintainer comments `/approve-visuals`.** A new workflow, `approve-visuals.yml`,

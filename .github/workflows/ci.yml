@@ -332,4 +332,9 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           VISUAL_OUTCOME: ${{ needs.visual.result }}
           VISUAL_ARTIFACT_DIR: ${{ runner.temp }}/visual-diff
+          # The before/after of baselines committed in the PR: two immutable
+          # commits the publisher turns into raw.githubusercontent URLs. This
+          # repository is public, so those images need no token to render.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           AI_VERDICTS: ${{ steps.verdict.outputs.structured_output }}
