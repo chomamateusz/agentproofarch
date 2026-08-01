@@ -21,7 +21,7 @@ before that lives in the git history only.
 - Commits and PR titles follow a gitmoji-style convention with a fixed emoji
   per recurring PR type, documented in root `CLAUDE.md` and the agent workflow
   guide; enforced by review (REVIEW+AI tier), not a hook
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+  ([#111](https://github.com/chomamateusz/agentproofarch/pull/111))
 
 ### Fixed
 
