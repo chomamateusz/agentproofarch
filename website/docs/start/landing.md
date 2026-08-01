@@ -255,9 +255,9 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}98{/*/count*/}** test files in the database-free
+Underneath those gates sit four counts: **{/*count:test-files*/}99{/*/count*/}** test files in the database-free
 run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}15{/*/count*/}** Playwright tests,
-and **{/*count:config-regression*/}58{/*/count*/}** config-regression probes.
+and **{/*count:config-regression*/}59{/*/count*/}** config-regression probes.
 
 That last number is the unusual one. Those probes guard the enforcers
 themselves: most feed a deliberately illegal fixture and assert rejection, and
