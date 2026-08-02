@@ -93,6 +93,34 @@ sequenceDiagram
   one of them gets fixed. A run that went green only via the Playwright retry needs
   a filed P1 linked in the PR ([Testing doctrine](./testing-doctrine.md)).
 
+## Commit and PR titles 🏷️ \{#commit-and-pr-titles}
+
+Commits and PR titles follow a gitmoji-style convention: exactly one leading
+emoji, then an imperative summary — `<emoji> <imperative summary>`. Recurring
+PR types use a fixed emoji so the history is scannable at a glance:
+
+| Emoji | Type |
+|---|---|
+| 🎓 | promotion main -> production |
+| 🔖 | release cut |
+| ✨ | feature |
+| 🐛 | bugfix |
+| 📝 | docs |
+| ✅ | tests |
+| ⬆️ | dependency bumps |
+| 🔒 | security/CI hardening |
+| 🖼️ | UI/visual baselines |
+| ♻️ | refactor |
+
+Anything outside these recurring types picks the closest of the ten. PR titles
+are enforced by HUMAN review — nothing mechanical checks them, since the
+`ai-review` gate (below) reads only the diff (`git diff origin/main...HEAD`)
+and has no GitHub API access to the PR's title. Commit messages are written
+by agents under `CLAUDE.md` and are visible to the gate via `git log`, but
+the convention as a whole is REVIEW-tier, not gate-tier.
+`CHANGELOG.md` entries stay emoji-free — factual lines only, consistent with
+"Docs and changelog travel with the change" above.
+
 ## The identity split 🪪 \{#the-identity-split}
 
 Two identities do two different jobs, and the split is visible in the public

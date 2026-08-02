@@ -11,7 +11,7 @@ description: Every command group and subcommand, with real output — lookup by 
 Every command group below exists in `demo/apps/cli/src/main.ts`. Run everything
 from `demo/`; `--silent` keeps pnpm's own output off stdout.
 
-## Session: `health`, `register`, `login`, `login-link`, `logout`, `whoami` 🔐 \{#session-health-register-login-login-link-logout-whoami}
+## Session: `health`, `register`, `login`, `login-link`, `account`, `logout`, `whoami` 🔐 \{#session-health-register-login-login-link-logout-whoami}
 
 ### `health` 🩺 \{#health}
 
@@ -22,7 +22,7 @@ pnpm --silent run cli health
 {/*release-version*/}
 
 ```text
-status=ok db=up v1.1.1 sha=unknown
+status=ok db=up v1.2.0 sha=unknown
 ```
 
 {/*/release-version*/}
@@ -96,6 +96,25 @@ pnpm --silent run cli login-link --email mag@example.com --link 'http://localhos
 # → signed in as mag@example.com via magic link
 ```
 
+### `account request-password-reset` 🔑 \{#account-request-password-reset}
+
+The request half of the forgot-password flow is a plain POST, so the CLI owns it:
+
+```bash
+pnpm --silent run cli account request-password-reset --email mag@example.com
+# → password-reset link requested for mag@example.com — if that account exists,
+#   open the link from your inbox (dev/CI: Mailpit)
+#   read it at http://localhost:47980
+```
+
+The answer is the same whether or not the address has an account — the command
+cannot be used to probe for one, and a success does not mean a mail was sent.
+
+**The completion half has no CLI command**, and that is a property of the flow
+rather than a gap in the CLI: the new password is accepted only together with a
+token that exists nowhere but inside the emailed link, and that link opens the
+web app at `/reset-password`. Finish the reset there.
+
 ### `logout` 🚪 \{#logout}
 
 ```bash
@@ -105,6 +124,45 @@ pnpm --silent run cli logout        # attempts server revocation, then drops the
 The CLI attempts server-side revocation first, then clears the active origin's
 local token even if revocation fails. Only that origin's profile is touched;
 sessions stored for other origins stay signed in.
+
+## `account`: `change-password` 🔑 \{#account-change-password}
+
+```bash
+pnpm --silent run cli account change-password \
+  --current-password demo1234 \
+  --new-password changed1234 \
+  --sign-out-other-sessions
+```
+
+Both password flags are required, matching `login`'s non-interactive flag
+style. `--sign-out-other-sessions` is optional; when present, every other
+active session is invalidated while the current CLI session remains usable.
+
+That last guarantee is not free. The revoke drops **every** session of the
+account — the calling one included — and issues a replacement, which the CLI
+stores over its own token before printing the result. The smoke gate proves it
+end to end: two live sessions of one scratch account, then a change from the
+first, after which the first still answers `whoami` and the second gets
+`unauthorized` (exit 3).
+
+```bash
+pnpm --silent run cli --json account change-password \
+  --current-password demo1234 \
+  --new-password changed1234
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "changed": true,
+    "revokedOtherSessions": false
+  }
+}
+```
+
+A wrong current password returns the ordinary `validation` auth error envelope
+and exits 2 through the taxonomy mapping.
 
 ## `origin`: `list`, `use` 🌍 \{#origin-list-use}
 

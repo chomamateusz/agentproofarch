@@ -12,6 +12,57 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## v1.2.0 — 2026-08-01
+
+## 2026-08-01
+
+### Added
+
+- Forgot-password flow: a `forgot password?` link on the login card leads to an
+  email-only request form whose answer is identical for an address with an
+  account and one without, the reset mail goes out through the existing
+  `EmailPort`, and its link opens a `/reset-password` form that applies the
+  registration password policy and hands the visitor back to sign-in. The CLI
+  covers the request half as `account request-password-reset`; the completion
+  half needs the emailed token and stays in the web app
+  ([#116](https://github.com/chomamateusz/agentproofarch/pull/116))
+
+- Every audit spec under `docs/audits/` now names the versioned standard it is
+  anchored to and which of its checks a tool actually performs — application
+  security and identity against OWASP ASVS 5.0.0 (V6, V7) as an ASVS-derived L2
+  profile plus NIST SP 800-63B-4, supply chain against OpenSSF Scorecard 5.5.0
+  checks and SLSA v1.2 as a stated position, authorization parity against ASVS
+  V8 — with two new specs, accessibility (WCAG 2.2 AA and axe-core, carrying the
+  57.38% automated-detection caveat) and performance (Core Web Vitals with
+  Lighthouse CI as the lab instrument), and two advisory non-required jobs
+  feeding them: `scorecard.yml` (weekly OpenSSF Scorecard, SARIF to the Security
+  tab) and `lhci.yml` (Lighthouse CI over the built documentation site, every
+  assertion at `warn`)
+  ([#115](https://github.com/chomamateusz/agentproofarch/pull/115))
+
+- Account passwords can be changed from web settings or the CLI, with an
+  option to invalidate every other active session; the CLI stores the session
+  token that revoke rotates, so it keeps working afterwards
+  ([#114](https://github.com/chomamateusz/agentproofarch/pull/114))
+
+- Every recurring audit type now has a written spec under `docs/audits/`
+  (docs-truth, ci-security, dependencies, dead-code-and-test-gaps,
+  consistency, external-links, and the new completeness audit checked
+  against the PRD and a living table-stakes SaaS checklist), plus an index
+  stating the doctrine and a website mirror page
+  ([#113](https://github.com/chomamateusz/agentproofarch/pull/113))
+
+- The visual review gallery comment now shows a **Before / After** pair for every
+  baseline PNG a pull request re-renders and commits, read from the pull-request
+  file list and served from the base and head commits — the deliberate UI change
+  compares green by construction and GitHub collapses its image diff, so this was
+  the one case the gallery could not show ([#112](https://github.com/chomamateusz/agentproofarch/pull/112))
+
+- Commits and PR titles follow a gitmoji-style convention with a fixed emoji
+  per recurring PR type, documented in root `CLAUDE.md` and the agent workflow
+  guide; enforced by human review, not a hook
+  ([#111](https://github.com/chomamateusz/agentproofarch/pull/111))
+
 ## v1.1.1 — 2026-08-01
 
 ## 2026-08-01

@@ -199,6 +199,45 @@ developer state.
   the fail-closed `ai-review` gate remains the sole enforcement tier, so
   CodeRabbit can never turn a real `FAIL` green nor block a merge itself.
 
+## Audit tooling (trigger: named per entry)
+
+Deferred deliberately while anchoring the [audit specs](audits/README.md) to
+standards on 2026-08-01. Each spec ships stating the gap; none of these is a
+prerequisite for running its audit by hand.
+
+- **`@axe-core/playwright` in the existing Chromium jobs** — the automated half
+  of [`audits/accessibility.md`](audits/accessibility.md). The `e2e` and
+  `visual` jobs already boot Chromium, so wiring it is cheap; the spec's manual
+  keyboard, focus and alt-text passes stay mandatory either way, because
+  automation identifies roughly 57% of issues and no conformance at all.
+  *Trigger: owner decision.*
+- **Lighthouse over the web application** — `lhci.yml` measures the
+  documentation site only. A static run over `dist/web` would yield real bundle
+  and resource budgets for the app shell but no authenticated route (every
+  `/api/*` call 404s against LHCI's own server); measuring the real thing means
+  booting the e2e stack and signing in from a `puppeteerScript`, a second login
+  implementation beside the Playwright fixtures. *Trigger: a written frontend
+  performance SLO, or the first user-visible performance regression.*
+- **Backend latency and load measurement** — nothing measures it, and no SLO
+  exists to measure against; CI runners are too variable to be authoritative
+  about capacity anyway. *Trigger: a latency SLO written down somewhere
+  normative.*
+- **Promoting Lighthouse assertions from `warn` to `error`** — see
+  [`audits/performance.md`](audits/performance.md); a pre-1.0 lab tool on a
+  shared runner cannot be a hard line while the flake ruling forbids
+  rerun-to-green. *Trigger: stable numbers over weeks, plus an owner decision.*
+- **Scorecard follow-ups** — `SECURITY.md`, `CODEOWNERS`, and a dependency
+  update bot are the three biggest expected misses. A bot must respect the
+  three-day `minimumReleaseAge` cooldown before it is an improvement, and
+  `CODEOWNERS` changes review routing. *Trigger: owner decision, per item —
+  never "the score said so".*
+- **Scorecard `publish_results`** — currently `false`. Turning it on publishes
+  this repo's score to the public OpenSSF API, enables the badge, and replaces
+  OpenSSF's own weekly scan with these runs. *Trigger: owner decision.*
+- **SLSA Build L1+ provenance** on the Docker image and release artifacts;
+  [`audits/ci-security.md`](audits/ci-security.md) states the current L0
+  position rather than treating it as a finding. *Trigger: owner decision.*
+
 ## Open owner decisions (not deferred — awaiting answers)
 
 Tracked in the DECIDE queue: B5 (agent operating envelope), C1 (transactions

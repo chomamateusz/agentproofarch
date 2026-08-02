@@ -165,6 +165,58 @@ describe('createCliAuthAdapter social + 2FA', () => {
     expect(await adapter.verifyTotp({ code: '123456' })).toEqual({ ok: true, value: undefined });
     expect(await adapter.disableTwoFactor({ password: 'pw' })).toEqual({ ok: true, value: undefined });
   });
+
+  it('changePassword posts the session bearer token and persists the rotated one', async () => {
+    const call = mockJsonFetch(() => ({
+      ok: true,
+      status: 200,
+      json: { token: 'tok-2', user: { id: 'u1' } },
+      headers: { 'set-auth-token': 'tok-2' },
+    }));
+    const persisted: string[] = [];
+    const adapter = createCliAuthAdapter(
+      'http://localhost:47100',
+      (next) => persisted.push(next),
+      () => 'tok-1',
+    );
+
+    expect(
+      await adapter.changePassword({
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+        revokeOtherSessions: true,
+      }),
+    ).toEqual({ ok: true, value: undefined });
+    expect(call()).toMatchObject({
+      url: 'http://localhost:47100/api/auth/change-password',
+      authorization: 'Bearer tok-1',
+      body: {
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+        revokeOtherSessions: true,
+      },
+    });
+    expect(persisted).toEqual(['tok-2']);
+  });
+
+  it('changePassword keeps the stored token when no rotation is emitted', async () => {
+    mockJsonFetch(() => ({ ok: true, status: 200, json: { token: null, user: { id: 'u1' } } }));
+    const persisted: string[] = [];
+    const adapter = createCliAuthAdapter(
+      'http://localhost:47100',
+      (next) => persisted.push(next),
+      () => 'tok-1',
+    );
+
+    expect(
+      await adapter.changePassword({
+        currentPassword: 'old-password',
+        newPassword: 'new-password',
+        revokeOtherSessions: false,
+      }),
+    ).toEqual({ ok: true, value: undefined });
+    expect(persisted).toEqual([]);
+  });
 });
 
 const stubJsonResponse = (payload: unknown, status = 200): void => {
@@ -211,6 +263,21 @@ describe('createBetterAuthClientAdapter (web)', () => {
     const adapter = createBetterAuthClientAdapter('http://localhost:47100');
     expect((await adapter.verifyTotp({ code: '123456' })).ok).toBe(true);
     expect((await adapter.disableTwoFactor({ password: 'pw' })).ok).toBe(true);
+  });
+
+  it('changes the password through the browser client', async () => {
+    stubJsonResponse({ status: true });
+    const adapter = createBetterAuthClientAdapter('http://localhost:47100');
+
+    expect(
+      (
+        await adapter.changePassword({
+          currentPassword: 'old-password',
+          newPassword: 'new-password',
+          revokeOtherSessions: false,
+        })
+      ).ok,
+    ).toBe(true);
   });
 });
 

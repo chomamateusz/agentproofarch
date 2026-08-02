@@ -21,6 +21,7 @@ const messageListSchema = z.object({
 const messageBodySchema = z.object({ Text: z.string().default(''), HTML: z.string().default('') });
 
 const MAGIC_LINK = /https?:\/\/[^\s"'<>]*magic-link\/verify[^\s"'<>]*/;
+const PASSWORD_RESET_LINK = /https?:\/\/[^\s"'<>]*auth\/reset-password\/[^\s"'<>]*/;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -45,14 +46,17 @@ export const clearMailpit = async (baseUrl: string): Promise<void> => {
 };
 
 /**
- * Polls Mailpit for the newest captured message addressed to `email` and returns
- * the magic-link verify URL embedded in its body. Throws if none arrives within
- * `timeoutMs`.
+ * Polls Mailpit for a captured message addressed to `email` whose body carries a
+ * URL matching `pattern`, and returns that URL. Every message to the address is
+ * inspected, not just the newest, so an inbox holding both a sign-in link and a
+ * reset link still yields the one being waited for. Throws after `timeoutMs`.
  */
-export const fetchMagicLink = async (
+const fetchLink = async (
   baseUrl: string,
   email: string,
-  timeoutMs = 15000,
+  pattern: RegExp,
+  description: string,
+  timeoutMs: number,
 ): Promise<string> => {
   const target = email.toLowerCase();
   const deadline = Date.now() + timeoutMs;
@@ -60,19 +64,28 @@ export const fetchMagicLink = async (
     const listRes = await fetch(`${baseUrl}/api/v1/messages?limit=200`);
     if (listRes.ok) {
       const { messages } = messageListSchema.parse(await listRes.json());
-      const match = messages.find((message) =>
+      const addressed = messages.filter((message) =>
         message.To.some((recipient) => recipient.Address.toLowerCase() === target),
       );
-      if (match) {
-        const bodyRes = await fetch(`${baseUrl}/api/v1/message/${match.ID}`);
-        if (bodyRes.ok) {
-          const body = messageBodySchema.parse(await bodyRes.json());
-          const link = MAGIC_LINK.exec(body.Text) ?? MAGIC_LINK.exec(body.HTML);
-          if (link) return link[0];
-        }
+      for (const message of addressed) {
+        const bodyRes = await fetch(`${baseUrl}/api/v1/message/${message.ID}`);
+        if (!bodyRes.ok) continue;
+        const body = messageBodySchema.parse(await bodyRes.json());
+        const link = pattern.exec(body.Text) ?? pattern.exec(body.HTML);
+        if (link) return link[0];
       }
     }
     await sleep(300);
   }
-  throw new Error(`No magic link captured for ${email} in Mailpit within ${timeoutMs / 1000}s`);
+  throw new Error(`No ${description} captured for ${email} in Mailpit within ${timeoutMs / 1000}s`);
 };
+
+export const fetchMagicLink = (baseUrl: string, email: string, timeoutMs = 15000): Promise<string> =>
+  fetchLink(baseUrl, email, MAGIC_LINK, 'magic link', timeoutMs);
+
+/** The provider's reset callback URL, which redirects to the app's reset form. */
+export const fetchPasswordResetLink = (
+  baseUrl: string,
+  email: string,
+  timeoutMs = 15000,
+): Promise<string> => fetchLink(baseUrl, email, PASSWORD_RESET_LINK, 'password-reset link', timeoutMs);

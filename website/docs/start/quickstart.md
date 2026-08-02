@@ -44,9 +44,9 @@ with every layer connected and actually working — not a scaffold of stubs.
 What walks through it, each capability flowing through *every* layer and
 drivable from both the web app and the CLI:
 
-- authentication: password, magic link, TOTP two-factor, passkeys, plus a
-  Google seam that stays dormant unless both of its env vars are set — password
-  and magic link from either surface; TOTP, passkeys and Google are web-only
+- authentication: password sign-in and change, magic link, TOTP two-factor,
+  passkeys, plus a Google seam that stays dormant unless both of its env vars
+  are set — password sign-in/change and magic link from either surface; TOTP, passkeys and Google are web-only
   (browser ceremonies the CLI ships no commands for);
 - foundation-owned tenants with flat `owner`/`admin` staff grants, resolved by
   custom domain or subdomain;
@@ -236,7 +236,7 @@ The first command is machine-readable and prints one JSON envelope:
 {
   "ok": true,
   "data": {
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"
@@ -258,7 +258,7 @@ demo@agentproofarch.dev @ Acme Sp. z o.o. (acme, staff: owner)
 - Sprawdzić izolację danych między tenantami  (todo-ten)
 ```
 
-{/*release-version*/}`v1.1.1`{/*/release-version*/} is `package.json`'s SemVer release identity, bumped only by a
+{/*release-version*/}`v1.2.0`{/*/release-version*/} is `package.json`'s SemVer release identity, bumped only by a
 release-cut pull request
 ([Versioning & releases](../operations/versioning-and-releases.md)), and
 `sha=unknown` is the honest local answer — `APP_COMMIT_SHA` is only set by a

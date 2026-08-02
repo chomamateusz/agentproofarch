@@ -15,7 +15,10 @@ per check. The CLI is the closed verification loop that answers cheaply and
 exactly instead. It covers the day-to-day capability surface, with known
 exceptions of two kinds: passkeys and Google sign-in are browser-bound (the CLI
 auth adapter hard-errors on the WebAuthn ceremony, and the Google consent
-redirect needs a browser), while TOTP enrolment and the internal backfill
+redirect needs a browser) and so is the *completion* of a password reset (the CLI
+owns the request half, `account request-password-reset`, but the token that
+finishes it exists only inside the emailed link, which opens the web app's
+`/reset-password` form), while TOTP enrolment and the internal backfill
 executor (`POST /api/internal/backfills/:name`) run over plain HTTP and simply
 have no CLI command yet. For what it does cover, each capability has a command,
 `--json` prints exactly **one** JSON document on stdout, and the process exit
@@ -144,7 +147,7 @@ spaces:
 {
   "ok": true,
   "data": {
-    "version": "1.1.1",
+    "version": "1.2.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"

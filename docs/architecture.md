@@ -1186,8 +1186,10 @@ client port in `core/client`). It is the *built* set — keep it in sync with th
 code.
 
 - `AuthPort` (server): request headers → `AuthenticatedUser | null`. Better Auth.
-- `AuthClientPort` (client): sign-up/in/out **plus the provider auth methods**
-  (US-026/US-028a) — `requestMagicLink`, `signInSocial`, TOTP 2FA
+- `AuthClientPort` (client): sign-up/in/out, authenticated password change
+  (`changePassword`), **plus the provider auth methods** (US-026/US-028a) —
+  `requestMagicLink`, password reset (`requestPasswordReset`/`resetPassword`),
+  `signInSocial`, TOTP 2FA
   (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
   (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
   `listPasskeys` is the one read-tagged method, since the roster lives on the
@@ -1349,15 +1351,17 @@ decision).
   senders are a when-triggered extension. `link` is the optional primary-action
   URL — a general transactional-mail concept — so the magic link is ONE consumer
   of the seam, not the port's shape.
-- **Sent only from use-cases or the auth adapter's sender** (NORMATIVE): a route
-  parses input and invokes a use-case; the use-case (or, for auth mail, the
-  `create-auth.ts` magic-link callback) decides to mail. No route or non-auth
-  adapter calls it.
+- **Sent only from use-cases or the auth adapter's senders** (NORMATIVE): a route
+  parses input and invokes a use-case; the use-case (or, for auth mail, one of
+  `create-auth.ts`'s two provider callbacks — `sendMagicLink` and
+  `sendResetPassword`) decides to mail. No route or non-auth adapter calls it.
 - **Reliability via the outbox, not inline retries** (NORMATIVE once the outbox
   exists): when `JobsPort` lands (§Background jobs and webhooks) a use-case
-  enqueues the send transactionally with its domain write. Until then the magic
-  link is the only sender and its handler is idempotent (each token mints one
-  session).
+  enqueues the send transactionally with its domain write. Until then both
+  senders are auth-token mails whose handlers tolerate a repeat: a magic-link
+  token mints one session, and a reset token only opens the reset form — the
+  password changes when the form is submitted, and that submission revokes the
+  account's other sessions (`revokeSessionsOnPasswordReset`).
 - Adapters as built (`adapters/email/`, selected by `EMAIL_TRANSPORT` in the
   composition root, the `DOMAIN_PROVISIONER` pattern): `smtp` (default) — any RFC
   SMTP relay via nodemailer, **Amazon SES SMTP creds work unchanged** (owner
@@ -1376,9 +1380,11 @@ decision).
   (`smtp-sdk-only-in-adapters-email`). The originally-sketched Resend/`console`
   split was superseded by SMTP-as-universal-default
   ([ADR-0007](decisions/0007-email-port-and-magic-link-transport.md)).
-- **Trigger** (already fired): US-026 magic link. The auth adapter's magic-link
-  sender delegates to `EmailPort` so there is one transport and one from-address
-  policy — exactly as the roadmap called for. Future non-auth transactional mail
+- **Trigger** (already fired): US-026 magic link, then the password-reset link.
+  Both auth-adapter senders delegate to `EmailPort` so there is one transport and
+  one from-address policy — exactly as the roadmap called for. The reset mail is
+  the first proof the seam carries non-sign-in mail: its link opens a form rather
+  than a session. Future non-auth transactional mail
   (order receipt, export-ready notice) reuses the same port from a use-case.
 
 **OUT OF SCOPE:** email content/templates, sequences, marketing sends, per-tenant

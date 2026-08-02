@@ -55,7 +55,7 @@ pnpm --silent run cli --json whoami        # single JSON document on stdout
 pnpm --silent run cli logout                           # drops the stored token
 ```
 
-Full command set: `health`, `register`, `login`, `logout`, `whoami`,
+Full command set: `health`, `register`, `login`, `account change-password`, `logout`, `whoami`,
 `tenant list|create|switch`, `todo list|add`, `card list|add|move`.
 
 Release preparation runs `pnpm run release -- <major|minor|patch>` from this
@@ -106,7 +106,7 @@ pnpm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->98<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->102<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -119,15 +119,15 @@ configuration applies a three-day (`4320` minute) minimum-release-age cooldown.
 
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
 <!--count:integration-tests-->49<!--/count--> integration tests against a real
-Postgres and <!--count:e2e-tests-->15<!--/count--> Playwright tests across
-<!--count:e2e-specs-->6<!--/count--> spec files:
+Postgres and <!--count:e2e-tests-->17<!--/count--> Playwright tests across
+<!--count:e2e-specs-->7<!--/count--> spec files:
 
 ```bash
 pnpm run test:integration   # repositories, against a real Postgres
 pnpm run e2e                # real Chromium over the real stack
 ```
 
-<!--count:config-regression-->58<!--/count--> config-regression probes guard the
+<!--count:config-regression-->59<!--/count--> config-regression probes guard the
 covered boundary, island-core and CI-workflow rules — most feed a violating
 fixture and assert the gate still goes red, a few are structural rule-presence
 checks rather than fixture-feeding probes — so you can't silently delete one of

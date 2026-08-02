@@ -131,7 +131,7 @@ graph LR
   authRoutes["Sign-in ceremonies<br/>driven through the auth adapters"]
 
   subgraph caps["What the demo can do"]
-    auth["Sign in: password · magic link<br/>TOTP · passkey · Google seam"]
+    auth["Auth: password + change · magic link<br/>TOTP · passkey · Google seam"]
     tenants["Tenants + staff grants"]
     members["Members, with GDPR export"]
     work["Todos + two boards"]
@@ -190,7 +190,7 @@ graph LR
   authRoutes["Better Auth /api/auth/*<br/>via the auth adapters"]
 
   subgraph caps["Capabilities in the walking skeleton"]
-    auth["Auth: password · magic link<br/>TOTP · passkey · Google seam"]
+    auth["Auth: password + change · magic link<br/>TOTP · passkey · Google seam"]
     tenants["Tenants + staff grants<br/>owner / admin"]
     members["Members: ensure · update<br/>remove · GDPR export"]
     work["Todos + two boards<br/>personal · guarded team"]
@@ -238,7 +238,7 @@ single request through it in
 |---|---|---|---|
 | **Static** | `pnpm run check` | Does it compile, does it respect the boundaries, do the unit tests pass — [eight members, in that order](../operations/ci-gates.md#check--the-static-gate). | yes — `check` |
 | **Runtime** | `pnpm run smoke` | Boots the real server on a real database and drives it through the CLI, asserting the exit code of every step. | yes — `smoke` |
-| **Browser** | `pnpm run e2e` | Drives a real Chromium over the real stack: {/*count:e2e-tests*/}15{/*/count*/} tests across {/*count:e2e-specs*/}6{/*/count*/} spec files. | yes — `e2e` |
+| **Browser** | `pnpm run e2e` | Drives a real Chromium over the real stack: {/*count:e2e-tests*/}17{/*/count*/} tests across {/*count:e2e-specs*/}7{/*/count*/} spec files. | yes — `e2e` |
 | **Container** | `selfhost.yml` | Builds the image, boots `docker-compose.prod.yml`, smokes the container through the CLI. | yes — `docker-smoke` |
 | **Pixel** | `pnpm run visual` | Compares CI-rendered screenshots pixel for pixel ([ADR-0008](../decisions/0008-visual-regression.md)). | **no** — by design |
 | **Review** | `ai-review.yml` | An AI reads the diff against this repo's doctrine; only a positive `PASS` verdict is green, and a review that could not run is red. | **yes**, on `main` (since 2026-07-26) |
@@ -255,9 +255,9 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}98{/*/count*/}** test files in the database-free
-run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}15{/*/count*/}** Playwright tests,
-and **{/*count:config-regression*/}58{/*/count*/}** config-regression probes.
+Underneath those gates sit four counts: **{/*count:test-files*/}102{/*/count*/}** test files in the database-free
+run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}17{/*/count*/}** Playwright tests,
+and **{/*count:config-regression*/}59{/*/count*/}** config-regression probes.
 
 That last number is the unusual one. Those probes guard the enforcers
 themselves: most feed a deliberately illegal fixture and assert rejection, and
