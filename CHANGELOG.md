@@ -28,7 +28,8 @@ before that lives in the git history only.
   no backports), a private reporting channel that is not a public issue, a
   best-effort response stated without an SLA, and a scope split that puts the
   public demo deployment and its published credentials out of bounds while the
-  foundation code stays in (#TBD)
+  foundation code stays in
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 
 - First OpenSSF Scorecard run, mechanical findings only: `visual-baselines`
   moved its `contents: write` off the workflow top level onto the single job
@@ -37,7 +38,7 @@ before that lives in the git history only.
   10 — `tag-release`, `approve-visuals` and `ci`'s `visual-report` hold
   job-scoped write tokens their work requires — which
   `docs/audits/ci-security.md` now states instead of predicting a clean score
-  (#TBD)
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 
 ## v1.2.0 — 2026-08-01
 
