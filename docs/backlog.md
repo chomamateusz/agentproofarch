@@ -226,11 +226,17 @@ prerequisite for running its audit by hand.
   [`audits/performance.md`](audits/performance.md); a pre-1.0 lab tool on a
   shared runner cannot be a hard line while the flake ruling forbids
   rerun-to-green. *Trigger: stable numbers over weeks, plus an owner decision.*
-- **Scorecard follow-ups** — `SECURITY.md`, `CODEOWNERS`, and a dependency
-  update bot are the three biggest expected misses. A bot must respect the
-  three-day `minimumReleaseAge` cooldown before it is an improvement, and
-  `CODEOWNERS` changes review routing. *Trigger: owner decision, per item —
-  never "the score said so".*
+- **Scorecard follow-ups** — [`SECURITY.md`](../SECURITY.md) landed with the
+  first run's other mechanical fixes; `CODEOWNERS`, a SAST job (CodeQL) and a
+  dependency update bot remain. A bot must respect the three-day
+  `minimumReleaseAge` cooldown before it is an improvement, and `CODEOWNERS`
+  changes review routing. *Trigger: owner decision, per item — never "the score
+  said so".*
+- **GitHub private vulnerability reporting** — off today, so
+  [`SECURITY.md`](../SECURITY.md) points at email and says so. Enabling it
+  gives reporters a private channel inside the Security tab and an advisory
+  workflow with a CVE request attached. *Trigger: owner decision (a repository
+  setting, not a code change).*
 - **Scorecard `publish_results`** — currently `false`. Turning it on publishes
   this repo's score to the public OpenSSF API, enables the badge, and replaces
   OpenSSF's own weekly scan with these runs. *Trigger: owner decision.*

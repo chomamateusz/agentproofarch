@@ -94,8 +94,9 @@ tab. Read its latest run **before** starting an audit and treat every check as
 
 | Check | Expected here | Why |
 |---|---|---|
-| `Token-Permissions`, `Pinned-Dependencies` | Should score well | Every workflow declares `permissions:` and every action is SHA-pinned |
-| `Security-Policy` | 0 | No `SECURITY.md` — owner decision, not an oversight this audit fixes silently |
+| `Token-Permissions` | Below 10, deliberately | Every workflow declares a read-only top level, but three jobs hold a job-scoped write they cannot do their work without: `tag-release` (`contents`, to create the tag), `approve-visuals` (`actions`, to dispatch the baseline run) and `ci`'s `visual-report` (`contents`, to push the gallery branch). Scorecard scores a job-level write as a finding regardless; dropping the capability would break the job, so the score stays where it is |
+| `Pinned-Dependencies` | Should score well | Every action is SHA-pinned, every service container carries a digest, and `demo/Dockerfile`'s base images are pinned by digest beside their tag |
+| `Security-Policy` | 10 | [`SECURITY.md`](../../SECURITY.md) — supported release line, private reporting channel, best-effort response stated without an SLA, and the demo deployment named as out of scope |
 | `Dependency-Update-Tool` | 0 | No bot; a bot must respect the `minimumReleaseAge: 4320` cooldown, so "fix the score" is the wrong instinct — see [`dependencies.md`](dependencies.md) |
 | `Code-Review` | Weakened | No `CODEOWNERS`; the rulesets do require a pull request, which the check only partly detects |
 | `SAST` | Low | ESLint plus the custom layer rules are not detected as SAST |
