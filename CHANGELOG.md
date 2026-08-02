@@ -43,7 +43,8 @@ before that lives in the git history only.
 
 ### Changed
 
-- Completeness-audit status, evidence, ASVS anchors, severity, mechanical inputs, and passkey posture corrected against the shipped implementation (#TBD)
+- Completeness-audit status, evidence, ASVS anchors, severity, mechanical inputs, and passkey posture corrected against the shipped implementation
+  ([#121](https://github.com/chomamateusz/agentproofarch/pull/121))
 
 ## v1.2.0 — 2026-08-01
 
