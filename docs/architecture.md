@@ -751,6 +751,11 @@ identity, an owner or admin also arrives as a visitor there, so `staff` is only
 distinguishable from `closed` once the create path derives the principal from the
 caller's staff grants **across the instance** (`listTenantsForStaff`, the read
 behind `listMyTenants`) rather than from a resolved tenant.
+`listMyTenants` runs on that same tenant-less creation context and returns
+`canCreateTenant` beside the memberships — the `decide(..., "tenant:create")`
+verdict reported, not enforced, so the decision stays in the use-case layer and
+the route keeps calling one use-case. Both settings and tenant-less onboarding
+render `CreateTenantForm` only when it is true.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
@@ -1190,7 +1195,7 @@ code.
   (`changePassword`), **plus the provider auth methods** (US-026/US-028a) —
   `requestMagicLink`, password reset (`requestPasswordReset`/`resetPassword`),
   `signInSocial`, TOTP 2FA
-  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
+  (`enableTwoFactor`/`verifyTotp`/`verifyBackupCode`/`disableTwoFactor`), and passkeys
   (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
   `listPasskeys` is the one read-tagged method, since the roster lives on the
   provider surface, not the contract API). Better Auth client (magic-link +
@@ -1304,6 +1309,18 @@ credential works across every tenant subdomain; the client surface
 (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`) is exposed
 exclusively through `AuthClientPort`, driven from the settings PasskeySection and
 the login page's sign-in-with-passkey button.
+
+Every sign-in route that can mint a session for an enrolled account — password,
+magic-link verification, social callback/token sign-in and passkey authentication
+— enters the same TOTP challenge. A pending challenge is not a session: clients
+retain the login surface until `verifyTotp` or `verifyBackupCode` succeeds.
+Password-reset callbacks must have the same origin as the request that created
+them; tenant wildcards and verified custom domains are HTTPS-only on every base
+domain but `localhost`, where the dev and plain-http demo hosts carry no TLS to
+be trusted over. Passkey
+registration and deletion first verify the account password, mint a five-minute
+signed proof, and require both that proof and `sensitiveSessionMiddleware` on the
+provider endpoints.
 
 Add a port only when a second implementation or a platform difference actually
 exists.
@@ -1895,6 +1912,17 @@ live smoke assertion.
   `AUTH_RATE_LIMIT` env flag, which **defaults to on** (including in dev); set
   `AUTH_RATE_LIMIT=off` to disable it locally. It does not protect mutation
   routes, which is why those stay gated by auth + tenant scope.
+  Client-IP resolution is part of this invariant: an enabled limiter refuses to
+  compose without `advanced.ipAddress.trustedProxies`, because a non-empty list
+  is what makes the provider read `X-Forwarded-For` **from the right** — the hop
+  the nearest proxy wrote — instead of accepting a header a client supplied. Each
+  deployment path closes the remaining gap differently. Self-host pins Caddy to
+  `10.247.0.3`, which overwrites the header with its socket peer and is the one
+  hop the chain skips. A direct Node connection has no proxy at all, so the entry
+  overwrites the header from the socket, preserving a forwarded value only from
+  the exact Caddy address. On the platform entry the edge writes the last hop and
+  no address of ours can appear in the chain, so the same right-to-left rule
+  keeps that hop — nothing there rewrites the header, and nothing needs to.
 - **Request body limits.** Mount Hono's `bodyLimit` on mutation routes (JSON
   payloads are small — a ~64–100KB cap is a cheap DoS floor); Vercel's 4.5MB
   serverless cap is a backstop, not policy.

@@ -24,6 +24,7 @@ const auth = createAuth(db, {
   trustedOrigins: () => ['http://localhost:47100'],
   secureCookies: false,
   rateLimitEnabled: false,
+  trustedProxies: [],
   // The seed signs up the demo user by password (no email is sent), so a
   // no-op sink satisfies the auth wiring without pulling in a live relay.
   email: { sendMail: async () => {} },

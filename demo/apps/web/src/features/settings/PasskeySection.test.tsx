@@ -42,13 +42,19 @@ describe('PasskeySection', () => {
 
   it('removes a passkey behind an inline confirmation', async () => {
     let deleted = false;
+    const calls: string[] = [];
     server.use(
       http.get('*/passkey/list-user-passkeys', () =>
         HttpResponse.json(
           deleted ? [] : [passkeyRow({ id: 'pk-1', name: 'YubiKey', createdAt: '2026-07-03T00:00:00.000Z' })],
         ),
       ),
+      http.post('*/verify-password', () => {
+        calls.push('verify-password');
+        return HttpResponse.json({ status: true });
+      }),
       http.post('*/passkey/delete-passkey', () => {
+        calls.push('delete-passkey');
         deleted = true;
         return HttpResponse.json({ status: true });
       }),
@@ -56,9 +62,25 @@ describe('PasskeySection', () => {
 
     renderWithProviders(<PasskeySection />);
 
+    await userEvent.type(screen.getByLabelText('account password'), 'demo1234');
     await userEvent.click(await screen.findByRole('button', { name: 'remove' }));
     await userEvent.click(await screen.findByRole('button', { name: 'confirm remove' }));
 
     expect(await screen.findByText(/no passkeys registered yet/i)).toBeInTheDocument();
+    expect(calls).toEqual(['verify-password', 'delete-passkey']);
+  });
+
+  it('keeps register and remove disabled until the account password is present', async () => {
+    server.use(
+      http.get('*/passkey/list-user-passkeys', () =>
+        HttpResponse.json([passkeyRow({ id: 'pk-1', name: 'YubiKey', createdAt: '2026-07-03T00:00:00.000Z' })]),
+      ),
+    );
+
+    renderWithProviders(<PasskeySection />);
+    await userEvent.type(screen.getByLabelText('passkey name'), 'Laptop');
+    expect(screen.getByRole('button', { name: 'register a passkey' })).toBeDisabled();
+    await userEvent.click(await screen.findByRole('button', { name: 'remove' }));
+    expect(screen.getByRole('button', { name: 'confirm remove' })).toBeDisabled();
   });
 });

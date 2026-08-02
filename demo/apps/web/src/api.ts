@@ -42,6 +42,7 @@ import {
   staffQuery,
   tenantsQuery,
   todosQuery,
+  verifyBackupCodeMutation,
   verifyTotpMutation,
 } from '#core/client/index.js';
 
@@ -102,6 +103,7 @@ export const actions = {
   signInSocial: signInSocialMutation(authClient),
   enableTwoFactor: enableTwoFactorMutation(authClient),
   verifyTotp: verifyTotpMutation(authClient),
+  verifyBackupCode: verifyBackupCodeMutation(authClient),
   disableTwoFactor: disableTwoFactorMutation(authClient),
   passkeys: passkeysQuery(authClient),
   passkeysInvalidates,

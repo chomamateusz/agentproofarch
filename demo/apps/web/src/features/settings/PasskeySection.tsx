@@ -31,6 +31,7 @@ const errorText = (error: unknown): string =>
 export const PasskeySection = () => {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const passkeys = useQuery(actions.passkeys);
@@ -39,6 +40,7 @@ export const PasskeySection = () => {
     ...actions.registerPasskey,
     onSuccess: async () => {
       setName('');
+      setPassword('');
       await queryClient.invalidateQueries(actions.passkeysInvalidates());
     },
   });
@@ -47,6 +49,7 @@ export const PasskeySection = () => {
     ...actions.removePasskey,
     onSuccess: async () => {
       setConfirmingId(null);
+      setPassword('');
       await queryClient.invalidateQueries(actions.passkeysInvalidates());
     },
   });
@@ -70,11 +73,21 @@ export const PasskeySection = () => {
             placeholder="e.g. MacBook Touch ID"
           />
         </FormControl>
+        <FormControl>
+          <FormLabel htmlFor="passkey-password">account password</FormLabel>
+          <OutlinedInput
+            id="passkey-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+          />
+        </FormControl>
         <Box>
           <Button
             variant="contained"
-            disabled={register.isPending || name.trim().length === 0}
-            onClick={() => register.mutate({ name: name.trim() })}
+            disabled={register.isPending || name.trim().length === 0 || password.length === 0}
+            onClick={() => register.mutate({ name: name.trim(), password })}
           >
             {register.isPending ? 'registering…' : 'register a passkey'}
           </Button>
@@ -95,8 +108,8 @@ export const PasskeySection = () => {
                       size="small"
                       color="error"
                       variant="contained"
-                      disabled={remove.isPending}
-                      onClick={() => remove.mutate({ id: passkey.id })}
+                      disabled={remove.isPending || password.length === 0}
+                      onClick={() => remove.mutate({ id: passkey.id, password })}
                     >
                       confirm remove
                     </Button>

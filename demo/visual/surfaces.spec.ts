@@ -142,7 +142,7 @@ test('StatusView empty inside FocusCard', async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, data: { tenants: [] } }),
+      body: JSON.stringify({ ok: true, data: { tenants: [], canCreateTenant: true } }),
     });
   });
   await submitSignIn(page);

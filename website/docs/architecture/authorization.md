@@ -145,6 +145,11 @@ the tenant-less create path checks the caller's staff grants across the instance
 before applying the ordinary grant table. `closed` is the same default-deny rule
 with an empty grant list, not a special authorization branch. Denial uses the
 existing `forbidden` response and requires no CLI or web-client handling.
+The tenant-list response also returns `canCreateTenant`: `listMyTenants` runs on
+that same tenant-less context and reports the same `decide(..., "tenant:create")`
+verdict the create path enforces — one decision, one layer. Settings
+and tenant-less onboarding render the create form only when this value is true,
+so `staff`, `closed` and member-facing UI cannot advertise a rejected action.
 
 :::caution[The member cell is context-dependent]
 The `member` deny on `tenant:create` is a use-case-layer defense for callers

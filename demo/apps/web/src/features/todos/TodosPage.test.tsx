@@ -17,6 +17,7 @@ const meWithTenant = {
 
 const tenantsBody = {
   tenants: [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, staffRole: 'owner' }],
+  canCreateTenant: true,
 };
 
 const makeTodo = (id: string, title: string) => ({

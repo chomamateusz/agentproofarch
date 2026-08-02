@@ -53,7 +53,6 @@ import {
   runBackfillBatch,
   tenantCreationContext,
   updateMember,
-  type AuthenticatedUser,
   type Ctx,
 } from '#core/server/index.js';
 import { BETTER_AUTH_API_PATH_PATTERN } from '#adapters/auth/create-auth.js';
@@ -71,17 +70,6 @@ type Vars = { Variables: { identity: Identity } };
 // The Better Auth namespace prefix, derived from the one sanctioned pattern so no
 // route string is spelled by hand (lint bans literal auth routes outside adapters).
 const BETTER_AUTH_PATH_PREFIX = BETTER_AUTH_API_PATH_PATTERN.slice(0, -1);
-
-const tenantlessIdentity = (user: AuthenticatedUser): Identity => ({
-  userId: user.userId,
-  email: user.email,
-  name: user.name,
-  tenantId: null,
-  tenantSlug: null,
-  tenantName: null,
-  staffRole: null,
-  memberId: null,
-});
 
 export const buildApp = (deps: AppDeps) => {
   const app = new Hono<Vars>();
@@ -199,8 +187,9 @@ export const buildApp = (deps: AppDeps) => {
   app.get(API_PATHS.tenants, async (c) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
     if (!user) return respond(err(unauthorized()));
-    const result = await listMyTenants(ctxOf(tenantlessIdentity(user)), deps);
-    return respond(result.ok ? ok({ tenants: result.value }) : result);
+    const ctx = await tenantCreationContext(user, deps.tenantCreationMode, deps);
+    const result = await listMyTenants(ctx, deps);
+    return respond(result.ok ? ok(result.value) : result);
   });
 
   app.post(API_PATHS.tenants, async (c) => {

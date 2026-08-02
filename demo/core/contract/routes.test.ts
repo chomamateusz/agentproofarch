@@ -110,6 +110,7 @@ describe('route schemas parse their example payloads', () => {
   it('tenantListOutputSchema', () => {
     const example = {
       tenants: [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, staffRole: 'admin' }],
+      canCreateTenant: true,
     };
     expect(tenantListOutputSchema.parse(example)).toEqual(example);
   });

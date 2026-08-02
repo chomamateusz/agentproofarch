@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { serverEnvSchema } from '#core/server/config.js';
 
-import { selectDomainPort, selectEmailPort, selectGoogleSettings } from './composition.js';
+import {
+  selectDomainPort,
+  selectEmailPort,
+  selectGoogleSettings,
+  tenantOriginSchemes,
+} from './composition.js';
 import type { Env } from './env.js';
 
 // selectDomainPort only — never createDeps here: the full graph constructs a
@@ -98,5 +103,15 @@ describe('selectGoogleSettings', () => {
   it('wires Google when both keys are present', () => {
     const google = selectGoogleSettings(env({ GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' }));
     expect(google).toEqual({ clientId: 'id', clientSecret: 'secret' });
+  });
+});
+
+describe('tenantOriginSchemes', () => {
+  it('trusts https alone on a deployed base domain', () => {
+    expect(tenantOriginSchemes('agentproofarch.dev')).toEqual(['https']);
+  });
+
+  it('keeps the plain-http dev subdomains trusted on localhost', () => {
+    expect(tenantOriginSchemes('localhost')).toEqual(['https', 'http']);
   });
 });

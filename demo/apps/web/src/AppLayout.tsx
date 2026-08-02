@@ -185,6 +185,7 @@ const TenantSwitcher = ({ activeSlug }: { activeSlug: string | null }) => {
 const Onboarding = () => {
   const tenants = useQuery(actions.tenants);
   const signOut = useSignOut();
+  const canCreateTenant = tenants.data?.canCreateTenant === true;
   const tenantLinks =
     tenants.data && tenants.data.tenants.length > 0 ? (
       <Box sx={{ mb: '1.4rem' }}>
@@ -225,9 +226,11 @@ const Onboarding = () => {
         surface={false}
         state={{
           kind: 'empty',
-          title: 'no tenant here yet — create one to get started',
+          title: canCreateTenant
+            ? 'no tenant here yet — create one to get started'
+            : 'no tenant is available on this host',
           body: tenantLinks,
-          action: <CreateTenantForm />,
+          action: canCreateTenant ? <CreateTenantForm /> : undefined,
         }}
       />
     </FocusCard>

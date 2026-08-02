@@ -24,6 +24,14 @@ before that lives in the git history only.
 
 ### Security
 
+- Auth hardening now challenges TOTP-enrolled accounts after password, magic-link,
+  Google and passkey sign-in with TOTP or a backup code; keys auth rate limits to
+  a non-spoofable client address through direct Node and Caddy paths; confines
+  password-reset callbacks to their requesting origin over HTTPS; and requires
+  password-backed sensitive sessions for passkey add/remove, while tenant-creation
+  controls render only when the server capability decision allows them
+  ([#122](https://github.com/chomamateusz/agentproofarch/pull/122))
+
 - `SECURITY.md`: the supported release line (latest minor of the current major,
   no backports), a private reporting channel that is not a public issue, a
   best-effort response stated without an SLA, and a scope split that puts the

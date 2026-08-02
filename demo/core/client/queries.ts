@@ -347,6 +347,12 @@ export const verifyTotpMutation = (auth: AuthClientPort) =>
     call: (input: { code: string }) => auth.verifyTotp(input),
   });
 
+export const verifyBackupCodeMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'two-factor', 'verify-backup'],
+    call: (input: { code: string }) => auth.verifyBackupCode(input),
+  });
+
 export const disableTwoFactorMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'two-factor', 'disable'],
@@ -363,13 +369,13 @@ export const passkeysQuery = (auth: AuthClientPort) =>
 export const registerPasskeyMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...passkeysScopes.all(), 'register'],
-    call: (input: { name: string }) => auth.registerPasskey(input),
+    call: (input: { name: string; password: string }) => auth.registerPasskey(input),
   });
 
 export const removePasskeyMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...passkeysScopes.all(), 'remove'],
-    call: (input: { id: string }) => auth.removePasskey(input),
+    call: (input: { id: string; password: string }) => auth.removePasskey(input),
   });
 
 export const signInPasskeyMutation = (auth: AuthClientPort): MutationDescriptor<AuthSessionResult, void> =>

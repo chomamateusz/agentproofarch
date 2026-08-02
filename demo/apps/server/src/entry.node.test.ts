@@ -94,9 +94,10 @@ describe('entry.node composition', () => {
 
     expect(h.serve).toHaveBeenCalledTimes(1);
     expect(h.serve).toHaveBeenCalledWith(
-      { fetch: h.app.fetch, port: 47100, hostname: '0.0.0.0' },
+      { fetch: expect.any(Function), port: 47100, hostname: '0.0.0.0' },
       expect.any(Function),
     );
+    expect(h.serve.mock.calls[0]?.[0].fetch).not.toBe(h.app.fetch);
     expect(h.buildInternalApp).not.toHaveBeenCalled();
   });
 
