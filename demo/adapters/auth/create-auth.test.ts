@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { createDb } from '#adapters/db/client.js';
+
 import {
+  createAuth,
   isAdditionalTwoFactorPath,
   isSensitivePasskeyPath,
   isSuccessfulPasswordVerification,
@@ -42,6 +45,40 @@ describe('password-reset redirect origin', () => {
   it('rejects malformed and originless requests', () => {
     expect(passwordResetOriginMatches({ redirectTo: 'not-a-url' }, new Headers())).toBe(false);
     expect(passwordResetOriginMatches({}, undefined)).toBe(false);
+  });
+});
+
+describe('the password-reset origin rule on the composed provider', () => {
+  // The origin rule rejects before any query runs, so the lazy pool behind this
+  // connection string never opens a connection.
+  const auth = createAuth(
+    createDb('node-postgres', 'postgresql://user:pass@localhost:5432/agentproofarch_test'),
+    {
+      secret: 'test-secret-value-that-is-at-least-32-chars',
+      baseUrl: 'https://one.example',
+      baseDomain: 'example',
+      rateLimitEnabled: false,
+      trustedProxies: [],
+      trustedOrigins: ['https://one.example', 'https://two.example'],
+      secureCookies: true,
+      email: { sendMail: async () => {} },
+    },
+  );
+
+  const requestReset = (redirectTo: string) =>
+    auth.handler(
+      new Request('https://one.example/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://one.example' },
+        body: JSON.stringify({ email: 'reset@example.com', redirectTo }),
+      }),
+    );
+
+  it('rejects a callback aimed at another otherwise trusted origin', async () => {
+    const response = await requestReset('https://two.example/reset-password');
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'INVALID_PASSWORD_RESET_ORIGIN' });
   });
 });
 
