@@ -41,6 +41,10 @@ before that lives in the git history only.
   instead of predicting a clean score
   ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 
+### Changed
+
+- Completeness-audit status, evidence, ASVS anchors, severity, mechanical inputs, and passkey posture corrected against the shipped implementation (#TBD)
+
 ## v1.2.0 — 2026-08-01
 
 ## 2026-08-01
