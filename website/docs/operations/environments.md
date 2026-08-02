@@ -8,6 +8,8 @@ description: Four environments from one commit, and an owner-only release gate e
 
 *Read this if you need to know how a commit reaches production, and who is allowed to put it there.*
 
+Before you productionize, [classify the application](./risk-classes.md) by who is hurt — and how much — when production is down. The promotion wall described here is the SIL-3 posture; lower classes deliberately trade a different set of repository, hosting, recovery and agent-autonomy choices.
+
 Once agents write most of the code, *who can put code into production* stops being a policy question and becomes an architectural one.
 
 The answer here is a property of the environment, not a rule an agent is asked to remember. The same commit flows feature branch → preview → `main` (staging) → `production`, and only environment variables differ. The single edge that reaches production is a pull request the **owner** alone can approve, from a device the agent does not control. Two GitHub rulesets with empty bypass lists are what make that a wall rather than a wish.

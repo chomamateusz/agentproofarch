@@ -12,6 +12,16 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-08-02
+
+### Added
+
+- Deployment risk classes guide (SIL-0 through SIL-3): one classifying question
+  — who is hurt by an outage, and how much — decides repository visibility and
+  plan, hosting tier, the recoverability requirements that replace a merge wall
+  where none can be enforced, and whether an agent may deploy production on its
+  own ([#119](https://github.com/chomamateusz/agentproofarch/pull/119))
+
 ## v1.2.0 — 2026-08-01
 
 ## 2026-08-01
