@@ -26,7 +26,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   ai-review:
@@ -35,6 +34,11 @@ jobs:
     # and the gate exits RED — fail-closed, never green-by-skip.
     if: github.repository == 'chomamateusz/agentproofarch' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    # Job-level blocks replace the top level rather than merging with it, so
+    # `contents: read` is restated beside the write the verdict comment needs.
+    permissions:
+      contents: read
+      pull-requests: write
     # Bounds the known `--json-schema` CLI-hang failure mode (claude-code#27926);
     # a timeout is a RED could-not-run, never a silent pass.
     timeout-minutes: ${{ fromJSON(vars.AI_REVIEW_TIMEOUT_MINUTES || '15') }}

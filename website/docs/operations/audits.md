@@ -89,10 +89,19 @@ become a gate as written — see
   checks name in a shared vocabulary what `ci-security` already greps for by
   hand — `Token-Permissions`, `Pinned-Dependencies`, `Dangerous-Workflow`,
   `Branch-Protection`. Several checks are *expected* to score badly here
-  (`Security-Policy`, `Dependency-Update-Tool`, `SAST`), and the spec records
-  why each divergence is deliberate: an update bot has to respect the
-  three-day `minimumReleaseAge` cooldown before it is an improvement, and a
-  score is not a reason to change doctrine.
+  (`Dependency-Update-Tool`, `SAST`), and the spec records why each divergence
+  is deliberate: an update bot has to respect the three-day
+  `minimumReleaseAge` cooldown before it is an improvement, and a score is not
+  a reason to change doctrine. The first run's mechanical findings were fixed
+  as findings, not as score: a
+  [security policy](https://github.com/chomamateusz/agentproofarch/blob/main/SECURITY.md)
+  now exists, the last two workflow-level write tokens moved onto the single
+  job that needs each (`visual-baselines`' baseline push and `ai-review`'s
+  verdict comment), and the self-host image's base layers are pinned by digest.
+  `Token-Permissions` still does not reach 10: seven jobs hold a job-scoped
+  write they cannot function without, from tag creation to the SARIF upload
+  this very check arrives through — which the spec enumerates rather than
+  hides.
 - **`lhci.yml`** runs Lighthouse CI over the built documentation site with
   every assertion at `warn`. It measures this site, not the application — the
   application's authenticated routes have no performance number attached to

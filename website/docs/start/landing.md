@@ -32,6 +32,11 @@ implementation of both.
 A free, open project — [MIT licensed](https://github.com/chomamateusz/agentproofarch/blob/main/LICENSE) —
 by **Mateusz Choma**, developed privately in collaboration with
 **[CodeRoad.pl](https://coderoad.pl)** and **[AmazingDesign.eu](https://amazingdesign.eu)**.
+Found a vulnerability? The
+[security policy](https://github.com/chomamateusz/agentproofarch/blob/main/SECURITY.md)
+states the private channel, the supported release line, and the honest
+best-effort response a solo maintainer can promise — the public demo
+deployment is a playground and deliberately out of its scope.
 
 ## What problem does it solve 🎯 \{#what-problem-does-it-solve}
 

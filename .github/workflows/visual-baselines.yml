@@ -22,12 +22,16 @@ on:
         required: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   visual-baselines:
     if: github.repository == 'chomamateusz/agentproofarch'
     runs-on: ubuntu-latest
+    # Only the `commit: true` push needs write. Declaring it here rather than at
+    # the top level keeps any job added later on the read-only default.
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: demo

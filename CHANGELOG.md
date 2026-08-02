@@ -22,6 +22,25 @@ before that lives in the git history only.
   where none can be enforced, and whether an agent may deploy production on its
   own ([#119](https://github.com/chomamateusz/agentproofarch/pull/119))
 
+### Security
+
+- `SECURITY.md`: the supported release line (latest minor of the current major,
+  no backports), a private reporting channel that is not a public issue, a
+  best-effort response stated without an SLA, and a scope split that puts the
+  public demo deployment and its published credentials out of bounds while the
+  foundation code stays in
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
+
+- First OpenSSF Scorecard run, mechanical findings only: the two remaining
+  workflow-level write tokens moved onto the single job that needs each
+  (`visual-baselines`' baseline push, `ai-review`'s verdict comment), so every
+  workflow top level is now read-only, and `demo/Dockerfile` pins its three
+  `node:24-bookworm`(`-slim`) base layers by digest beside the tag.
+  `Token-Permissions` still cannot reach 10 — seven jobs hold a job-scoped
+  write their work requires — which `docs/audits/ci-security.md` now enumerates
+  instead of predicting a clean score
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
+
 ## v1.2.0 — 2026-08-01
 
 ## 2026-08-01

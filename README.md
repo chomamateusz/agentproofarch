@@ -79,4 +79,9 @@ and [demo/README.md](demo/README.md).
 | [`demo/`](demo/) | The entire implementation: multi-tenant walking skeleton with auth (password change, magic link, TOTP, passkeys), tenant subdomains + custom domains, themed web SPA, full CLI, self-host Docker stack, and the gates that defend it all — see [demo/README.md](demo/README.md) |
 | [`website/`](website/) | The Docusaurus documentation site, deployed to GitHub Pages on every merge to `main` |
 
+At the root beside them: [`LICENSE`](LICENSE) (MIT),
+[`CHANGELOG.md`](CHANGELOG.md) and [`SECURITY.md`](SECURITY.md) — how to report
+a vulnerability privately, which release line is supported, and why the public
+demo deployment is explicitly out of scope while the foundation code is not.
+
 Changing the architecture means changing [`docs/`](docs/) first, then the code.
