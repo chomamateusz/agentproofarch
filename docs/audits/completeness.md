@@ -22,9 +22,13 @@ checklist, and **NIST SP 800-63B-4** (*Authentication and Authenticator
 Management*, final July 2025) for the identity half. Findings cite ASVS
 requirement IDs in the `v5.0.0-<chapter>.<section>.<requirement>` form, so a
 gap points at a published requirement instead of at an opinion. The chapters
-this audit draws on are **V6 Authentication** (§6.2 password lifecycle, §6.4
-Authentication Factor Lifecycle and Recovery) and **V7 Session Management**
-(§7.4 Session Termination, §7.5 Defenses Against Session Abuse).
+this audit draws on are **V6 Authentication** (§6.1 Authentication
+Documentation, §6.2 Password Security, §6.3 General Authentication Security,
+§6.4 Authentication Factor Lifecycle and Recovery, §6.5 General Multi-factor
+Authentication Requirements, §6.8 Authentication with an Identity Provider)
+and **V7 Session Management** (§7.1 Session Management Documentation, §7.2
+Fundamental Session Management Security, §7.3 Session Timeout, §7.4 Session
+Termination, §7.5 Defenses Against Session Abuse).
 
 **What is claimed, and what is not.** The target is an **ASVS-derived L2
 profile**, never "ASVS L2 conformance". Full L2 mandates multi-factor
@@ -102,15 +106,19 @@ Two in-repo references, checked independently against the anchor above:
 
 ## Automatable checks
 
-**None.** ASVS ships requirements, not a test suite, and no tool decides
-whether a capability a product needs is absent from every document describing
-it — that judgment is the whole audit. Two mechanical inputs feed it without
-deciding anything:
+**No tool decides this audit.** ASVS ships requirements, not a test suite, and
+no tool decides whether a capability a product needs is absent from every
+document describing it — that judgment is the whole audit. The following
+mechanical inputs can feed it without deciding anything. The first two exist;
+the last two are mechanically checkable with the existing
+`demo/config-regression/` harness but are not wired as probes yet:
 
-| Input | What it gives | What it does not give |
-|---|---|---|
-| better-auth's own plugin route table | The list of sub-paths the blanket mount exposes, which grep over this repo's router cannot produce | Whether a reachable route is surfaced, tested, or safe |
-| `pnpm run check`'s doc-lint | Env vars and enforcer config agreeing with the docs | Anything about capabilities no doc mentions |
+| Input | Status | What it gives | What it does not give |
+|---|---|---|---|
+| better-auth's own plugin route table | existing | The list of sub-paths the blanket mount exposes, which grep over this repo's router cannot produce | Whether a reachable route is surfaced, tested, or safe |
+| `pnpm run check`'s doc-lint | existing | Env vars and enforcer config agreeing with the docs | Anything about capabilities no doc mentions |
+| Rate-limit IP-attribution config probe | mechanically available, not wired | Whether `advanced.ipAddress.trustedProxies` is configured whenever `AUTH_RATE_LIMIT` is on | Whether the chosen trust boundary is correct for every deployed proxy topology |
+| Auth-plugin allow-list probe | mechanically available, not wired | Whether the plugin list in `create-auth.ts` matches a reviewed allow-list | Whether each allowed provider route is surfaced, tested, or safe |
 
 A run that reports only what a tool printed has not run this audit.
 
@@ -158,19 +166,19 @@ security verification, and the checklist owns it alone.
 
 | # | Capability | Standard | Status | Evidence | Severity |
 |---|---|---|---|---|---|
-| 1 | Password change | `v5.0.0-6.2.2`, `v5.0.0-6.2.3` (L1) | PARTIAL (provider-only) | `/api/auth/change-password` reachable via the blanket better-auth mount (`apps/server/src/app.ts`); no port, UI, CLI, test or docs coverage. | table-stakes |
-| 2 | Forgot password | `v5.0.0-6.4.3` (L2) | MISSING | Endpoint mounted but refuses — `sendResetPassword` unset in the auth config. `EmailPort` exists and is ready to carry the reset email. | table-stakes |
+| 1 | Password change | `v5.0.0-6.2.2`, `v5.0.0-6.2.3` (L1) | SHIPPED | Port `demo/core/client/auth-port.ts:85`; web `demo/apps/web/src/features/settings/PasswordSection.tsx:26-105`; CLI `demo/apps/cli/src/main.ts:272-296`; adapters `demo/adapters/auth/client-adapter.ts:153-157,261-264`; tests `PasswordSection.test.tsx:10-56`, `main.test.ts:871-909`; docs `website/docs/guides/cli-reference.md:128-156`. | table-stakes — met |
+| 2 | Forgot password | `v5.0.0-6.4.3` (L2) | SHIPPED | `sendResetPassword` is wired at `demo/adapters/auth/create-auth.ts:58-65`, with an explicit one-hour TTL (`:42,52`) and other-session revocation (`:55`); `ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx`, CLI request coverage at `demo/apps/cli/src/main.ts:299-321`, and `demo/e2e/password-reset.spec.ts` complete the flow. | table-stakes — met |
 | 3 | Email change + re-verify | `v5.0.0-7.5.1` (L2) | MISSING | Gated behind `user.changeEmail.enabled`, never set. `members.email` is a provider-decoupled snapshot with no refresh path of its own (see `docs/provider-coupling-audit.md`) — shipping email-change without also wiring that sync would silently desync it. | table-stakes |
-| 4 | Email verification at signup | ASVS V6.4 (factor lifecycle) | MISSING | Verification flag never set/read despite US-007's AC and FR-25 both demanding it; `AuthenticatedUser` ships as `{userId, email, name}` with no `emailVerified` read path, though the column exists. With ADR-0010's default `TENANT_CREATION=open`, an unverified throwaway email can become a tenant owner. | table-stakes |
+| 4 | Email verification at signup | ASVS V6.4 lifecycle; also `v5.0.0-6.3.4`, `v5.0.0-6.8.1` (L2) | MISSING — breaks a shipped feature | `emailVerified` exists only as a column (`demo/adapters/db/auth-schema.ts:16`) and is never written or read; `create-auth.ts:50-66` sets neither `sendVerificationEmail` nor `requireEmailVerification`. US-026 then binds a pre-provisioned member by email alone (`demo/core/server/usecases/bind-member.ts:34-37`), permitting unauthorized entry into an existing tenant. | **P1 — breaks a shipped feature** |
 | 5 | Account deletion / export (GDPR) | — | MISSING / PARTIAL | `delete-user` disabled despite PRD §3.4 naming it; tenant-side export is single-member JSON only, with no bulk/CSV path across a tenant's members. | table-stakes |
-| 6 | Session list + revoke | `v5.0.0-7.4.3` (L2) | PARTIAL (provider-only) | `/list-sessions`, `/revoke-session(s)` mounted and reachable, unsurfaced anywhere in UI/CLI. No "sign out everywhere" flow, which capability #1 (password change) needs to be trustworthy. | table-stakes |
+| 6 | Session list + revoke | `v5.0.0-7.4.3`, `v5.0.0-7.4.5`, `v5.0.0-7.5.2` (L2) | PARTIAL (provider-only) | `/list-sessions`, `/revoke-session(s)` are mounted and reachable but remain unsurfaced in port/UI/CLI. Sign-out-everywhere now ships as an option on password change (`PasswordSection.tsx:82-90`) and unconditionally on reset (`create-auth.ts:55`); the remaining gaps are user viewing/selective revocation (7.5.2) and administrator revocation (7.4.5). | table-stakes |
 | 7 | Profile name / avatar | `v5.0.0-7.5.1` (L2, recovery-relevant attributes only) | MISSING | `user.image` and `update-user` exist in the auth config, unused; `/api/me` returns no image field; display name has no edit path anywhere in the app. | name: table-stakes; avatar: nice-to-have |
 | 8 | Member removal / role change | — (authorization parity lives in [`consistency.md`](consistency.md)) | PARTIAL | Staff revoke ships (with a last-owner guard and a confirmation dialog). Role change is absent — `grantAdmin` is a deliberate no-op on an existing grant, so there is no promote/demote path and no ownership transfer. | table-stakes |
 | 9 | Tenant rename / delete | — | MISSING | The capability registry (`demo/core/domain/authorization.ts`) defines 14 capabilities, none of them `tenant:rename` or `tenant:delete`; tenants are immutable and undeletable once created. | table-stakes |
-| 10 | Invite resend / revoke | — | MISSING (deliberate, but contradicted) | No invitation concept exists at all; declared out of scope by FR-8/§6 while US-013/US-018 both demand it — see the PRD-internal contradiction noted above. | table-stakes / conscious-defer once adjudicated |
+| 10 | Invite resend / revoke | — | MISSING (deliberate, adjudicated) | No invitation concept exists. The PRD errata wins over conflicting body text (`docs/prd-agentproofarch-foundation.md:8-14`) and declares the organization/invitation wording legacy (`:36-44`); FR-8 and §6 keep staff invitation flows post-MVP. | conscious-defer |
 | 11 | Audit log of auth events | — | MISSING (declared) | Explicitly named OUT OF SCOPE in `docs/architecture.md` with a stated trigger ("a specific compliance or contractual requirement") — this is the register working as intended, not a completeness gap. | nice-to-have / enterprise table-stakes |
-| 12 | Login notification emails | — | MISSING (unregistered) | Not mentioned in PRD, architecture, or backlog — genuinely un-noticed rather than deferred. | nice-to-have |
-| 13 | Lockout / rate limits | ASVS V6 (throttling) + SP 800-63B-4 rate limiting | PARTIAL — mostly present | DB-backed rate limiting is on by default; per-route limits exist for sign-in, sign-up, change-password and change-email, and a looser window on reset paths. Missing: per-account lockout (current limiting is IP-only, so distributed credential stuffing is unaffected), and no limiting on the app's own `/api/*` surface beyond the auth routes. | throttling exists; account-lockout gap is table-stakes |
+| 12 | Login notification emails | `v5.0.0-6.3.5`, `v5.0.0-6.3.7` (L3) | MISSING (unregistered) | Not mentioned in PRD, architecture, or backlog — genuinely un-noticed rather than deferred. | nice-to-have |
+| 13 | Lockout / rate limits | `v5.0.0-6.3.1`, `v5.0.0-6.1.1` (L1) + SP 800-63B-4 rate limiting | FAIL | The repo configures only `{ enabled, storage: 'database' }` (`demo/adapters/auth/create-auth.ts:72`); the per-route windows are Better Auth's built-in `getDefaultSpecialRules()` (`rate-limiter/index.mjs:370-383`), not repo configuration. With no `advanced.ipAddress.trustedProxies` config (`create-auth.ts:91-98`), the limiter does not hold in the shipped self-host topology; per-account lockout also remains absent. | **P1 — the control does not hold in the shipped topology** |
 | 14 | Terms / privacy surfaces | — | MISSING | No terms/privacy pages, no signup consent checkbox; the footer carries only a build stamp. `members.marketingConsents` exists as a column and is never written to. | table-stakes |
 | 15 | 2FA sign-in challenge | SP 800-63B-4 AAL2 | MISSING — breaks a shipped feature | TOTP enrolment ships; the sign-in-time challenge does not, so the client adapter treats `twoFactorRedirect` as a successful login and the login page navigates straight to `/app`, producing a bounce loop for any user who enrolled. No backup-code path, no way to disable 2FA without an active session. The repo's own two-factor integration test documents this wall. | **P1 — regression, not just a gap** |
 
@@ -185,7 +193,9 @@ to the auth config should be treated as shipping a new public surface by
 default, and audited as one.
 
 **Level note, not a finding:** once row 15 ships, password + TOTP is two
-distinct factors and satisfies AAL2, but it is not phishing-resistant.
-Record that as a level statement in the audit report — the absence of a
-phishing-resistant option is a posture the owner chose, not a gap the
-checklist found.
+distinct factors and satisfies AAL2, but that combination is not
+phishing-resistant. A phishing-resistant option does ship: the passkey plugin
+(`create-auth.ts:89`), management UI (`PasskeySection.tsx`) and port
+implementation (`client-adapter.ts:185-197`) are wired, including passkey sign-in.
+Nothing requires users to choose it, so the posture gap is enforcement, not the
+absence of an option.
