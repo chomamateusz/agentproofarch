@@ -20,7 +20,7 @@ before that lives in the git history only.
   — who is hurt by an outage, and how much — decides repository visibility and
   plan, hosting tier, the recoverability requirements that replace a merge wall
   where none can be enforced, and whether an agent may deploy production on its
-  own (#TBD)
+  own ([#119](https://github.com/chomamateusz/agentproofarch/pull/119))
 
 ## v1.2.0 — 2026-08-01
 
