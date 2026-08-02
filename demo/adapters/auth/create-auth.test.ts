@@ -5,7 +5,6 @@ import { createDb } from '#adapters/db/client.js';
 import {
   createAuth,
   isAdditionalTwoFactorPath,
-  isSensitivePasskeyPath,
   isSuccessfulPasswordVerification,
   passwordResetOriginMatches,
 } from './create-auth.js';
@@ -83,18 +82,6 @@ describe('the password-reset origin rule on the composed provider', () => {
 });
 
 describe('sensitive passkey management', () => {
-  it.each([
-    '/passkey/generate-register-options',
-    '/passkey/verify-registration',
-    '/passkey/delete-passkey',
-  ])('protects %s', (path) => {
-    expect(isSensitivePasskeyPath(path)).toBe(true);
-  });
-
-  it('does not turn passkey sign-in into an authenticated management operation', () => {
-    expect(isSensitivePasskeyPath('/passkey/verify-authentication')).toBe(false);
-  });
-
   it('issues re-authentication proof only for successful password verification', () => {
     expect(isSuccessfulPasswordVerification({ status: true })).toBe(true);
     expect(isSuccessfulPasswordVerification({ status: false })).toBe(false);

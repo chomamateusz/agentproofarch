@@ -89,15 +89,6 @@ const tenantScopedPasswordReset = () => ({
   },
 });
 
-const sensitivePasskeyPaths = new Set([
-  '/passkey/generate-register-options',
-  '/passkey/verify-registration',
-  '/passkey/delete-passkey',
-]);
-
-export const isSensitivePasskeyPath = (path: string | undefined): boolean =>
-  path !== undefined && sensitivePasskeyPaths.has(path);
-
 export const isSuccessfulPasswordVerification = (result: unknown): boolean =>
   z.object({ status: z.literal(true) }).safeParse(result).success;
 

@@ -258,7 +258,9 @@ testable** — it gets verified live on the first custom base-domain deployment.
   at composition time, alongside the app base URL and the deployment's own
   Vercel URLs (so previews and staging authenticate on their generated hosts
   without per-branch env vars). Tenant wildcard and verified custom-domain
-  origins are HTTPS-only. A password-reset callback is narrower still: its
+  origins are HTTPS-only, except on the `localhost` base domain, where the
+  documented dev host (`acme.localhost:47100`) and the caddy-fronted plain-http
+  demo have no TLS to be trusted over. A password-reset callback is narrower still: its
   origin must equal the origin that requested the reset, so another tenant's
   otherwise trusted domain cannot receive the token.
 - Cookie hardening: `HttpOnly` + `SameSite=Lax` by default, `Secure` driven by

@@ -139,6 +139,16 @@ export const selectEmailPort = (env: Env): EmailPort => {
   });
 };
 
+/**
+ * Tenant subdomains and verified custom domains are trusted over https alone.
+ * `localhost` is the exception the dev flow needs: browsers reject `Secure`
+ * cookies there anyway, so `acme.localhost:47100` and the caddy-fronted
+ * plain-http demo are served without TLS and their Origin must still pass the
+ * provider's CSRF check.
+ */
+export const tenantOriginSchemes = (baseDomain: string): readonly string[] =>
+  baseDomain === 'localhost' ? ['https', 'http'] : ['https'];
+
 /** Google is wired only when BOTH keys are present (FR-26), else it stays dormant. */
 export const selectGoogleSettings = (env: Env): GoogleSettings | undefined =>
   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
@@ -152,15 +162,18 @@ export const createDeps = (env: Env): AppDeps => {
   const email = selectEmailPort(env);
   const google = selectGoogleSettings(env);
 
+  const schemes = tenantOriginSchemes(env.APP_BASE_DOMAIN);
   const baseTrustedOrigins = [
     env.APP_BASE_URL,
     // The deployment's own origin: previews and staging serve the SPA from
     // their generated Vercel URL, so auth POSTs arrive with that Origin.
     ...(env.VERCEL_URL ? [`https://${env.VERCEL_URL}`] : []),
     ...(env.VERCEL_BRANCH_URL ? [`https://${env.VERCEL_BRANCH_URL}`] : []),
-    `https://*.${env.APP_BASE_DOMAIN}`,
-    // Wildcard entries above don't match origins carrying an explicit port.
-    `https://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
+    ...schemes.flatMap((scheme) => [
+      `${scheme}://*.${env.APP_BASE_DOMAIN}`,
+      // Wildcard entries don't match origins carrying an explicit port.
+      `${scheme}://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
+    ]),
   ];
 
   const auth = createAuth(db, {
@@ -176,7 +189,7 @@ export const createDeps = (env: Env): AppDeps => {
       const domains = await tenantDomains.listVerifiedDomains();
       return [
         ...baseTrustedOrigins,
-        ...domains.map((domain) => `https://${domain.domain}`),
+        ...domains.flatMap((domain) => schemes.map((scheme) => `${scheme}://${domain.domain}`)),
       ];
     },
   });

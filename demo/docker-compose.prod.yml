@@ -87,8 +87,11 @@ volumes:
   caddy_data:
   caddy_config:
 
+# `ip_range` keeps automatic assignment (postgres, and anything added later) in
+# the upper half, so it can never claim an address pinned below it.
 networks:
   default:
     ipam:
       config:
         - subnet: 10.247.0.0/24
+          ip_range: 10.247.0.128/25

@@ -751,9 +751,11 @@ identity, an owner or admin also arrives as a visitor there, so `staff` is only
 distinguishable from `closed` once the create path derives the principal from the
 caller's staff grants **across the instance** (`listTenantsForStaff`, the read
 behind `listMyTenants`) rather than from a resolved tenant.
-The tenant-list response carries `canCreateTenant`, computed from that same
-tenant-less context and `decide(..., "tenant:create")`; both settings and
-tenant-less onboarding render `CreateTenantForm` only when it is true.
+`listMyTenants` runs on that same tenant-less creation context and returns
+`canCreateTenant` beside the memberships — the `decide(..., "tenant:create")`
+verdict reported, not enforced, so the decision stays in the use-case layer and
+the route keeps calling one use-case. Both settings and tenant-less onboarding
+render `CreateTenantForm` only when it is true.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
@@ -1313,7 +1315,9 @@ magic-link verification, social callback/token sign-in and passkey authenticatio
 — enters the same TOTP challenge. A pending challenge is not a session: clients
 retain the login surface until `verifyTotp` or `verifyBackupCode` succeeds.
 Password-reset callbacks must have the same origin as the request that created
-them; tenant wildcards and verified custom domains are HTTPS-only. Passkey
+them; tenant wildcards and verified custom domains are HTTPS-only on every base
+domain but `localhost`, where the dev and plain-http demo hosts carry no TLS to
+be trusted over. Passkey
 registration and deletion first verify the account password, mint a five-minute
 signed proof, and require both that proof and `sensitiveSessionMiddleware` on the
 provider endpoints.
