@@ -61,12 +61,18 @@ what you find there, and rate-limit or capacity findings against that instance
 are not vulnerabilities. Findings in the platforms underneath it (GitHub,
 Vercel, Neon) belong to those vendors, not here.
 
-Residual weaknesses already recorded in the open — the account-enumeration
-posture (R2-31: registration and login reveal account existence through Better
-Auth defaults), TOTP enrolment without a sign-in challenge, and the rest of
-[`docs/backlog.md`](docs/backlog.md) §Security & compliance — are known and
-deferred against a written trigger: the first external security review.
-Reporting one is useful only if you can show it is worse than the note claims.
+Two kinds of weakness are already on the record, and they are on it for
+different reasons. **Deferred** ones sit in
+[`docs/backlog.md`](docs/backlog.md) §Security & compliance against a written
+trigger — the first external security review or the first enterprise
+questionnaire — and include the account-enumeration posture (R2-31:
+registration and login reveal account existence through Better Auth defaults).
+**Open findings** are not deferred at all: the missing 2FA sign-in challenge is
+carried by [`docs/audits/completeness.md`](docs/audits/completeness.md) (row
+15) as a **P1** — TOTP enrolment ships, the sign-in-time challenge does not, so
+an enrolled user meets a login bounce loop and there is no backup-code path.
+Either way the record exists, so a report is only useful if it shows the
+problem is worse than the record admits.
 
 ## How this repository audits itself
 
