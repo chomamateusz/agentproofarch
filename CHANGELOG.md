@@ -31,13 +31,14 @@ before that lives in the git history only.
   foundation code stays in
   ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 
-- First OpenSSF Scorecard run, mechanical findings only: `visual-baselines`
-  moved its `contents: write` off the workflow top level onto the single job
-  that pushes, and `demo/Dockerfile` pins its three `node:24-bookworm`(`-slim`)
-  base layers by digest beside the tag. `Token-Permissions` still cannot reach
-  10 — `tag-release`, `approve-visuals` and `ci`'s `visual-report` hold
-  job-scoped write tokens their work requires — which
-  `docs/audits/ci-security.md` now states instead of predicting a clean score
+- First OpenSSF Scorecard run, mechanical findings only: the two remaining
+  workflow-level write tokens moved onto the single job that needs each
+  (`visual-baselines`' baseline push, `ai-review`'s verdict comment), so every
+  workflow top level is now read-only, and `demo/Dockerfile` pins its three
+  `node:24-bookworm`(`-slim`) base layers by digest beside the tag.
+  `Token-Permissions` still cannot reach 10 — six jobs hold a job-scoped write
+  their work requires — which `docs/audits/ci-security.md` now enumerates
+  instead of predicting a clean score
   ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 
 ## v1.2.0 — 2026-08-01
