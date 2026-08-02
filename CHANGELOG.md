@@ -36,8 +36,8 @@ before that lives in the git history only.
   (`visual-baselines`' baseline push, `ai-review`'s verdict comment), so every
   workflow top level is now read-only, and `demo/Dockerfile` pins its three
   `node:24-bookworm`(`-slim`) base layers by digest beside the tag.
-  `Token-Permissions` still cannot reach 10 — six jobs hold a job-scoped write
-  their work requires — which `docs/audits/ci-security.md` now enumerates
+  `Token-Permissions` still cannot reach 10 — seven jobs hold a job-scoped
+  write their work requires — which `docs/audits/ci-security.md` now enumerates
   instead of predicting a clean score
   ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
 

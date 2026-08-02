@@ -98,9 +98,10 @@ become a gate as written — see
   now exists, the last two workflow-level write tokens moved onto the single
   job that needs each (`visual-baselines`' baseline push and `ai-review`'s
   verdict comment), and the self-host image's base layers are pinned by digest.
-  `Token-Permissions` still does not reach 10: six jobs hold a job-scoped write
-  they cannot function without, from tag creation to the SARIF upload this very
-  check arrives through — which the spec enumerates rather than hides.
+  `Token-Permissions` still does not reach 10: seven jobs hold a job-scoped
+  write they cannot function without, from tag creation to the SARIF upload
+  this very check arrives through — which the spec enumerates rather than
+  hides.
 - **`lhci.yml`** runs Lighthouse CI over the built documentation site with
   every assertion at `warn`. It measures this site, not the application — the
   application's authenticated routes have no performance number attached to
