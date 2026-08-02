@@ -62,12 +62,11 @@ are not vulnerabilities. Findings in the platforms underneath it (GitHub,
 Vercel, Neon) belong to those vendors, not here.
 
 Residual weaknesses already recorded in the open — the account-enumeration
-posture in
-[ADR-0002](docs/decisions/0002-member-identity-and-idp.md), TOTP enrolment
-without a sign-in challenge, and the items in
-[docs/backlog.md](docs/backlog.md) — are known and deferred with their triggers
-written down. Reporting one is useful only if you can show it is worse than the
-note claims.
+posture (R2-31: registration and login reveal account existence through Better
+Auth defaults), TOTP enrolment without a sign-in challenge, and the rest of
+[`docs/backlog.md`](docs/backlog.md) §Security & compliance — are known and
+deferred against a written trigger: the first external security review.
+Reporting one is useful only if you can show it is worse than the note claims.
 
 ## How this repository audits itself
 
