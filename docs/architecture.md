@@ -1913,12 +1913,16 @@ live smoke assertion.
   `AUTH_RATE_LIMIT=off` to disable it locally. It does not protect mutation
   routes, which is why those stay gated by auth + tenant scope.
   Client-IP resolution is part of this invariant: an enabled limiter refuses to
-  compose without `advanced.ipAddress.trustedProxies`. Self-host pins Caddy to
-  `10.247.0.3`, Caddy overwrites `X-Forwarded-For` with its socket peer, and the
-  Node entry overwrites that header from the socket on direct connections while
-  preserving it only from the exact Caddy address. Thus neither a supplied XFF
-  value nor an absent proxy can collapse or escape the per-client bucket in the
-  documented topology.
+  compose without `advanced.ipAddress.trustedProxies`, because a non-empty list
+  is what makes the provider read `X-Forwarded-For` **from the right** — the hop
+  the nearest proxy wrote — instead of accepting a header a client supplied. Each
+  deployment path closes the remaining gap differently. Self-host pins Caddy to
+  `10.247.0.3`, which overwrites the header with its socket peer and is the one
+  hop the chain skips. A direct Node connection has no proxy at all, so the entry
+  overwrites the header from the socket, preserving a forwarded value only from
+  the exact Caddy address. On the platform entry the edge writes the last hop and
+  no address of ours can appear in the chain, so the same right-to-left rule
+  keeps that hop — nothing there rewrites the header, and nothing needs to.
 - **Request body limits.** Mount Hono's `bodyLimit` on mutation routes (JSON
   payloads are small — a ~64–100KB cap is a cheap DoS floor); Vercel's 4.5MB
   serverless cap is a backstop, not policy.
