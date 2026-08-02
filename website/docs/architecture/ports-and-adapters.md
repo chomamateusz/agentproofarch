@@ -88,7 +88,7 @@ returns `not_found` for an unknown email).
 | Port | Shape | Adapters | Selected by |
 |---|---|---|---|
 | `AuthPort` (server) | `getAuthenticatedUser(requestHeaders) → AuthenticatedUser` or `null` | `adapters/auth/create-auth.ts` (Better Auth) | — |
-| `AuthClientPort` (client) | `signUp`, `signIn`, `signOut`, `changePassword`, `requestMagicLink`, `signInSocial`, `enableTwoFactor`, `verifyTotp`, `disableTwoFactor`, `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | `adapters/auth/client-adapter.ts` (Better Auth client + magic-link, two-factor and passkey plugins) | — |
+| `AuthClientPort` (client) | `signUp`, `signIn`, `signOut`, `changePassword`, `requestMagicLink`, `signInSocial`, `enableTwoFactor`, `verifyTotp`, `verifyBackupCode`, `disableTwoFactor`, `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | `adapters/auth/client-adapter.ts` (Better Auth client + magic-link, two-factor and passkey plugins) | — |
 | `EmailPort` | `sendMail({ to, subject, text, html?, link? })` | `adapters/email/smtp.ts` (nodemailer), `adapters/email/ses.ts` (SESv2 HTTP API) | `EMAIL_TRANSPORT` |
 | `DomainPort` | `provision(domain)`, `check(domain) → DomainCheck`, `remove(domain)` | `adapters/domain-provisioning/vercel.ts`, `.../caddy.ts`, `.../noop.ts` | `DOMAIN_PROVISIONER` |
 | `HealthPort` | `pingDatabase() → boolean` | `adapters/db/repositories.ts` | — |

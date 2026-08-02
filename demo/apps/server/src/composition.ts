@@ -37,6 +37,7 @@ import type {
 } from '#core/server/index.js';
 
 import type { Env } from './env.js';
+import { AUTH_TRUSTED_PROXIES } from './auth-network.js';
 
 export interface AppDeps {
   auth: Auth;
@@ -157,10 +158,8 @@ export const createDeps = (env: Env): AppDeps => {
     // their generated Vercel URL, so auth POSTs arrive with that Origin.
     ...(env.VERCEL_URL ? [`https://${env.VERCEL_URL}`] : []),
     ...(env.VERCEL_BRANCH_URL ? [`https://${env.VERCEL_BRANCH_URL}`] : []),
-    `http://*.${env.APP_BASE_DOMAIN}`,
     `https://*.${env.APP_BASE_DOMAIN}`,
     // Wildcard entries above don't match origins carrying an explicit port.
-    `http://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
     `https://*.${env.APP_BASE_DOMAIN}:${env.PORT}`,
   ];
 
@@ -170,6 +169,7 @@ export const createDeps = (env: Env): AppDeps => {
     baseDomain: env.APP_BASE_DOMAIN,
     secureCookies: env.SECURE_COOKIES,
     rateLimitEnabled: env.AUTH_RATE_LIMIT,
+    trustedProxies: AUTH_TRUSTED_PROXIES,
     email,
     ...(google ? { google } : {}),
     trustedOrigins: async () => {
@@ -177,7 +177,6 @@ export const createDeps = (env: Env): AppDeps => {
       return [
         ...baseTrustedOrigins,
         ...domains.map((domain) => `https://${domain.domain}`),
-        ...domains.map((domain) => `http://${domain.domain}`),
       ];
     },
   });

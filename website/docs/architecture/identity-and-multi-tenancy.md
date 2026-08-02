@@ -257,7 +257,10 @@ testable** — it gets verified live on the first custom base-domain deployment.
 - `trustedOrigins` is resolved **dynamically** against verified `tenant_domains`
   at composition time, alongside the app base URL and the deployment's own
   Vercel URLs (so previews and staging authenticate on their generated hosts
-  without per-branch env vars).
+  without per-branch env vars). Tenant wildcard and verified custom-domain
+  origins are HTTPS-only. A password-reset callback is narrower still: its
+  origin must equal the origin that requested the reset, so another tenant's
+  otherwise trusted domain cannot receive the token.
 - Cookie hardening: `HttpOnly` + `SameSite=Lax` by default, `Secure` driven by
   `SECURE_COOKIES` (required outside local dev — the env schema **refuses to
   boot** without it once deployed).
@@ -272,10 +275,10 @@ names a provider route or SDK, and dependency-cruiser proves it
 |---|---|---|
 | Email + password | `signUp`, `signIn`, `signOut`, `changePassword` | built; password change is available in web settings and through `account change-password` in the CLI |
 | Magic link | `requestMagicLink` | built (US-026) — sent through `EmailPort` |
-| Password reset | `requestPasswordReset`, `resetPassword` | built — the request is sent through the same `EmailPort`; the emailed callback validates the token and redirects to the app's `/reset-password` form, which posts the new password against the registration policy. The token expires in an hour and is consumed on use. A completed reset **revokes every other session** (`revokeSessionsOnPasswordReset`, off by default) — a reset is what someone does after losing control of the account, so sessions opened with the old password must not survive it. The request answers **identically for an address with an account and one without**, so the always-success wording on the form is what the provider actually does, not a UI pretence |
+| Password reset | `requestPasswordReset`, `resetPassword` | built — the request is sent through the same `EmailPort`; the emailed callback validates the token and redirects only to the requesting origin's `/reset-password` form, which posts the new password against the registration policy. The token expires in an hour and is consumed on use. A completed reset **revokes every other session** (`revokeSessionsOnPasswordReset`, off by default) — a reset is what someone does after losing control of the account, so sessions opened with the old password must not survive it. The request answers **identically for an address with an account and one without**, so the always-success wording on the form is what the provider actually does, not a UI pretence |
 | Social (Google) | `signInSocial` | built (FR-26) — wired **only** when `GOOGLE_CLIENT_ID` *and* `GOOGLE_CLIENT_SECRET` are both present; the login page reads a public `/api/config` flag to decide whether to show the button |
-| TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `disableTwoFactor` | built (US-028a) |
-| Passkeys | `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | built (US-028a) — `rpID = APP_BASE_DOMAIN`, so one credential works across every tenant subdomain |
+| TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `verifyBackupCode`, `disableTwoFactor` | built (US-028a) — every password, magic-link, social and passkey sign-in that reaches an enrolled account stops at the same challenge; the login page accepts either TOTP or a one-use backup code before navigating |
+| Passkeys | `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | built (US-028a) — `rpID = APP_BASE_DOMAIN`, so one credential works across every tenant subdomain; add/remove require an authoritative sensitive session plus a five-minute proof minted by account-password verification |
 
 `listPasskeys` is the one **read**-tagged method on the port, because the passkey
 roster lives on the provider surface rather than in the contract API.

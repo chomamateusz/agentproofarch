@@ -98,6 +98,7 @@ export const meOutputSchema = z.object({
 
 export const tenantListOutputSchema = z.object({
   tenants: z.array(membershipSchema),
+  canCreateTenant: z.boolean(),
 });
 
 export const todoListOutputSchema = z.object({

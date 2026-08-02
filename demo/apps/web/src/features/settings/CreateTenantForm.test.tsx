@@ -24,7 +24,9 @@ describe('CreateTenantForm', () => {
         created = tenantBodySchema.parse(await request.json());
         return HttpResponse.json({ ok: true, data: { tenant: { id: 't9', slug: created.slug, name: created.name } } });
       }),
-      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: { tenants: [] } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [], canCreateTenant: true } }),
+      ),
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: { userId: 'u1', email: 'e', name: 'n', tenant: null } })),
     );
 

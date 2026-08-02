@@ -79,11 +79,15 @@ export const SettingsPage = () => {
             );
           })}
         </Stack>
-        <Divider sx={{ my: '1.2rem' }} />
-        <Typography variant="overline" sx={{ display: 'block', mb: '0.6rem' }}>
-          create a new tenant
-        </Typography>
-        <CreateTenantForm />
+        {tenants.data?.canCreateTenant ? (
+          <>
+            <Divider sx={{ my: '1.2rem' }} />
+            <Typography variant="overline" sx={{ display: 'block', mb: '0.6rem' }}>
+              create a new tenant
+            </Typography>
+            <CreateTenantForm />
+          </>
+        ) : null}
       </Paper>
 
       <PasswordSection />

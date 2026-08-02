@@ -67,6 +67,13 @@ flowchart LR
 
 Why Caddy is behind a **profile**: the default `up` needs no `Caddyfile` and binds no privileged ports, which is exactly what CI and a bare localhost demo want. Real TLS needs the config file and ports 80/443, so it is opt-in. How the on-demand certificates actually work is the domains page: [Custom domains & TLS](./self-host-and-domains.md).
 
+The compose network pins Caddy to `10.247.0.3`. Caddy overwrites
+`X-Forwarded-For` with the connection peer, and the app preserves that header
+only when the exact Caddy address connected; a direct connection instead gets
+the socket peer written over any supplied header. Better Auth receives the same
+exact proxy in `advanced.ipAddress.trustedProxies`, so enabled auth rate limiting
+uses one bucket per client rather than a spoofable or shared fallback bucket.
+
 ## The image 🐳 \{#the-image}
 
 ```mermaid

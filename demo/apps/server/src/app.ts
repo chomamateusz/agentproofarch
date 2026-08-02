@@ -21,6 +21,7 @@ import {
   domainAddInputSchema,
   domainCheckInputSchema,
   domainRemoveInputSchema,
+  decide,
   err,
   internal,
   notFound,
@@ -200,7 +201,14 @@ export const buildApp = (deps: AppDeps) => {
     const user = await deps.authPort.getAuthenticatedUser(c.req.raw.headers);
     if (!user) return respond(err(unauthorized()));
     const result = await listMyTenants(ctxOf(tenantlessIdentity(user)), deps);
-    return respond(result.ok ? ok({ tenants: result.value }) : result);
+    if (!result.ok) return respond(result);
+    const creationContext = await tenantCreationContext(user, deps.tenantCreationMode, deps);
+    const canCreateTenant = decide(
+      creationContext.identity,
+      'tenant:create',
+      deps.tenantCreationMode,
+    ).allowed;
+    return respond(ok({ tenants: result.value, canCreateTenant }));
   });
 
   app.post(API_PATHS.tenants, async (c) => {

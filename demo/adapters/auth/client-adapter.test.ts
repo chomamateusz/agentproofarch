@@ -159,10 +159,17 @@ describe('createCliAuthAdapter social + 2FA', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'internal' } });
   });
 
-  it('verifyTotp and disableTwoFactor return ok on success', async () => {
+  it('verifyTotp, verifyBackupCode and disableTwoFactor return ok on success', async () => {
     mockJsonFetch(() => ({ ok: true, status: 200, json: {} }));
     const adapter = createCliAuthAdapter('http://localhost:47100', () => {}, () => 'tok-1');
-    expect(await adapter.verifyTotp({ code: '123456' })).toEqual({ ok: true, value: undefined });
+    expect(await adapter.verifyTotp({ code: '123456' })).toEqual({
+      ok: true,
+      value: { token: null, twoFactorRedirect: false },
+    });
+    expect(await adapter.verifyBackupCode({ code: 'backup-code' })).toEqual({
+      ok: true,
+      value: { token: null, twoFactorRedirect: false },
+    });
     expect(await adapter.disableTwoFactor({ password: 'pw' })).toEqual({ ok: true, value: undefined });
   });
 
@@ -251,6 +258,15 @@ describe('createBetterAuthClientAdapter (web)', () => {
     expect((await adapter.requestMagicLink({ email: 'mag@example.com' })).ok).toBe(true);
   });
 
+  it('preserves the pending two-factor state returned by password sign-in', async () => {
+    stubJsonResponse({ twoFactorRedirect: true, twoFactorMethods: ['totp'] });
+    const adapter = createBetterAuthClientAdapter('http://localhost:47100');
+    expect(await adapter.signIn({ email: 'tfa@example.com', password: 'password' })).toEqual({
+      ok: true,
+      value: { token: null, twoFactorRedirect: true },
+    });
+  });
+
   it('enableTwoFactor parses the enrolment payload', async () => {
     stubJsonResponse({ totpURI: 'otpauth://totp/x', backupCodes: ['a'] });
     const adapter = createBetterAuthClientAdapter('http://localhost:47100');
@@ -258,10 +274,11 @@ describe('createBetterAuthClientAdapter (web)', () => {
     expect(result).toMatchObject({ ok: true, value: { totpURI: 'otpauth://totp/x' } });
   });
 
-  it('verifyTotp and disableTwoFactor resolve ok on success', async () => {
+  it('verifyTotp, verifyBackupCode and disableTwoFactor resolve ok on success', async () => {
     stubJsonResponse({ status: true });
     const adapter = createBetterAuthClientAdapter('http://localhost:47100');
     expect((await adapter.verifyTotp({ code: '123456' })).ok).toBe(true);
+    expect((await adapter.verifyBackupCode({ code: 'backup-code' })).ok).toBe(true);
     expect((await adapter.disableTwoFactor({ password: 'pw' })).ok).toBe(true);
   });
 

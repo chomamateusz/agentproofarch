@@ -76,7 +76,7 @@ const happyApi: ApiClient = {
   healthReady: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
   config: async () => ok({ googleEnabled: false }),
   me: async () => ok({ userId: 'u1', email: 'demo@example.com', name: 'Demo', tenant: null }),
-  listTenants: async () => ok({ tenants: [{ tenant, staffRole: 'owner' }] }),
+  listTenants: async () => ok({ tenants: [{ tenant, staffRole: 'owner' }], canCreateTenant: true }),
   createTenant: async (input) => ok({ tenant: { id: 't-new', slug: input.slug, name: input.name } }),
   listTodos: async () => ok({ todos: [todo] }),
   addTodo: async (input) => ok({ todo: { ...todo, title: input.title } }),
@@ -159,6 +159,7 @@ describe('query descriptors', () => {
     });
     await expect(client.fetchQuery(tenantsQuery(happyApi))).resolves.toEqual({
       tenants: [{ tenant, staffRole: 'owner' }],
+      canCreateTenant: true,
     });
     await expect(client.fetchQuery(todosQuery(happyApi))).resolves.toEqual({ todos: [todo] });
     await expect(client.fetchQuery(cardsQuery(happyApi))).resolves.toEqual({ cards: [card] });
@@ -227,8 +228,8 @@ describe('mutation descriptors', () => {
 });
 
 const fakeAuth = (): AuthClientPort => ({
-  signUp: async () => ok({ token: 'signed-up' }),
-  signIn: async () => ok({ token: 'signed-in' }),
+  signUp: async () => ok({ token: 'signed-up', twoFactorRedirect: false }),
+  signIn: async () => ok({ token: 'signed-in', twoFactorRedirect: false }),
   signOut: async () => ok(undefined),
   changePassword: async () => ok(undefined),
   requestMagicLink: async () => ok(undefined),
@@ -236,12 +237,13 @@ const fakeAuth = (): AuthClientPort => ({
   resetPassword: async () => ok(undefined),
   signInSocial: async () => ok({ url: 'https://accounts.google.example/authorize' }),
   enableTwoFactor: async () => ok({ totpURI: 'otpauth://totp/demo', backupCodes: ['aaaa-bbbb'] }),
-  verifyTotp: async () => ok(undefined),
+  verifyTotp: async () => ok({ token: null, twoFactorRedirect: false }),
+  verifyBackupCode: async () => ok({ token: null, twoFactorRedirect: false }),
   disableTwoFactor: async () => ok(undefined),
   registerPasskey: async () => ok(undefined),
   listPasskeys: async () => ok([{ id: 'pk-1', name: 'Laptop', createdAt: '2026-07-03T00:00:00.000Z' }]),
   removePasskey: async () => ok(undefined),
-  signInPasskey: async () => ok({ token: null }),
+  signInPasskey: async () => ok({ token: null, twoFactorRedirect: false }),
 });
 
 describe('auth mutation descriptors', () => {
@@ -255,10 +257,10 @@ describe('auth mutation descriptors', () => {
         email: 'demo@example.com',
         password: 'demo1234',
       }),
-    ).resolves.toEqual({ token: 'signed-up' });
+    ).resolves.toEqual({ token: 'signed-up', twoFactorRedirect: false });
     await expect(
       new MutationObserver(client, signInMutation(auth)).mutate({ email: 'demo@example.com', password: 'demo1234' }),
-    ).resolves.toEqual({ token: 'signed-in' });
+    ).resolves.toEqual({ token: 'signed-in', twoFactorRedirect: false });
     await expect(
       new MutationObserver(client, signOutMutation(auth)).mutate(),
     ).resolves.toBeUndefined();
@@ -305,14 +307,14 @@ describe('passkey descriptors', () => {
       { id: 'pk-1', name: 'Laptop', createdAt: '2026-07-03T00:00:00.000Z' },
     ]);
     await expect(
-      new MutationObserver(client, registerPasskeyMutation(auth)).mutate({ name: 'Laptop' }),
+      new MutationObserver(client, registerPasskeyMutation(auth)).mutate({ name: 'Laptop', password: 'password' }),
     ).resolves.toBeUndefined();
     await expect(
-      new MutationObserver(client, removePasskeyMutation(auth)).mutate({ id: 'pk-1' }),
+      new MutationObserver(client, removePasskeyMutation(auth)).mutate({ id: 'pk-1', password: 'password' }),
     ).resolves.toBeUndefined();
     await expect(
       new MutationObserver(client, signInPasskeyMutation(auth)).mutate(),
-    ).resolves.toEqual({ token: null });
+    ).resolves.toEqual({ token: null, twoFactorRedirect: false });
   });
 
   it('propagate a passkey list failure as ApiError', async () => {

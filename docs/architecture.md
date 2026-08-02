@@ -751,6 +751,9 @@ identity, an owner or admin also arrives as a visitor there, so `staff` is only
 distinguishable from `closed` once the create path derives the principal from the
 caller's staff grants **across the instance** (`listTenantsForStaff`, the read
 behind `listMyTenants`) rather than from a resolved tenant.
+The tenant-list response carries `canCreateTenant`, computed from that same
+tenant-less context and `decide(..., "tenant:create")`; both settings and
+tenant-less onboarding render `CreateTenantForm` only when it is true.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
@@ -1190,7 +1193,7 @@ code.
   (`changePassword`), **plus the provider auth methods** (US-026/US-028a) —
   `requestMagicLink`, password reset (`requestPasswordReset`/`resetPassword`),
   `signInSocial`, TOTP 2FA
-  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
+  (`enableTwoFactor`/`verifyTotp`/`verifyBackupCode`/`disableTwoFactor`), and passkeys
   (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
   `listPasskeys` is the one read-tagged method, since the roster lives on the
   provider surface, not the contract API). Better Auth client (magic-link +
@@ -1304,6 +1307,16 @@ credential works across every tenant subdomain; the client surface
 (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`) is exposed
 exclusively through `AuthClientPort`, driven from the settings PasskeySection and
 the login page's sign-in-with-passkey button.
+
+Every sign-in route that can mint a session for an enrolled account — password,
+magic-link verification, social callback/token sign-in and passkey authentication
+— enters the same TOTP challenge. A pending challenge is not a session: clients
+retain the login surface until `verifyTotp` or `verifyBackupCode` succeeds.
+Password-reset callbacks must have the same origin as the request that created
+them; tenant wildcards and verified custom domains are HTTPS-only. Passkey
+registration and deletion first verify the account password, mint a five-minute
+signed proof, and require both that proof and `sensitiveSessionMiddleware` on the
+provider endpoints.
 
 Add a port only when a second implementation or a platform difference actually
 exists.
@@ -1895,6 +1908,13 @@ live smoke assertion.
   `AUTH_RATE_LIMIT` env flag, which **defaults to on** (including in dev); set
   `AUTH_RATE_LIMIT=off` to disable it locally. It does not protect mutation
   routes, which is why those stay gated by auth + tenant scope.
+  Client-IP resolution is part of this invariant: an enabled limiter refuses to
+  compose without `advanced.ipAddress.trustedProxies`. Self-host pins Caddy to
+  `10.247.0.3`, Caddy overwrites `X-Forwarded-For` with its socket peer, and the
+  Node entry overwrites that header from the socket on direct connections while
+  preserving it only from the exact Caddy address. Thus neither a supplied XFF
+  value nor an absent proxy can collapse or escape the per-client bucket in the
+  documented topology.
 - **Request body limits.** Mount Hono's `bodyLimit` on mutation routes (JSON
   payloads are small — a ~64–100KB cap is a cheap DoS floor); Vercel's 4.5MB
   serverless cap is a backstop, not policy.

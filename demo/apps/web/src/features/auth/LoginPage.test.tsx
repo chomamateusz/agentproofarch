@@ -71,6 +71,33 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('button', { name: 'signing in…' })).toBeDisabled();
   });
 
+  it('keeps a two-factor password sign-in on the login page and accepts a backup code', async () => {
+    let submittedBackupCode = '';
+    server.use(
+      http.post('*/sign-in/email', () =>
+        HttpResponse.json({ twoFactorRedirect: true, twoFactorMethods: ['totp'] }),
+      ),
+      http.post('*/two-factor/verify-backup-code', async ({ request }) => {
+        const payload: unknown = await request.json();
+        if (typeof payload === 'object' && payload !== null && 'code' in payload) {
+          submittedBackupCode = String(payload.code);
+        }
+        return HttpResponse.json({ token: 'session-token' });
+      }),
+    );
+
+    await renderLoginPage();
+    await fillCredentials();
+    await userEvent.click(screen.getByRole('button', { name: 'sign in' }));
+
+    const code = await screen.findByLabelText('two-factor code');
+    expect(screen.queryByLabelText('email')).not.toBeInTheDocument();
+    await userEvent.type(code, 'recovery-1234');
+    await userEvent.click(screen.getByRole('button', { name: 'use backup code' }));
+
+    expect(submittedBackupCode).toBe('recovery-1234');
+  });
+
   it('requests a passwordless magic link and confirms delivery (US-026)', async () => {
     server.use(http.post('*/sign-in/magic-link', () => HttpResponse.json({ status: true })));
 
