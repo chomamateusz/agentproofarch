@@ -12,11 +12,13 @@ const meWithTenant = {
   userId: 'u1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
   tenant: { id: 't1', slug: 'acme', name: 'Acme', staffRole: 'owner', memberId: null },
 };
 
 const tenantsBody = {
   tenants: [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, staffRole: 'owner' }],
+  canCreateTenant: true,
 };
 
 const makeTodo = (id: string, title: string) => ({

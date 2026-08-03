@@ -40,7 +40,10 @@ it never overrules them.
 ## Live demo
 
 <https://agentproofarch.vercel.app> — sign in as `demo@agentproofarch.dev` /
-`demo1234`. Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
+`demo-agentproof-1234`. Those credentials are true by construction: every deployment
+build runs the convergent seed, so the live fixture heals back to what this README
+says instead of drifting from it (your todos are safe — the seed never deletes).
+Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
 not code — [ADR-0003](docs/decisions/0003-vercel-environments.md)); the API and
 CLI stay fully multi-tenant via the `X-Tenant` header.
 
@@ -63,7 +66,7 @@ Then drive the same capabilities from the CLI — the agent feedback loop:
 
 ```bash
 pnpm --silent run cli --json health
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli --tenant acme todo list --json
 ```
 
@@ -78,5 +81,10 @@ and [demo/README.md](demo/README.md).
 | [`docs/`](docs/) | Normative: [architecture.md](docs/architecture.md), the [PRD](docs/prd-agentproofarch-foundation.md), [decisions/](docs/decisions/) (ADRs), [first-feature guide](docs/first-feature.md) |
 | [`demo/`](demo/) | The entire implementation: multi-tenant walking skeleton with auth (password change, magic link, TOTP, passkeys), tenant subdomains + custom domains, themed web SPA, full CLI, self-host Docker stack, and the gates that defend it all — see [demo/README.md](demo/README.md) |
 | [`website/`](website/) | The Docusaurus documentation site, deployed to GitHub Pages on every merge to `main` |
+
+At the root beside them: [`LICENSE`](LICENSE) (MIT),
+[`CHANGELOG.md`](CHANGELOG.md) and [`SECURITY.md`](SECURITY.md) — how to report
+a vulnerability privately, which release line is supported, and why the public
+demo deployment is explicitly out of scope while the foundation code is not.
 
 Changing the architecture means changing [`docs/`](docs/) first, then the code.

@@ -7,18 +7,24 @@ import { renderWithProviders } from '../../test/render.js';
 import { server } from '../../test/server.js';
 import { SettingsPage } from './SettingsPage.js';
 
-const renderSettings = async (staffRole: 'owner' | 'admin' | null) => {
+const renderSettings = async (
+  staffRole: 'owner' | 'admin' | null,
+  canCreateTenant = true,
+) => {
   server.use(
     http.get('/api/me', () =>
       HttpResponse.json({
         ok: true,
-        data: { userId: 'u1', email: 'e@x.dev', name: 'E', tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole, memberId: null } },
+        data: { userId: 'u1', email: 'e@x.dev', name: 'E', emailVerified: true, tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole, memberId: null } },
       }),
     ),
     http.get('/api/tenants', () =>
       HttpResponse.json({
         ok: true,
-        data: { tenants: staffRole === null ? [] : [{ tenant: { id: 't1', slug: 'acme', name: 'Acme Inc' }, staffRole }] },
+        data: {
+          tenants: staffRole === null ? [] : [{ tenant: { id: 't1', slug: 'acme', name: 'Acme Inc' }, staffRole }],
+          canCreateTenant,
+        },
       }),
     ),
   );
@@ -53,5 +59,11 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Acme Inc')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /staff/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /domains/ })).not.toBeInTheDocument();
+  });
+
+  it('hides tenant creation when the server authorization decision denies it', async () => {
+    await renderSettings('owner', false);
+    expect(await screen.findByText('Acme Inc')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New tenant name')).not.toBeInTheDocument();
   });
 });

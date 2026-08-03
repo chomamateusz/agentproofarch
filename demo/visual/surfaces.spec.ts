@@ -1,15 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
-const DEMO_PASSWORD = 'demo1234';
+const DEMO_PASSWORD = 'demo-agentproof-1234';
 const EMPTY_ME = {
   ok: true,
   data: {
     userId: 'u1',
     email: DEMO_EMAIL,
     name: 'Demo',
+    emailVerified: true,
     tenant: null,
   },
+};
+
+const UNVERIFIED_ME = {
+  ok: true,
+  data: { ...EMPTY_ME.data, emailVerified: false },
 };
 
 // The login form renders a Google button only once /api/config answers; waiting
@@ -142,7 +148,7 @@ test('StatusView empty inside FocusCard', async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, data: { tenants: [] } }),
+      body: JSON.stringify({ ok: true, data: { tenants: [], canCreateTenant: true } }),
     });
   });
   await submitSignIn(page);
@@ -151,6 +157,34 @@ test('StatusView empty inside FocusCard', async ({ page }) => {
   ).toBeVisible();
 
   await expect(page).toHaveScreenshot('layout-status-view-empty.png', {
+    fullPage: true,
+    mask: [page.getByTestId('build-stamp')],
+  });
+});
+
+// Soft email verification: the account is fully usable and the only visible
+// consequence is this notice, so the baseline captures the quiet banner next to
+// the onboarding card that no longer offers tenant creation.
+test('unverified email banner on the tenant-less card', async ({ page }) => {
+  await openLogin(page);
+  await page.route('**/api/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(UNVERIFIED_ME),
+    });
+  });
+  await page.route('**/api/tenants', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, data: { tenants: [], canCreateTenant: false } }),
+    });
+  });
+  await submitSignIn(page);
+  await expect(page.getByRole('alert')).toContainText('is not confirmed yet');
+
+  await expect(page).toHaveScreenshot('email-verification-banner.png', {
     fullPage: true,
     mask: [page.getByTestId('build-stamp')],
   });

@@ -151,7 +151,7 @@ try {
     {
       baseUrl: `http://localhost:${port}`,
       email: 'demo@agentproofarch.dev',
-      password: 'demo1234',
+      password: 'demo-agentproof-1234',
       tenant: 'acme',
       mailpitApiUrl: MAILPIT_API_URL,
     },

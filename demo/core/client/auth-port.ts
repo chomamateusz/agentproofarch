@@ -2,6 +2,7 @@ import type { ReadResult, WriteResult } from './http.js';
 
 export interface AuthSessionResult {
   token: string | null;
+  twoFactorRedirect: boolean;
 }
 
 /**
@@ -26,6 +27,13 @@ export interface SocialSignInResult {
 export interface MagicLinkRequest {
   email: string;
   /** Where the verified link lands the user; defaults to the app root. */
+  callbackURL?: string;
+}
+
+/** @public */
+export interface VerificationEmailRequest {
+  email: string;
+  /** Where the confirmation link lands the user; defaults to the app root. */
   callbackURL?: string;
 }
 
@@ -86,6 +94,12 @@ export interface AuthClientPort {
   /** US-026: request a passwordless magic link; no real delivery in dev. */
   requestMagicLink(input: MagicLinkRequest): Promise<WriteResult<void>>;
   /**
+   * Re-send the confirmation link for an unverified address (soft verification).
+   * The provider answers the same way for an already-verified address, so this is
+   * no more of an account oracle than the password-reset request is.
+   */
+  sendVerificationEmail(input: VerificationEmailRequest): Promise<WriteResult<void>>;
+  /**
    * Email a password-reset link. The provider answers identically whether or not
    * the address has an account, so no caller can turn this into an account
    * oracle — the always-success UX on top of it is honest, not a pretence.
@@ -98,11 +112,12 @@ export interface AuthClientPort {
   /** US-028a: turn on TOTP 2FA, returning the enrolment URI + backup codes. */
   enableTwoFactor(input: { password: string }): Promise<WriteResult<TwoFactorEnableResult>>;
   /** US-028a: confirm enrolment (or step-up) with a code from the authenticator. */
-  verifyTotp(input: { code: string }): Promise<WriteResult<void>>;
+  verifyTotp(input: { code: string }): Promise<WriteResult<AuthSessionResult>>;
+  verifyBackupCode(input: { code: string }): Promise<WriteResult<AuthSessionResult>>;
   /** US-028a: turn off TOTP 2FA (re-auth with the account password). */
   disableTwoFactor(input: { password: string }): Promise<WriteResult<void>>;
   /** US-028a: register a new passkey (WebAuthn ceremony) under a display name. */
-  registerPasskey(input: { name: string }): Promise<WriteResult<void>>;
+  registerPasskey(input: { name: string; password: string }): Promise<WriteResult<void>>;
   /**
    * US-028a: the caller's registered passkeys for the management UI. A read, not
    * a command — the one AuthClientPort method carrying a read tag, since this
@@ -110,7 +125,7 @@ export interface AuthClientPort {
    */
   listPasskeys(): Promise<ReadResult<PasskeyInfo[]>>;
   /** US-028a: remove a registered passkey by id. */
-  removePasskey(input: { id: string }): Promise<WriteResult<void>>;
+  removePasskey(input: { id: string; password: string }): Promise<WriteResult<void>>;
   /** US-028a: sign in with a registered passkey (WebAuthn assertion). */
   signInPasskey(input?: { callbackURL?: string }): Promise<WriteResult<AuthSessionResult>>;
 }

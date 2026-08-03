@@ -28,12 +28,16 @@ https:// {
 	tls {
 		on_demand
 	}
-	reverse_proxy app:47100
+	reverse_proxy app:47100 {
+		header_up X-Forwarded-For {http.request.remote.host}
+	}
 }
 
 # Plain HTTP (and a caddy-fronted localhost demo without public DNS): proxy the
 # app directly, no on-demand gate. Caddy still auto-redirects real hostnames to
 # HTTPS; localhost stays reachable over http for a quick local smoke.
 http:// {
-	reverse_proxy app:47100
+	reverse_proxy app:47100 {
+		header_up X-Forwarded-For {http.request.remote.host}
+	}
 }

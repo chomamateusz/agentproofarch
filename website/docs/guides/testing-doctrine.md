@@ -68,8 +68,8 @@ Four levels carry the doctrine — unit, integration, e2e, smoke:
 
 | Level | Command | Environment | Count today | Where it runs |
 |---|---|---|---|---|
-| **unit** | `pnpm run test` (inside `check`) | node + jsdom, **no database** | {/*count:test-files*/}102{/*/count*/} test files | every `check`, locally and in CI |
-| **integration** | `pnpm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | {/*count:integration-tests*/}49{/*/count*/} tests | the CI `smoke` job — the only one with a database |
+| **unit** | `pnpm run test` (inside `check`) | node + jsdom, **no database** | {/*count:test-files*/}108{/*/count*/} test files | every `check`, locally and in CI |
+| **integration** | `pnpm run test:integration` | real Postgres, opt-in via `VITEST_INTEGRATION=1` | {/*count:integration-tests*/}59{/*/count*/} tests | the CI `smoke` job — the only one with a database |
 | **e2e** | `pnpm run e2e` | real Chromium over the real stack | {/*count:e2e-tests*/}17{/*/count*/} tests / {/*count:e2e-specs*/}7{/*/count*/} specs | the CI `e2e` job |
 | **smoke** | `pnpm run smoke` | real server, driven through the CLI | the runtime gate | locally + the CI `smoke` job |
 
@@ -198,7 +198,7 @@ read boundary where it cannot (jsonb columns admit no closed-set `CHECK`).
 
 ### Config-regression probes ⚙️ \{#config-regression-probes}
 
-{/*count:config-regression*/}59{/*/count*/} tests whose subject is the **enforcers**. Two shapes, and the difference is
+{/*count:config-regression*/}67{/*/count*/} tests whose subject is the **enforcers**. Two shapes, and the difference is
 worth being honest about:
 
 - **Fixture-fed probes** (most of them) write a deliberately illegal file into the

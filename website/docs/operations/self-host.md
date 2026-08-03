@@ -24,7 +24,7 @@ Both columns are built. Vercel is live today; the Docker packaging ships in the 
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
-| Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
+| Migrations | build step (`vercel-build`), followed by the convergent `db:seed` | `docker-entrypoint.sh` on startup (idempotent); seeds only with `SEED_ON_START` |
 | TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host — **built** (US-020), production add confirmed live per the [dated US-020 record](./self-host-and-domains.md#us-020-production-add-confirmed-live), alongside one pre-verification `check`; post-verification `check` and `remove` acceptance unrecorded | Caddy `on_demand_tls` + internal domain-check endpoint — **built** |
 | Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
@@ -66,6 +66,13 @@ flowchart LR
 ```
 
 Why Caddy is behind a **profile**: the default `up` needs no `Caddyfile` and binds no privileged ports, which is exactly what CI and a bare localhost demo want. Real TLS needs the config file and ports 80/443, so it is opt-in. How the on-demand certificates actually work is the domains page: [Custom domains & TLS](./self-host-and-domains.md).
+
+The compose network pins Caddy to `10.247.0.3`. Caddy overwrites
+`X-Forwarded-For` with the connection peer, and the app preserves that header
+only when the exact Caddy address connected; a direct connection instead gets
+the socket peer written over any supplied header. Better Auth receives the same
+exact proxy in `advanced.ipAddress.trustedProxies`, so enabled auth rate limiting
+uses one bucket per client rather than a spoofable or shared fallback bucket.
 
 ## The image 🐳 \{#the-image}
 

@@ -1,7 +1,8 @@
 # ADR-0003: Vercel environments — dev, staging, prod + previews on Hobby
 
-Status: accepted (2026-07-14); **release topology superseded (2026-07-24)** — see
-note below and [architecture.md](../architecture.md) §Environments (normative).
+Status: accepted (2026-07-14); **release topology superseded (2026-07-24)**,
+**point 3 amended (2026-08-03)** — see the notes below and
+[architecture.md](../architecture.md) §Environments (normative).
 
 > **Superseding note (2026-07-24).** Decision point 1's release mapping has
 > changed: **staging is now `main`** (its Preview on a stable URL), and
@@ -14,6 +15,21 @@ note below and [architecture.md](../architecture.md) §Environments (normative).
 > entry/routing (point 4), Frankfurt co-location (point 5) and the single-tenant
 > `*.vercel.app` constraint (point 6) are unchanged. Everything below records the
 > original decision.
+
+> **Amendment (2026-08-03) — the build seeds too.** Point 3 shipped migrations at
+> build time but left `db:seed` a local-only command, so a deployed database kept
+> whatever fixture it was first seeded with. When PR #125 rotated the published
+> demo password, every deployed environment kept the old one: the credentials
+> printed in the README, on the login page and in `smoke:remote`'s defaults became
+> false, and `post-deploy-smoke` failed with 401 on exactly that. `vercel-build` is
+> now `db:migrate && db:seed && build`, so the fixture converges on **every**
+> deployment. It runs unguarded rather than behind a production-only env check
+> because point 2 gives each deployment class its own Neon branch — no deployment
+> can write another environment's data — and because `post-deploy-smoke` drives the
+> same published credentials against Preview deployments too, so a preview needs the
+> convergence just as much as production. The seed inserts and updates fixtures
+> only (`onConflictDoNothing` plus a password update on the demo account); it
+> deletes nothing, so visitor-created rows survive every deploy.
 
 ## Context
 
@@ -43,7 +59,9 @@ fixed cost (Vercel Hobby + Neon Free), without fighting the platform.
    `db:migrate` against the environment's own database before building the
    SPA. Previews therefore always test the PR's schema on a disposable
    branch. Staging/prod migrations are forward-only; destructive changes ship
-   expand → contract across two deploys.
+   expand → contract across two deploys. *(Amended 2026-08-03: the build also
+   runs `db:seed`, so the deployed demo fixture converges on the published
+   credentials — see the amendment note above.)*
 4. **Entry**: `demo/api/index.ts` exports a node-style handler through
    `getRequestListener` from `@hono/node-server` (with `NODEJS_HELPERS=0`, see
    PRs #11/#15);

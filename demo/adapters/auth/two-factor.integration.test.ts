@@ -20,12 +20,14 @@ const itestUrl = (() => {
 const BASE_URL = 'http://localhost:47100';
 let auth: Auth;
 let authPool: pg.Pool;
+let capturedLink: string | null = null;
 
 const call = async (
   path: string,
   body: unknown,
   bearer?: string,
-): Promise<{ status: number; token: string | null; json: unknown }> => {
+  cookie?: string,
+): Promise<{ status: number; token: string | null; cookies: string[]; json: unknown }> => {
   const response = await auth.handler(
     new Request(new URL(path, BASE_URL), {
       method: 'POST',
@@ -33,6 +35,7 @@ const call = async (
         'content-type': 'application/json',
         origin: BASE_URL,
         ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+        ...(cookie ? { cookie } : {}),
       },
       body: JSON.stringify(body),
     }),
@@ -41,6 +44,7 @@ const call = async (
   return {
     status: response.status,
     token: response.headers.get('set-auth-token'),
+    cookies: response.headers.getSetCookie(),
     json: text ? JSON.parse(text) : null,
   };
 };
@@ -72,7 +76,12 @@ beforeAll(async () => {
     trustedOrigins: [BASE_URL],
     secureCookies: false,
     rateLimitEnabled: false,
-    email: { sendMail: async () => {} },
+    trustedProxies: [],
+    email: {
+      sendMail: async (message) => {
+        capturedLink = message.link ?? null;
+      },
+    },
   });
 });
 
@@ -97,6 +106,7 @@ const secretOf = (totpURI: string): string => {
 describe('TOTP 2FA against the real Better Auth stack (US-028a)', () => {
   const email = 'tfa@example.com';
   const password = 'tfa-password-1234';
+  let backupCode = '';
 
   it('enables 2FA, verifies an otplib-generated code, then requires it on the next login', async () => {
     const signedUp = await call('/api/auth/sign-up/email', { name: 'TFA', email, password });
@@ -105,7 +115,9 @@ describe('TOTP 2FA against the real Better Auth stack (US-028a)', () => {
 
     const enabled = await call('/api/auth/two-factor/enable', { password }, token);
     expect(enabled.status).toBe(200);
-    const { totpURI } = totpEnableSchema.parse(enabled.json);
+    const enrolment = totpEnableSchema.parse(enabled.json);
+    const { totpURI } = enrolment;
+    backupCode = enrolment.backupCodes[0] ?? '';
 
     const code = generateSync({ secret: secretOf(totpURI) });
     const verified = await call('/api/auth/two-factor/verify-totp', { code }, token);
@@ -126,6 +138,39 @@ describe('TOTP 2FA against the real Better Auth stack (US-028a)', () => {
     expect(gated.json).toMatchObject({ twoFactorRedirect: true });
   });
 
+  it('turns a magic-link sign-in into a second-factor challenge completed by a backup code', async () => {
+    capturedLink = null;
+    const requested = await call('/api/auth/sign-in/magic-link', {
+      email,
+      callbackURL: `${BASE_URL}/app`,
+    });
+    expect(requested.status).toBe(200);
+    expect(capturedLink).not.toBeNull();
+
+    const verifiedLink = await auth.handler(new Request(capturedLink ?? '', { redirect: 'manual' }));
+    expect(verifiedLink.status).toBe(302);
+    expect(verifiedLink.headers.get('location')).toBe(`${BASE_URL}/login?twoFactor=required`);
+    const setCookies = verifiedLink.headers.getSetCookie();
+    const sessionCookies = setCookies.filter((entry) =>
+      entry.startsWith('better-auth.session_token='),
+    );
+    expect(sessionCookies).not.toHaveLength(0);
+    expect(sessionCookies.at(-1)).toContain('Max-Age=0');
+    const challengeCookie = setCookies
+      .find((entry) => entry.startsWith('better-auth.two_factor='))
+      ?.split(';')[0];
+    expect(challengeCookie).toBeDefined();
+
+    const completed = await call(
+      '/api/auth/two-factor/verify-backup-code',
+      { code: backupCode },
+      undefined,
+      challengeCookie,
+    );
+    expect(completed.status).toBe(200);
+    expect(completed.json).toMatchObject({ token: expect.any(String) });
+  });
+
   it('rejects a wrong TOTP code', async () => {
     const email2 = 'tfa2@example.com';
     const signedUp = await call('/api/auth/sign-up/email', { name: 'TFA2', email: email2, password });
@@ -134,5 +179,51 @@ describe('TOTP 2FA against the real Better Auth stack (US-028a)', () => {
 
     const bad = await call('/api/auth/two-factor/verify-totp', { code: '000000' }, token);
     expect(bad.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it('requires successful password verification before passkey registration begins', async () => {
+    const passkeyEmail = 'passkey-sensitive@example.com';
+    const signedUp = await call('/api/auth/sign-up/email', {
+      name: 'Passkey Sensitive',
+      email: passkeyEmail,
+      password,
+    });
+    const sessionCookie = signedUp.cookies
+      .find((entry) => entry.startsWith('better-auth.session_token='))
+      ?.split(';')[0];
+    expect(sessionCookie).toBeDefined();
+    const registrationRequest = (proofCookie?: string) =>
+      auth.handler(
+        new Request(new URL('/api/auth/passkey/generate-register-options', BASE_URL), {
+          headers: {
+            origin: BASE_URL,
+            cookie: [sessionCookie, proofCookie].filter((value) => value !== undefined).join('; '),
+          },
+        }),
+      );
+
+    expect((await registrationRequest()).status).toBe(403);
+
+    const rejected = await call(
+      '/api/auth/verify-password',
+      { password: 'wrong-password' },
+      undefined,
+      sessionCookie,
+    );
+    expect(rejected.status).toBeGreaterThanOrEqual(400);
+    expect(rejected.cookies.some((entry) => entry.includes('.passkey_sensitive='))).toBe(false);
+
+    const verified = await call(
+      '/api/auth/verify-password',
+      { password },
+      undefined,
+      sessionCookie,
+    );
+    expect(verified.status).toBe(200);
+    const proofCookie = verified.cookies
+      .find((entry) => entry.includes('.passkey_sensitive='))
+      ?.split(';')[0];
+    expect(proofCookie).toBeDefined();
+    expect((await registrationRequest(proofCookie)).status).toBe(200);
   });
 });

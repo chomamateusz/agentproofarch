@@ -117,7 +117,7 @@ Per-layer one-screen summaries live beside the code — [`core/CLAUDE.md`](core/
 pnpm run db:up && pnpm run db:migrate && pnpm run db:seed
 pnpm run dev:server &          # port 47100
 pnpm --silent run cli --json health
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli --tenant acme todo list
 ```
 
@@ -159,4 +159,7 @@ not the compiler, is what guarantees they are done.
 - Tenants live on subdomains: `acme.localhost:47100`. Browsers reject
   `Domain=.localhost` cookies → per-subdomain login in dev only.
 - Better Auth CSRF requires an `Origin` header on auth POSTs (CLI sends its API URL).
-- Seed is idempotent; demo credentials `demo@agentproofarch.dev` / `demo1234`.
+- Seed is convergent (it re-states the demo password on every run) and never
+  deletes, so `vercel-build` runs it on every deployment and the published demo
+  credentials `demo@agentproofarch.dev` / `demo-agentproof-1234` stay true. Keep it
+  that way: anything destructive in `adapters/db/seed.ts` would now hit live data.

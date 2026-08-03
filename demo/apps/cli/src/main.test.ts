@@ -267,7 +267,7 @@ beforeEach(() => {
 
   h.api.health.mockResolvedValue(ok({ status: 'ok', database: 'up', version: '1.2.3', sha: 'cafe1234' }));
   h.api.me.mockResolvedValue(ok({ email: 'demo@x', tenant: null }));
-  h.api.listTenants.mockResolvedValue(ok({ tenants: [] }));
+  h.api.listTenants.mockResolvedValue(ok({ tenants: [], canCreateTenant: true }));
   h.api.createTenant.mockResolvedValue(ok({ tenant: { name: 'Acme Corp', slug: 'acme-corp' } }));
   h.api.listTodos.mockResolvedValue(ok({ todos: [] }));
   h.api.addTodo.mockResolvedValue(ok({ todo: { id: 'todo-1234abcd', title: 'buy milk' } }));
@@ -307,8 +307,8 @@ beforeEach(() => {
   h.api.publicTenantProfile.mockResolvedValue(
     ok({ slug: 'acme', displayName: 'Acme Corp', contentVersion: 'v1abc' }),
   );
-  h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
-  h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
+  h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok', twoFactorRedirect: false }));
+  h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok', twoFactorRedirect: false }));
   h.auth.signOut.mockResolvedValue(ok(undefined));
   h.auth.changePassword.mockResolvedValue(ok(undefined));
 
@@ -387,7 +387,7 @@ describe('command wiring', () => {
 
   it('lists administered tenants for `tenant list`', async () => {
     h.api.listTenants.mockResolvedValue(
-      ok({ tenants: [{ tenant: { slug: 'acme', name: 'Acme' }, staffRole: 'owner' }] }),
+      ok({ tenants: [{ tenant: { slug: 'acme', name: 'Acme' }, staffRole: 'owner' }], canCreateTenant: true }),
     );
 
     await run('tenant', 'list');
@@ -752,7 +752,7 @@ describe('exit-code mapping', () => {
 
 describe('auth commands persist the session token', () => {
   it('saves the token returned by login', async () => {
-    h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok' }));
+    h.auth.signIn.mockResolvedValue(ok({ token: 'sess-tok', twoFactorRedirect: false }));
 
     await run('login', '--email', 'demo@x', '--password', 'pw');
 
@@ -765,7 +765,7 @@ describe('auth commands persist the session token', () => {
   });
 
   it('reports an internal error and saves nothing when login returns no token', async () => {
-    h.auth.signIn.mockResolvedValue(ok({ token: null }));
+    h.auth.signIn.mockResolvedValue(ok({ token: null, twoFactorRedirect: false }));
 
     await run('--json', 'login', '--email', 'demo@x', '--password', 'pw');
 
@@ -775,7 +775,7 @@ describe('auth commands persist the session token', () => {
   });
 
   it('saves the token returned by register', async () => {
-    h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok' }));
+    h.auth.signUp.mockResolvedValue(ok({ token: 'reg-tok', twoFactorRedirect: false }));
 
     await run('register', '--name', 'Ada', '--email', 'ada@x', '--password', 'pw');
 
@@ -875,15 +875,15 @@ describe('account change-password', () => {
       'account',
       'change-password',
       '--current-password',
-      'demo1234',
+      'demo-agentproof-1234',
       '--new-password',
-      'changed1234',
+      'changed-pass-1234',
       '--sign-out-other-sessions',
     );
 
     expect(h.auth.changePassword).toHaveBeenCalledExactlyOnceWith({
-      currentPassword: 'demo1234',
-      newPassword: 'changed1234',
+      currentPassword: 'demo-agentproof-1234',
+      newPassword: 'changed-pass-1234',
       revokeOtherSessions: true,
     });
     expect(soleJson()).toEqual({
@@ -903,7 +903,7 @@ describe('account change-password', () => {
       '--current-password',
       'wrong-password',
       '--new-password',
-      'changed1234',
+      'changed-pass-1234',
     );
 
     expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });
@@ -969,7 +969,7 @@ describe('global option validation', () => {
 describe('tenant switch', () => {
   it('stores the slug when it matches an administered tenant', async () => {
     h.api.listTenants.mockResolvedValue(
-      ok({ tenants: [{ tenant: { slug: 'acme', name: 'Acme' }, staffRole: 'owner' }] }),
+      ok({ tenants: [{ tenant: { slug: 'acme', name: 'Acme' }, staffRole: 'owner' }], canCreateTenant: true }),
     );
 
     await run('tenant', 'switch', 'acme');
@@ -981,7 +981,7 @@ describe('tenant switch', () => {
   });
 
   it('emits a not_found error (exit 5) and saves nothing for an unknown slug', async () => {
-    h.api.listTenants.mockResolvedValue(ok({ tenants: [] }));
+    h.api.listTenants.mockResolvedValue(ok({ tenants: [], canCreateTenant: true }));
 
     await run('--json', 'tenant', 'switch', 'ghost');
 

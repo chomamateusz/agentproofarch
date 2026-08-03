@@ -20,6 +20,7 @@ const meAcme = {
   userId: 'u1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
   tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole: 'owner', memberId: null },
 };
 const acme = { tenant: { id: 't1', slug: 'acme', name: 'Acme Inc' }, staffRole: 'owner' };
@@ -65,7 +66,9 @@ describe('AppLayout', () => {
   it('renders the active child and a tenant switcher listing my tenants', async () => {
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: meAcme })),
-      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: { tenants: [acme, globex] } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [acme, globex], canCreateTenant: true } }),
+      ),
     );
 
     await renderApp();
@@ -78,7 +81,9 @@ describe('AppLayout', () => {
   it('shows the create-tenant onboarding when the caller has no tenant on this host', async () => {
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: { ...meAcme, tenant: null } })),
-      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: { tenants: [] } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [], canCreateTenant: true } }),
+      ),
     );
 
     await renderApp();
@@ -88,12 +93,28 @@ describe('AppLayout', () => {
     expect(screen.queryByText('ledger content')).not.toBeInTheDocument();
   });
 
+  it('does not offer tenant creation when the server authorization decision denies it', async () => {
+    server.use(
+      http.get('/api/me', () => HttpResponse.json({ ok: true, data: { ...meAcme, tenant: null } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [], canCreateTenant: false } }),
+      ),
+    );
+
+    await renderApp();
+
+    expect(await screen.findByText('no tenant is available on this host')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New tenant name')).not.toBeInTheDocument();
+  });
+
   it('treats a forbidden tenant host as onboarding, not an error', async () => {
     server.use(
       http.get('/api/me', () =>
         HttpResponse.json({ ok: false, error: { code: 'forbidden', message: 'no access' } }, { status: 403 }),
       ),
-      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: { tenants: [acme] } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [acme], canCreateTenant: true } }),
+      ),
     );
 
     await renderApp();
@@ -104,7 +125,9 @@ describe('AppLayout', () => {
   it('onboarding lists my existing tenants as switch links', async () => {
     server.use(
       http.get('/api/me', () => HttpResponse.json({ ok: true, data: { ...meAcme, tenant: null } })),
-      http.get('/api/tenants', () => HttpResponse.json({ ok: true, data: { tenants: [globex] } })),
+      http.get('/api/tenants', () =>
+        HttpResponse.json({ ok: true, data: { tenants: [globex], canCreateTenant: true } }),
+      ),
     );
 
     await renderApp();

@@ -32,6 +32,11 @@ implementation of both.
 A free, open project — [MIT licensed](https://github.com/chomamateusz/agentproofarch/blob/main/LICENSE) —
 by **Mateusz Choma**, developed privately in collaboration with
 **[CodeRoad.pl](https://coderoad.pl)** and **[AmazingDesign.eu](https://amazingdesign.eu)**.
+Found a vulnerability? The
+[security policy](https://github.com/chomamateusz/agentproofarch/blob/main/SECURITY.md)
+states the private channel, the supported release line, and the honest
+best-effort response a solo maintainer can promise — the public demo
+deployment is a playground and deliberately out of its scope.
 
 ## What problem does it solve 🎯 \{#what-problem-does-it-solve}
 
@@ -255,9 +260,9 @@ red gate means the commit is wrong or the gate is wrong, and one of them gets
 fixed.
 :::
 
-Underneath those gates sit four counts: **{/*count:test-files*/}102{/*/count*/}** test files in the database-free
-run, **{/*count:integration-tests*/}49{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}17{/*/count*/}** Playwright tests,
-and **{/*count:config-regression*/}59{/*/count*/}** config-regression probes.
+Underneath those gates sit four counts: **{/*count:test-files*/}108{/*/count*/}** test files in the database-free
+run, **{/*count:integration-tests*/}59{/*/count*/}** integration tests against a real Postgres, **{/*count:e2e-tests*/}17{/*/count*/}** Playwright tests,
+and **{/*count:config-regression*/}67{/*/count*/}** config-regression probes.
 
 That last number is the unusual one. Those probes guard the enforcers
 themselves: most feed a deliberately illegal fixture and assert rejection, and
@@ -272,7 +277,7 @@ on every `check`. See [Testing doctrine](../guides/testing-doctrine.md) and
 ## Live demo 🖥️ \{#live-demo}
 
 [agentproofarch.vercel.app](https://agentproofarch.vercel.app) — sign in as
-`demo@agentproofarch.dev` / `demo1234`. The deployed web app is single-tenant on
+`demo@agentproofarch.dev` / `demo-agentproof-1234`. The deployed web app is single-tenant on
 `*.vercel.app` (Vercel refuses tenant subdomains under a project's own
 `*.vercel.app` apex, so a wildcard base domain is an environment concern, not a
 code one — [ADR-0003](../decisions/0003-vercel-environments.md)); the API and CLI

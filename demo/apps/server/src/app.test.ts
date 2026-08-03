@@ -4,6 +4,7 @@ import { createAuth } from '#adapters/auth/create-auth.js';
 import { createDb } from '#adapters/db/client.js';
 import {
   API_PATHS,
+  envelopeSchema,
   healthLiveOutputSchema,
   healthOutputSchema,
   healthReadyOutputSchema,
@@ -12,6 +13,7 @@ import {
   staffGrantOutputSchema,
   staffListOutputSchema,
   TENANT_HEADER,
+  tenantListOutputSchema,
 } from '#core/contract/index.js';
 import type { AuthenticatedUser } from '#core/server/index.js';
 
@@ -29,6 +31,7 @@ const auth = createAuth(
     baseUrl: 'http://localhost',
     baseDomain: 'localhost',
     rateLimitEnabled: false,
+    trustedProxies: [],
     trustedOrigins: [],
     secureCookies: false,
     email: { sendMail: async () => {} },
@@ -115,6 +118,7 @@ const user: AuthenticatedUser = {
   userId: 'user-1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
 };
 
 describe('buildApp routes', () => {
@@ -147,6 +151,27 @@ describe('buildApp routes', () => {
     const body = looseEnvelopeSchema.parse(await res.json());
     expect(body.ok).toBe(false);
     if (!body.ok) expect(body.error.code).toBe('validation');
+  });
+
+  it.each([
+    ['open', [], true],
+    ['staff', [], false],
+    [
+      'staff',
+      [{ tenant: { id: 't1', slug: 'acme', name: 'Acme' }, staffRole: 'admin' }],
+      true,
+    ],
+    ['closed', [], false],
+  ] as const)('reports the tenant:create decision in %s mode', async (mode, memberships, allowed) => {
+    const deps = baseDeps();
+    deps.authPort = { getAuthenticatedUser: async () => user };
+    deps.tenantCreationMode = mode;
+    deps.tenantAccess.listTenantsForStaff = async () => [...memberships];
+
+    const response = await buildApp(deps).request(API_PATHS.tenants);
+    const body = envelopeSchema(tenantListOutputSchema).parse(await response.json());
+
+    expect(body).toMatchObject({ ok: true, data: { canCreateTenant: allowed } });
   });
 
   it('resolves an unknown tenant header to a tenant_not_found error', async () => {

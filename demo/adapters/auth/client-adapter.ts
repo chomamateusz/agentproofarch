@@ -130,6 +130,18 @@ export const followMagicLink = async (url: string): Promise<Result<{ token: stri
 const socialUrlSchema = z.object({ url: z.string().optional(), redirect: z.boolean().optional() });
 const totpEnableSchema = z.object({ totpURI: z.string(), backupCodes: z.array(z.string()) });
 const tokenSchema = z.object({ token: z.string().nullable() });
+const authSessionSchema = z.object({
+  token: z.string().nullable().optional(),
+  twoFactorRedirect: z.boolean().optional(),
+});
+
+const readAuthSession = (data: unknown, token: string | null = null) => {
+  const parsed = authSessionSchema.safeParse(data);
+  return {
+    token: token ?? (parsed.success ? (parsed.data.token ?? null) : null),
+    twoFactorRedirect: parsed.success ? (parsed.data.twoFactorRedirect ?? false) : false,
+  };
+};
 
 /** Better Auth implementation of the client-side auth port. */
 export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort => {
@@ -138,16 +150,22 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
     plugins: [magicLinkClient(), twoFactorClient(), passkeyClient()],
   });
 
+  const verifyPasskeyPassword = async (password: string) => {
+    const response = await client.$fetch('/verify-password', {
+      method: 'POST',
+      body: { password },
+    });
+    return toResult(undefined, response.error);
+  };
+
   return {
     signUp: async ({ name, email, password }) => {
-      const token = null;
       const response = await client.signUp.email({ name, email, password });
-      return toResult({ token }, response.error);
+      return toResult(readAuthSession(response.data), response.error);
     },
     signIn: async ({ email, password }) => {
-      const token = null;
       const response = await client.signIn.email({ email, password });
-      return toResult({ token }, response.error);
+      return toResult(readAuthSession(response.data), response.error);
     },
     signOut: async () => toResult(undefined, (await client.signOut()).error),
     changePassword: async ({ currentPassword, newPassword, revokeOtherSessions }) =>
@@ -157,6 +175,13 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       ),
     requestMagicLink: async ({ email, callbackURL }) => {
       const response = await client.signIn.magicLink({ email, ...(callbackURL ? { callbackURL } : {}) });
+      return toResult(undefined, response.error);
+    },
+    sendVerificationEmail: async ({ email, callbackURL }) => {
+      const response = await client.sendVerificationEmail({
+        email,
+        ...(callbackURL ? { callbackURL } : {}),
+      });
       return toResult(undefined, response.error);
     },
     requestPasswordReset: async ({ email, redirectTo }) => {
@@ -180,9 +205,20 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       if (!parsed.success) return err(appError('internal', 'Two-factor enable returned an unexpected shape'));
       return ok(parsed.data);
     },
-    verifyTotp: async ({ code }) => toResult(undefined, (await client.twoFactor.verifyTotp({ code })).error),
+    verifyTotp: async ({ code }) => {
+      const response = await client.twoFactor.verifyTotp({ code });
+      return toResult(readAuthSession(response.data), response.error);
+    },
+    verifyBackupCode: async ({ code }) => {
+      const response = await client.twoFactor.verifyBackupCode({ code });
+      return toResult(readAuthSession(response.data), response.error);
+    },
     disableTwoFactor: async ({ password }) => toResult(undefined, (await client.twoFactor.disable({ password })).error),
-    registerPasskey: async ({ name }) => toResult(undefined, (await client.passkey.addPasskey({ name })).error),
+    registerPasskey: async ({ name, password }) => {
+      const verified = await verifyPasskeyPassword(password);
+      if (!verified.ok) return verified;
+      return toResult(undefined, (await client.passkey.addPasskey({ name })).error);
+    },
     listPasskeys: async () => {
       const response = await client.passkey.listUserPasskeys();
       if (response.error) return toResult<PasskeyInfo[]>([], response.error);
@@ -193,8 +229,15 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       }));
       return ok(list);
     },
-    removePasskey: async ({ id }) => toResult(undefined, (await client.passkey.deletePasskey({ id })).error),
-    signInPasskey: async () => toResult({ token: null }, (await client.signIn.passkey()).error),
+    removePasskey: async ({ id, password }) => {
+      const verified = await verifyPasskeyPassword(password);
+      if (!verified.ok) return verified;
+      return toResult(undefined, (await client.passkey.deletePasskey({ id })).error);
+    },
+    signInPasskey: async () => {
+      const response = await client.signIn.passkey();
+      return toResult(readAuthSession(response.data), response.error);
+    },
   };
 };
 
@@ -220,16 +263,18 @@ export const createCliAuthAdapter = (
       return err(appError('internal', `Network error calling ${path}: ${String(cause)}`));
     }
     if (!response.ok) return toResult(null, await readAuthError(response));
+    let payload: unknown = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
     if (onSuccessToken) {
       const emitted = response.headers.get('set-auth-token');
       if (emitted) onToken(emitted);
-      return ok({ token: emitted });
+      return emitted ? ok({ token: emitted }) : ok(payload);
     }
-    try {
-      return ok(await response.json());
-    } catch {
-      return ok(null);
-    }
+    return ok(payload);
   };
 
   return {
@@ -237,13 +282,13 @@ export const createCliAuthAdapter = (
       const result = await postWithSession('/api/auth/sign-up/email', input, true);
       if (!result.ok) return result;
       const emitted = tokenSchema.safeParse(result.value);
-      return ok({ token: emitted.success ? emitted.data.token : null });
+      return ok({ token: emitted.success ? emitted.data.token : null, twoFactorRedirect: false });
     },
     signIn: async (input) => {
       const result = await postWithSession('/api/auth/sign-in/email', input, true);
       if (!result.ok) return result;
       const emitted = tokenSchema.safeParse(result.value);
-      return ok({ token: emitted.success ? emitted.data.token : null });
+      return ok(readAuthSession(result.value, emitted.success ? emitted.data.token : null));
     },
     // Revoke the session server-side (bearer token), not just locally: the CLI
     // authenticates by token, so sign-out must reach Better Auth or the session
@@ -264,6 +309,15 @@ export const createCliAuthAdapter = (
     },
     requestMagicLink: async ({ email, callbackURL }) => {
       const result = await postCliAuth(baseUrl, '/api/auth/sign-in/magic-link', { email, ...(callbackURL ? { callbackURL } : {}) }, null);
+      return result.ok ? ok(undefined) : result;
+    },
+    sendVerificationEmail: async ({ email, callbackURL }) => {
+      const result = await postCliAuth(
+        baseUrl,
+        '/api/auth/send-verification-email',
+        { email, ...(callbackURL ? { callbackURL } : {}) },
+        null,
+      );
       return result.ok ? ok(undefined) : result;
     },
     requestPasswordReset: async ({ email, redirectTo }) => {
@@ -290,7 +344,11 @@ export const createCliAuthAdapter = (
     },
     verifyTotp: async ({ code }) => {
       const result = await postCliAuth(baseUrl, '/api/auth/two-factor/verify-totp', { code }, token());
-      return result.ok ? ok(undefined) : result;
+      return result.ok ? ok(readAuthSession(result.value)) : result;
+    },
+    verifyBackupCode: async ({ code }) => {
+      const result = await postCliAuth(baseUrl, '/api/auth/two-factor/verify-backup-code', { code }, token());
+      return result.ok ? ok(readAuthSession(result.value)) : result;
     },
     disableTwoFactor: async ({ password }) => {
       const result = await postCliAuth(baseUrl, '/api/auth/two-factor/disable', { password }, token());

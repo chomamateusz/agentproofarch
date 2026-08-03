@@ -19,15 +19,15 @@ describe('PasswordSection', () => {
 
     renderWithProviders(<PasswordSection />);
 
-    await userEvent.type(screen.getByLabelText('current password'), 'demo1234');
-    await userEvent.type(screen.getByLabelText('new password'), 'changed1234');
+    await userEvent.type(screen.getByLabelText('current password'), 'demo-agentproof-1234');
+    await userEvent.type(screen.getByLabelText('new password'), 'changed-pass-1234');
     await userEvent.click(screen.getByLabelText('sign out other sessions'));
     await userEvent.click(screen.getByRole('button', { name: 'change password' }));
 
     expect(await screen.findByText('Password changed.')).toBeInTheDocument();
     expect(requestBody).toEqual({
-      currentPassword: 'demo1234',
-      newPassword: 'changed1234',
+      currentPassword: 'demo-agentproof-1234',
+      newPassword: 'changed-pass-1234',
       revokeOtherSessions: true,
     });
   });
@@ -35,11 +35,11 @@ describe('PasswordSection', () => {
   it('reuses the registration password policy', async () => {
     renderWithProviders(<PasswordSection />);
 
-    await userEvent.type(screen.getByLabelText('current password'), 'demo1234');
+    await userEvent.type(screen.getByLabelText('current password'), 'demo-agentproof-1234');
     await userEvent.type(screen.getByLabelText('new password'), 'short');
     await userEvent.click(screen.getByRole('button', { name: 'change password' }));
 
-    expect(await screen.findByText('Use at least 8 characters')).toBeInTheDocument();
+    expect(await screen.findByText('Use at least 12 characters')).toBeInTheDocument();
   });
 
   it('surfaces a wrong-password error', async () => {
@@ -49,7 +49,7 @@ describe('PasswordSection', () => {
 
     renderWithProviders(<PasswordSection />);
     await userEvent.type(screen.getByLabelText('current password'), 'wrong-password');
-    await userEvent.type(screen.getByLabelText('new password'), 'changed1234');
+    await userEvent.type(screen.getByLabelText('new password'), 'changed-pass-1234');
     await userEvent.click(screen.getByRole('button', { name: 'change password' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid password/i);

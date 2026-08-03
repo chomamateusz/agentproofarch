@@ -8,6 +8,7 @@ const staff: Identity = {
   userId: 'u1',
   email: 'staff@example.com',
   name: 'Staff',
+  emailVerified: true,
   tenantId: 't-acme',
   tenantSlug: 'acme',
   tenantName: 'Acme Inc',

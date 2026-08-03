@@ -80,24 +80,40 @@ so the manual keyboard, focus and alt-text passes are mandatory rather than
 optional. `performance` records that Lighthouse cannot measure INP
 synthetically at all, so any INP number in a report would be fabricated.
 
-Two advisory jobs feed those fields, both **non-required** and neither able to
-become a gate as written — see
+Three advisory jobs feed those fields, all **non-required** — see
 [deliberately non-required](ci-gates.md#deliberately-non-required):
 
 - **`scorecard.yml`** runs [OpenSSF Scorecard](https://github.com/ossf/scorecard)
   weekly (plus manual dispatch) and uploads SARIF to the Security tab. Its
   checks name in a shared vocabulary what `ci-security` already greps for by
   hand — `Token-Permissions`, `Pinned-Dependencies`, `Dangerous-Workflow`,
-  `Branch-Protection`. Several checks are *expected* to score badly here
-  (`Security-Policy`, `Dependency-Update-Tool`, `SAST`), and the spec records
-  why each divergence is deliberate: an update bot has to respect the
-  three-day `minimumReleaseAge` cooldown before it is an improvement, and a
-  score is not a reason to change doctrine.
+  `Branch-Protection`. The spec records why each divergence is deliberate, and
+  a score is not a reason to change doctrine. The first run's mechanical
+  findings were fixed as findings, not as score: a
+  [security policy](https://github.com/chomamateusz/agentproofarch/blob/main/SECURITY.md)
+  now exists, the last two workflow-level write tokens moved onto the single
+  job that needs each (`visual-baselines`' baseline push and `ai-review`'s
+  verdict comment), and the self-host image's base layers are pinned by digest.
+  `Token-Permissions` still does not reach 10: eight jobs hold a job-scoped
+  write they cannot function without, from tag creation to the SARIF upload
+  this very check arrives through — which the spec enumerates rather than
+  hides.
+- **`codeql.yml`** scans JavaScript/TypeScript on pull requests to `main` and
+  weekly, uploading SAST findings to the Security tab. It is advisory rather
+  than a required check because findings still need reachability and severity
+  triage.
 - **`lhci.yml`** runs Lighthouse CI over the built documentation site with
   every assertion at `warn`. It measures this site, not the application — the
   application's authenticated routes have no performance number attached to
   them at all, which `performance` states as its defining blind spot rather
   than hiding behind a green job.
+
+Dependency upkeep is separately prepared through `renovate.json`: one weekly
+pull request grouping the non-major updates, majors kept out of that group, and
+weekly lockfile maintenance — all under the same three-day release cooldown both
+pnpm roots already enforce. The file configures the bot but does not switch it
+on: installing the Renovate GitHub App is an owner click, so until it happens
+the repository still has no update bot running.
 
 ## Using a spec
 

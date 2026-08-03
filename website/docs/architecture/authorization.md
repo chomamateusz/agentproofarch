@@ -129,6 +129,32 @@ Reading the interesting rows:
   without changing *where it is reachable*.
 - **`tenant:create` is selected by `TENANT_CREATION`.** The caller becomes owner
   when creation is allowed; the three modes are detailed below.
+- **`tenant:create` also requires a verified email** — the one condition in this
+  model that is not a role. See [Verification is a capability
+  input](#verification-is-a-capability-input).
+
+### Verification is a capability input 📧 \{#verification-is-a-capability-input}
+
+Email verification here is **soft**: an unconfirmed account signs in and uses
+everything. The single exception is `tenant:create`, because that is the one
+action that mints a durable instance-level object under an address nobody has
+proved. The check lives inside `decide`, beside the grant table, not inside
+`createTenant`:
+
+```ts
+const VERIFIED_EMAIL_CAPABILITIES: readonly Capability[] = ['tenant:create'];
+```
+
+Two consequences fall out of that placement. A denied caller gets the ordinary
+`forbidden` error — `tenant:create requires a verified email address` — from the
+use-case's opening `authorize` line, so it is a domain decision, not a form that
+declines to submit. And `canCreateTenant`, which `listMyTenants` reports from the
+same `decide` call, turns false for the same reason, so the settings page and the
+tenant-less onboarding card stop offering a create form the route would reject.
+The principal check runs first, so a member is still denied *as a member*.
+
+The web shell renders a quiet banner with a resend action for as long as
+`/api/me` reports `emailVerified: false`.
 
 ### Tenant-creation modes 🏢 \{#tenant-creation-modes}
 
@@ -145,6 +171,11 @@ the tenant-less create path checks the caller's staff grants across the instance
 before applying the ordinary grant table. `closed` is the same default-deny rule
 with an empty grant list, not a special authorization branch. Denial uses the
 existing `forbidden` response and requires no CLI or web-client handling.
+The tenant-list response also returns `canCreateTenant`: `listMyTenants` runs on
+that same tenant-less context and reports the same `decide(..., "tenant:create")`
+verdict the create path enforces — one decision, one layer. Settings
+and tenant-less onboarding render the create form only when this value is true,
+so `staff`, `closed` and member-facing UI cannot advertise a rejected action.
 
 :::caution[The member cell is context-dependent]
 The `member` deny on `tenant:create` is a use-case-layer defense for callers

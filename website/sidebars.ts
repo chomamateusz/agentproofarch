@@ -52,9 +52,10 @@ const sidebars: SidebarsConfig = {
         type: 'generated-index',
         title: 'Productionize',
         description:
-          'Operating the deployed thing: environments and promotion, health probes and deploy attestation, backup and DR, the Docker self-host target, and per-tenant custom domains with TLS.',
+          'Classify the deployment risk first, then choose environments and promotion, health probes and deploy attestation, backup and DR, the Docker self-host target, and per-tenant custom domains with TLS.',
       },
       items: [
+        'operations/risk-classes',
         'operations/environments',
         'operations/versioning-and-releases',
         'operations/health-and-attestation',

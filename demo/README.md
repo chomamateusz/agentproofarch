@@ -7,7 +7,8 @@ this repo is the **walking skeleton**: auth, foundation-owned tenants (flat
 `owner`/`admin` grants — no organizations/teams concept), tenant resolution by
 domain, one tasks subdomain — todos plus the two exemplar boards (personal +
 team) — flowing through every layer, a full CLI and a web SPA. Live at
-<https://agentproofarch.vercel.app> (`demo@agentproofarch.dev` / `demo1234`).
+<https://agentproofarch.vercel.app> (`demo@agentproofarch.dev` / `demo-agentproof-1234` —
+the deployment build reseeds convergently, so those stay the real credentials).
 
 New here? Read [../docs/first-feature.md](../docs/first-feature.md) — it adds a
 real resource end-to-end in 30 minutes.
@@ -32,7 +33,7 @@ pnpm run dev:server   # API + built SPA on http://acme.localhost:47100
 ```
 
 Open **http://acme.localhost:47100** and **http://globex.localhost:47100** —
-sign in as `demo@agentproofarch.dev` / `demo1234`. Each tenant domain shows its
+sign in as `demo@agentproofarch.dev` / `demo-agentproof-1234`. Each tenant domain shows its
 own isolated todos (and its own accent color). Note: on `localhost` browsers
 reject cross-subdomain cookies, so you sign in per tenant domain; on a real
 base domain one session spans all tenant subdomains. `dev:server` serves
@@ -42,8 +43,8 @@ old bundle fails every page, so rebuild or use `dev:web`.
 ## CLI — the agent feedback loop
 
 ```bash
-pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo1234
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli register --name Demo --email demo@agentproofarch.dev --password demo-agentproof-1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli tenant list
 pnpm --silent run cli tenant switch acme
 pnpm --silent run cli todo list
@@ -106,7 +107,7 @@ pnpm run smoke   # runtime gate: real server boots, CLI drives the full flow (~5
   (dead files + dependency hygiene), `doc-lint`
   (docs ↔ enforcer-config, injected counts, env-schema ↔ `.env.example`, dead
   links), and vitest with coverage across
-  **<!--count:test-files-->102<!--/count--> test files**; coverage thresholds are
+  **<!--count:test-files-->108<!--/count--> test files**; coverage thresholds are
   a ratchet floor, so a regression fails the gate.
 - **`smoke`** recreates an isolated `agentproofarch_smoke` database, boots the
   real server (`entry.node.ts`) and drives health → sign-in → todos →
@@ -118,7 +119,7 @@ Dependency lifecycle scripts are blocked unless explicitly named in
 configuration applies a three-day (`4320` minute) minimum-release-age cooldown.
 
 Two more levels, their own CI jobs (browser + Postgres, kept out of `check`) —
-<!--count:integration-tests-->49<!--/count--> integration tests against a real
+<!--count:integration-tests-->59<!--/count--> integration tests against a real
 Postgres and <!--count:e2e-tests-->17<!--/count--> Playwright tests across
 <!--count:e2e-specs-->7<!--/count--> spec files:
 
@@ -127,7 +128,7 @@ pnpm run test:integration   # repositories, against a real Postgres
 pnpm run e2e                # real Chromium over the real stack
 ```
 
-<!--count:config-regression-->59<!--/count--> config-regression probes guard the
+<!--count:config-regression-->67<!--/count--> config-regression probes guard the
 covered boundary, island-core and CI-workflow rules — most feed a violating
 fixture and assert the gate still goes red, a few are structural rule-presence
 checks rather than fixture-feeding probes — so you can't silently delete one of

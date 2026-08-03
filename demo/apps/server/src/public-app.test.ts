@@ -21,6 +21,7 @@ const auth = createAuth(
     baseUrl: 'http://localhost',
     baseDomain: 'localhost',
     rateLimitEnabled: false,
+    trustedProxies: [],
     trustedOrigins: [],
     secureCookies: false,
     email: { sendMail: async () => {} },

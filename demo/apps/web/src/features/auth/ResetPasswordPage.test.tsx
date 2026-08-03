@@ -78,7 +78,7 @@ describe('ResetPasswordPage', () => {
     await renderResetPasswordPage('?token=reset-token');
     await submitPasswords('short', 'short');
 
-    expect(await screen.findByText('Use at least 8 characters')).toBeInTheDocument();
+    expect(await screen.findByText('Use at least 12 characters')).toBeInTheDocument();
     expect(calls).toBe(0);
   });
 

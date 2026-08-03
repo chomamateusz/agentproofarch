@@ -681,6 +681,52 @@ the canonical shape (`slugSchema` = `transform(normalizeSlug).pipe(canonicalSlug
 3–63 chars, `^[a-z0-9]+(?:-[a-z0-9]+)*$`, not a reserved subdomain), so the edge
 accepts human input while only one canonical form is ever persisted or resolved.
 
+### Session management, verification and credential policy
+
+Four owner decisions (2026-08-02) that were previously "whatever the provider
+defaults to". Each is now written into `adapters/auth/create-auth.ts` explicitly
+and read back off the composed provider options by a config-regression probe
+(`config-regression/auth-policy.test.ts`), so a provider bump that moves a default
+— or a knob quietly deleted from the composition — fails `check` instead of
+silently changing the security posture. Adopting a default *explicitly* is the
+point: the value is unchanged, the decision is now ours.
+
+- **Session lifetime: 7 days absolute, refreshed on activity every 1 day**
+  (`AUTH_POLICY.sessionExpiresInSeconds` / `sessionUpdateAgeSeconds`). A session
+  older than the window is dead whether or not it was used; a session used past
+  the refresh age is extended back to the full window, so an active human is not
+  logged out mid-work while an abandoned one expires within the week. Cookie
+  attributes, cross-subdomain scope and the per-custom-domain isolation are
+  unchanged (§Security baseline).
+- **2FA: 10 backup codes, TOTP 6 digits on a 30-second period**
+  (`AUTH_POLICY.twoFactorBackupCodeCount` / `totpDigits` / `totpPeriodSeconds`).
+  Ten one-use codes is enough to survive a lost phone without becoming a second
+  password list, and 6/30 is what every authenticator app assumes — changing
+  either would silently break enrolments already in the wild, which is exactly
+  why they are pinned rather than inherited.
+- **Password floor: 12 characters, no composition rules.** One number,
+  `PASSWORD_MIN_LENGTH` in `core/domain/password.ts`, is enforced on both edges:
+  the web register / change / reset forms parse with `passwordSchema`, and the
+  auth adapter hands the same value to the provider as `minPasswordLength`, so a
+  client-side pass can never be a server-side reject. Following NIST SP
+  800-63B-4 §3.1.1, length is the control and character-class rules are
+  *deliberately absent* — they push people towards predictable mutations of a
+  short secret. Adding one back is a policy change, not a hardening tweak.
+- **Email verification is SOFT.** An account works the moment it exists: sign-in,
+  boards, membership, everything — `requireEmailVerification` stays off
+  explicitly. The confirmation mail goes out on sign-up through the same
+  `EmailPort` seam as the magic link and the reset mail (§Storage and email
+  ports), and the emailed link marks the address verified. The **only** thing an
+  unconfirmed address cannot do is `tenant:create` (§Authorization) — the one
+  action that creates a durable instance-level object under an address nobody
+  proved. `AuthPort` carries `emailVerified` into `Identity`, `/api/me` reports
+  it, and the web shell renders a quiet banner with a resend action for as long
+  as it is false — on a tenant host the caller cannot access, `/api/me` is a
+  `forbidden` carrying no address, so the onboarding card states only that the
+  host has no tenant for them. The demo seed marks its own account verified: no
+  mailbox exists behind `demo@agentproofarch.dev`, so no link could ever be
+  followed for it.
+
 ### Authorization
 
 **Default-deny at every use-case entry** (NORMATIVE NOW). Tenant resolution
@@ -718,6 +764,14 @@ them; `tenant:create` is the one row derived from an env-selected mode, below):
 | `tenant:create` — `TENANT_CREATION=staff` | allow | allow | deny | deny |
 | `tenant:create` — `TENANT_CREATION=closed` | deny | deny | deny | deny |
 
+`tenant:create` carries one extra condition no other capability has: the caller's
+email must be **verified** (owner decision 2026-08-02, §Email verification). The
+check lives in `decide`, not in `createTenant`, so the same rule answers both the
+`authorize` gate and the `canCreateTenant` verdict `listMyTenants` reports — an
+unverified caller is denied `forbidden` with `tenant:create requires a verified
+email address`, and the clients never offer a form the route would reject. The
+principal check runs first, so a denial names the principal when both would deny.
+
 Members are full collaborators on the tenant's boards (todos and cards are
 collaborative aggregates) but may not administer tenants; owners and admins share
 every collaborative and customer-management capability, and **only an owner may
@@ -751,6 +805,11 @@ identity, an owner or admin also arrives as a visitor there, so `staff` is only
 distinguishable from `closed` once the create path derives the principal from the
 caller's staff grants **across the instance** (`listTenantsForStaff`, the read
 behind `listMyTenants`) rather than from a resolved tenant.
+`listMyTenants` runs on that same tenant-less creation context and returns
+`canCreateTenant` beside the memberships — the `decide(..., "tenant:create")`
+verdict reported, not enforced, so the decision stays in the use-case layer and
+the route keeps calling one use-case. Both settings and tenant-less onboarding
+render `CreateTenantForm` only when it is true.
 
 **One line per use-case.** Every tenant-scoped use-case runs the predicate — via
 the `authorize` / `authorizeTenant` helpers in `core/server` — as its first
@@ -1190,7 +1249,7 @@ code.
   (`changePassword`), **plus the provider auth methods** (US-026/US-028a) —
   `requestMagicLink`, password reset (`requestPasswordReset`/`resetPassword`),
   `signInSocial`, TOTP 2FA
-  (`enableTwoFactor`/`verifyTotp`/`disableTwoFactor`), and passkeys
+  (`enableTwoFactor`/`verifyTotp`/`verifyBackupCode`/`disableTwoFactor`), and passkeys
   (`registerPasskey`/`listPasskeys`/`removePasskey`/`signInPasskey`;
   `listPasskeys` is the one read-tagged method, since the roster lives on the
   provider surface, not the contract API). Better Auth client (magic-link +
@@ -1305,6 +1364,18 @@ credential works across every tenant subdomain; the client surface
 exclusively through `AuthClientPort`, driven from the settings PasskeySection and
 the login page's sign-in-with-passkey button.
 
+Every sign-in route that can mint a session for an enrolled account — password,
+magic-link verification, social callback/token sign-in and passkey authentication
+— enters the same TOTP challenge. A pending challenge is not a session: clients
+retain the login surface until `verifyTotp` or `verifyBackupCode` succeeds.
+Password-reset callbacks must have the same origin as the request that created
+them; tenant wildcards and verified custom domains are HTTPS-only on every base
+domain but `localhost`, where the dev and plain-http demo hosts carry no TLS to
+be trusted over. Passkey
+registration and deletion first verify the account password, mint a five-minute
+signed proof, and require both that proof and `sensitiveSessionMiddleware` on the
+provider endpoints.
+
 Add a port only when a second implementation or a platform difference actually
 exists.
 
@@ -1414,7 +1485,7 @@ together with one pre-verification `domain check`, while post-verification
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
-| Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
+| Migrations | build step (`vercel-build`), followed by the convergent `db:seed` | `docker-entrypoint.sh` on startup (idempotent); seeds only with `SEED_ON_START` |
 | TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, production add confirmed live plus one pre-verification `check`; post-verification `check` and `remove` acceptance unrecorded) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
 | Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly — boot refuses if the block is incomplete | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
@@ -1766,10 +1837,15 @@ touches:
 - **A dedicated canary tenant, never a real customer.** The run signs in as a
   ring-fenced smoke account in its own tenant (default slug `acme` for local/dev;
   overridden per environment). Its data is disposable and belongs to no creator.
-- **Never `db:seed` against a real database.** `smoke:remote` only drives the
-  public CLI/API — it never seeds. Only the isolated local `smoke` harness (its
-  own throwaway `agentproofarch_smoke` DB) seeds; production is seeded once at
-  provisioning, out of band.
+- **The deploy owns the fixture; the smoke never seeds.** `smoke:remote` only
+  drives the public CLI/API. The fixture it signs in with is converged by the
+  build instead — `vercel-build` runs `db:seed` after `db:migrate` on every
+  deployment (ADR-0003 point 3, amended 2026-08-03), so the published demo
+  credentials stay true instead of drifting the first time they are rotated.
+  This is safe only because the seed is **convergent and delete-free**:
+  `onConflictDoNothing` inserts plus a password update on the demo account, never
+  a truncate, so visitor-created rows survive every deploy. A seed that deleted
+  anything could not run on this path.
 - **Non-self-poisoning by construction.** Every card a run creates is parked in
   an **unbounded** column before it ends (`done` on both boards — absent from
   `TEAM_WIP_LIMITS`), and the team card walks the full legal chain
@@ -1871,7 +1947,10 @@ live smoke assertion.
   `create-auth.ts`: `SECURE_COOKIES=true` is required in staging/prod (drives the
   `Secure` flag; defaults false only because `*.localhost` is plaintext), and
   `crossSubDomainCookies` is on for a real `APP_BASE_DOMAIN` (sessions span tenant
-  subdomains) and off for `localhost` (browsers reject `Domain=.localhost`).
+  subdomains) and off for `localhost` (browsers reject `Domain=.localhost`). The
+  session *lifetime* (7-day absolute expiry, 1-day activity refresh), the 2FA
+  parameters and the 12-character password floor are pinned explicitly and probed
+  (§Session management, verification and credential policy).
 - **CSRF / CORS doctrine.** The primary session boundary is `SameSite=Lax`
   session cookies on a **same-origin** SPA with **no CORS middleware on the
   authenticated `/api/*` surface** — so a cross-site page can neither attach the
@@ -1895,6 +1974,17 @@ live smoke assertion.
   `AUTH_RATE_LIMIT` env flag, which **defaults to on** (including in dev); set
   `AUTH_RATE_LIMIT=off` to disable it locally. It does not protect mutation
   routes, which is why those stay gated by auth + tenant scope.
+  Client-IP resolution is part of this invariant: an enabled limiter refuses to
+  compose without `advanced.ipAddress.trustedProxies`, because a non-empty list
+  is what makes the provider read `X-Forwarded-For` **from the right** — the hop
+  the nearest proxy wrote — instead of accepting a header a client supplied. Each
+  deployment path closes the remaining gap differently. Self-host pins Caddy to
+  `10.247.0.3`, which overwrites the header with its socket peer and is the one
+  hop the chain skips. A direct Node connection has no proxy at all, so the entry
+  overwrites the header from the socket, preserving a forwarded value only from
+  the exact Caddy address. On the platform entry the edge writes the last hop and
+  no address of ours can appear in the chain, so the same right-to-left rule
+  keeps that hop — nothing there rewrites the header, and nothing needs to.
 - **Request body limits.** Mount Hono's `bodyLimit` on mutation routes (JSON
   payloads are small — a ~64–100KB cap is a cheap DoS floor); Vercel's 4.5MB
   serverless cap is a backstop, not policy.

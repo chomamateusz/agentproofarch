@@ -31,6 +31,7 @@ import {
   requestMagicLinkMutation,
   requestPasswordResetMutation,
   resetPasswordMutation,
+  sendVerificationEmailMutation,
   signInPasskeyMutation,
   tenantsInvalidates,
   revokeStaffMutation,
@@ -42,6 +43,7 @@ import {
   staffQuery,
   tenantsQuery,
   todosQuery,
+  verifyBackupCodeMutation,
   verifyTotpMutation,
 } from '#core/client/index.js';
 
@@ -99,9 +101,11 @@ export const actions = {
   requestMagicLink: requestMagicLinkMutation(authClient),
   requestPasswordReset: requestPasswordResetMutation(authClient),
   resetPassword: resetPasswordMutation(authClient),
+  sendVerificationEmail: sendVerificationEmailMutation(authClient),
   signInSocial: signInSocialMutation(authClient),
   enableTwoFactor: enableTwoFactorMutation(authClient),
   verifyTotp: verifyTotpMutation(authClient),
+  verifyBackupCode: verifyBackupCodeMutation(authClient),
   disableTwoFactor: disableTwoFactorMutation(authClient),
   passkeys: passkeysQuery(authClient),
   passkeysInvalidates,

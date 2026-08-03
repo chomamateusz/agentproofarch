@@ -128,7 +128,7 @@ schema against — a new env key missing from it fails `check`.
 ```bash
 pnpm run db:up            # Postgres 16 on 47542 + Mailpit on 47925 (SMTP) / 47980 (UI)
 pnpm run db:migrate       # tsx adapters/db/migrate.ts — applies the drizzle migrations
-pnpm run db:seed          # idempotent; running it twice is a no-op
+pnpm run db:seed          # convergent; running it twice leaves the same state
 ```
 
 The seed is worth knowing by heart, because the walkthroughs and the e2e specs all
@@ -136,7 +136,7 @@ reference it:
 
 | Seeded | Value |
 |---|---|
-| Account | `demo@agentproofarch.dev` / `demo1234` (name: *Demo User*) |
+| Account | `demo@agentproofarch.dev` / `demo-agentproof-1234` (name: *Demo User*) |
 | Tenant 1 | `acme` — *Acme Sp. z o.o.*, demo user is **owner**, domain `acme.localhost` |
 | Tenant 2 | `globex` — *Globex Corp*, demo user is **admin**, domain `globex.localhost` |
 | Members | `alice@example.com` (acme, tagged `vip`, `early-adopter`), `mag@example.com` (acme, provisioned with no account yet — binds on first magic-link sign-in), `bob@example.com` (globex) |
@@ -146,7 +146,7 @@ On success it prints:
 
 ```text
 Seed applied:
-  user     demo@agentproofarch.dev / demo1234
+  user     demo@agentproofarch.dev / demo-agentproof-1234
   tenants  http://acme.localhost:47100  http://globex.localhost:47100
 ```
 
@@ -221,7 +221,7 @@ pnpm --silent run cli origin list        # * marks the stored default origin
 
 ```bash
 pnpm --silent run cli --json health
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli whoami
 pnpm --silent run cli tenant switch acme
 pnpm --silent run cli whoami
@@ -236,7 +236,7 @@ The first command is machine-readable and prints one JSON envelope:
 {
   "ok": true,
   "data": {
-    "version": "1.2.0",
+    "version": "1.4.0",
     "sha": "unknown",
     "status": "ok",
     "database": "up"
@@ -258,7 +258,7 @@ demo@agentproofarch.dev @ Acme Sp. z o.o. (acme, staff: owner)
 - Sprawdzić izolację danych między tenantami  (todo-ten)
 ```
 
-{/*release-version*/}`v1.2.0`{/*/release-version*/} is `package.json`'s SemVer release identity, bumped only by a
+{/*release-version*/}`v1.4.0`{/*/release-version*/} is `package.json`'s SemVer release identity, bumped only by a
 release-cut pull request
 ([Versioning & releases](../operations/versioning-and-releases.md)), and
 `sha=unknown` is the honest local answer — `APP_COMMIT_SHA` is only set by a

@@ -4,7 +4,7 @@ const signIn = async (page: Page): Promise<void> => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'agentproofarch' })).toBeVisible();
   await page.getByLabel('email').fill('demo@agentproofarch.dev');
-  await page.getByLabel('password').fill('demo1234');
+  await page.getByLabel('password').fill('demo-agentproof-1234');
   await page.getByRole('button', { name: 'sign in' }).click();
   await expect(page.getByRole('button', { name: 'Switch tenant' })).toContainText('Acme');
 };

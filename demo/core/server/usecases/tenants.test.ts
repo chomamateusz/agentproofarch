@@ -9,6 +9,7 @@ const identity: Identity = {
   userId: 'u1',
   email: 'demo@example.com',
   name: 'Demo',
+  emailVerified: true,
   tenantId: null,
   tenantSlug: null,
   tenantName: null,
@@ -38,7 +39,7 @@ describe('listMyTenants', () => {
 
     const result = await listMyTenants({ identity, tenantCreationMode: 'open' }, deps);
 
-    expect(result).toEqual({ ok: true, value: [acme, globex] });
+    expect(result).toEqual({ ok: true, value: { tenants: [acme, globex], canCreateTenant: true } });
   });
 
   it('returns an empty list when the caller has no staff grants', async () => {
@@ -46,14 +47,51 @@ describe('listMyTenants', () => {
 
     const result = await listMyTenants({ identity, tenantCreationMode: 'open' }, deps);
 
-    expect(result).toEqual({ ok: true, value: [] });
+    expect(result).toEqual({ ok: true, value: { tenants: [], canCreateTenant: true } });
   });
+
+  it.each([
+    ['open', null, true],
+    ['staff', null, false],
+    ['staff', 'admin', true],
+    ['closed', null, false],
+  ] as const)('reports the tenant:create verdict in %s mode', async (mode, staffRole, allowed) => {
+    const deps = { tenantAccess: fakeTenantAccess({}) };
+
+    const result = await listMyTenants(
+      { identity: { ...identity, staffRole }, tenantCreationMode: mode },
+      deps,
+    );
+
+    expect(result).toMatchObject({ ok: true, value: { canCreateTenant: allowed } });
+  });
+
+  it.each([
+    ['open', null],
+    ['open', 'owner'],
+    ['staff', 'admin'],
+  ] as const)(
+    'reports canCreateTenant false for an unverified caller in %s mode as %s',
+    async (mode, staffRole) => {
+      const deps = { tenantAccess: fakeTenantAccess({}) };
+
+      const result = await listMyTenants(
+        {
+          identity: { ...identity, staffRole, emailVerified: false },
+          tenantCreationMode: mode,
+        },
+        deps,
+      );
+
+      expect(result).toMatchObject({ ok: true, value: { canCreateTenant: false } });
+    },
+  );
 
   it('enumerates only the calling user, not others', async () => {
     const deps = { tenantAccess: fakeTenantAccess({ other: [acme] }) };
 
     const result = await listMyTenants({ identity, tenantCreationMode: 'open' }, deps);
 
-    expect(result).toEqual({ ok: true, value: [] });
+    expect(result).toEqual({ ok: true, value: { tenants: [], canCreateTenant: true } });
   });
 });

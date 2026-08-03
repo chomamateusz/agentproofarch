@@ -22,7 +22,7 @@ pnpm --silent run cli health
 {/*release-version*/}
 
 ```text
-status=ok db=up v1.2.0 sha=unknown
+status=ok db=up v1.4.0 sha=unknown
 ```
 
 {/*/release-version*/}
@@ -50,8 +50,8 @@ SHA.
 ### `register`, `login`, `whoami` 🔑 \{#register-login-whoami}
 
 ```bash
-pnpm --silent run cli register --name New --email new-user@example.com --password demo1234
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli register --name New --email new-user@example.com --password demo-agentproof-1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli whoami
 ```
 
@@ -129,14 +129,16 @@ sessions stored for other origins stay signed in.
 
 ```bash
 pnpm --silent run cli account change-password \
-  --current-password demo1234 \
-  --new-password changed1234 \
+  --current-password demo-agentproof-1234 \
+  --new-password changed-pass-1234 \
   --sign-out-other-sessions
 ```
 
 Both password flags are required, matching `login`'s non-interactive flag
 style. `--sign-out-other-sessions` is optional; when present, every other
 active session is invalidated while the current CLI session remains usable.
+The new password must be **at least 12 characters**; there are no
+character-class rules ([why](../architecture/identity-and-multi-tenancy.md#pinned-auth-parameters)).
 
 That last guarantee is not free. The revoke drops **every** session of the
 account — the calling one included — and issues a replacement, which the CLI
@@ -147,8 +149,8 @@ first, after which the first still answers `whoami` and the second gets
 
 ```bash
 pnpm --silent run cli --json account change-password \
-  --current-password demo1234 \
-  --new-password changed1234
+  --current-password demo-agentproof-1234 \
+  --new-password changed-pass-1234
 ```
 
 ```json

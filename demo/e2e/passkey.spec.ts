@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
-const DEMO_PASSWORD = 'demo1234';
+const DEMO_PASSWORD = 'demo-agentproof-1234';
 
 /**
  * A CTAP2 platform authenticator with a discoverable (resident) credential and
@@ -37,6 +37,7 @@ test('register a passkey in settings, then sign in with it (US-028a)', async ({ 
   await signInWithPassword(page);
   await page.goto('/app/settings');
   await page.locator('#passkey-name').fill('E2E Virtual Key');
+  await page.locator('#passkey-password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'register a passkey' }).click();
   await expect(page.getByText('E2E Virtual Key')).toBeVisible();
 

@@ -34,7 +34,7 @@ directory, days later. The quickstart's hello block carries no `--api-url`:
 
 ```bash
 pnpm --silent run cli --json health
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli tenant switch acme
 pnpm --silent run cli todo list
 ```

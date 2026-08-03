@@ -12,6 +12,107 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## v1.4.0 — 2026-08-03
+
+## 2026-08-03
+
+### Added
+
+- Advisory JavaScript/TypeScript CodeQL scanning on pull requests to `main` and
+  weekly, reporting to the Security tab without becoming a required check
+  ([#126](https://github.com/chomamateusz/agentproofarch/pull/126))
+
+- Renovate configuration for one weekly grouped non-major update pull request,
+  majors kept separate and weekly lockfile maintenance, all under the same
+  three-day release cooldown both pnpm roots enforce; the bot only starts once
+  the repository owner installs the Renovate GitHub App
+  ([#126](https://github.com/chomamateusz/agentproofarch/pull/126))
+
+### Security
+
+- Email verification is now sent on sign-up and stays soft — an unconfirmed
+  account signs in and works normally, and the only capability withheld is
+  `tenant:create`, decided in the domain policy so `canCreateTenant` reports the
+  same verdict the create route enforces
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
+
+- Session lifetime is pinned explicitly at a 7-day absolute expiry with a 1-day
+  activity refresh, and 2FA at 10 backup codes with 6-digit TOTP on a 30-second
+  period; a config-regression probe reads all five values back off the composed
+  provider options
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
+
+- Account passwords require 12 characters and no character classes (NIST SP
+  800-63B-4 §3.1.1), enforced by one constant on both edges — the web register,
+  change-password and reset forms and the auth provider's own minimum
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
+
+### Changed
+
+- Demo credentials changed from `demo@agentproofarch.dev` / `demo1234` to
+  `demo@agentproofarch.dev` / `demo-agentproof-1234` everywhere (seed, READMEs,
+  login-page hint, smoke and e2e fixtures, docs) so the shipped demo satisfies
+  the new 12-character floor
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
+
+### Fixed
+
+- The deployed demo fixture now converges on every deployment: `vercel-build`
+  runs the convergent `db:seed` after `db:migrate`, so the published credentials
+  are true on the live demo instead of frozen at whatever the database was first
+  seeded with, and `post-deploy-smoke` stops failing 401 after a password
+  rotation; the seed inserts and updates fixtures only, so visitor-created rows
+  survive ([#127](https://github.com/chomamateusz/agentproofarch/pull/127))
+
+- `db:seed` resolves its Postgres driver from `DB_DRIVER` like `db:migrate`
+  does, instead of hardcoding `node-postgres` — the shared config comment already
+  promised both build-time entry points resolved it identically
+  ([#127](https://github.com/chomamateusz/agentproofarch/pull/127))
+
+## v1.3.0 — 2026-08-02
+
+## 2026-08-02
+
+### Added
+
+- Deployment risk classes guide (SIL-0 through SIL-3): one classifying question
+  — who is hurt by an outage, and how much — decides repository visibility and
+  plan, hosting tier, the recoverability requirements that replace a merge wall
+  where none can be enforced, and whether an agent may deploy production on its
+  own ([#119](https://github.com/chomamateusz/agentproofarch/pull/119))
+
+### Security
+
+- Auth hardening now challenges TOTP-enrolled accounts after password, magic-link,
+  Google and passkey sign-in with TOTP or a backup code; keys auth rate limits to
+  a non-spoofable client address through direct Node and Caddy paths; confines
+  password-reset callbacks to their requesting origin over HTTPS; and requires
+  password-backed sensitive sessions for passkey add/remove, while tenant-creation
+  controls render only when the server capability decision allows them
+  ([#122](https://github.com/chomamateusz/agentproofarch/pull/122))
+
+- `SECURITY.md`: the supported release line (latest minor of the current major,
+  no backports), a private reporting channel that is not a public issue, a
+  best-effort response stated without an SLA, and a scope split that puts the
+  public demo deployment and its published credentials out of bounds while the
+  foundation code stays in
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
+
+- First OpenSSF Scorecard run, mechanical findings only: the two remaining
+  workflow-level write tokens moved onto the single job that needs each
+  (`visual-baselines`' baseline push, `ai-review`'s verdict comment), so every
+  workflow top level is now read-only, and `demo/Dockerfile` pins its three
+  `node:24-bookworm`(`-slim`) base layers by digest beside the tag.
+  `Token-Permissions` still cannot reach 10 — seven jobs hold a job-scoped
+  write their work requires — which `docs/audits/ci-security.md` now enumerates
+  instead of predicting a clean score
+  ([#120](https://github.com/chomamateusz/agentproofarch/pull/120))
+
+### Changed
+
+- Completeness-audit status, evidence, ASVS anchors, severity, mechanical inputs, and passkey posture corrected against the shipped implementation
+  ([#121](https://github.com/chomamateusz/agentproofarch/pull/121))
+
 ## v1.2.0 — 2026-08-01
 
 ## 2026-08-01

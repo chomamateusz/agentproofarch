@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 
 import { buildApp } from './app.js';
+import { trustedAuthHeaders } from './auth-network.js';
 import { createDeps } from './composition.js';
 import { warnIfDistStale } from './dist-freshness.js';
 import { loadEnv } from './env.js';
@@ -43,7 +44,13 @@ app.get(
   }),
 );
 
-serve({ fetch: app.fetch, port: env.PORT, hostname: '0.0.0.0' }, (info) => {
+const publicFetch: Parameters<typeof serve>[0]['fetch'] = (request, bindings) => {
+  const remoteAddress = bindings.incoming.socket.remoteAddress;
+  const headers = trustedAuthHeaders(request.headers, remoteAddress);
+  return app.fetch(new Request(request, { headers }), bindings);
+};
+
+serve({ fetch: publicFetch, port: env.PORT, hostname: '0.0.0.0' }, (info) => {
   console.log(`agentproofarch listening on http://localhost:${info.port}`);
 });
 

@@ -1,21 +1,29 @@
 /**
  * Demo seed: one user who belongs to two tenants, each with its own todos.
  *   email:    demo@agentproofarch.dev
- *   password: demo1234
+ *   password: demo-agentproof-1234
  * Tenants: acme.localhost and globex.localhost (subdomains of APP_BASE_DOMAIN).
- * Idempotent: running twice is a no-op.
+ * Convergent: running twice leaves the same state, and an already-seeded
+ * database is brought back to the credentials documented above. It inserts and
+ * updates fixtures only — nothing here deletes, so visitor-created rows survive
+ * every run. That is what lets the platform build (`vercel-build`) run it on
+ * every deployment, keeping the published demo credentials true.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { createAuth } from '#adapters/auth/create-auth.js';
 import { seedEnvSchema } from '#core/server/config.js';
 
 import { createDb } from './client.js';
-import { members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
+import { account, members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 
-const { DATABASE_URL: connectionString, BETTER_AUTH_SECRET } = seedEnvSchema.parse(process.env);
+const {
+  DATABASE_URL: connectionString,
+  DB_DRIVER: driver,
+  BETTER_AUTH_SECRET,
+} = seedEnvSchema.parse(process.env);
 
-const db = createDb('node-postgres', connectionString);
+const db = createDb(driver, connectionString);
 
 const auth = createAuth(db, {
   secret: BETTER_AUTH_SECRET,
@@ -24,22 +32,42 @@ const auth = createAuth(db, {
   trustedOrigins: () => ['http://localhost:47100'],
   secureCookies: false,
   rateLimitEnabled: false,
+  trustedProxies: [],
   // The seed signs up the demo user by password (no email is sent), so a
   // no-op sink satisfies the auth wiring without pulling in a live relay.
   email: { sendMail: async () => {} },
 });
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
+const DEMO_PASSWORD = 'demo-agentproof-1234';
 
 const existing = await db.select().from(user).where(eq(user.email, DEMO_EMAIL)).limit(1);
 if (existing.length === 0) {
   await auth.api.signUpEmail({
-    body: { name: 'Demo User', email: DEMO_EMAIL, password: 'demo1234' },
+    body: { name: 'Demo User', email: DEMO_EMAIL, password: DEMO_PASSWORD },
   });
 }
 const seededUsers = await db.select().from(user).where(eq(user.email, DEMO_EMAIL)).limit(1);
 const demoUser = seededUsers[0];
 if (!demoUser) throw new Error('Seeded user not found');
+
+// Nobody can ever follow a confirmation link for the demo address — there is no
+// such mailbox — so the seed states the verified fact directly. Without it the
+// demo account would be barred from `tenant:create`, which the demo is meant to
+// show off.
+if (!demoUser.emailVerified) {
+  await db.update(user).set({ emailVerified: true }).where(eq(user.id, demoUser.id));
+}
+
+// The credentials are published (README, login page), so an existing database
+// has to CONVERGE on them, not keep whatever it was seeded with years ago —
+// otherwise a password rotation would leave every already-seeded deployment
+// contradicting its own documentation.
+const { password } = await auth.$context;
+await db
+  .update(account)
+  .set({ password: await password.hash(DEMO_PASSWORD) })
+  .where(and(eq(account.userId, demoUser.id), eq(account.providerId, 'credential')));
 
 const seededAt = Date.now();
 const nowIso = new Date(seededAt).toISOString();
@@ -140,6 +168,6 @@ await db.insert(todos).values(
 ).onConflictDoNothing();
 
 console.log('Seed applied:');
-console.log(`  user     ${DEMO_EMAIL} / demo1234`);
+console.log(`  user     ${DEMO_EMAIL} / demo-agentproof-1234`);
 console.log('  tenants  http://acme.localhost:47100  http://globex.localhost:47100');
 process.exit(0);

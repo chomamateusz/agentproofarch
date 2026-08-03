@@ -155,7 +155,7 @@ describe('createApiClient', () => {
     let contentType: string | null = 'unset';
     const fetchImpl: typeof fetch = async (_input, init) => {
       contentType = new Headers(init?.headers).get('content-type');
-      return jsonResponse({ ok: true, data: { tenants: [] } });
+      return jsonResponse({ ok: true, data: { tenants: [], canCreateTenant: true } });
     };
     const client = createApiClient({ baseUrl: '', fetchImpl });
 
