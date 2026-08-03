@@ -16,6 +16,7 @@ const identity: Identity = {
   userId: 'u1',
   email: 'demo@example.com',
   name: 'Demo',
+  emailVerified: true,
   tenantId: null,
   tenantSlug: null,
   tenantName: null,
@@ -27,6 +28,7 @@ const memberIdentity: Identity = {
   userId: 'u2',
   email: 'member@example.com',
   name: 'Member',
+  emailVerified: true,
   tenantId: 't-acme',
   tenantSlug: 'acme',
   tenantName: 'Acme Inc',
@@ -144,6 +146,49 @@ describe('createTenant', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'forbidden' } });
     expect(store.tenants).toEqual([]);
     expect(store.ownerGrants).toEqual([]);
+  });
+
+  it.each([
+    ['open', null],
+    ['open', 'owner'],
+    ['staff', 'owner'],
+    ['staff', 'admin'],
+  ] as const)(
+    'denies an unverified caller in %s mode as %s before touching the repository',
+    async (tenantCreationMode, staffRole) => {
+      const store = fakeTenants();
+
+      const result = await createTenant(
+        { identity: { ...identity, staffRole, emailVerified: false }, tenantCreationMode },
+        { slug: 'new-co', name: 'New Co' },
+        deps(store.repo),
+      );
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: 'forbidden', message: 'tenant:create requires a verified email address' },
+      });
+      expect(store.tenants).toEqual([]);
+      expect(store.ownerGrants).toEqual([]);
+    },
+  );
+
+  it('creates the tenant once the same caller confirms the address', async () => {
+    const store = fakeTenants();
+
+    const denied = await createTenant(
+      { identity: { ...identity, emailVerified: false }, tenantCreationMode: 'open' },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+    const allowed = await createTenant(
+      { identity, tenantCreationMode: 'open' },
+      { slug: 'new-co', name: 'New Co' },
+      deps(store.repo),
+    );
+
+    expect(denied).toMatchObject({ ok: false });
+    expect(allowed).toMatchObject({ ok: true, value: { slug: 'new-co' } });
   });
 
   it('rejects slug conflicts before creating records', async () => {

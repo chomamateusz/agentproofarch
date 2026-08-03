@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { fetchEmailVerificationLink } from '../scripts/mailpit.js';
+
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
-const DEMO_PASSWORD = 'demo1234';
+const DEMO_PASSWORD = 'demo-agentproof-1234';
+const MAILPIT_API_URL = 'http://localhost:47980';
 
 const signInDemo = async (page: Page): Promise<void> => {
   await page.goto('/login');
@@ -16,12 +19,16 @@ const registerAccount = async (page: Page, email: string): Promise<void> => {
   await page.goto('/register');
   await page.getByLabel('name').fill('Staff Target');
   await page.getByLabel('email').fill(email);
-  await page.getByLabel('password').fill('staff-target-1');
+  await page.getByLabel('password').fill('staff-target-pass-1');
   await page.getByRole('button', { name: 'create account' }).click();
-  await expect(page.getByLabel('New tenant name')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'no tenant is available on this host' }),
+  ).toBeVisible();
 };
 
-test('register lands the new user in /app onboarding and creates the first tenant', async ({ page }) => {
+test('a new account works unverified, and confirming the address unlocks the first tenant', async ({
+  page,
+}) => {
   const stamp = Date.now();
   const email = `e2e-reg-${stamp}@agentproofarch.dev`;
   const tenantName = `E2E First ${stamp}`;
@@ -33,7 +40,18 @@ test('register lands the new user in /app onboarding and creates the first tenan
   await page.getByRole('button', { name: 'create account' }).click();
 
   // The new user has no access to the acme tenant this host resolves to, so the
-  // authenticated shell lands them on the create-tenant onboarding (US-016).
+  // authenticated shell lands them on the onboarding card (US-016) — signed in,
+  // not walled. Soft verification withholds exactly one thing there: the create
+  // form, because `tenant:create` is the one capability that needs a proved address.
+  await expect(
+    page.getByRole('heading', { name: 'no tenant is available on this host' }),
+  ).toBeVisible();
+  await expect(page.getByLabel('New tenant name')).toBeHidden();
+
+  // Follow the sign-up confirmation link out of the Mailpit inbox, as a human would.
+  await page.goto(await fetchEmailVerificationLink(MAILPIT_API_URL, email));
+
+  await page.goto('/app');
   await expect(page.getByLabel('New tenant name')).toBeVisible();
 
   await page.getByLabel('New tenant name').fill(tenantName);

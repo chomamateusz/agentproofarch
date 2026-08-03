@@ -271,7 +271,7 @@ const assertDocumentedCliHello = async (baseUrl: string, home: string): Promise<
   healthSchema.parse(parsed);
 
   assertLine(
-    await cli(['login', '--email', 'demo@agentproofarch.dev', '--password', 'demo1234'], baseUrl, home),
+    await cli(['login', '--email', 'demo@agentproofarch.dev', '--password', 'demo-agentproof-1234'], baseUrl, home),
     'signed in as demo@agentproofarch.dev',
     'login',
   );

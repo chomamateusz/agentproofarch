@@ -18,7 +18,7 @@ describe('TwoFactorSection', () => {
 
     renderWithProviders(<TwoFactorSection />);
 
-    await userEvent.type(screen.getByLabelText('account password'), 'demo1234');
+    await userEvent.type(screen.getByLabelText('account password'), 'demo-agentproof-1234');
     await userEvent.click(screen.getByRole('button', { name: 'enable 2FA' }));
 
     const uri = await screen.findByLabelText('totp enrolment uri');
@@ -39,7 +39,7 @@ describe('TwoFactorSection', () => {
     );
 
     renderWithProviders(<TwoFactorSection />);
-    await userEvent.type(screen.getByLabelText('account password'), 'demo1234');
+    await userEvent.type(screen.getByLabelText('account password'), 'demo-agentproof-1234');
     await userEvent.click(screen.getByRole('button', { name: 'enable 2FA' }));
 
     await userEvent.click(await screen.findByRole('button', { name: 'disable 2FA' }));

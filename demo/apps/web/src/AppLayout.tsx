@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Chip, Divider, Link, Menu, MenuItem, Stack, ThemeProvider, Typography } from '@mui/material';
+import { Box, Button, Chip, Container, Divider, Link, Menu, MenuItem, Stack, ThemeProvider, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink, Outlet, useNavigate } from '@tanstack/react-router';
 
@@ -13,6 +13,7 @@ import { StatusView, type PageState } from './components/layout/StatusView.js';
 import { tenantHue, tenantUrl } from './lib/tenant.js';
 import { useThemeMode } from './theme-mode.js';
 import { createThemeForMode, TenantName, Wordmark } from './theme.js';
+import { EmailVerificationBanner, type Account } from './features/auth/EmailVerificationBanner.js';
 import { CreateTenantForm } from './features/settings/CreateTenantForm.js';
 
 const errorCodeOf = (error: unknown): string | null =>
@@ -46,7 +47,7 @@ export const AppLayout = () => {
 
   const noTenantHere =
     code === 'forbidden' || code === 'tenant_not_found' || (me.data && !me.data.tenant);
-  if (noTenantHere) return <Onboarding />;
+  if (noTenantHere) return <Onboarding account={me.data ?? null} />;
 
   if (me.isError || !me.data) {
     return (
@@ -56,7 +57,7 @@ export const AppLayout = () => {
     );
   }
 
-  return <Shell tenant={me.data.tenant} email={me.data.email} />;
+  return <Shell tenant={me.data.tenant} account={me.data} />;
 };
 
 type Tenant = {
@@ -69,11 +70,11 @@ type Tenant = {
 
 interface ShellProps {
   tenant?: Tenant | null;
-  email?: string;
+  account?: Account | null;
   state?: PageState;
 }
 
-const Shell = ({ tenant = null, email, state }: ShellProps) => {
+const Shell = ({ tenant = null, account = null, state }: ShellProps) => {
   const { mode } = useThemeMode();
   const signOut = useSignOut();
   const slug = tenant?.slug ?? 'app';
@@ -115,9 +116,9 @@ const Shell = ({ tenant = null, email, state }: ShellProps) => {
             {tenant?.staffRole ? (
               <Chip size="small" variant="outlined" label={tenant.staffRole} />
             ) : null}
-            {email === undefined ? null : (
+            {account === null ? null : (
               <Typography variant="caption" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                {email}
+                {account.email}
               </Typography>
             )}
           </>
@@ -135,6 +136,9 @@ const Shell = ({ tenant = null, email, state }: ShellProps) => {
         navigation={navigation}
         {...(state === undefined ? {} : { state })}
       >
+        <Container disableGutters sx={{ maxWidth: '44rem !important', px: '1.25rem' }}>
+          <EmailVerificationBanner account={account} />
+        </Container>
         <Outlet />
       </AppShell>
     </ThemeProvider>
@@ -182,7 +186,7 @@ const TenantSwitcher = ({ activeSlug }: { activeSlug: string | null }) => {
   );
 };
 
-const Onboarding = () => {
+const Onboarding = ({ account }: { account: Account | null }) => {
   const tenants = useQuery(actions.tenants);
   const signOut = useSignOut();
   const canCreateTenant = tenants.data?.canCreateTenant === true;
@@ -233,6 +237,7 @@ const Onboarding = () => {
           action: canCreateTenant ? <CreateTenantForm /> : undefined,
         }}
       />
+      <EmailVerificationBanner account={account} />
     </FocusCard>
   );
 };

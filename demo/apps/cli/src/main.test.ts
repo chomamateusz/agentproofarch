@@ -875,15 +875,15 @@ describe('account change-password', () => {
       'account',
       'change-password',
       '--current-password',
-      'demo1234',
+      'demo-agentproof-1234',
       '--new-password',
-      'changed1234',
+      'changed-pass-1234',
       '--sign-out-other-sessions',
     );
 
     expect(h.auth.changePassword).toHaveBeenCalledExactlyOnceWith({
-      currentPassword: 'demo1234',
-      newPassword: 'changed1234',
+      currentPassword: 'demo-agentproof-1234',
+      newPassword: 'changed-pass-1234',
       revokeOtherSessions: true,
     });
     expect(soleJson()).toEqual({
@@ -903,7 +903,7 @@ describe('account change-password', () => {
       '--current-password',
       'wrong-password',
       '--new-password',
-      'changed1234',
+      'changed-pass-1234',
     );
 
     expect(soleJson()).toMatchObject({ ok: false, error: { code: 'validation' } });

@@ -238,7 +238,7 @@ export const LoginPage = () => {
         <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />
         <FinePrint variant="caption" component="p" sx={{ mb: '1em' }}>
           demo account: <DemoValue>demo@agentproofarch.dev</DemoValue> /{' '}
-          <DemoValue>demo1234</DemoValue>
+          <DemoValue>demo-agentproof-1234</DemoValue>
         </FinePrint>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: '1.2rem' }}>
           <BuildStamp />

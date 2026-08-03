@@ -177,6 +177,13 @@ export const createBetterAuthClientAdapter = (baseUrl: string): AuthClientPort =
       const response = await client.signIn.magicLink({ email, ...(callbackURL ? { callbackURL } : {}) });
       return toResult(undefined, response.error);
     },
+    sendVerificationEmail: async ({ email, callbackURL }) => {
+      const response = await client.sendVerificationEmail({
+        email,
+        ...(callbackURL ? { callbackURL } : {}),
+      });
+      return toResult(undefined, response.error);
+    },
     requestPasswordReset: async ({ email, redirectTo }) => {
       const response = await client.requestPasswordReset({ email, redirectTo });
       return toResult(undefined, response.error);
@@ -302,6 +309,15 @@ export const createCliAuthAdapter = (
     },
     requestMagicLink: async ({ email, callbackURL }) => {
       const result = await postCliAuth(baseUrl, '/api/auth/sign-in/magic-link', { email, ...(callbackURL ? { callbackURL } : {}) }, null);
+      return result.ok ? ok(undefined) : result;
+    },
+    sendVerificationEmail: async ({ email, callbackURL }) => {
+      const result = await postCliAuth(
+        baseUrl,
+        '/api/auth/send-verification-email',
+        { email, ...(callbackURL ? { callbackURL } : {}) },
+        null,
+      );
       return result.ok ? ok(undefined) : result;
     },
     requestPasswordReset: async ({ email, redirectTo }) => {

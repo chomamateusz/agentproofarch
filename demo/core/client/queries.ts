@@ -28,6 +28,7 @@ import type {
   PasswordResetCompletion,
   PasswordResetRequest,
   SocialSignInInput,
+  VerificationEmailRequest,
 } from './auth-port.js';
 import { unwrap, type ApiClient, type ReadResult, type WriteResult } from './http.js';
 
@@ -315,6 +316,12 @@ export const requestMagicLinkMutation = (auth: AuthClientPort) =>
   defineMutation({
     mutationKey: [...authScopes.all(), 'magic-link'],
     call: (input: MagicLinkRequest) => auth.requestMagicLink(input),
+  });
+
+export const sendVerificationEmailMutation = (auth: AuthClientPort) =>
+  defineMutation({
+    mutationKey: [...authScopes.all(), 'verification-email'],
+    call: (input: VerificationEmailRequest) => auth.sendVerificationEmail(input),
   });
 
 export const requestPasswordResetMutation = (auth: AuthClientPort) =>

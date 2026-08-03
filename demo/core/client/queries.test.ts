@@ -75,7 +75,7 @@ const happyApi: ApiClient = {
   healthLive: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha' }),
   healthReady: async () => ok({ status: 'ok', version: '0.1.0', sha: 'test-sha', database: 'up' }),
   config: async () => ok({ googleEnabled: false }),
-  me: async () => ok({ userId: 'u1', email: 'demo@example.com', name: 'Demo', tenant: null }),
+  me: async () => ok({ userId: 'u1', email: 'demo@example.com', name: 'Demo', emailVerified: true, tenant: null }),
   listTenants: async () => ok({ tenants: [{ tenant, staffRole: 'owner' }], canCreateTenant: true }),
   createTenant: async (input) => ok({ tenant: { id: 't-new', slug: input.slug, name: input.name } }),
   listTodos: async () => ok({ todos: [todo] }),
@@ -155,6 +155,7 @@ describe('query descriptors', () => {
       userId: 'u1',
       email: 'demo@example.com',
       name: 'Demo',
+      emailVerified: true,
       tenant: null,
     });
     await expect(client.fetchQuery(tenantsQuery(happyApi))).resolves.toEqual({
@@ -233,6 +234,7 @@ const fakeAuth = (): AuthClientPort => ({
   signOut: async () => ok(undefined),
   changePassword: async () => ok(undefined),
   requestMagicLink: async () => ok(undefined),
+  sendVerificationEmail: async () => ok(undefined),
   requestPasswordReset: async () => ok(undefined),
   resetPassword: async () => ok(undefined),
   signInSocial: async () => ok({ url: 'https://accounts.google.example/authorize' }),
@@ -255,19 +257,19 @@ describe('auth mutation descriptors', () => {
       new MutationObserver(client, signUpMutation(auth)).mutate({
         name: 'Demo',
         email: 'demo@example.com',
-        password: 'demo1234',
+        password: 'demo-agentproof-1234',
       }),
     ).resolves.toEqual({ token: 'signed-up', twoFactorRedirect: false });
     await expect(
-      new MutationObserver(client, signInMutation(auth)).mutate({ email: 'demo@example.com', password: 'demo1234' }),
+      new MutationObserver(client, signInMutation(auth)).mutate({ email: 'demo@example.com', password: 'demo-agentproof-1234' }),
     ).resolves.toEqual({ token: 'signed-in', twoFactorRedirect: false });
     await expect(
       new MutationObserver(client, signOutMutation(auth)).mutate(),
     ).resolves.toBeUndefined();
     await expect(
       new MutationObserver(client, changePasswordMutation(auth)).mutate({
-        currentPassword: 'demo1234',
-        newPassword: 'changed1234',
+        currentPassword: 'demo-agentproof-1234',
+        newPassword: 'changed-pass-1234',
         revokeOtherSessions: true,
       }),
     ).resolves.toBeUndefined();
@@ -280,7 +282,7 @@ describe('auth mutation descriptors', () => {
     await expect(
       new MutationObserver(client, resetPasswordMutation(auth)).mutate({
         token: 'reset-token',
-        newPassword: 'demo12345',
+        newPassword: 'rotated-agentproof-1234',
       }),
     ).resolves.toBeUndefined();
   });

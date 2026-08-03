@@ -17,9 +17,9 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { ApiError } from '#core/client/index.js';
+import { PASSWORD_MIN_LENGTH, passwordSchema } from '#core/domain/index.js';
 
 import { actions } from '../../api.js';
-import { passwordSchema } from '../../lib/password.js';
 import { Eyebrow, FinePrint, Wordmark } from '../../theme.js';
 
 /**
@@ -202,7 +202,7 @@ export const ResetPasswordPage = () => {
         {formError ? <Alert sx={{ mt: '0.6rem' }}>{formError}</Alert> : null}
         <Divider sx={{ mt: '1.4rem', mb: '0.9rem' }} />
         <FinePrint variant="caption" component="p">
-          at least 8 characters, the same rule registration applies.
+          at least {PASSWORD_MIN_LENGTH} characters, the same rule registration applies.
         </FinePrint>
       </Paper>
     </Box>

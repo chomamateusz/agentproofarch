@@ -62,7 +62,7 @@ describe('PasskeySection', () => {
 
     renderWithProviders(<PasskeySection />);
 
-    await userEvent.type(screen.getByLabelText('account password'), 'demo1234');
+    await userEvent.type(screen.getByLabelText('account password'), 'demo-agentproof-1234');
     await userEvent.click(await screen.findByRole('button', { name: 'remove' }));
     await userEvent.click(await screen.findByRole('button', { name: 'confirm remove' }));
 

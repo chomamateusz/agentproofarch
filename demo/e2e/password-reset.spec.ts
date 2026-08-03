@@ -22,8 +22,11 @@ test('a reset link sets a new password and the old one stops working', async ({ 
   await page.locator('#register-email').fill(email);
   await page.locator('#register-password').fill(OLD_PASSWORD);
   await page.getByRole('button', { name: 'create account' }).click();
+  // `localhost` is a custom domain of the seeded acme tenant, so a brand-new
+  // account lands on the onboarding card with no create form: soft verification
+  // withholds `tenant:create` until the address is confirmed.
   const onboarding = page.getByRole('heading', {
-    name: 'no tenant here yet — create one to get started',
+    name: 'no tenant is available on this host',
   });
   await expect(onboarding).toBeVisible();
 

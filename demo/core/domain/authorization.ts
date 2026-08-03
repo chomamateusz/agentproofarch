@@ -119,13 +119,27 @@ export const grantsFor = (
   'tenant:create': TENANT_CREATION_GRANTS[tenantCreationMode],
 });
 
+/**
+ * Capabilities that additionally require a verified email address (owner
+ * decision 2026-08-02, "soft verification"). Everything else works the moment an
+ * account exists — unverified sign-in, boards, todos, membership — so the only
+ * thing an unconfirmed address cannot do is mint a new tenant, the one action
+ * that creates a durable instance-level object under an address nobody proved.
+ * Keeping it here rather than in the use-case means the same rule answers both
+ * the `authorize` gate and the reported `canCreateTenant` verdict.
+ */
+const VERIFIED_EMAIL_CAPABILITIES: readonly Capability[] = ['tenant:create'];
+
 export const decide = (
   identity: Identity,
   capability: Capability,
   tenantCreationMode: TenantCreationMode,
 ): Verdict => {
   const principal = principalOf(identity);
-  return grantsFor(tenantCreationMode)[capability].includes(principal)
-    ? { allowed: true }
-    : { allowed: false, reason: `${capability} is not permitted for ${principal}` };
+  if (!grantsFor(tenantCreationMode)[capability].includes(principal)) {
+    return { allowed: false, reason: `${capability} is not permitted for ${principal}` };
+  }
+  return VERIFIED_EMAIL_CAPABILITIES.includes(capability) && !identity.emailVerified
+    ? { allowed: false, reason: `${capability} requires a verified email address` }
+    : { allowed: true };
 };

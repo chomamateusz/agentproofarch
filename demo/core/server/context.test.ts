@@ -7,6 +7,7 @@ const user = {
   userId: 'u1',
   email: 'staff@example.com',
   name: 'Staff',
+  emailVerified: true,
 };
 
 const tenantAccess = (

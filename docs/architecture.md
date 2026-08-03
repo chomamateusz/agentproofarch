@@ -681,6 +681,52 @@ the canonical shape (`slugSchema` = `transform(normalizeSlug).pipe(canonicalSlug
 3–63 chars, `^[a-z0-9]+(?:-[a-z0-9]+)*$`, not a reserved subdomain), so the edge
 accepts human input while only one canonical form is ever persisted or resolved.
 
+### Session management, verification and credential policy
+
+Four owner decisions (2026-08-02) that were previously "whatever the provider
+defaults to". Each is now written into `adapters/auth/create-auth.ts` explicitly
+and read back off the composed provider options by a config-regression probe
+(`config-regression/auth-policy.test.ts`), so a provider bump that moves a default
+— or a knob quietly deleted from the composition — fails `check` instead of
+silently changing the security posture. Adopting a default *explicitly* is the
+point: the value is unchanged, the decision is now ours.
+
+- **Session lifetime: 7 days absolute, refreshed on activity every 1 day**
+  (`AUTH_POLICY.sessionExpiresInSeconds` / `sessionUpdateAgeSeconds`). A session
+  older than the window is dead whether or not it was used; a session used past
+  the refresh age is extended back to the full window, so an active human is not
+  logged out mid-work while an abandoned one expires within the week. Cookie
+  attributes, cross-subdomain scope and the per-custom-domain isolation are
+  unchanged (§Security baseline).
+- **2FA: 10 backup codes, TOTP 6 digits on a 30-second period**
+  (`AUTH_POLICY.twoFactorBackupCodeCount` / `totpDigits` / `totpPeriodSeconds`).
+  Ten one-use codes is enough to survive a lost phone without becoming a second
+  password list, and 6/30 is what every authenticator app assumes — changing
+  either would silently break enrolments already in the wild, which is exactly
+  why they are pinned rather than inherited.
+- **Password floor: 12 characters, no composition rules.** One number,
+  `PASSWORD_MIN_LENGTH` in `core/domain/password.ts`, is enforced on both edges:
+  the web register / change / reset forms parse with `passwordSchema`, and the
+  auth adapter hands the same value to the provider as `minPasswordLength`, so a
+  client-side pass can never be a server-side reject. Following NIST SP
+  800-63B-4 §3.1.1, length is the control and character-class rules are
+  *deliberately absent* — they push people towards predictable mutations of a
+  short secret. Adding one back is a policy change, not a hardening tweak.
+- **Email verification is SOFT.** An account works the moment it exists: sign-in,
+  boards, membership, everything — `requireEmailVerification` stays off
+  explicitly. The confirmation mail goes out on sign-up through the same
+  `EmailPort` seam as the magic link and the reset mail (§Storage and email
+  ports), and the emailed link marks the address verified. The **only** thing an
+  unconfirmed address cannot do is `tenant:create` (§Authorization) — the one
+  action that creates a durable instance-level object under an address nobody
+  proved. `AuthPort` carries `emailVerified` into `Identity`, `/api/me` reports
+  it, and the web shell renders a quiet banner with a resend action for as long
+  as it is false — on a tenant host the caller cannot access, `/api/me` is a
+  `forbidden` carrying no address, so the onboarding card states only that the
+  host has no tenant for them. The demo seed marks its own account verified: no
+  mailbox exists behind `demo@agentproofarch.dev`, so no link could ever be
+  followed for it.
+
 ### Authorization
 
 **Default-deny at every use-case entry** (NORMATIVE NOW). Tenant resolution
@@ -717,6 +763,14 @@ them; `tenant:create` is the one row derived from an env-selected mode, below):
 | `tenant:create` — `TENANT_CREATION=open` (default) | allow | allow | deny | allow |
 | `tenant:create` — `TENANT_CREATION=staff` | allow | allow | deny | deny |
 | `tenant:create` — `TENANT_CREATION=closed` | deny | deny | deny | deny |
+
+`tenant:create` carries one extra condition no other capability has: the caller's
+email must be **verified** (owner decision 2026-08-02, §Email verification). The
+check lives in `decide`, not in `createTenant`, so the same rule answers both the
+`authorize` gate and the `canCreateTenant` verdict `listMyTenants` reports — an
+unverified caller is denied `forbidden` with `tenant:create requires a verified
+email address`, and the clients never offer a form the route would reject. The
+principal check runs first, so a denial names the principal when both would deny.
 
 Members are full collaborators on the tenant's boards (todos and cards are
 collaborative aggregates) but may not administer tenants; owners and admins share
@@ -1888,7 +1942,10 @@ live smoke assertion.
   `create-auth.ts`: `SECURE_COOKIES=true` is required in staging/prod (drives the
   `Secure` flag; defaults false only because `*.localhost` is plaintext), and
   `crossSubDomainCookies` is on for a real `APP_BASE_DOMAIN` (sessions span tenant
-  subdomains) and off for `localhost` (browsers reject `Domain=.localhost`).
+  subdomains) and off for `localhost` (browsers reject `Domain=.localhost`). The
+  session *lifetime* (7-day absolute expiry, 1-day activity refresh), the 2FA
+  parameters and the 12-character password floor are pinned explicitly and probed
+  (§Session management, verification and credential policy).
 - **CSRF / CORS doctrine.** The primary session boundary is `SameSite=Lax`
   session cookies on a **same-origin** SPA with **no CORS middleware on the
   authenticated `/api/*` surface** — so a cross-site page can neither attach the

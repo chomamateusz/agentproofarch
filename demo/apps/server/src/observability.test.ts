@@ -25,6 +25,7 @@ const identity: Identity = {
   userId: 'user-1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
   tenantId: 'tenant-1',
   tenantSlug: 'acme',
   tenantName: 'Acme',

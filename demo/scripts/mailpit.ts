@@ -22,6 +22,7 @@ const messageBodySchema = z.object({ Text: z.string().default(''), HTML: z.strin
 
 const MAGIC_LINK = /https?:\/\/[^\s"'<>]*magic-link\/verify[^\s"'<>]*/;
 const PASSWORD_RESET_LINK = /https?:\/\/[^\s"'<>]*auth\/reset-password\/[^\s"'<>]*/;
+const EMAIL_VERIFICATION_LINK = /https?:\/\/[^\s"'<>]*auth\/verify-email[^\s"'<>]*/;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -89,3 +90,11 @@ export const fetchPasswordResetLink = (
   email: string,
   timeoutMs = 15000,
 ): Promise<string> => fetchLink(baseUrl, email, PASSWORD_RESET_LINK, 'password-reset link', timeoutMs);
+
+/** The sign-up confirmation link; following it flips `emailVerified` and unlocks `tenant:create`. */
+export const fetchEmailVerificationLink = (
+  baseUrl: string,
+  email: string,
+  timeoutMs = 15000,
+): Promise<string> =>
+  fetchLink(baseUrl, email, EMAIL_VERIFICATION_LINK, 'email-verification link', timeoutMs);

@@ -13,6 +13,7 @@ const meOwner = {
   userId: 'u-owner',
   email: 'owner@acme.dev',
   name: 'Owner',
+  emailVerified: true,
   tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole: 'owner', memberId: null },
 };
 

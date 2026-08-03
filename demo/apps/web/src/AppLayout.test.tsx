@@ -20,6 +20,7 @@ const meAcme = {
   userId: 'u1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
   tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole: 'owner', memberId: null },
 };
 const acme = { tenant: { id: 't1', slug: 'acme', name: 'Acme Inc' }, staffRole: 'owner' };

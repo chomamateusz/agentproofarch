@@ -9,6 +9,7 @@ const identity: Identity = {
   userId: 'u1',
   email: 'demo@example.com',
   name: 'Demo',
+  emailVerified: true,
   tenantId: null,
   tenantSlug: null,
   tenantName: null,
@@ -64,6 +65,27 @@ describe('listMyTenants', () => {
 
     expect(result).toMatchObject({ ok: true, value: { canCreateTenant: allowed } });
   });
+
+  it.each([
+    ['open', null],
+    ['open', 'owner'],
+    ['staff', 'admin'],
+  ] as const)(
+    'reports canCreateTenant false for an unverified caller in %s mode as %s',
+    async (mode, staffRole) => {
+      const deps = { tenantAccess: fakeTenantAccess({}) };
+
+      const result = await listMyTenants(
+        {
+          identity: { ...identity, staffRole, emailVerified: false },
+          tenantCreationMode: mode,
+        },
+        deps,
+      );
+
+      expect(result).toMatchObject({ ok: true, value: { canCreateTenant: false } });
+    },
+  );
 
   it('enumerates only the calling user, not others', async () => {
     const deps = { tenantAccess: fakeTenantAccess({ other: [acme] }) };
