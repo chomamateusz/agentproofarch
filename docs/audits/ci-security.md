@@ -88,18 +88,20 @@ DB URL reachable from an agent shell).
 ## Automatable checks
 
 `scorecard.yml` (weekly cron plus manual dispatch, **advisory and unrequirable
-— see below**) runs `ossf/scorecard-action` and uploads SARIF to the Security
-tab. Read its latest run **before** starting an audit and treat every check as
-*input*, then record each place this repo's doctrine deliberately diverges.
+— see below**) runs `ossf/scorecard-action`, while `codeql.yml` runs advisory
+JavaScript/TypeScript SAST on pull requests to `main` and weekly. Both upload
+results to the Security tab. Read their latest runs **before** starting an audit
+and treat every finding as *input*, then record each place this repo's doctrine
+deliberately diverges.
 
 | Check | Expected here | Why |
 |---|---|---|
-| `Token-Permissions` | Below 10, deliberately | Every workflow's top level is read-only; every write is job-scoped, and each of the seven jobs that hold one cannot do its work without it — `tag-release` and `visual-baselines` (`contents`, to create the tag and to push re-rendered baselines), `approve-visuals` (`actions` + `pull-requests`, to dispatch that run and to answer the comment that asked for it), `ci`'s `visual-report` (`contents` + `pull-requests`, to push the gallery branch and comment it), `ai-review` (`pull-requests`, to post the verdict), `docs-deploy` (`pages` + `id-token`) and `scorecard` itself (`security-events`, to upload the SARIF this table reads). Scorecard scores a job-level write as a finding regardless; dropping the capability would break the job, so the score stays where it is |
+| `Token-Permissions` | Below 10, deliberately | Every workflow's top level is read-only; every write is job-scoped, and each of the eight jobs that hold one cannot do its work without it — `tag-release` and `visual-baselines` (`contents`, to create the tag and to push re-rendered baselines), `approve-visuals` (`actions` + `pull-requests`, to dispatch that run and to answer the comment that asked for it), `ci`'s `visual-report` (`contents` + `pull-requests`, to push the gallery branch and comment it), `ai-review` (`pull-requests`, to post the verdict), `docs-deploy` (`pages` + `id-token`), `scorecard` and `codeql` (`security-events`, to upload their SARIF). Scorecard scores a job-level write as a finding regardless; dropping the capability would break the job, so the score stays where it is |
 | `Pinned-Dependencies` | Should score well | Every action is SHA-pinned, every service container carries a digest, and `demo/Dockerfile`'s base images are pinned by digest beside their tag |
 | `Security-Policy` | 10 | [`SECURITY.md`](../../SECURITY.md) — supported release line, private reporting channel, best-effort response stated without an SLA, and the demo deployment named as out of scope |
-| `Dependency-Update-Tool` | 0 | No bot; a bot must respect the `minimumReleaseAge: 4320` cooldown, so "fix the score" is the wrong instinct — see [`dependencies.md`](dependencies.md) |
+| `Dependency-Update-Tool` | Likely to rise on the config file alone — read it as configured, not as running | The check looks for a config, and `renovate.json` is now one; it cannot see that the Renovate GitHub App is still not installed, so a better number here is not evidence a bot opened anything. The config keeps the same three-day cooldown both pnpm roots enforce — see [`dependencies.md`](dependencies.md) |
 | `Code-Review` | Weakened | No `CODEOWNERS`; the rulesets do require a pull request, which the check only partly detects |
-| `SAST` | Low | ESLint plus the custom layer rules are not detected as SAST |
+| `SAST` | Advisory | `codeql.yml` scans JavaScript/TypeScript on pull requests to `main` and weekly, uploads findings to the Security tab, and is deliberately outside every required-check list |
 | `Branch-Protection` | Reads poorly | Repository rules read with the default `GITHUB_TOKEN`; the required set is verified by `gh api …/rulesets` in the method above, not by this score |
 | `Fuzzing`, `Packaging`, `Signed-Releases`, `CII-Best-Practices` | Not applicable | Ignore rather than chase |
 

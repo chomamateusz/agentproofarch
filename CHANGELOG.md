@@ -14,6 +14,18 @@ before that lives in the git history only.
 
 ## 2026-08-03
 
+### Added
+
+- Advisory JavaScript/TypeScript CodeQL scanning on pull requests to `main` and
+  weekly, reporting to the Security tab without becoming a required check
+  ([#126](https://github.com/chomamateusz/agentproofarch/pull/126))
+
+- Renovate configuration for one weekly grouped non-major update pull request,
+  majors kept separate and weekly lockfile maintenance, all under the same
+  three-day release cooldown both pnpm roots enforce; the bot only starts once
+  the repository owner installs the Renovate GitHub App
+  ([#126](https://github.com/chomamateusz/agentproofarch/pull/126))
+
 ### Security
 
 - Email verification is now sent on sign-up and stays soft — an unconfirmed
