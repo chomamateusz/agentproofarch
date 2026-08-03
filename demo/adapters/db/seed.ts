@@ -4,7 +4,10 @@
  *   password: demo-agentproof-1234
  * Tenants: acme.localhost and globex.localhost (subdomains of APP_BASE_DOMAIN).
  * Convergent: running twice leaves the same state, and an already-seeded
- * database is brought back to the credentials documented above.
+ * database is brought back to the credentials documented above. It inserts and
+ * updates fixtures only — nothing here deletes, so visitor-created rows survive
+ * every run. That is what lets the platform build (`vercel-build`) run it on
+ * every deployment, keeping the published demo credentials true.
  */
 import { and, eq } from 'drizzle-orm';
 
@@ -14,9 +17,13 @@ import { seedEnvSchema } from '#core/server/config.js';
 import { createDb } from './client.js';
 import { account, members, tenantAdmins, tenantDomains, tenants, todos, user } from './schema.js';
 
-const { DATABASE_URL: connectionString, BETTER_AUTH_SECRET } = seedEnvSchema.parse(process.env);
+const {
+  DATABASE_URL: connectionString,
+  DB_DRIVER: driver,
+  BETTER_AUTH_SECRET,
+} = seedEnvSchema.parse(process.env);
 
-const db = createDb('node-postgres', connectionString);
+const db = createDb(driver, connectionString);
 
 const auth = createAuth(db, {
   secret: BETTER_AUTH_SECRET,

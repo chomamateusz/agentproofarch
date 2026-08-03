@@ -7,7 +7,8 @@ this repo is the **walking skeleton**: auth, foundation-owned tenants (flat
 `owner`/`admin` grants — no organizations/teams concept), tenant resolution by
 domain, one tasks subdomain — todos plus the two exemplar boards (personal +
 team) — flowing through every layer, a full CLI and a web SPA. Live at
-<https://agentproofarch.vercel.app> (`demo@agentproofarch.dev` / `demo-agentproof-1234`).
+<https://agentproofarch.vercel.app> (`demo@agentproofarch.dev` / `demo-agentproof-1234` —
+the deployment build reseeds convergently, so those stay the real credentials).
 
 New here? Read [../docs/first-feature.md](../docs/first-feature.md) — it adds a
 real resource end-to-end in 30 minutes.

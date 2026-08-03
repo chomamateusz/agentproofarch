@@ -55,7 +55,8 @@ privilege, or turns a pull request into repository write access belongs here.
 
 **Out of scope — the public demo deployment.** <https://agentproofarch.vercel.app>
 is a playground: its credentials (`demo@agentproofarch.dev` / `demo-agentproof-1234`) are
-published in the README, its data is seeded and disposable, and it runs on
+published in the README, its data is seeded and disposable — every deployment
+reseeds the fixture back to those published credentials — and it runs on
 free-tier hosting. Signing in with those credentials, reading or destroying
 what you find there, and rate-limit or capacity findings against that instance
 are not vulnerabilities. Findings in the platforms underneath it (GitHub,

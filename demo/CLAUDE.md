@@ -159,5 +159,7 @@ not the compiler, is what guarantees they are done.
 - Tenants live on subdomains: `acme.localhost:47100`. Browsers reject
   `Domain=.localhost` cookies → per-subdomain login in dev only.
 - Better Auth CSRF requires an `Origin` header on auth POSTs (CLI sends its API URL).
-- Seed is convergent (it re-states the demo password on every run); demo
-  credentials `demo@agentproofarch.dev` / `demo-agentproof-1234`.
+- Seed is convergent (it re-states the demo password on every run) and never
+  deletes, so `vercel-build` runs it on every deployment and the published demo
+  credentials `demo@agentproofarch.dev` / `demo-agentproof-1234` stay true. Keep it
+  that way: anything destructive in `adapters/db/seed.ts` would now hit live data.

@@ -131,9 +131,10 @@ export const databaseEnvSchema = z.object({
   DB_DRIVER: dbDriverField,
 });
 
-/** Seed subset: connection string + the auth secret the seeder signs up with. */
+/** Seed subset: connection string, driver selection, and the auth secret the seeder signs up with. */
 export const seedEnvSchema = z.object({
   DATABASE_URL: databaseUrlField,
+  DB_DRIVER: dbDriverField,
   BETTER_AUTH_SECRET: z.string().default(DEV_ONLY_SECRET),
 });
 
