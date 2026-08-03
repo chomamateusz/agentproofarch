@@ -18,11 +18,19 @@ repo's own artifacts do not have (the position is stated in
 [`ci-security.md`](ci-security.md)).
 
 **What is not claimed:** an OSV-clean tree is not a safe tree, and Scorecard's
-`Dependency-Update-Tool` scoring 0 is not automatically a defect here. This
-repo runs a three-day `minimumReleaseAge: 4320` cooldown precisely so a
-freshly-compromised release cannot be pulled in on publish day; an update bot
-is only an improvement if it respects that window. Weigh the check against the
-doctrine and record the reasoning — do not adopt a bot to move a number.
+`Dependency-Update-Tool` score is not automatically a security verdict. Weigh
+the check against the doctrine and record the reasoning — do not change update
+policy merely to move a number.
+
+`renovate.json` configures one weekly pull request grouping every non-major
+update, majors kept out of that group so a breaking bump is reviewed on its own,
+and weekly lockfile maintenance; both the `demo/` and `website/` pnpm roots are
+picked up by autodiscovery rather than named in the config. Its
+`minimumReleaseAge` of three days is the same window as the `4320` minutes both
+roots' `pnpm-workspace.yaml` already enforces, so automation cannot select a
+release before the package manager would admit it. The configuration does not
+activate Renovate by itself: the repository owner must install the Renovate
+GitHub App on the repository first, which is a click no agent can make.
 
 ## Reference standard
 
@@ -72,7 +80,7 @@ distributing this codebase).
 | Version drift | `pnpm outdated` | No — run it during the audit |
 | Licenses | `pnpm licenses list`, Scorecard `License` | No — run it during the audit |
 | Lockfile freshness | `lock-lint` in `pnpm run check` | Yes, structurally; resolved-version drift still needs the manual step above |
-| Update-bot presence | Scorecard `Dependency-Update-Tool` | Yes, and expected to score 0 — see the anchor note |
+| Update-bot configuration | Renovate, Scorecard `Dependency-Update-Tool` | `renovate.json` is wired; the owner-installed GitHub App is still required to activate it |
 
 Everything the tools do not decide: whether an advisory is reachable in this
 codebase's usage, whether an `onlyBuiltDependencies` entry is justified,
