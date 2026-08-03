@@ -12,6 +12,8 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## v1.4.0 — 2026-08-03
+
 ## 2026-08-03
 
 ### Added
