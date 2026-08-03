@@ -15,7 +15,7 @@ const renderSettings = async (
     http.get('/api/me', () =>
       HttpResponse.json({
         ok: true,
-        data: { userId: 'u1', email: 'e@x.dev', name: 'E', tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole, memberId: null } },
+        data: { userId: 'u1', email: 'e@x.dev', name: 'E', emailVerified: true, tenant: { id: 't1', slug: 'acme', name: 'Acme Inc', staffRole, memberId: null } },
       }),
     ),
     http.get('/api/tenants', () =>

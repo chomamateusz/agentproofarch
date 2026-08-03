@@ -17,9 +17,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { ApiError } from '#core/client/index.js';
+import { passwordSchema } from '#core/domain/index.js';
 
 import { actions } from '../../api.js';
-import { passwordSchema } from '../../lib/password.js';
 import { Eyebrow, Wordmark } from '../../theme.js';
 
 const registerSchema = z.object({

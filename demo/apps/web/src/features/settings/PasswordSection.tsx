@@ -16,9 +16,9 @@ import {
 import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '#core/client/index.js';
+import { passwordSchema } from '#core/domain/index.js';
 
 import { actions } from '../../api.js';
-import { passwordSchema } from '../../lib/password.js';
 
 const errorText = (error: unknown): string =>
   error instanceof ApiError ? error.appError.message : error instanceof Error ? error.message : 'Something went wrong';

@@ -40,7 +40,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Enter your name')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
-    expect(screen.getByText('Use at least 8 characters')).toBeInTheDocument();
+    expect(screen.getByText('Use at least 12 characters')).toBeInTheDocument();
     expect(calls).toBe(0);
   });
 
@@ -52,7 +52,7 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'create account' }));
 
     expect(await screen.findByText('Enter a valid email')).toBeInTheDocument();
-    expect(screen.getByText('Use at least 8 characters')).toBeInTheDocument();
+    expect(screen.getByText('Use at least 12 characters')).toBeInTheDocument();
   });
 
   it('shows a form-level alert when the server rejects a valid submission', async () => {

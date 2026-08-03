@@ -12,6 +12,35 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-08-03
+
+### Security
+
+- Email verification is now sent on sign-up and stays soft — an unconfirmed
+  account signs in and works normally, and the only capability withheld is
+  `tenant:create`, decided in the domain policy so `canCreateTenant` reports the
+  same verdict the create route enforces
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
+- Session lifetime is pinned explicitly at a 7-day absolute expiry with a 1-day
+  activity refresh, and 2FA at 10 backup codes with 6-digit TOTP on a 30-second
+  period; a config-regression probe reads all five values back off the composed
+  provider options
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
+- Account passwords require 12 characters and no character classes (NIST SP
+  800-63B-4 §3.1.1), enforced by one constant on both edges — the web register,
+  change-password and reset forms and the auth provider's own minimum
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
+### Changed
+
+- Demo credentials changed from `demo@agentproofarch.dev` / `demo1234` to
+  `demo@agentproofarch.dev` / `demo-agentproof-1234` everywhere (seed, READMEs,
+  login-page hint, smoke and e2e fixtures, docs) so the shipped demo satisfies
+  the new 12-character floor
+  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+
 ## v1.3.0 — 2026-08-02
 
 ## 2026-08-02

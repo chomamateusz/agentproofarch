@@ -45,7 +45,7 @@ describe('probeSignInCookies', () => {
 
     const probe = await probeSignInCookies('http://localhost:47100', {
       email: 'demo@agentproofarch.dev',
-      password: 'demo1234',
+      password: 'demo-agentproof-1234',
     });
 
     expect(probe).toEqual({ ok: true, status: 200, body: '', setCookie });

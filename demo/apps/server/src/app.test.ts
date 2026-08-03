@@ -118,6 +118,7 @@ const user: AuthenticatedUser = {
   userId: 'user-1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
 };
 
 describe('buildApp routes', () => {

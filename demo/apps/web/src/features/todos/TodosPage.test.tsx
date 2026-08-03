@@ -12,6 +12,7 @@ const meWithTenant = {
   userId: 'u1',
   email: 'demo@agentproofarch.dev',
   name: 'Demo',
+  emailVerified: true,
   tenant: { id: 't1', slug: 'acme', name: 'Acme', staffRole: 'owner', memberId: null },
 };
 

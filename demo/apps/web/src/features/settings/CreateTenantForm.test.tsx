@@ -27,7 +27,7 @@ describe('CreateTenantForm', () => {
       http.get('/api/tenants', () =>
         HttpResponse.json({ ok: true, data: { tenants: [], canCreateTenant: true } }),
       ),
-      http.get('/api/me', () => HttpResponse.json({ ok: true, data: { userId: 'u1', email: 'e', name: 'n', tenant: null } })),
+      http.get('/api/me', () => HttpResponse.json({ ok: true, data: { userId: 'u1', email: 'e', name: 'n', emailVerified: true, tenant: null } })),
     );
 
     let onCreatedSlug: string | null = null;

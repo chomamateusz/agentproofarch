@@ -8,6 +8,8 @@ export interface Identity {
   userId: string;
   email: string;
   name: string;
+  /** Provider-owned verification state; the one capability input that is not a role. */
+  emailVerified: boolean;
   tenantId: string | null;
   tenantSlug: string | null;
   tenantName: string | null;

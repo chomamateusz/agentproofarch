@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const DEMO_EMAIL = 'demo@agentproofarch.dev';
-const DEMO_PASSWORD = 'demo1234';
+const DEMO_PASSWORD = 'demo-agentproof-1234';
 
 const signIn = async (page: Page): Promise<void> => {
   await page.goto('/login');

@@ -9,6 +9,7 @@ const identity = (over: Partial<Identity> = {}): Identity => ({
   userId: 'u-owner',
   email: 'owner@example.com',
   name: 'Owner',
+  emailVerified: true,
   tenantId: 't-acme',
   tenantSlug: 'acme',
   tenantName: 'Acme Inc',

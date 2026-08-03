@@ -12,6 +12,7 @@ import { twoFactor } from 'better-auth/plugins/two-factor';
 import { passkey } from '@better-auth/passkey';
 import { z } from 'zod';
 
+import { PASSWORD_MIN_LENGTH } from '#core/domain/index.js';
 import type { AuthPort, EmailPort } from '#core/server/index.js';
 import type { Db } from '#adapters/db/client.js';
 
@@ -41,6 +42,7 @@ export const BETTER_AUTH_API_PATH_PATTERN = '/api/auth/*';
 
 const magicLinkSubject = 'Your Agentproofarch sign-in link';
 const passwordResetSubject = 'Reset your Agentproofarch password';
+const emailVerificationSubject = 'Confirm your Agentproofarch email address';
 const passwordResetRequestSchema = z.object({ redirectTo: z.url() });
 const PASSKEY_SENSITIVE_COOKIE = 'passkey_sensitive';
 const PASSKEY_SENSITIVE_MAX_AGE_SECONDS = 5 * 60;
@@ -51,6 +53,23 @@ const PASSKEY_SENSITIVE_MAX_AGE_SECONDS = 5 * 60;
  * explicit because it is a security parameter.
  */
 const PASSWORD_RESET_TOKEN_TTL_SECONDS = 60 * 60;
+
+/**
+ * The session and 2FA parameters the owner pinned on 2026-08-02. Each value is
+ * also the provider's current default: writing them down turns "whatever Better
+ * Auth ships today" into a reviewed decision that a dependency bump cannot move
+ * silently, and `config-regression/auth-policy.test.ts` reads them back off the
+ * composed options, so a drift fails `check` instead of shipping.
+ */
+export const AUTH_POLICY = {
+  /** Absolute session lifetime — an older session is dead whether or not it was used. */
+  sessionExpiresInSeconds: 60 * 60 * 24 * 7,
+  /** Activity refresh: a session used past this age is extended back to the full window. */
+  sessionUpdateAgeSeconds: 60 * 60 * 24,
+  twoFactorBackupCodeCount: 10,
+  totpDigits: 6,
+  totpPeriodSeconds: 30,
+} as const;
 
 export const authIpAddressSettings = (rateLimitEnabled: boolean, trustedProxies: readonly string[]) => {
   if (rateLimitEnabled && trustedProxies.length === 0) {
@@ -159,7 +178,10 @@ export const isAdditionalTwoFactorPath = (path: string | undefined): boolean =>
   path !== undefined && (additionalTwoFactorPaths.has(path) || path.startsWith('/callback/'));
 
 const twoFactorForEverySignIn = () => {
-  const plugin = twoFactor();
+  const plugin = twoFactor({
+    totpOptions: { digits: AUTH_POLICY.totpDigits, period: AUTH_POLICY.totpPeriodSeconds },
+    backupCodeOptions: { amount: AUTH_POLICY.twoFactorBackupCodeCount },
+  });
   return {
     ...plugin,
     hooks: {
@@ -200,8 +222,30 @@ export const createAuth = (db: Db, settings: AuthSettings) =>
     secret: settings.secret,
     baseURL: settings.baseUrl,
     trustedOrigins: settings.trustedOrigins,
+    session: {
+      expiresIn: AUTH_POLICY.sessionExpiresInSeconds,
+      updateAge: AUTH_POLICY.sessionUpdateAgeSeconds,
+    },
+    // SOFT verification: an account works the moment it exists — sign-in, boards,
+    // membership — and only `tenant:create` waits for the confirmation
+    // (core/domain/authorization.ts). Hence `requireEmailVerification` stays off
+    // explicitly rather than by default, while the mail goes out on sign-up.
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await settings.email.sendMail({
+          to: user.email,
+          subject: emailVerificationSubject,
+          text: `Confirm your Agentproofarch email address:\n\n${url}\n\nYour account already works without this — confirming only unlocks creating your own tenant.`,
+          link: url,
+        });
+      },
+    },
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: false,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
       resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_TTL_SECONDS,
       // A reset is what someone does after losing control of the account, so the
       // sessions opened with the old password must not survive it (off by default).
@@ -266,6 +310,7 @@ export const createAuthPort = (auth: Auth): AuthPort => ({
       userId: session.user.id,
       email: session.user.email,
       name: session.user.name,
+      emailVerified: session.user.emailVerified,
     };
   },
 });

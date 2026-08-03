@@ -97,13 +97,14 @@ describe('route schemas parse their example payloads', () => {
       userId: 'u1',
       email: 'a@b.com',
       name: 'Ada',
+      emailVerified: true,
       tenant: { id: 't1', slug: 'acme', name: 'Acme', staffRole: 'owner', memberId: 'm1' },
     };
     expect(meOutputSchema.parse(example)).toEqual(example);
   });
 
   it('meOutputSchema with a null tenant', () => {
-    const example = { userId: 'u1', email: 'a@b.com', name: 'Ada', tenant: null };
+    const example = { userId: 'u1', email: 'a@b.com', name: 'Ada', emailVerified: false, tenant: null };
     expect(meOutputSchema.parse(example).tenant).toBeNull();
   });
 

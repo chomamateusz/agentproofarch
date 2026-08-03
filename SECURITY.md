@@ -54,7 +54,7 @@ cross a layer boundary undetected, leaks across a tenant boundary, escalates
 privilege, or turns a pull request into repository write access belongs here.
 
 **Out of scope — the public demo deployment.** <https://agentproofarch.vercel.app>
-is a playground: its credentials (`demo@agentproofarch.dev` / `demo1234`) are
+is a playground: its credentials (`demo@agentproofarch.dev` / `demo-agentproof-1234`) are
 published in the README, its data is seeded and disposable, and it runs on
 free-tier hosting. Signing in with those credentials, reading or destroying
 what you find there, and rate-limit or capacity findings against that instance

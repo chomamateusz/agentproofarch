@@ -85,6 +85,7 @@ export const meOutputSchema = z.object({
   userId: z.string(),
   email: z.string(),
   name: z.string(),
+  emailVerified: z.boolean(),
   tenant: z
     .object({
       id: z.string(),

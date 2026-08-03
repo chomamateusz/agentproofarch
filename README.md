@@ -40,7 +40,7 @@ it never overrules them.
 ## Live demo
 
 <https://agentproofarch.vercel.app> — sign in as `demo@agentproofarch.dev` /
-`demo1234`. Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
+`demo-agentproof-1234`. Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
 not code — [ADR-0003](docs/decisions/0003-vercel-environments.md)); the API and
 CLI stay fully multi-tenant via the `X-Tenant` header.
 
@@ -63,7 +63,7 @@ Then drive the same capabilities from the CLI — the agent feedback loop:
 
 ```bash
 pnpm --silent run cli --json health
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli --tenant acme todo list --json
 ```
 

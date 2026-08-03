@@ -151,7 +151,7 @@ see the feature actually work end-to-end. Boot the server and drive it:
 
 ```bash
 pnpm run dev:server &
-pnpm --silent run cli login --email demo@agentproofarch.dev --password demo1234
+pnpm --silent run cli login --email demo@agentproofarch.dev --password demo-agentproof-1234
 pnpm --silent run cli --tenant acme note add Buy milk
 pnpm --silent run cli --tenant acme note list --json
 ```

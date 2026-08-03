@@ -228,6 +228,7 @@ export const buildApp = (deps: AppDeps) => {
         userId: identity.userId,
         email: identity.email,
         name: identity.name,
+        emailVerified: identity.emailVerified,
         tenant:
           identity.tenantId &&
           identity.tenantSlug &&

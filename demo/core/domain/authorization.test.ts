@@ -16,6 +16,7 @@ const asStaff = (staffRole: StaffRole): Identity => ({
   userId: 'u1',
   email: 'staff@example.com',
   name: 'Staff',
+  emailVerified: true,
   tenantId: 't-acme',
   tenantSlug: 'acme',
   tenantName: 'Acme Inc',
@@ -27,6 +28,7 @@ const asMember: Identity = {
   userId: 'u2',
   email: 'member@example.com',
   name: 'Member',
+  emailVerified: true,
   tenantId: 't-acme',
   tenantSlug: 'acme',
   tenantName: 'Acme Inc',
@@ -38,6 +40,7 @@ const asVisitor: Identity = {
   userId: 'u3',
   email: 'visitor@example.com',
   name: 'Visitor',
+  emailVerified: true,
   tenantId: null,
   tenantSlug: null,
   tenantName: null,
@@ -145,6 +148,35 @@ describe('tenant creation modes', () => {
       }
     });
   }
+
+  it('withholds tenant:create from an otherwise-granted but unverified caller', () => {
+    for (const mode of ['open', 'staff'] as const) {
+      for (const principal of PRINCIPALS) {
+        const unverified = { ...identityFor[principal], emailVerified: false };
+        expect(decide(unverified, 'tenant:create', mode).allowed).toBe(false);
+      }
+    }
+    expect(decide({ ...asVisitor, emailVerified: false }, 'tenant:create', 'open')).toEqual({
+      allowed: false,
+      reason: 'tenant:create requires a verified email address',
+    });
+  });
+
+  it('reports the principal denial, not verification, when both would deny', () => {
+    expect(decide({ ...asMember, emailVerified: false }, 'tenant:create', 'open')).toEqual({
+      allowed: false,
+      reason: 'tenant:create is not permitted for member',
+    });
+  });
+
+  it('leaves every other capability blind to verification', () => {
+    for (const capability of CAPABILITIES) {
+      if (capability === 'tenant:create') continue;
+      expect(decide({ ...asStaff('owner'), emailVerified: false }, capability, 'open').allowed).toBe(
+        true,
+      );
+    }
+  });
 
   it('leaves a non-varying capability unchanged across modes', () => {
     for (const mode of ['open', 'staff', 'closed'] as const) {

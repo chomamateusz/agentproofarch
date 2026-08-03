@@ -96,6 +96,7 @@ export interface Identity {
   userId: string;
   email: string;
   name: string;
+  emailVerified: boolean;
   tenantId: string | null;
   tenantSlug: string | null;
   tenantName: string | null;
@@ -106,7 +107,39 @@ export interface Identity {
 
 `staffRole` and `memberId` are independent: a person can be staff, a member, both,
 or neither (the tenant-less **visitor**). The principal derivation and grant table
-live in [Authorization](authorization.md).
+live in [Authorization](authorization.md). `emailVerified` is the one capability
+input that is not a role — it comes straight off the provider through `AuthPort`
+and gates exactly one capability, `tenant:create`
+([soft verification](#email-verification-is-soft)).
+
+## Email verification is soft 📧 \{#email-verification-is-soft}
+
+An account works the moment it exists. There is no "confirm your email to
+continue" wall: `requireEmailVerification` is off — explicitly, not by
+default — so sign-in, boards, todos and membership all work while the address is
+unconfirmed. The confirmation mail goes out on sign-up through the same
+`EmailPort` seam as the magic link and the password-reset mail, and following the
+emailed link marks the address verified.
+
+The **only** thing an unconfirmed address cannot do is create a tenant. That is
+the one action that mints a durable instance-level object under an address nobody
+proved, and it is enforced as a domain decision inside `decide`, so
+`canCreateTenant` reports the same verdict the create route enforces
+([Verification is a capability
+input](authorization.md#verification-is-a-capability-input)).
+
+While `/api/me` reports `emailVerified: false`, the authenticated shell renders a
+quiet banner naming the address, saying the account still works, and offering a
+resend. It disappears the moment the link is followed. On a tenant host the
+caller has no access to, `/api/me` is a `forbidden` that carries no address at
+all, so the onboarding card there says only that the host has no tenant for
+them — and the create form is withheld just the same.
+
+:::note[The demo account is seeded verified]
+Nothing delivers to `demo@agentproofarch.dev`, so no link could ever be followed
+for it. The seed therefore states the verified fact directly — otherwise the demo
+account would be the one account unable to demonstrate tenant creation.
+:::
 
 ## Tenant resolution order 🧭 \{#tenant-resolution-order}
 
@@ -248,6 +281,17 @@ testable** — it gets verified live on the first custom base-domain deployment.
 
 ## Sessions 🍪 \{#sessions}
 
+**Lifetime: 7 days absolute, refreshed on activity every 1 day.** Both numbers are
+the provider's own defaults, adopted **explicitly** in `create-auth.ts`
+(`AUTH_POLICY.sessionExpiresInSeconds` / `sessionUpdateAgeSeconds`) rather than
+inherited: a session older than the window is dead whether or not it was used,
+and a session used past the refresh age is extended back to the full window — so
+an active human is never logged out mid-work while an abandoned session expires
+within the week. A config-regression probe
+(`config-regression/auth-policy.test.ts`) reads both values back off the composed
+provider options, so a dependency bump that moves a default, or a knob deleted
+from the composition, fails `check` instead of quietly changing the posture.
+
 - One session spans `APP_BASE_DOMAIN` subdomains when the base domain is real
   (`crossSubDomainCookies` on); off for `localhost`, because browsers reject
   `Domain=.localhost`.
@@ -279,11 +323,36 @@ names a provider route or SDK, and dependency-cruiser proves it
 | Magic link | `requestMagicLink` | built (US-026) — sent through `EmailPort` |
 | Password reset | `requestPasswordReset`, `resetPassword` | built — the request is sent through the same `EmailPort`; the emailed callback validates the token and redirects only to the requesting origin's `/reset-password` form, which posts the new password against the registration policy. The token expires in an hour and is consumed on use. A completed reset **revokes every other session** (`revokeSessionsOnPasswordReset`, off by default) — a reset is what someone does after losing control of the account, so sessions opened with the old password must not survive it. The request answers **identically for an address with an account and one without**, so the always-success wording on the form is what the provider actually does, not a UI pretence |
 | Social (Google) | `signInSocial` | built (FR-26) — wired **only** when `GOOGLE_CLIENT_ID` *and* `GOOGLE_CLIENT_SECRET` are both present; the login page reads a public `/api/config` flag to decide whether to show the button |
-| TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `verifyBackupCode`, `disableTwoFactor` | built (US-028a) — every password, magic-link, social and passkey sign-in that reaches an enrolled account stops at the same challenge; the login page accepts either TOTP or a one-use backup code before navigating |
+| TOTP 2FA | `enableTwoFactor`, `verifyTotp`, `verifyBackupCode`, `disableTwoFactor` | built (US-028a) — every password, magic-link, social and passkey sign-in that reaches an enrolled account stops at the same challenge; the login page accepts either TOTP or a one-use backup code before navigating. Parameters are pinned: **10 backup codes**, **6-digit** TOTP on a **30-second** period (§Pinned auth parameters) |
+| Email verification | `sendVerificationEmail` | built — **soft**: the mail goes out on sign-up through `EmailPort` and the link marks the address verified, but nothing is blocked except `tenant:create` ([above](#email-verification-is-soft)) |
 | Passkeys | `registerPasskey`, `listPasskeys`, `removePasskey`, `signInPasskey` | built (US-028a) — `rpID = APP_BASE_DOMAIN`, so one credential works across every tenant subdomain; add/remove require an authoritative sensitive session plus a five-minute proof minted by account-password verification |
 
 `listPasskeys` is the one **read**-tagged method on the port, because the passkey
 roster lives on the provider surface rather than in the contract API.
+
+## Pinned auth parameters 📌 \{#pinned-auth-parameters}
+
+Four numbers that used to be "whatever the provider defaults to" are now owner
+decisions, written into `create-auth.ts` and asserted against the composed
+provider options by `config-regression/auth-policy.test.ts`:
+
+| parameter | value | why it is pinned |
+|---|---|---|
+| session expiry | 7 days | The absolute window; unchanged from the provider default, now ours to move deliberately. |
+| session activity refresh | 1 day | A session used past this age is extended back to the full window. |
+| 2FA backup codes | 10 | Enough to survive a lost phone without becoming a second password list. |
+| TOTP digits / period | 6 / 30s | What every authenticator app assumes — moving either would silently break enrolments already in the wild. |
+
+**Password floor: 12 characters, no composition rules.** One constant,
+`PASSWORD_MIN_LENGTH` in `core/domain/password.ts`, is enforced on both edges:
+the register, change-password and reset forms parse with `passwordSchema`, and
+the auth adapter hands the same number to the provider as `minPasswordLength`, so
+a client-side pass can never turn into a server-side reject. Following
+[NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html) §3.1.1,
+length is the control that matters and character-class requirements are
+explicitly discouraged — they push people towards predictable mutations of a
+short secret. The absence of composition rules here is the decision, not an
+oversight.
 
 :::note[The zod 4 migration was a prerequisite, not a whim]
 `@better-auth/passkey` pinned a `better-call` whose optional `zod@^4` peer

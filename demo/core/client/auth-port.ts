@@ -30,6 +30,13 @@ export interface MagicLinkRequest {
   callbackURL?: string;
 }
 
+/** @public */
+export interface VerificationEmailRequest {
+  email: string;
+  /** Where the confirmation link lands the user; defaults to the app root. */
+  callbackURL?: string;
+}
+
 export interface ChangePasswordInput {
   currentPassword: string;
   newPassword: string;
@@ -86,6 +93,12 @@ export interface AuthClientPort {
   changePassword(input: ChangePasswordInput): Promise<WriteResult<void>>;
   /** US-026: request a passwordless magic link; no real delivery in dev. */
   requestMagicLink(input: MagicLinkRequest): Promise<WriteResult<void>>;
+  /**
+   * Re-send the confirmation link for an unverified address (soft verification).
+   * The provider answers the same way for an already-verified address, so this is
+   * no more of an account oracle than the password-reset request is.
+   */
+  sendVerificationEmail(input: VerificationEmailRequest): Promise<WriteResult<void>>;
   /**
    * Email a password-reset link. The provider answers identically whether or not
    * the address has an account, so no caller can turn this into an account

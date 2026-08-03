@@ -33,6 +33,7 @@ export const tenantCreationContext = async (
       userId: user.userId,
       email: user.email,
       name: user.name,
+      emailVerified: user.emailVerified,
       tenantId: null,
       tenantSlug: null,
       tenantName: null,
