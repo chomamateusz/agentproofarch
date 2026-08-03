@@ -48,11 +48,12 @@ before that lives in the git history only.
   are true on the live demo instead of frozen at whatever the database was first
   seeded with, and `post-deploy-smoke` stops failing 401 after a password
   rotation; the seed inserts and updates fixtures only, so visitor-created rows
-  survive (#TBD)
+  survive ([#127](https://github.com/chomamateusz/agentproofarch/pull/127))
 
 - `db:seed` resolves its Postgres driver from `DB_DRIVER` like `db:migrate`
   does, instead of hardcoding `node-postgres` — the shared config comment already
-  promised both build-time entry points resolved it identically (#TBD)
+  promised both build-time entry points resolved it identically
+  ([#127](https://github.com/chomamateusz/agentproofarch/pull/127))
 
 ## v1.3.0 — 2026-08-02
 
