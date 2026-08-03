@@ -20,18 +20,18 @@ before that lives in the git history only.
   account signs in and works normally, and the only capability withheld is
   `tenant:create`, decided in the domain policy so `canCreateTenant` reports the
   same verdict the create route enforces
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
 
 - Session lifetime is pinned explicitly at a 7-day absolute expiry with a 1-day
   activity refresh, and 2FA at 10 backup codes with 6-digit TOTP on a 30-second
   period; a config-regression probe reads all five values back off the composed
   provider options
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
 
 - Account passwords require 12 characters and no character classes (NIST SP
   800-63B-4 §3.1.1), enforced by one constant on both edges — the web register,
   change-password and reset forms and the auth provider's own minimum
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
 
 ### Changed
 
@@ -39,7 +39,7 @@ before that lives in the git history only.
   `demo@agentproofarch.dev` / `demo-agentproof-1234` everywhere (seed, READMEs,
   login-page hint, smoke and e2e fixtures, docs) so the shipped demo satisfies
   the new 12-character floor
-  ([#TBD](https://github.com/chomamateusz/agentproofarch/pull/TBD))
+  ([#125](https://github.com/chomamateusz/agentproofarch/pull/125))
 
 ## v1.3.0 — 2026-08-02
 
