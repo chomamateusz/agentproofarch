@@ -1485,7 +1485,7 @@ together with one pre-verification `domain check`, while post-verification
 | DB | Neon, `DB_DRIVER=neon-http` | `postgres:16`, `DB_DRIVER=node-postgres` |
 | Web | static SPA build | served by the same Node process |
 | Server runtime | bundled function | tsc-compiled JS, prod-only deps, non-root, `HEALTHCHECK` on `/api/health/live` |
-| Migrations | build step (`vercel-build`) | `docker-entrypoint.sh` on startup (idempotent) |
+| Migrations | build step (`vercel-build`), followed by the convergent `db:seed` | `docker-entrypoint.sh` on startup (idempotent); seeds only with `SEED_ON_START` |
 | TLS for tenant domains | per-host attach over the Vercel Domains API, HTTP-01 cert per host (US-020, production add confirmed live plus one pre-verification `check`; post-verification `check` and `remove` acceptance unrecorded) | Caddy `on_demand_tls` + internal domain-check endpoint (built) |
 | Domain provisioner env | `DOMAIN_PROVISIONER=vercel` + `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`), selected explicitly — boot refuses if the block is incomplete | `DOMAIN_PROVISIONER=caddy` + `SELF_HOST_TARGET_CNAME`/`_IP` |
 | Packaging | `vercel.json` + `api/index.ts` | `Dockerfile` + `docker-compose.prod.yml` + `Caddyfile` |
@@ -1837,10 +1837,15 @@ touches:
 - **A dedicated canary tenant, never a real customer.** The run signs in as a
   ring-fenced smoke account in its own tenant (default slug `acme` for local/dev;
   overridden per environment). Its data is disposable and belongs to no creator.
-- **Never `db:seed` against a real database.** `smoke:remote` only drives the
-  public CLI/API — it never seeds. Only the isolated local `smoke` harness (its
-  own throwaway `agentproofarch_smoke` DB) seeds; production is seeded once at
-  provisioning, out of band.
+- **The deploy owns the fixture; the smoke never seeds.** `smoke:remote` only
+  drives the public CLI/API. The fixture it signs in with is converged by the
+  build instead — `vercel-build` runs `db:seed` after `db:migrate` on every
+  deployment (ADR-0003 point 3, amended 2026-08-03), so the published demo
+  credentials stay true instead of drifting the first time they are rotated.
+  This is safe only because the seed is **convergent and delete-free**:
+  `onConflictDoNothing` inserts plus a password update on the demo account, never
+  a truncate, so visitor-created rows survive every deploy. A seed that deleted
+  anything could not run on this path.
 - **Non-self-poisoning by construction.** Every card a run creates is parked in
   an **unbounded** column before it ends (`done` on both boards — absent from
   `TEAM_WIP_LIMITS`), and the team card walks the full legal chain

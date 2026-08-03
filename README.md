@@ -40,7 +40,10 @@ it never overrules them.
 ## Live demo
 
 <https://agentproofarch.vercel.app> — sign in as `demo@agentproofarch.dev` /
-`demo-agentproof-1234`. Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
+`demo-agentproof-1234`. Those credentials are true by construction: every deployment
+build runs the convergent seed, so the live fixture heals back to what this README
+says instead of drifting from it (your todos are safe — the seed never deletes).
+Web is single-tenant on `*.vercel.app` (a wildcard domain is env,
 not code — [ADR-0003](docs/decisions/0003-vercel-environments.md)); the API and
 CLI stay fully multi-tenant via the `X-Tenant` header.
 
