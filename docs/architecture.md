@@ -1582,7 +1582,7 @@ no identity — Admin included — merges past them.
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**, stale approvals dismissed on push, last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval from a code owner** (`.github/CODEOWNERS` routes every path to `@chomamateusz`), stale approvals dismissed on push, last pusher's approval required, every review thread resolved; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-push; restrict deletions; empty bypass |
 | `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches up to date"** (the concurrent-change / F2 guard); block force-push; restrict deletions; empty bypass |
 
 The `visual` job (pixel comparison,

@@ -12,6 +12,16 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-08-05
+
+### Added
+
+- `.github/CODEOWNERS` routing every path to `@chomamateusz`, so
+  `production-protection`'s code-owner review requirement binds on a real owner
+  instead of on an empty owner set; the audit, the backlog and the normative
+  ruleset tables now record the live rule, review-thread resolution included
+  ([#130](https://github.com/chomamateusz/agentproofarch/pull/130))
+
 ## v1.4.0 — 2026-08-03
 
 ## 2026-08-03
