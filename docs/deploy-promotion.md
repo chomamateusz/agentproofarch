@@ -26,10 +26,14 @@ Do this once per Vercel project + GitHub repo.
    Tracking at it (step 1). Delete any legacy `staging` branch — `main` is
    staging now.
 3. **GitHub → Settings → Rules → Rulesets. Create `production-protection`**
-   targeting `production`: require a pull request, **1 required approval**, merge
-   method **Merge** only, required status checks **`check` / `smoke` / `e2e` /
-   `docker-smoke`**, block force-pushes, restrict deletions, and an **empty
-   bypass list** (no role, not even Admin, merges past it).
+   targeting `production`: require a pull request, **1 required approval from a
+   code owner** (`.github/CODEOWNERS` routes every path to `@chomamateusz`, so
+   that requirement binds on a real owner rather than on nobody), stale
+   approvals dismissed on push, the last pusher's approval required, every
+   review thread resolved, merge method **Merge** only, required status checks
+   **`check` / `smoke` / `e2e` / `docker-smoke`**, block force-pushes, restrict
+   deletions, and an **empty bypass list** (no role, not even Admin, merges past
+   it).
 4. **Create `main-gates`** targeting `main`: require a pull request, **0 required
    approvals**, the same four required status checks **plus `ai-review`** (the
    fail-closed doctrine review, added 2026-07-26) **and "require branches to
