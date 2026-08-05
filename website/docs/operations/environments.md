@@ -70,7 +70,7 @@ Both carry an **empty bypass list**, so no identity — Admin included — merge
 
 | Ruleset | Branch | Enforces |
 |---|---|---|
-| `production-protection` | `production` | require a PR + **1 approval**, with stale approvals dismissed on push and the last pusher's approval required; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
+| `production-protection` | `production` | require a PR + **1 approval from a code owner** (`.github/CODEOWNERS` routes every path to `@chomamateusz`), with stale approvals dismissed on push, the last pusher's approval required and every review thread resolved; merge method **Merge only**; required status checks `check` / `smoke` / `e2e` / `docker-smoke`; block force-pushes; restrict deletions; empty bypass |
 | `main-gates` | `main` | require a PR + **0 approvals**; merge method **Merge only**; the same four required status checks **plus `ai-review`** (the fail-closed doctrine review) **and "require branches to be up to date before merging"** (the concurrent-change guard); block force-pushes; restrict deletions; empty bypass |
 
 Both rulesets restrict the merge method to a **merge commit only** — `main-gates` from the start, `production-protection` since 2026-07-26 — so history on both branches is append-only merges, never rewritten squashes or rebases.

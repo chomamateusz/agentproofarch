@@ -227,11 +227,11 @@ prerequisite for running its audit by hand.
   shared runner cannot be a hard line while the flake ruling forbids
   rerun-to-green. *Trigger: stable numbers over weeks, plus an owner decision.*
 - **Scorecard follow-ups** — [`SECURITY.md`](../SECURITY.md) landed with the
-  first run's other mechanical fixes; `CODEOWNERS`, a SAST job (CodeQL) and a
-  dependency update bot remain. A bot must respect the three-day
-  `minimumReleaseAge` cooldown before it is an improvement, and `CODEOWNERS`
-  changes review routing. *Trigger: owner decision, per item — never "the score
-  said so".*
+  first run's other mechanical fixes, and `CODEOWNERS` and the advisory SAST job
+  (`codeql.yml`, see [`audits/ci-security.md`](audits/ci-security.md)) have
+  landed since; a dependency update bot is what remains. A bot must respect the
+  three-day `minimumReleaseAge` cooldown before it is an improvement.
+  *Trigger: owner decision, per item — never "the score said so".*
 - **GitHub private vulnerability reporting** — off today, so
   [`SECURITY.md`](../SECURITY.md) points at email and says so. Enabling it
   gives reporters a private channel inside the Security tab and an advisory
