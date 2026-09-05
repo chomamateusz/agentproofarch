@@ -50,7 +50,7 @@ const baseDeps = (): AppDeps => ({
   cards: {
     listByTenant: async () => [],
     create: async () => {},
-    updatePositions: async () => {},
+    updatePositions: async () => true,
   },
   members: {
     listByTenant: async () => [],

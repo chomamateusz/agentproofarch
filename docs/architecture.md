@@ -1033,9 +1033,9 @@ pagination shape, and any cursor that leaks raw sort values instead of an
 opaque token.
 
 **Concurrency is last-write-wins, documented per aggregate** (NORMATIVE NOW).
-Every current aggregate resolves concurrent writes by LWW — the later write
+Except for card moves, current aggregates resolve concurrent writes by LWW — the later write
 wins, unconditionally — and that is the *documented contract*, not an
-accident: todos and cards are short-lived, per-tenant rows where a lost
+accident: todos are short-lived, per-tenant rows where a lost
 update costs a re-drag, not data. The named upgrade is a `version` column
 with optimistic concurrency (`WHERE version = $expected`, miss → the existing
 `conflict` error code, exit 6), adopted **per aggregate** when its trigger
@@ -1049,6 +1049,8 @@ mechanism nobody exercises is a lie waiting to be believed.
 version → `conflict`) with the column · **REVIEW+AI**: a new aggregate's PR
 must state its concurrency stance (LWW, or version column plus the trigger
 that fired); flag long-lived multi-writer aggregates claiming LWW.
+
+Card moves compare the board snapshot under ordered row locks and persist all position/history updates in one statement; stale snapshots return retryable `conflict` (HTTP 409, CLI exit 6), preventing concurrent moves from silently overwriting one another without a version column.
 
 **Invariant placement matrix** (DECIDE C3, owner: "nie akceptujemy żadnych
 ryzyk"). Every data invariant is placed deliberately — at the database, at the
@@ -1130,6 +1132,7 @@ prevents a caller from half-doing it) backed by a sanctioned idiom:
   grant delete, as one conditional `DELETE … WHERE … AND (owner count > 1)`, so
   two concurrent revokes can never both pass the count and drop the tenant to
   zero owners (§Data conventions, invariant matrix). Single conditional statement.
+- `CardRepository.updatePositions` — compare the locked board snapshot and write all positions/history in one conditional statement; stale moves return `conflict`.
 <!-- MUST-ATOMIC:end -->
 
 — **TYPE**: each MUST-ATOMIC operation is a single port method whose signature

@@ -188,7 +188,7 @@ template.
 | **Timestamps** | normative now for **new** tables | `timestamp('…', { withTimezone: true })`; the domain and contract keep speaking ISO-8601 strings, with the mapping at the adapter's column |
 | **IDs** | normative now for **new** tables | native `uuid('id')` primary keys, application-minted; an FK column always matches the type of the key it references |
 | **List pagination** | normative now for **future** list endpoints | cursor-based: request `?cursor=<opaque>&limit=<n>` with a server-side cap; response `{ items, nextCursor }` where `nextCursor` is `null` on the last page. Never a raw offset |
-| **Concurrency** | normative now | last-write-wins, **documented per aggregate**. The named upgrade is a `version` column with `WHERE version = $expected`, adopted per aggregate when its trigger fires |
+| **Concurrency** | normative now | last-write-wins except card moves (snapshot compare-and-set), **documented per aggregate**. The named upgrade is a `version` column with `WHERE version = $expected`, adopted per aggregate when its trigger fires |
 
 Why integer minor units and not Postgres `numeric`: an amount crosses four
 decimal-hostile layers — JSON, JS `number`, zod, TS arithmetic — and `numeric`
@@ -220,12 +220,13 @@ text key.
 :::caution[Honest caveat — three of these conventions are prescriptions, not practice]
 Money, cursor pagination and `version` columns have **no implementation in the
 tree** — no aggregate carries money, the existing list endpoints (todos, cards)
-return the full tenant-scoped array as **exempt** small bounded lists, and every
-current aggregate is last-write-wins. That is deliberate: blanket version columns
+return the full tenant-scoped array as **exempt** small bounded lists, and aggregates other than card moves are last-write-wins. That is deliberate: blanket version columns
 are refused for the same reason blanket soft-delete is — a mechanism nobody
 exercises is a lie waiting to be believed. What exists today is the *decision*, so
 the first implementation has nothing to invent.
 :::
+
+Card moves compare the board snapshot under ordered row locks and atomically persist positions and history in one SQL statement on both drivers; a stale snapshot returns `conflict` (HTTP 409, CLI exit 6), so refresh the board and retry the move.
 
 ## Invariant placement matrix 🧭 \{#invariant-placement-matrix}
 

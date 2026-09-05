@@ -45,7 +45,8 @@ export interface CardRepository {
     tenantId: string,
     board: BoardId,
     updates: readonly CardPositionUpdate[],
-  ): Promise<void>;
+    expected: readonly Card[],
+  ): Promise<boolean>;
 }
 
 export interface TenantDomainRepository {

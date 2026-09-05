@@ -37,7 +37,7 @@ const depsWith = (findBySlug: AppDeps['tenants']['findBySlug']): AppDeps => ({
   email: { sendMail: async () => {} },
   googleEnabled: false,
   todos: { listByTenant: async () => [], create: async () => {} },
-  cards: { listByTenant: async () => [], create: async () => {}, updatePositions: async () => {} },
+  cards: { listByTenant: async () => [], create: async () => {}, updatePositions: async () => true },
   members: {
     listByTenant: async () => [],
     findByEmail: async () => null,

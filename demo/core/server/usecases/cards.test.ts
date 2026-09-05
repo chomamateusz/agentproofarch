@@ -56,7 +56,13 @@ const fakeRepo = (initial: Card[] = []) => {
     create: async (row) => {
       store.push(row);
     },
-    updatePositions: async (tenantId, board, updates) => {
+    updatePositions: async (tenantId, board, updates, expected) => {
+      const current = store.filter((row) => row.tenantId === tenantId && row.board === board);
+      if (current.length !== expected.length || current.some((row) => {
+        const previous = expected.find((entry) => entry.id === row.id);
+        return !previous || row.column !== previous.column || row.position !== previous.position
+          || JSON.stringify(row.visited) !== JSON.stringify(previous.visited);
+      })) return false;
       for (const update of updates) {
         const row = store.find(
           (entry) => entry.id === update.id && entry.tenantId === tenantId && entry.board === board,
@@ -67,6 +73,7 @@ const fakeRepo = (initial: Card[] = []) => {
           if (update.visited !== undefined) row.visited = [...update.visited];
         }
       }
+      return true;
     },
   };
   return { repo, store };
@@ -252,6 +259,42 @@ describe('cards use-cases — moveCard (personal, free movement)', () => {
     card('c', 't-acme', 'todo', 2),
     card('x', 't-acme', 'doing', 0),
   ];
+
+  it('rejects a stale concurrent move without undoing the winner, then permits a retry', async () => {
+    const { repo, store } = fakeRepo(seed());
+    const read = repo.listByTenant;
+    let releaseReads = () => {};
+    const bothRead = new Promise<void>((resolve) => { releaseReads = resolve; });
+    let reads = 0;
+    repo.listByTenant = async (tenantId, board) => {
+      const snapshot = await read(tenantId, board);
+      reads += 1;
+      if (reads === 2) releaseReads();
+      await bothRead;
+      return snapshot;
+    };
+    const move = (cardId: string) => moveCard(
+      { identity: identity('t-acme'), tenantCreationMode: 'open' },
+      { cardId, toColumn: 'doing', toIndex: 0 },
+      deps(repo),
+    );
+
+    const [first, second] = await Promise.all([move('a'), move('b')]);
+
+    expect(first).toMatchObject({ ok: true, value: { id: 'a', column: 'doing' } });
+    expect(second).toMatchObject({
+      ok: false,
+      error: { code: 'conflict', details: { retryable: true } },
+    });
+    expect(await layout(repo, 't-acme')).toEqual({ todo: ['b', 'c'], doing: ['a', 'x'] });
+    expect(store.find((row) => row.id === 'a')?.visited).toEqual(['todo', 'doing']);
+    expect(store.find((row) => row.id === 'b')?.visited).toEqual(['todo']);
+
+    expect(await move('b')).toMatchObject({ ok: true, value: { id: 'b', column: 'doing' } });
+    expect(await layout(repo, 't-acme')).toEqual({ todo: ['c'], doing: ['b', 'a', 'x'] });
+    expect(store.filter((row) => row.column === 'doing').map((row) => row.position).sort())
+      .toEqual([0, 1, 2]);
+  });
 
   it('reorders within a column and rewrites contiguous positions', async () => {
     const { repo } = fakeRepo(seed());

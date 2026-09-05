@@ -309,11 +309,12 @@ describe('CardRepository', () => {
 
   it('updatePositions rewrites column + position for the tenant rows', async () => {
     // Move cardA2 to the front of doing, renumber both columns contiguously.
+    const expected = await cardRepo().listByTenant(tenantA.id, 'personal');
     await cardRepo().updatePositions(tenantA.id, 'personal', [
       { id: cardA2.id, column: 'doing', position: 0 },
       { id: cardA3.id, column: 'doing', position: 1 },
       { id: cardA1.id, column: 'todo', position: 0 },
-    ]);
+    ], expected);
     const byId = new Map((await cardRepo().listByTenant(tenantA.id, 'personal')).map((c) => [c.id, c]));
     expect(byId.get(cardA2.id)).toMatchObject({ column: 'doing', position: 0 });
     expect(byId.get(cardA3.id)).toMatchObject({ column: 'doing', position: 1 });
@@ -323,7 +324,7 @@ describe('CardRepository', () => {
   it('updatePositions is tenant-scoped: another tenant cannot renumber these cards', async () => {
     const before = (await cardRepo().listByTenant(tenantB.id, 'personal')).find((c) => c.id === cardB1.id);
     // tenantA attempts to move tenantB's card — the id/tenant guard makes it a no-op.
-    await cardRepo().updatePositions(tenantA.id, 'personal', [{ id: cardB1.id, column: 'done', position: 9 }]);
+    await cardRepo().updatePositions(tenantA.id, 'personal', [{ id: cardB1.id, column: 'done', position: 9 }], await cardRepo().listByTenant(tenantA.id, 'personal'));
     const after = (await cardRepo().listByTenant(tenantB.id, 'personal')).find((c) => c.id === cardB1.id);
     expect(after).toEqual(before);
   });

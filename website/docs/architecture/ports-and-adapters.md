@@ -65,7 +65,7 @@ Distilled from `demo/core/server/ports.ts` (plus the one client port in
 | Port | Methods | Adapter |
 |---|---|---|
 | `TodoRepository` | `listByTenant`, `create` | `adapters/db/repositories.ts` |
-| `CardRepository` | `listByTenant(tenantId, board)`, `create`, `updatePositions(tenantId, board, updates)` | `adapters/db/cards-repository.ts` |
+| `CardRepository` | `listByTenant(tenantId, board)`, `create`, `updatePositions(tenantId, board, updates, expected)` | `adapters/db/cards-repository.ts` |
 | `MemberRepository` | `listByTenant`, `findByEmail`, `findByTenantAndId`, `create`, `update`, `deleteByTenantAndId` | `adapters/db/members-repository.ts` |
 | `StaffRepository` | `listByTenant`, `findGrant`, `grant`, **`revokeLastOwnerSafe`** | `adapters/db/staff-repository.ts` |
 | `TenantRepository` | `findById`, `findBySlug`, **`createTenantWithOwner`**, `deleteTenant` | `adapters/db/repositories.ts` |
