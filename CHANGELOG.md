@@ -12,6 +12,12 @@ This file was backfilled on 2026-07-26 from merged pull-request history and star
 at PR [#45](https://github.com/chomamateusz/agentproofarch/pull/45); everything
 before that lives in the git history only.
 
+## 2026-09-06
+
+### Fixed
+
+- Apply concurrent card moves atomically or return a retryable conflict instead of silently losing a move.
+
 ## 2026-08-05
 
 ### Added

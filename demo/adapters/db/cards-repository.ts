@@ -1,4 +1,5 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { cardSchema } from '#core/domain/index.js';
 import type { CardRepository } from '#core/server/index.js';
@@ -21,24 +22,34 @@ export const createCardRepository = (db: Db): CardRepository => ({
   create: async (card) => {
     await db.insert(cards).values(card);
   },
-  // Positions are rewritten row-by-row scoped to the tenant + board. Sequential
-  // (not a db.transaction) so the same code runs under neon-http, which has no
-  // interactive transactions; the use-case re-clamps on every read, and a
-  // transient partial reorder is tolerated. `visited` is written only when the
-  // update carries it (the moving card), so the reorder pass leaves other
-  // cards' history untouched.
-  updatePositions: async (tenantId, board, updates) => {
-    for (const update of updates) {
-      await db
-        .update(cards)
-        .set({
-          column: update.column,
-          position: update.position,
-          ...(update.visited === undefined ? {} : { visited: [...update.visited] }),
-        })
-        .where(
-          and(eq(cards.id, update.id), eq(cards.tenantId, tenantId), eq(cards.board, board)),
-        );
-    }
+  updatePositions: async (tenantId, board, updates, expected) => {
+    if (updates.length === 0) return true;
+    const snapshot = Object.fromEntries(
+      expected.map((card) => [card.id, [card.column, card.position, card.visited]]),
+    );
+    // Compare the locked rows: an unlocked subquery could retain the pre-wait
+    // statement snapshot and approve a stale move.
+    const result = await db.execute(sql`
+      WITH locked_cards AS MATERIALIZED (
+        SELECT id, "column", position, visited FROM cards
+        WHERE tenant_id = ${tenantId} AND board = ${board}
+        ORDER BY id
+        FOR UPDATE
+      )
+      UPDATE cards AS target
+      SET "column" = changes."column", position = changes.position,
+          visited = COALESCE(changes.visited, target.visited)
+      FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb)
+        AS changes(id text, "column" text, position integer, visited jsonb)
+      WHERE target.id = changes.id AND target.tenant_id = ${tenantId} AND target.board = ${board}
+        AND (SELECT COALESCE(jsonb_object_agg(id, jsonb_build_array("column", position, visited)), '{}'::jsonb)
+             FROM locked_cards) = ${JSON.stringify(snapshot)}::jsonb
+      RETURNING target.id
+    `);
+    const rows = z.union([
+      z.array(z.object({ id: z.string() })),
+      z.object({ rows: z.array(z.object({ id: z.string() })) }).transform((value) => value.rows),
+    ]).parse(result);
+    return rows.length === updates.length;
   },
 });

@@ -1,4 +1,5 @@
 import {
+  appError,
   canApplyTeamMove,
   cardListQuerySchema,
   cardMoveSchema,
@@ -162,6 +163,9 @@ export const moveCard = async (
       });
   }
 
-  await deps.cards.updatePositions(tenantId, board, updates);
+  const applied = await deps.cards.updatePositions(tenantId, board, updates, all);
+  if (!applied) {
+    return err(appError('conflict', 'Board changed; refresh and retry the move', { retryable: true }));
+  }
   return ok(moved);
 };
