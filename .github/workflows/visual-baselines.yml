@@ -50,7 +50,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       mailpit:
-        image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
+        image: axllent/mailpit:v1.30@sha256:d5ecbb067db3705fa953d79e1b7f81ef84038df67aba6c52825d8c02a1ea748a
         ports:
           - 47925:1025
           - 47980:8025
@@ -67,7 +67,7 @@ jobs:
         run: |
           echo "commit: true requires update: true dispatched on a branch." >&2
           exit 1
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.sha || github.ref }}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
