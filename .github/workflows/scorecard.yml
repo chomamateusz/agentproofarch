@@ -25,10 +25,10 @@ jobs:
       actions: read
       security-events: write
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
         with:
           results_file: results.sarif
           results_format: sarif
@@ -41,6 +41,6 @@ jobs:
           name: scorecard-results
           path: results.sarif
           retention-days: 7
-      - uses: github/codeql-action/upload-sarif@dfbc6164313353db46c80e2fcfd38820bd2c3c46 # v3.37.4
+      - uses: github/codeql-action/upload-sarif@ce5e7eeac396d720fe2d802714996c8ce561e311 # v3.39.0
         with:
           sarif_file: results.sarif
