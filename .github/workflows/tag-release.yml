@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - id: version
         run: printf 'value=%s\n' "$(node -p "require('./demo/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
