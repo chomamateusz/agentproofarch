@@ -4,7 +4,7 @@
 # image carries zero dev dependencies and no tsx runtime — only the compiled
 # output plus the production dependency tree.
 
-FROM node:24-bookworm@sha256:19cd848a0e073d34bd8cd5545a1b6b4d28489b3e3b607366621ced442bd5f6b4 AS builder
+FROM node:24-bookworm@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS builder
 WORKDIR /build
 ENV CI=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -24,14 +24,14 @@ RUN pnpm exec tsc -p tsconfig.docker.json \
 # layout exposes only DECLARED dependencies, so @opentelemetry/sdk-trace-base
 # is a production dependency in its own right: under npm it resolved here only
 # because hoisting flattened it out of @opentelemetry/sdk-trace-node.
-FROM node:24-bookworm@sha256:19cd848a0e073d34bd8cd5545a1b6b4d28489b3e3b607366621ced442bd5f6b4 AS prod-deps
+FROM node:24-bookworm@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS prod-deps
 WORKDIR /build
 ENV CI=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && corepack prepare --activate
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-bookworm-slim@sha256:235600a8101ab264e117b1768e925532262668dc9b581ef1dd7d96ced463b8e7 AS runtime
+FROM node:24-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9 AS runtime
 ENV NODE_ENV=production \
     PORT=47100 \
     WEB_DIST_DIR=dist/web
